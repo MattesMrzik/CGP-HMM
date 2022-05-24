@@ -20,7 +20,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C
         prRed("build of CgpHmmLayer done")
 
-    def call(self, inputs):
+    def call(self, inputs, training = False):
 
         # todo do i need to reset statse?
 
@@ -52,6 +52,17 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             for j in range(tf.shape(alpha_seq)[1]): # = seq length
                 tf.print(count_seq[i,j], inputs_seq[i,j], alpha_seq[i,j])
             break
+
+
+        likelihood_mean = tf.reduce_mean(loglik_state)
+        # squeeze removes dimensions of size 1, ie shape (1,3,2,1) -> (3,2)
+        self.add_loss(tf.squeeze(-likelihood_mean))
+
+        if training:
+            prRed("training is true")
+            self.add_metric(likelihood_mean, "likelihood")
+        else:
+            prRed("training is false")
 
         prRed("return loglik")
         return loglik_state
