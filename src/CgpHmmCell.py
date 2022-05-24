@@ -8,7 +8,7 @@ def prRed(skk): print("Cell\033[93m {}\033[00m" .format(skk))
 class CgpHmmCell(tf.keras.layers.Layer):
     def __init__(self):
         super(CgpHmmCell, self).__init__()
-        self.state_size = [5,1,1] # todo is this 5 hidden alphas an the loglike?
+        self.state_size = [24,1,1]
         self.alphabet_size = 4
 
 
@@ -51,9 +51,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         id = np.random.randint(100)
         # is inputs one seq if batch_size = 1 or the current symbol in the seq?
         old_forward, old_loglik, count = states
-        prRed("in call of CgpHmmCell")
-        prRed("count " + str(count[0,0]))
-        print("id =", id, "inputs in call of CgpHmmCell = ", inputs)
+        # prRed("in call of CgpHmmCell")
+        # prRed("count " + str(count[0,0]))
+        # print("id =", id, "inputs in call of CgpHmmCell = ", inputs)
         # print("states in call of CgpHmmCell = ", states)
         # print("A in call of CgpHmmCell = ", self.A) # 5x5
         # print("B in call of CgpHmmCell = ", self.B) # 5x4
@@ -66,21 +66,21 @@ class CgpHmmCell(tf.keras.layers.Layer):
             #       column vector                                                    batch_size          one column
             alpha = tf.reshape(tf.linalg.matmul(inputs, tf.transpose(self.B))[:,0], (tf.shape(inputs)[0],1)) # todo use transpose_b = True
             # tf.shape(inputs)[0], 5 - 1) should be (None, 4) when model is build and input is not yet known
-            z = tf.zeros((tf.shape(inputs)[0], 5    - 1), dtype = tf.float32)
+            z = tf.zeros((tf.shape(inputs)[0], self.state_size[0] - 1), dtype = tf.float32)
             alpha = tf.concat((alpha, z),1) # 1 is axis#prRed("alpha =")
-            prRed("alpha =")
-            print(alpha)
+            # prRed("alpha =")
+            # print(alpha)
         else:
             R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
             # print("R in call of CgpHmmCell = ", R)
-            prRed("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-            prRed("b")
-            print("id =", id, tf.linalg.matmul(inputs, tf.transpose(self.B)))
-            prRed("R")
-            print("id =", id, R)
+            # prRed("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
+            # prRed("b")
+            # print("id =", id, tf.linalg.matmul(inputs, tf.transpose(self.B)))
+            # prRed("R")
+            # print("id =", id, R)
             alpha = tf.linalg.matmul(inputs, tf.transpose(self.B)) * R
-            prRed("alpha =")
-            print(alpha)
+            # prRed("alpha =")
+            # print(alpha)
         likelihood = tf.reduce_sum(alpha, axis=-1, keepdims=True, name="likelihood")
         # prRed("likelihood")
         # print(likelihood)

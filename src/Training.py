@@ -15,6 +15,7 @@ from CgpHmmCell import CgpHmmCell
 # print(train_dataset)
 
 def prRed(skk): print("Training\033[92m {}\033[00m" .format(skk))
+np.set_printoptions(linewidth=400)
 
 def make_model():
     alphabet_size = 4
@@ -95,11 +96,23 @@ def fit_model():
     prRed("96data_set")
     print(data_set)
     prRed("history = model.fit(data_set, epochs=2, steps_per_epoch=2)")
-    history = model.fit(data_set, epochs=5, steps_per_epoch=10)
-    # prRed("weights")
-    # print(model.get_weights())
 
+    class my_callback(tf.keras.callbacks.Callback):
+        def on_epoch_begin(self, epoch, logs = None):
+            print("model.weights")
+            print("A =", tf.nn.softmax(model.get_weights()[0][0]))
+
+    # callbacks = [tf.keras.callbacks.LambdaCallback(on_epoch_end = lambda epoch, logs: print("A =", tf.nn.softmax(model.get_weights()[0])))]
+    callbacks = [my_callback()]
+    # callbacks = []
+    history = model.fit(data_set, epochs=10, steps_per_epoch=100, callbacks = callbacks) # with callbacks it is way slower
 
     return model, history
 
 model, history = fit_model()
+prRed("history")
+print(history)
+# prRed("weights")
+
+# print("A =", tf.nn.softmax(model.get_weights()[0]))
+# print("B =", tf.nn.softmax(model.get_weights()[1]))

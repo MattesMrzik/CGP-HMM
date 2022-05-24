@@ -11,24 +11,24 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         super(CgpHmmLayer, self).__init__()
 
     def build(self, input_shape):
-        prRed("build of CgpHmmLayer")
-        prRed("self.C = CgpHmmCell()")
+        # prRed("build of CgpHmmLayer")
+        # prRed("self.C = CgpHmmCell()")
         self.C = CgpHmmCell()
         # print(11)
         # self.C.build(input_shape)
-        prRed("self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C")
+        # prRed("self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C")
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C
-        prRed("build of CgpHmmLayer done")
+        # prRed("build of CgpHmmLayer done")
 
     def call(self, inputs, training = False):
 
         # todo do i need to reset statse?
 
 
-        prRed("call of CgpHmmLayer:")
-        print("inputs = ")
+        # prRed("call of CgpHmmLayer:")
+        # print("inputs = ")
         # tf.print(inputs, summarize=100)
-        prRed("_, _, loglik = self.F(inputs)")
+        # prRed("_, _, loglik = self.F(inputs)")
         # _, _, loglik = self.F(inputs, initial_state = self.C.get_initial_state()) #  build and call of CgpHmmCell are called
 
         # todo need initial states: for init of alpha, bc alpha_0 oder alpha_-1 is initialized with zeros
@@ -47,11 +47,11 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         prRed("alpha_seq, inputs_seq, count_seq")
         # return_seq = tf.concat((count_seq, inputs_seq,alpha_seq), axis = 1)
         # tf.print(return_seq, summarize = 100)
-        for i in range(tf.shape(alpha_seq)[0]): # = batch_size
-            prRed(i)
-            for j in range(tf.shape(alpha_seq)[1]): # = seq length
-                tf.print(count_seq[i,j], inputs_seq[i,j], alpha_seq[i,j])
-            break
+        # for i in range(tf.shape(alpha_seq)[0]): # = batch_size
+        #     prRed(i)
+        #     for j in range(tf.shape(alpha_seq)[1]): # = seq length
+        #         tf.print(count_seq[i,j], inputs_seq[i,j], alpha_seq[i,j])
+        #     break
 
 
         likelihood_mean = tf.reduce_mean(loglik_state)
