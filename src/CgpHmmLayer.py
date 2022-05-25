@@ -54,13 +54,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #     break
 
 
-        likelihood_mean = tf.reduce_mean(loglik_state)
+        loglik_mean = tf.reduce_mean(loglik_state)
         # squeeze removes dimensions of size 1, ie shape (1,3,2,1) -> (3,2)
-        self.add_loss(tf.squeeze(-likelihood_mean))
+        self.add_loss(tf.squeeze(-loglik_mean))
 
         if training:
             prRed("training is true")
-            self.add_metric(likelihood_mean, "likelihood")
+            self.add_metric(loglik_mean, "loglik")
         else:
             prRed("training is false")
 

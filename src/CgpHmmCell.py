@@ -8,7 +8,7 @@ def prRed(skk): print("Cell\033[93m {}\033[00m" .format(skk))
 class CgpHmmCell(tf.keras.layers.Layer):
     def __init__(self):
         super(CgpHmmCell, self).__init__()
-        self.state_size = [24,1,1]
+        self.state_size = [2,1,1]
         self.alphabet_size = 4
 
 
@@ -47,53 +47,63 @@ class CgpHmmCell(tf.keras.layers.Layer):
     # def get_initial_state(self):
     #     return [[1,0,0,0,0],[0,0,0,0,0]]
 
-    def call(self, inputs, states, training = None):
+    def call(self, inputs, states, training = None, verbose = True):
         id = np.random.randint(100)
-        # is inputs one seq if batch_size = 1 or the current symbol in the seq?
         old_forward, old_loglik, count = states
-        # prRed("in call of CgpHmmCell")
-        # prRed("count " + str(count[0,0]))
-        # print("id =", id, "inputs in call of CgpHmmCell = ", inputs)
-        # print("states in call of CgpHmmCell = ", states)
-        # print("A in call of CgpHmmCell = ", self.A) # 5x5
-        # print("B in call of CgpHmmCell = ", self.B) # 5x4
+
+        if verbose:
+            prRed("in call of CgpHmmCell")
+            prRed("count " + str(count[0,0]))
+            print("id =", id, "inputs = ", inputs)
+            print("states ", states)
+            print("A = ", self.A) # 5x5
+            print("B = ", self.B) # 5x4
 
 
-        # prRed("old_loglik")
-        count = count + 1
+        count = count + 1 # counts i in alpha(q,i)
         alpha = 0
         if count[0,0] == 1: # 0 for first seq in batch, second 0 bc shape is [batch_size, 1]
             #       column vector                                                    batch_size          one column
             alpha = tf.reshape(tf.linalg.matmul(inputs, tf.transpose(self.B))[:,0], (tf.shape(inputs)[0],1)) # todo use transpose_b = True
-            # tf.shape(inputs)[0], 5 - 1) should be (None, 4) when model is build and input is not yet known
             z = tf.zeros((tf.shape(inputs)[0], self.state_size[0] - 1), dtype = tf.float32)
             alpha = tf.concat((alpha, z),1) # 1 is axis#prRed("alpha =")
-            # prRed("alpha =")
-            # print(alpha)
+            alpha = tf.math.log(alpha)
+
+            if verbose:
+                prRed("alpha =")
+                print(alpha)
+
         else:
-            R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
-            # print("R in call of CgpHmmCell = ", R)
-            # prRed("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")
-            # prRed("b")
-            # print("id =", id, tf.linalg.matmul(inputs, tf.transpose(self.B)))
-            # prRed("R")
-            # print("id =", id, R)
-            alpha = tf.linalg.matmul(inputs, tf.transpose(self.B)) * R
-            # prRed("alpha =")
-            # print(alpha)
-        likelihood = tf.reduce_sum(alpha, axis=-1, keepdims=True, name="likelihood")
-        # prRed("likelihood")
-        # print(likelihood)
-        # print("input shape =", tf.shape(inputs))
-        # print("input =", inputs[0])
-        # print(alpha[0])
+            R = tf.linalg.matvec(self.A, tf.math.exp(old_forward), transpose_a = True)
+            R = tf.math.log(R)
+            E = tf.linalg.matmul(inputs, tf.transpose(self.B))
+            E = tf.math.log(E)
+
+            if verbose:
+                prRed("R =")
+                print(R)
+                prRed("E =")
+                print(E)
+
+            alpha = E + R
+
+            if verbose:
+                prRed("alpha =")
+                print(alpha)
+
+        loglik = tf.math.log(tf.reduce_sum(tf.math.exp(alpha), axis=-1, keepdims=True, name="loglik"))
+
+        if verbose:
+            prRed("loglik =")
+            print(loglik[0,0])
+
 
         # todo  where is the size of the cell state specified? output_size?
 
         # i think the second return argument is the cell state, which is used as input to next cell
         # the first argument is stored in return sequences
 
-        return [alpha, inputs, count], [alpha, likelihood, count] # todo warum soll hier die likelihood doppelt zurück gegeben werden?
+        return [alpha, inputs, count], [alpha, loglik, count] # todo warum soll hier die likelihood doppelt zurück gegeben werden?
 
         # wenn state_size = [5,2], dann muss nur da zweite argument die richtige shape haben, das erste scheint egal
         # return likelihood, [alpha, old_loglik]
