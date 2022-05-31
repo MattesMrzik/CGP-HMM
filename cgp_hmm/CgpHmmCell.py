@@ -56,12 +56,20 @@ class CgpHmmCell(tf.keras.layers.Layer):
             prRed("count " + str(count[0,0]))
             print("id =", id, "inputs = ", inputs)
             print("states ", states)
-            print("A = ", self.A) # 5x5
-            print("B = ", self.B) # 5x4
+            print("A = ", self.A) # states x states
+            print("B = ", self.B) # states x emissions
 
 
         count = count + 1 # counts i in alpha(q,i)
         alpha = 0
+
+        #            if count[0,0] == 1: # 0 for first seq in batch, second 0 bc shape is [batch_size, 1]
+        # tensorflow.python.framework.errors_impl.OperatorNotAllowedInGraphError: Exception encountered when calling layer "cgp_hmm_cell" (type CgpHmmCell).
+        #
+        # using a `tf.Tensor` as a Python `bool` is not allowed: AutoGraph did convert this function. This might indicate you are trying to use an unsupported feature.
+
+        # todo: also use multiplication with 0 instead of "if"
+
         if count[0,0] == 1: # 0 for first seq in batch, second 0 bc shape is [batch_size, 1]
             #       column vector                                                    batch_size          one column
             alpha = tf.reshape(tf.linalg.matmul(inputs, tf.transpose(self.B))[:,0], (tf.shape(inputs)[0],1)) # todo use transpose_b = True
@@ -97,13 +105,5 @@ class CgpHmmCell(tf.keras.layers.Layer):
             prRed("loglik =")
             print(loglik[0,0])
 
-
-        # todo  where is the size of the cell state specified? output_size?
-
-        # i think the second return argument is the cell state, which is used as input to next cell
-        # the first argument is stored in return sequences
-
-        return [alpha, inputs, count], [alpha, loglik, count] # todo warum soll hier die likelihood doppelt zurück gegeben werden?
-
-        # wenn state_size = [5,2], dann muss nur da zweite argument die richtige shape haben, das erste scheint egal
-        # return likelihood, [alpha, old_loglik]
+        #      return sequences = True, cell state
+        return [alpha, inputs, count], [alpha, loglik, count] # todo warum die loglik berechnung wie im paper iterativ und nicht einfach über alpha?
