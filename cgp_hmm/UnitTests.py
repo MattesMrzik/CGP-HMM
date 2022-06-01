@@ -8,7 +8,7 @@ from CgpHmmLayer import CgpHmmLayer
 import Utility
 
 class TestViterbi(unittest.TestCase):
-    def atest_Viterbi(self):# todo also test with passing a0
+    def off_test_Viterbi(self):# todo also test with passing a0
         state_space_size = 3
         emission_space_size = 4
         a = tf.nn.softmax(np.random.rand(state_space_size, state_space_size))
@@ -45,7 +45,7 @@ class TestViterbi(unittest.TestCase):
                                 Utility.brute_force_viterbi_log_version(a,b,y, a0)))
 
 class Test_Helpers(unittest.TestCase):
-    def atest_P_of_X_Y(self):
+    def off_test_P_of_X_Y(self):
         state_space_size = 3
         emission_space_size = 4
         a = tf.nn.softmax(np.random.rand(state_space_size, state_space_size))
@@ -63,8 +63,20 @@ class Test_Helpers(unittest.TestCase):
             self.assertAlmostEqual(Utility.P_of_X_Y(a,b,x,y,a0), np.exp(Utility.P_of_X_Y_log_version(a,b,x,y,a0)), delta = 0.0000001)
 
 class TestForward(unittest.TestCase):
+    def test_tf_scaled_forward_to_manual_scaled_forward(self):
+        pass
+    # manual forward <-- using the z of manual --> manual scaled forward
+    def test_manual_scaled_forward_to_manual_true_forward(self):
+        pass
+    # tf scaled forward <-- using the z of tf --> manual forward
+    def test_tf_scaled_transformed_forward_to_manual_true_forward(self):
+        pass
+    # need to test manual true forward ie check if sum q alpha qn is same as brute force p(y)
 
-    def test_forward(self):
+
+
+    # this is kept just in case
+    def off_test_tf_log_forward(self):
 
         n = 6
         l = 5

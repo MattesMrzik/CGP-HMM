@@ -59,7 +59,7 @@ def fullprint(*args, **kwargs):
 ########################################################################
 ########################################################################
 
-# farward = P_theta(Y)
+# forward = P_theta(Y)
 def forward(a,b,y, a0 = []):
     num_states = len(a)
     alpha = np.zeros((num_states,len(y)))

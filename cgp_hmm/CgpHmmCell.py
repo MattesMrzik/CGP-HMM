@@ -48,6 +48,25 @@ class CgpHmmCell(tf.keras.layers.Layer):
     #     return [[1,0,0,0,0],[0,0,0,0,0]]
 
     def call(self, inputs, states, training = None, verbose = False):
+        old_forward, old_loglik, count = states
+        count = count + 1 # counts i in alpha(q,i)
+        if count[0,0] == 1:
+            alpha = tf.reshape(tf.linalg.matmul(inputs, tf.transpose(self.B))[:,0], (tf.shape(inputs)[0],1)) # todo use transpose_b = True
+            z = tf.zeros((tf.shape(inputs)[0], self.state_size[0] - 1), dtype = tf.float32)
+            alpha = tf.concat((alpha, z),1) # 1 is axis#prRed("alpha =")
+            loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+        else:
+            R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
+            E = tf.linalg.matmul(inputs, tf.transpose(self.B))
+            Z_i_minus_1 = tf.reduce_sum(old_forward, axis=-1, keepdims = True)
+            R /= Z_i_minus_1
+            alpha = E * R
+            loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+
+        # loglik = tf.squeeze(loglik)
+        return [alpha, inputs, count], [alpha, loglik, count]
+
+    def log_call(self, inputs, states, training = None, verbose = False):
         id = np.random.randint(100)
         old_forward, old_loglik, count = states
 
@@ -61,7 +80,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
 
         count = count + 1 # counts i in alpha(q,i)
-        alpha = 0
 
         #            if count[0,0] == 1: # 0 for first seq in batch, second 0 bc shape is [batch_size, 1]
         # tensorflow.python.framework.errors_impl.OperatorNotAllowedInGraphError: Exception encountered when calling layer "cgp_hmm_cell" (type CgpHmmCell).
@@ -106,4 +124,4 @@ class CgpHmmCell(tf.keras.layers.Layer):
             print(loglik[0,0])
 
         #      return sequences = True, cell state
-        return [alpha, inputs, count], [alpha, loglik, count] # todo warum die loglik berechnung wie im paper iterativ und nicht einfach über alpha?
+        return [alpha, inputs, count], [alpha, loglik, count]
