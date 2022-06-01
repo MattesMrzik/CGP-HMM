@@ -17,10 +17,9 @@ def make_model():
     sequences = tf.keras.Input(shape = (50, alphabet_size), name = "sequences")
     # another None added automatically for yet unkown batch_size
     # todo what if sequences have differing lenghts, then the 24 cant stay, padding?
+    cgp_hmm_layer = CgpHmmLayer() # init of layer
 
-    cgp_hmm_layer = CgpHmmLayer()
-
-    loglik = cgp_hmm_layer(sequences)
+    loglik = cgp_hmm_layer(sequences) # layer is build, then called
 
     print([tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik)])
 
@@ -36,7 +35,7 @@ def make_dataset():
     return ds, one_hot
 
 def fit_model():
-    model, cgp_hmm_layer = make_model()#
+    model, cgp_hmm_layer = make_model()
     learning_rate = .1
     optimizer = tf.optimizers.Adam(learning_rate)
     model.compile(optimizer = optimizer)

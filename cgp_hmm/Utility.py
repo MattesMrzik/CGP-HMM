@@ -3,35 +3,46 @@ import numpy as np
 from Bio import SeqIO
 from ReadData import read_data_one_hot
 
+
 np.set_printoptions(linewidth=200)
 
 ########################################################################
 ########################################################################
 ########################################################################
-def generate_state_emission_seqs(a,b,n,l, a0 = []):
+def generate_state_emission_seqs(a,b,n,l, a0 = [], one_hot = False):
 
     state_space_size = len(a)
-    emission_state_size = len(b[0])
+    emission_space_size = len(b[0])
 
-    list_of_state_space_size = list(range(state_space_size))
-    list_of_emission_state_size = list(range(emission_state_size))
+    states = 0
+    emissions = 0
 
+    def loaded_dice(faces, p):
+        return np.argmax(np.random.multinomial(1,p))
 
-    states = np.zeros((n,l,state_space_size))
-    emissions = np.zeros((n,l,emission_state_size))
+    # todo just use else case, this can be converted by tf.one_hot
+    if one_hot:
+        states = np.zeros((n,l,state_space_size), dtype = np.int64)
+        emissions = np.zeros((n,l,emission_space_size), dtype = np.int64)
+        for i in range(n):
+            states[i,0,0 if len(a0) == 0 else loaded_dice(state_space_size, a0)] = 1
+            emissions[i,0, loaded_dice(emission_space_size, b[np.argmax(states[i,0,:])])] = 1
+            for j in range(1,l):
+                states[i,j, loaded_dice(state_space_size, a[np.argmax(states[i,j-1])])] = 1
+                emissions[i,j, loaded_dice(emission_space_size, b[np.argmax(states[i,j-1])])] = 1
+            # emssions.write(seq + "\n")
+            # states.write(">id" + str(i) + "\n")
+            # states.write(state_seq + "\n")
+    else:
+        states = np.zeros((n,l), dtype = np.int64)
+        emissions = np.zeros((n,l), dtype = np.int64)
+        for i in range(n):
+            states[i,0] = 0 if len(a0) == 0 else loaded_dice(state_space_size, a0)
+            emissions[i,0] = loaded_dice(emission_space_size, b[states[i,0]])
+            for j in range(1,l):
+                states[i,j] = loaded_dice(state_space_size, a[states[i,j-1]])
+                emissions[i,j] = loaded_dice(emission_space_size, b[states[i,j-1]])
 
-    def rand_with_p(list, dist):
-        return np.random.choice(list, size = 1, p = dist)[0]
-
-    for i in range(n):
-        states[i,0,0 if len(a0) == 0 else rand_with_p(list_of_state_space_size, a0)] = 1
-        emissions[i,0, rand_with_p(list_of_emission_state_size, b[np.argmax(states[0,0,:])])] = 1
-        for j in range(l):
-            states[i,j, rand_with_p(list_of_state_space_size, a[np.argmax(states[i,j-1])])] = 1
-            emissions[i,j, rand_with_p(emission_state_size, b[np.argmax(states[i,j-1])])] = 1
-        # emssions.write(seq + "\n")
-        # states.write(">id" + str(i) + "\n")
-        # states.write(state_seq + "\n")
     return states, emissions
 ########################################################################
 ########################################################################
@@ -127,13 +138,17 @@ def P_of_X_i_is_q_given_Y(a,b,y,q,cca0 = []):
     pass
 
 def P_of_X_Y(a,b,x,y, a0 = []):
-    p = b[x[0], y[0]] if len(a0) == 0 else a0[x[0]] * b[x[0], y[0]]
+    if len(a0) == 0 and x[0] != 0:
+        return 0
+    p = b[0, y[0]] if len(a0) == 0 else a0[x[0]] * b[x[0], y[0]]
     for i in range(1,len(y)):
         p *= a[x[i-1], x[i]]
         p *= b[x[i], y[i]]
-        return p
+    return p
 
 def P_of_X_Y_log_version(a,b,x,y, a0 =[]):
+    if len(a0) == 0 and x[0] != 0:
+        return float("-inf")
     p = np.log(b[0, y[0]]) if len(a0) == 0 else np.log(a0[x[0]] * b[x[0], y[0]])
     for i in range(1,len(y)):
         p += np.log(a[x[i-1], x[i]])

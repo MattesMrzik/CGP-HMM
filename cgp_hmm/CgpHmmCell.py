@@ -13,13 +13,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
 
     def build(self, input_shape):
-        prRed("build of CgpHmmCell")
         self.transition_kernel = self.add_weight(shape = (self.state_size[0], self.state_size[0]),
                                               initializer="random_normal",
                                               trainable=True)
         self.emission_kernel = self.add_weight(shape = (self.state_size[0], self.alphabet_size),
                                               initializer="random_normal",
                                               trainable=True)
+
     @property
     def A(self):
         transition_matrix = tf.nn.softmax(self.transition_kernel, axis=-1, name="A")
@@ -47,7 +47,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
     # def get_initial_state(self):
     #     return [[1,0,0,0,0],[0,0,0,0,0]]
 
-    def call(self, inputs, states, training = None, verbose = True):
+    def call(self, inputs, states, training = None, verbose = False):
         id = np.random.randint(100)
         old_forward, old_loglik, count = states
 
