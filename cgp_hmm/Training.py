@@ -28,13 +28,13 @@ def make_model():
     return model, cgp_hmm_layer
 
 
-def make_dataset():
+def make_dataset(path):
     seqs = []
-    one_hot = read_data_one_hot("../rest/intron_AT_exon_GC.out")
+    one_hot = read_data_one_hot(path)
     ds = tf.data.Dataset.from_tensors(one_hot).repeat()
     return ds, one_hot
 
-def fit_model():
+def fit_model(path):
     model, cgp_hmm_layer = make_model()
     learning_rate = .1
     optimizer = tf.optimizers.Adam(learning_rate)
@@ -45,7 +45,7 @@ def fit_model():
     # _, seqs = make_dataset()# first return value is data_set
     # model(seqs)
 
-    data_set = make_dataset()[0] # [1] is data tensor
+    data_set = make_dataset(path)[0] # [1] is data tensor
     class my_callback(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):
             print("model.weights")
@@ -60,5 +60,5 @@ def fit_model():
     callbacks = [cp_callback]
     callbacks = []
 
-    history = model.fit(data_set, epochs=5, steps_per_epoch=10, callbacks = callbacks) # with callbacks it is way slower
+    history = model.fit(data_set, epochs=4, steps_per_epoch=10, callbacks = callbacks) # with callbacks it is way slower
     return model, history

@@ -74,9 +74,9 @@ class TestForward(unittest.TestCase):
     # need to test manual true forward ie check if sum q alpha qn is same as brute force p(y)
 
 
-
     # this is kept just in case
     def off_test_tf_log_forward(self):
+        # rename method log_call() in CgpHmmCell.py to call()
 
         n = 6
         l = 5

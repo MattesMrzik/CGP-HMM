@@ -25,13 +25,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         alpha_seq, inputs_seq, count_seq,  alpha_state, loglik_state, count_state = self.F(inputs) #  build and call of CgpHmmCell are called
 
         # print return sequences
-        prRed("alpha_seq, inputs_seq, count_seq")
-        print(tf.shape(count_seq),tf.shape(inputs_seq),tf.shape(alpha_seq))
-        for i in range(tf.shape(alpha_seq)[0]): # = batch_size
-            prRed(i)
-            for j in range(tf.shape(alpha_seq)[1]): # = seq length
-                tf.print(count_seq[i,j], inputs_seq[i,j], alpha_seq[i,j])
-            break
+        # prRed("alpha_seq, inputs_seq, count_seq")
+        # print(tf.shape(count_seq),tf.shape(inputs_seq),tf.shape(alpha_seq))
+        # for i in range(tf.shape(alpha_seq)[0]): # = batch_size
+        #     prRed(i)
+        #     for j in range(tf.shape(alpha_seq)[1]): # = seq length
+        #         tf.print(count_seq[i,j], inputs_seq[i,j], alpha_seq[i,j])
+        #     break
 
         loglik_mean = tf.reduce_mean(loglik_state)
         # squeeze removes dimensions of size 1, ie shape (1,3,2,1) -> (3,2)

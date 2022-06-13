@@ -8,21 +8,39 @@ def prRed(skk): print("Cell\033[93m {}\033[00m" .format(skk))
 class CgpHmmCell(tf.keras.layers.Layer):
     def __init__(self):
         super(CgpHmmCell, self).__init__()
-        self.state_size = [2,1,1]
+        self.state_size = [3,1,1]
         self.alphabet_size = 4
+        self.use_sparse = True
 
 
     def build(self, input_shape):
-        self.transition_kernel = self.add_weight(shape = (self.state_size[0], self.state_size[0]),
-                                              initializer="random_normal",
-                                              trainable=True)
+        if self.use_sparse:
+            # the number of values in transition_kernel doesnt need to match state_size
+            # these are all non zero values in the transisiotn matrix
+            self.transition_kernel = self.add_weight(shape = (self.state_size[0],), # todo: is this shape good?
+                                                     initializer="random_normal",
+                                                     trainable=True)
+        else:
+            self.transition_kernel = self.add_weight(shape = (self.state_size[0], self.state_size[0]),
+                                                     initializer="random_normal",
+                                                     trainable=True)
         self.emission_kernel = self.add_weight(shape = (self.state_size[0], self.alphabet_size),
                                               initializer="random_normal",
                                               trainable=True)
 
     @property
     def A(self):
-        transition_matrix = tf.nn.softmax(self.transition_kernel, axis=-1, name="A")
+        if self.use_sparse:
+            indices = [[0,0],[0,1],[1,1],[1,2],[2,1],[2,2]]
+            values = [1-self.transition_kernel[0], self.transition_kernel[0], \
+                      1-self.transition_kernel[1], self.transition_kernel[1], \
+                      self.transition_kernel[2], 1-self.transition_kernel[2]]
+            transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.state_size[0]] * 2)
+            transition_matrix = tf.sparse.softmax(transition_matrix)
+
+            transition_matrix = tf.sparse.to_dense(transition_matrix)
+        else:
+            transition_matrix = tf.nn.softmax(self.transition_kernel, axis=-1, name="A")
         return transition_matrix
 
         # used these for manual run, cant use these for training, since the add_weight method isnt used
@@ -47,15 +65,28 @@ class CgpHmmCell(tf.keras.layers.Layer):
     # def get_initial_state(self):
     #     return [[1,0,0,0,0],[0,0,0,0,0]]
 
-    def call(self, inputs, states, training = None, verbose = False):
+
+    def sparse_call(self, inputs, states, training = None, verbose = False):
         old_forward, old_loglik, count = states
         count = count + 1 # counts i in alpha(q,i)
+
         if count[0,0] == 1:
             alpha = tf.reshape(tf.linalg.matmul(inputs, tf.transpose(self.B))[:,0], (tf.shape(inputs)[0],1)) # todo use transpose_b = True
             z = tf.zeros((tf.shape(inputs)[0], self.state_size[0] - 1), dtype = tf.float32)
-            alpha = tf.concat((alpha, z),1) # 1 is axis#prRed("alpha =")
+            alpha = tf.concat((alpha, z),1) # 1 is axis
             loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
         else:
+            # R = tf.sparse.sparse_dense_matmul(tf.sparse.transpose(self.A), old_forward)
+
+            prRed("old_forward =")
+            print(old_forward)
+            prRed("self.A = ")
+            print(self.A)
+            # print(tf.sparse.to_dense(self.A))
+
+            # # Is the density of A larger than approximately 15%? maybe just use dense matrix
+            # R = tf.sparse.sparse_dense_matmul(self.A, old_forward, adjoint_a = True)
+
             R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
             E = tf.linalg.matmul(inputs, tf.transpose(self.B))
             Z_i_minus_1 = tf.reduce_sum(old_forward, axis=-1, keepdims = True)
@@ -64,6 +95,29 @@ class CgpHmmCell(tf.keras.layers.Layer):
             loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
 
         # loglik = tf.squeeze(loglik)
+        return [alpha, inputs, count], [alpha, loglik, count]
+
+    def dense_call(self, inputs, states, training = None, verbose = False):
+        old_forward, old_loglik, count = states
+        count = count + 1 # counts i in alpha(q,i)
+        if count[0,0] == 1:
+            alpha = tf.reshape(tf.linalg.matmul(inputs, tf.transpose(self.B))[:,0], (tf.shape(inputs)[0],1)) # todo use transpose_b = True
+            z = tf.zeros((tf.shape(inputs)[0], self.state_size[0] - 1), dtype = tf.float32)
+            alpha = tf.concat((alpha, z),1) # 1 is axis#prRed("alpha =")
+            loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+        else:
+            prRed("old_forward =")
+            print(old_forward)
+            prRed("self.A = ")
+            print(self.A)
+            R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
+            E = tf.linalg.matmul(inputs, tf.transpose(self.B))
+            Z_i_minus_1 = tf.reduce_sum(old_forward, axis=-1, keepdims = True)
+            R /= Z_i_minus_1
+            alpha = E * R
+            loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+
+            # loglik = tf.squeeze(loglik)
         return [alpha, inputs, count], [alpha, loglik, count]
 
     def log_call(self, inputs, states, training = None, verbose = False):
@@ -125,3 +179,11 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         #      return sequences = True, cell state
         return [alpha, inputs, count], [alpha, loglik, count]
+
+
+
+    def call(self, inputs, states, training = None, verbose = False):
+        if self.use_sparse:
+            return self.sparse_call(inputs, states)
+        else:
+            return self.dense_call(inputs, states, training = training, verbose = verbose)

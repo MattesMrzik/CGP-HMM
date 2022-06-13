@@ -198,50 +198,50 @@ def brute_force_viterbi_log_version(a,b,y,a0 = []):
 ########################################################################
 ########################################################################
 
-a = np.array([0.1,  0.2,   0.3,  0.2,  0.2,\
-              0.2,  0.2,   0.2,  0.2,  0.2,\
-              0.2,  0.15,  0.15, 0.3 , 0.2,\
-              0.3,  0.2,   0.4,  0.0,  0.1,\
-              0,    0.2,   0.5,  0.3,  0.0], dtype = np.float32).reshape((5,5))
-
-b = np.array([0.1,  0.2,   0.3,  0.4 ,\
-              0.2,  0.15,  0.15, 0.5 ,\
-              0.3,  0.2,   0.5,  0   ,\
-              0,    0.2,   0.5,  0.3 ,\
-              0.25, 0.25, 0.25,  0.25], dtype = np.float32).reshape((5,4))
-
-a = np.array([[.85,.15], [.1,.9]])
-b = np.array([[.1,.35,.35,.2], [.4,.1,.1,.4]])
-
-a0 = np.array([.3,.7])
-
-seqs = read_data_one_hot("../rest/seq-gen.out")
-seqs = list(seqs.numpy())
-np.random.shuffle(seqs)
-y = seqs[0]
-y = y[:8]
-print(y)
-alpha, p = forward(a, b, np.argmax(y, axis = -1), a0)
-fullprint(np.transpose(alpha))
-print(p)
-
-alpha, p = forward_log_version(a, b, np.argmax(y, axis = -1), a0)
-fullprint(np.exp(np.transpose(alpha)))
-print(np.exp(p))
-
-alpha, z = forward_felix_version(a, b, np.argmax(y, axis = -1), a0)
-prod_z_up_to_i = 1
-print("z =", z)
-for i, i_row in enumerate(np.transpose(alpha)):
-    print("unscaled = ", i_row)
-    print("scaled = ", i_row * prod_z_up_to_i)
-    print("p up to now =", sum([(i_row * prod_z_up_to_i)[q] for q in range(len(a))]))
-
-    # update accumulating z for next interation of for loop
-    prod_z_up_to_i = prod_z_up_to_i * z[i]
-print("prod_z_up_to_i =", prod_z_up_to_i)
-# print("additional entry in z: p =", np.exp(sum([np.log(z[j]) for j in range(len(y))])+np.log(.843)))
-# print("p as sum of ln z =", np.exp(sum([np.log(z[j]) for j in range(len(y))])))
-# z[0] -= 0.0435
-# print("p as sum of ln z =", np.exp(sum([np.log(z[j]) for j in range(len(y))])))
-print("brute force P(Y=y) = ", brute_force_P_of_Y(a,b,np.argmax(y, axis = -1), a0))
+# a = np.array([0.1,  0.2,   0.3,  0.2,  0.2,\
+#               0.2,  0.2,   0.2,  0.2,  0.2,\
+#               0.2,  0.15,  0.15, 0.3 , 0.2,\
+#               0.3,  0.2,   0.4,  0.0,  0.1,\
+#               0,    0.2,   0.5,  0.3,  0.0], dtype = np.float32).reshape((5,5))
+#
+# b = np.array([0.1,  0.2,   0.3,  0.4 ,\
+#               0.2,  0.15,  0.15, 0.5 ,\
+#               0.3,  0.2,   0.5,  0   ,\
+#               0,    0.2,   0.5,  0.3 ,\
+#               0.25, 0.25, 0.25,  0.25], dtype = np.float32).reshape((5,4))
+#
+# a = np.array([[.85,.15], [.1,.9]])
+# b = np.array([[.1,.35,.35,.2], [.4,.1,.1,.4]])
+#
+# a0 = np.array([.3,.7])
+#
+# seqs = read_data_one_hot("../rest/seq-gen.out")
+# seqs = list(seqs.numpy())
+# np.random.shuffle(seqs)
+# y = seqs[0]
+# y = y[:8]
+# print(y)
+# alpha, p = forward(a, b, np.argmax(y, axis = -1), a0)
+# fullprint(np.transpose(alpha))
+# print(p)
+#
+# alpha, p = forward_log_version(a, b, np.argmax(y, axis = -1), a0)
+# fullprint(np.exp(np.transpose(alpha)))
+# print(np.exp(p))
+#
+# alpha, z = forward_felix_version(a, b, np.argmax(y, axis = -1), a0)
+# prod_z_up_to_i = 1
+# print("z =", z)
+# for i, i_row in enumerate(np.transpose(alpha)):
+#     print("unscaled = ", i_row)
+#     print("scaled = ", i_row * prod_z_up_to_i)
+#     print("p up to now =", sum([(i_row * prod_z_up_to_i)[q] for q in range(len(a))]))
+#
+#     # update accumulating z for next interation of for loop
+#     prod_z_up_to_i = prod_z_up_to_i * z[i]
+# print("prod_z_up_to_i =", prod_z_up_to_i)
+# # print("additional entry in z: p =", np.exp(sum([np.log(z[j]) for j in range(len(y))])+np.log(.843)))
+# # print("p as sum of ln z =", np.exp(sum([np.log(z[j]) for j in range(len(y))])))
+# # z[0] -= 0.0435
+# # print("p as sum of ln z =", np.exp(sum([np.log(z[j]) for j in range(len(y))])))
+# print("brute force P(Y=y) = ", brute_force_P_of_Y(a,b,np.argmax(y, axis = -1), a0))
