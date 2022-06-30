@@ -8,36 +8,135 @@ def prRed(skk): print("Cell\033[93m {}\033[00m" .format(skk))
 class CgpHmmCell(tf.keras.layers.Layer):
     def __init__(self):
         super(CgpHmmCell, self).__init__()
-        self.state_size = [3,1,1]
+
+        self.nCodons = 2
+
+        # ig 5'
+        number_of_states = 1
+        # start
+        number_of_states += 3
+        # codons
+        number_of_states += 3 * self.nCodons
+        # codon inserts
+        number_of_states += 3 * (self.nCodons + 1)
+        # stop
+        number_of_states += 7
+        # ig 3'
+        number_of_states += 1
+
+        self.use_mask = True
+        self.state_size = [number_of_states,1,1]
         self.alphabet_size = 4
-        self.use_sparse = True
 
 
     def build(self, input_shape):
-        if self.use_sparse:
+
+        if self.use_mask:
             # the number of values in transition_kernel doesnt need to match state_size
             # these are all non zero values in the transisiotn matrix
-            self.transition_kernel = self.add_weight(shape = (self.state_size[0],), # todo: is this shape good?
+            self.transition_kernel = self.add_weight(shape = (self.state_size[0],), # todo: (self.state_size[0], ) is this shape good?
                                                      initializer="random_normal",
                                                      trainable=True)
+            shape = ((2 + self.nCodons*3 + (self.nCodons+1)*3)*self.alphabet_size , )
+            self.emission_kernel = self.add_weight(shape = shape,
+                                                  initializer="random_normal",
+                                                  trainable=True)
         else:
-            self.transition_kernel = self.add_weight(shape = (self.state_size[0], self.state_size[0]),
+            self.transition_kernel = self.add_weight(shape = (self.state_size[0], \
+                                                              self.state_size[0]),
                                                      initializer="random_normal",
                                                      trainable=True)
-        self.emission_kernel = self.add_weight(shape = (self.state_size[0], self.alphabet_size),
-                                              initializer="random_normal",
-                                              trainable=True)
+            self.emission_kernel = self.add_weight(shape = (self.state_size[0], \
+                                                            self.alphabet_size),
+                                                  initializer="random_normal",
+                                                  trainable=True)
+
+    def get_indices_and_values_from_transition_kernel(self, w, nCodons):
+        k = 0
+        # ig 5'
+        indices = [[0,0], [0,1]]
+        values = [1 - w[k], w[k]] # lieber sigmoid
+        k += 1
+        # start a
+        indices += [[1,2]]
+        values += [1]
+        # start t
+        indices += [[2,3]]
+        values += [1]
+
+
+        # enter codon
+        indices += [[3 + i*3, 4 + i*3] for i in range(nCodons)]
+        # print("values =", values)
+        # print("w[k: k + nCodons] =", w[k: k + nCodons])
+        values = tf.concat([values, w[k: k + nCodons]], axis = 0)
+        k += nCodons
+        # first to second codon position
+        indices += [[4 + i*3, 5 + i*3] for i in range(nCodons)]
+        values = tf.concat([values, [1] * nCodons], axis = 0)
+        # second to third codon position
+        indices += [[5 + i*3, 6 + i*3] for i in range(nCodons)]
+        values = tf.concat([values, [1] * nCodons], axis = 0)
+
+        # inserts
+        offset = 12 + 3*nCodons
+        # begin inserts
+
+        use_inserts = False
+        if use_inserts:
+            indices += [[3 + i*3, offset + i*3] for i in range(nCodons + 1)]
+            values = tf.concat([values, w[k: k + nCodons + 1]], axis = 0)
+            k += nCodons + 1
+
+        # exit last codon
+        indices += [[3 + nCodons*3, 4 + nCodons*3]]
+        values = tf.concat([values, [1-w[k-1]]], axis = 0)
+
+        # first to second position in insert
+        indices += [[offset + i*3, offset + 1 + i*3] for i in range(nCodons + 1)]
+        values = tf.concat([values, [1] * (nCodons + 1)], axis = 0)
+        # second to third position in insert
+        indices += [[offset + 1 + i*3, offset + 2 + i*3] for i in range(nCodons + 1)]
+        values = tf.concat([values, [1] * (nCodons + 1)], axis = 0)
+        # ending an insert
+        indices += [[offset + 2 + i*3, 4 + i*3] for i in range(nCodons + 1)]
+        values = tf.concat([values, w[k: k + nCodons + 1]], axis = 0)
+        k += nCodons + 1
+        # continuing an insert
+        indices += [[offset +2 + i*3, offset + i*3] for i in range(nCodons +1)]
+        values = tf.concat([values, 1-w[k: k + nCodons +1]], axis = 0)
+        k += nCodons + 1
+
+        # deletes
+        i_delete = [3 + i*3 for i in range(nCodons) for j in range(nCodons-i)]
+        j_delete = [4 + j*3 for i in range(1,nCodons+1) for j in range(i,nCodons+1)]
+        indices += [[i,j] for i,j in zip(i_delete, j_delete)]
+        # print("deletes =", [1-w[k] * w[k]**((j-i)/3) for i,j in zip(i_delete, j_delete)])
+        values = tf.concat([values, [1-w[k] * w[k]**int((j-i)/3) for i,j in zip(i_delete, j_delete)]], axis = 0)
+        k += 1
+
+        # stop T -> ...
+        indices += [[4 + nCodons*3, 5 + i + nCodons*3] for i in range(3)]
+        values = tf.concat([values, w[k: k + 3]], axis = 0)
+        k += 3
+
+        # second to third position in stop
+        indices += [[5 + i + nCodons*3, 8 + i + nCodons*3] for i in range(3)]
+        values = tf.concat([values, [1]*3], axis = 0)
+
+        # ... -> ig 3'
+        indices += [[8 + i + nCodons*3, 11 + nCodons*3] for i in range(4)]
+        values = tf.concat([values, [1] * 4], axis = 0)
+
+        return indices, values
 
     @property
     def A(self):
-        if self.use_sparse:
-            indices = [[0,0],[0,1],[1,1],[1,2],[2,1],[2,2]]
-            values = [1-self.transition_kernel[0], self.transition_kernel[0], \
-                      1-self.transition_kernel[1], self.transition_kernel[1], \
-                      self.transition_kernel[2], 1-self.transition_kernel[2]]
+        if self.use_mask:
+            indices, values = self.get_indices_and_values_from_transition_kernel(self.transition_kernel, self.nCodons)
             transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.state_size[0]] * 2)
+            transition_matrix = tf.sparse.reorder(transition_matrix)
             transition_matrix = tf.sparse.softmax(transition_matrix)
-
             transition_matrix = tf.sparse.to_dense(transition_matrix)
         else:
             transition_matrix = tf.nn.softmax(self.transition_kernel, axis=-1, name="A")
@@ -50,10 +149,76 @@ class CgpHmmCell(tf.keras.layers.Layer):
         #                  0.3,  0.2,   0.4,  0.0,  0.1,\
         #                  0,    0.2,   0.5,  0.3,  0.0], dtype = np.float32).reshape((5,5))
 
+    def get_indices_and_values_from_emission_kernel(self, w, nCodons, alphabet_size):
+        k = 0
+        # ig 5'
+        indices = [[0,i] for i in range(alphabet_size)]
+        values = w[:4]
+
+        k += 4
+        # start a
+        indices += [[1,0]]
+        values = tf.concat([values, [1]], axis = 0)
+
+        # start t
+        indices += [[2,3]]
+        values = tf.concat([values, [1]], axis = 0)
+        # start g
+        indices += [[3,2]]
+        values = tf.concat([values, [1]], axis = 0)
+
+        # codons
+        indices += [[4 + i, j] for i in range(nCodons*3) for j in range(alphabet_size)]
+        values = tf.concat([values, w[k: k + nCodons*3*alphabet_size]], axis = 0)
+        k += nCodons*3*alphabet_size
+
+        # stop t
+        indices += [[4 + nCodons*3, 3]]
+        values = tf.concat([values, [1]], axis = 0)
+        # stop tAa
+        indices += [[5 + nCodons*3, 0]]
+        values = tf.concat([values, [1]], axis = 0)
+        # stop tGa
+        indices += [[6 + nCodons*3, 2]]
+        values = tf.concat([values, [1]], axis = 0)
+        # stop tAg
+        indices += [[7 + nCodons*3, 0]]
+        values = tf.concat([values, [1]], axis = 0)
+
+        # stop taA
+        indices += [[8 + nCodons*3, 0]]
+        values = tf.concat([values, [1]], axis = 0)
+        # stop tgA
+        indices += [[9 + nCodons*3, 0]]
+        values = tf.concat([values, [1]], axis = 0)
+        # stop taG
+        indices += [[10 + nCodons*3, 2]]
+        values = tf.concat([values, [1]], axis = 0)
+
+        # ig 3'
+        indices += [[11 + nCodons*3, i] for i in range(alphabet_size)]
+        values = tf.concat([values, w[k: k + alphabet_size]], axis = 0)
+        k += alphabet_size
+
+        # inserts
+        indices += [[12 + nCodons*3 + i, j] for i in range(3*(nCodons+1)) for j in range(alphabet_size)]
+        values = tf.concat([values, w[k: k + (nCodons+1)*3*alphabet_size]], axis = 0)
+        k += (nCodons+1)*3*alphabet_size
+
+        return indices, values
 
     @property
     def B(self):
-        emission_matrix = tf.nn.softmax(self.emission_kernel, axis=-1, name="B")
+        if self.use_mask:
+            indices, values = self.get_indices_and_values_from_emission_kernel(self.emission_kernel, self.nCodons, self.alphabet_size)
+            print("indices =", indices)
+            print("values =", values)
+            emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.state_size[0], self.alphabet_size])
+            emission_matrix = tf.sparse.reorder(emission_matrix)
+            emission_matrix = tf.sparse.softmax(emission_matrix)
+            emission_matrix = tf.sparse.to_dense(emission_matrix)
+        else:
+            emission_matrix = tf.nn.softmax(self.emission_kernel, axis=-1, name="B")
         return emission_matrix
 
         # return np.array([0.1,  0.2,   0.3,  0.4 ,\
@@ -66,7 +231,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
     #     return [[1,0,0,0,0],[0,0,0,0,0]]
 
 
-    def sparse_call(self, inputs, states, training = None, verbose = False):
+    def mask_call(self, inputs, states, training = None, verbose = False):
         old_forward, old_loglik, count = states
         count = count + 1 # counts i in alpha(q,i)
 
@@ -183,7 +348,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
 
     def call(self, inputs, states, training = None, verbose = False):
-        if self.use_sparse:
-            return self.sparse_call(inputs, states)
+        if self.use_mask:
+            return self.mask_call(inputs, states)
         else:
             return self.dense_call(inputs, states, training = training, verbose = verbose)

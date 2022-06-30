@@ -11,10 +11,10 @@ def prRed(skk): print("Training\033[92m {}\033[00m" .format(skk))
 
 np.set_printoptions(linewidth=400)
 
-def make_model():
+def make_model(lenght_of_seq):
     alphabet_size = 4
 
-    sequences = tf.keras.Input(shape = (50, alphabet_size), name = "sequences")
+    sequences = tf.keras.Input(shape = (lenght_of_seq, alphabet_size), name = "sequences")
     # another None added automatically for yet unkown batch_size
     # todo what if sequences have differing lenghts, then the 24 cant stay, padding?
     cgp_hmm_layer = CgpHmmLayer() # init of layer
@@ -32,10 +32,12 @@ def make_dataset(path):
     seqs = []
     one_hot = read_data_one_hot(path)
     ds = tf.data.Dataset.from_tensors(one_hot).repeat()
+    # ds = ds.padded_batch()
     return ds, one_hot
 
 def fit_model(path):
-    model, cgp_hmm_layer = make_model()
+    length_of_seqs = 27
+    model, cgp_hmm_layer = make_model(length_of_seqs)
     learning_rate = .1
     optimizer = tf.optimizers.Adam(learning_rate)
     model.compile(optimizer = optimizer)

@@ -4,8 +4,29 @@ import numpy as np
 import tensorflow as tf
 import Training
 from CgpHmmLayer import CgpHmmLayer
+from CgpHmmCell import CgpHmmCell
 
 import Utility
+
+class TestCgpHmmCell(unittest.TestCase):
+    def off_test_get_indices_and_values_from_transition_kernel(self):
+        cell = CgpHmmCell()
+        #                                                                                        27 weights, 2 codons
+        indices, values = cell.get_indices_and_values_from_transition_kernel(np.array(list(range(10,37))),2)
+        print("indices =", indices)
+        print("values =", values)
+        transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [27] * 2)
+        transition_matrix = tf.sparse.reorder(transition_matrix)
+        print(tf.sparse.to_dense(transition_matrix))
+    def test_get_indices_and_values_from_emission_kernel(self):
+        cell = CgpHmmCell()
+        #                                                                                  100 weights,     2 codons, 4 = alphabet_size
+        indices, values = cell.get_indices_and_values_from_emission_kernel(np.array(list(range(10,78))),2,4)
+        print("indices =", len(indices))
+        print("values =", values)
+        emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [27,4])
+        emission_matrix = tf.sparse.reorder(emission_matrix)
+        print(tf.sparse.to_dense(emission_matrix))
 
 class TestViterbi(unittest.TestCase):
     def off_test_Viterbi(self):# todo also test with passing a0
@@ -56,20 +77,24 @@ class Test_Helpers(unittest.TestCase):
         state_seq, emission_seq = Utility.generate_state_emission_seqs(a,b,n,l)
         for i, (x,y) in enumerate(zip(state_seq, emission_seq)):
             # print(Utility.P_of_X_Y(a,b,x,y,a0), " =?= ", np.exp(Utility.P_of_X_Y_log_version(a,b,x,y,a0)))
-            self.assertAlmostEqual(Utility.P_of_X_Y(a,b,x,y), np.exp(Utility.P_of_X_Y_log_version(a,b,x,y)), delta = 0.0000001)
+            self.assertAlmostEqual(Utility.P_of_X_Y(a,b,x,y), \
+                                   np.exp(Utility.P_of_X_Y_log_version(a,b,x,y)), \
+                                   delta = 0.0000001)
 
         for i, (x,y) in enumerate(zip(state_seq, emission_seq)):
             # print(Utility.P_of_X_Y(a,b,x,y,a0), " =?= ", np.exp(Utility.P_of_X_Y_log_version(a,b,x,y,a0)))
-            self.assertAlmostEqual(Utility.P_of_X_Y(a,b,x,y,a0), np.exp(Utility.P_of_X_Y_log_version(a,b,x,y,a0)), delta = 0.0000001)
+            self.assertAlmostEqual(Utility.P_of_X_Y(a,b,x,y,a0), \
+                                   np.exp(Utility.P_of_X_Y_log_version(a,b,x,y,a0)), \
+                                   delta = 0.0000001)
 
 class TestForward(unittest.TestCase):
-    def test_tf_scaled_forward_to_manual_scaled_forward(self):
+    def off_test_tf_scaled_forward_to_manual_scaled_forward(self):
         pass
     # manual forward <-- using the z of manual --> manual scaled forward
-    def test_manual_scaled_forward_to_manual_true_forward(self):
+    def off_test_manual_scaled_forward_to_manual_true_forward(self):
         pass
     # tf scaled forward <-- using the z of tf --> manual forward
-    def test_tf_scaled_transformed_forward_to_manual_true_forward(self):
+    def off_test_tf_scaled_transformed_forward_to_manual_true_forward(self):
         pass
     # need to test manual true forward ie check if sum q alpha qn is same as brute force p(y)
 
@@ -95,7 +120,10 @@ class TestForward(unittest.TestCase):
         # these a and b are not the ones used as parameters in the rnn,
         # this doesnt matter as long as rnn and manual forward use the same parameters
 
-        alpha_seq, inputs_seq, count_seq,  alpha_state, loglik_state, count_state = cgp_hmm_layer.F(tf.cast(emission_seq, dtype = tf.float32))# cast input to in or float
+        alpha_seq, inputs_seq, \
+        count_seq, alpha_state, \
+        loglik_state, count_state = cgp_hmm_layer.F(tf.cast(emission_seq, \
+                                                            dtype = tf.float32)) # cast input to in or float
 
         a = cgp_hmm_layer.C.A
         b = cgp_hmm_layer.C.B
@@ -110,7 +138,9 @@ class TestForward(unittest.TestCase):
                     # print("alpha =", alpha_seq)
                     # print("manual_forward =", manual_forward)
                     print(alpha_seq[i,j,q])
-                    self.assertAlmostEqual(alpha_seq[i,j,q], manual_forward[q, j], delta = 0.000001)
+                    self.assertAlmostEqual(alpha_seq[i,j,q], \
+                                           manual_forward[q, j], \
+                                           delta = 0.000001)
 
 if __name__ == '__main__':
     unittest.main()
