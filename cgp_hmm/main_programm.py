@@ -38,20 +38,20 @@ w = model.get_weights()[0]
 # a_hat[1,1:3] = tf.nn.softmax([1-w[1], w[1]])
 # a_hat[2,1:3] = tf.nn.softmax([w[2], 1-w[2]])
 
-print("A =")
 cell = CgpHmmCell()
 nCodons_used_in_model = 2
 #                                                                                        27 states, 2 codons
 indices, values = cell.get_indices_and_values_from_transition_kernel(model.get_weights()[0],nCodons_used_in_model)
-print("indices =", indices)
-print("values =", values)
-transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [27] * 2)
+transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0]] * 2)
 transition_matrix = tf.sparse.reorder(transition_matrix)
 transition_matrix = tf.sparse.softmax(transition_matrix)
 print(tf.math.round(tf.sparse.to_dense(transition_matrix)*100)/100)
 
+# cell.transition_kernel = model.get_weights()[0]
+# print(cell.A)
+
 indices, values = cell.get_indices_and_values_from_emission_kernel(model.get_weights()[1],nCodons_used_in_model,4)
-emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [27,4])
+emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],4 + 1])
 emission_matrix = tf.sparse.reorder(emission_matrix)
 emission_matrix = tf.sparse.softmax(emission_matrix)
 print(tf.math.round(tf.sparse.to_dense(emission_matrix)*100)/100)

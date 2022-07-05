@@ -23,10 +23,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
         number_of_states += 7
         # ig 3'
         number_of_states += 1
+        # terminal
+        number_of_states += 1
 
         self.use_mask = True
         self.state_size = [number_of_states,1,1]
-        self.alphabet_size = 4
+        self.alphabet_size = 4 # without terminal symbol
 
 
     def build(self, input_shape):
@@ -34,7 +36,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         if self.use_mask:
             # the number of values in transition_kernel doesnt need to match state_size
             # these are all non zero values in the transisiotn matrix
-            self.transition_kernel = self.add_weight(shape = (self.state_size[0],), # todo: (self.state_size[0], ) is this shape good?
+            # todo we need more than just self.state_size[0] weights
+            self.transition_kernel = self.add_weight(shape = (self.state_size[0]*5,), # todo: (self.state_size[0], ) is this shape good?
                                                      initializer="random_normal",
                                                      trainable=True)
             shape = ((2 + self.nCodons*3 + (self.nCodons+1)*3)*self.alphabet_size , )
@@ -124,9 +127,20 @@ class CgpHmmCell(tf.keras.layers.Layer):
         indices += [[5 + i + nCodons*3, 8 + i + nCodons*3] for i in range(3)]
         values = tf.concat([values, [1]*3], axis = 0)
 
-        # ... -> ig 3'
-        indices += [[8 + i + nCodons*3, 11 + nCodons*3] for i in range(4)]
-        values = tf.concat([values, [1] * 4], axis = 0)
+        # stop -> ig 3'
+        indices += [[8 + i + nCodons*3, 11 + nCodons*3] for i in range(3)]
+        values = tf.concat([values, [1] * 3], axis = 0)
+
+        # ig -> ig, terminal
+        indices += [[11 + nCodons*3, 11 + nCodons*3], [11 + nCodons*3, 12 + nCodons*3 + (nCodons + 1) *3]]
+        # values = tf.concat([values, [.5] * 2], axis = 0) # this parameter doesnt have to be learned (i think)
+        # .5 can be any other number, since softmax(x,x) = [.5, .5]
+        # but: TypeError: Cannot convert [0.5, 0.5] to EagerTensor of dtype int32
+        values = tf.concat([values, [1] * 2], axis = 0) # this parameter doesnt have to be learned (i think)
+
+        # terminal -> terminal
+        indices += [[12 + nCodons*3 + (nCodons + 1) *3, 12 + nCodons*3 + (nCodons + 1) *3]]
+        values = tf.concat([values, [1]], axis = 0)
 
         return indices, values
 
@@ -205,15 +219,17 @@ class CgpHmmCell(tf.keras.layers.Layer):
         values = tf.concat([values, w[k: k + (nCodons+1)*3*alphabet_size]], axis = 0)
         k += (nCodons+1)*3*alphabet_size
 
+        # terminal
+        indices += [[12 + nCodons*3 + (nCodons + 1) *3, alphabet_size]]
+        values = tf.concat([values, [1]], axis = 0)
+
         return indices, values
 
     @property
     def B(self):
         if self.use_mask:
             indices, values = self.get_indices_and_values_from_emission_kernel(self.emission_kernel, self.nCodons, self.alphabet_size)
-            print("indices =", indices)
-            print("values =", values)
-            emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.state_size[0], self.alphabet_size])
+            emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.state_size[0], self.alphabet_size + 1])
             emission_matrix = tf.sparse.reorder(emission_matrix)
             emission_matrix = tf.sparse.softmax(emission_matrix)
             emission_matrix = tf.sparse.to_dense(emission_matrix)
@@ -242,12 +258,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
             loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
         else:
             # R = tf.sparse.sparse_dense_matmul(tf.sparse.transpose(self.A), old_forward)
-
-            prRed("old_forward =")
-            print(old_forward)
-            prRed("self.A = ")
-            print(self.A)
-            # print(tf.sparse.to_dense(self.A))
 
             # # Is the density of A larger than approximately 15%? maybe just use dense matrix
             # R = tf.sparse.sparse_dense_matmul(self.A, old_forward, adjoint_a = True)
@@ -349,6 +359,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     def call(self, inputs, states, training = None, verbose = False):
         if self.use_mask:
-            return self.mask_call(inputs, states)
+            return self.mask_call(inputs, states,training = training, verbose = verbose)
         else:
             return self.dense_call(inputs, states, training = training, verbose = verbose)

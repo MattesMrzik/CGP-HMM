@@ -16,9 +16,9 @@ def run(command):
     subprocess.Popen("rm temporary_script_file.sh".split(" ")).wait()
 
 
-with open("mytree.nwk","w") as file:
-    # file.write("((human:0.1,chimpanse:0.1)Clade1:0.2,(mouse:0.2,rat:0.2)Clade2:0.1):0.1;\n")
-    file.write("((human:0.1,chimpanse:0.1):0.2,(rat:0.2,mouse:0.2):0.1):0.1;\n")
+# with open("mytree.nwk","w") as file:
+#     # file.write("((human:0.1,chimpanse:0.1)Clade1:0.2,(mouse:0.2,rat:0.2)Clade2:0.1):0.1;\n")
+#     file.write("((human:0.1,chimpanse:0.1):0.2,(rat:0.2,mouse:0.2):0.1):0.1;\n")
 
 def tree():
     id = [0]
@@ -49,13 +49,27 @@ with open("seq_gen.out","r") as infile:
             if line[0] == ">":
                 outfile.write(line)
             else:
-                random_start_pos = np.random.randint(15)
+                max_len_of_flanks = 20
                 # utr5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(14,15)))
                 # utr3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(14,15)))
 
-                utr5 = "".join(np.random.choice(["A","C","G","T"], random_start_pos))
-                utr3 = "".join(np.random.choice(["A","C","G","T"], 15- random_start_pos))
-                outfile.write(utr5 + "ATG" + line.strip() + np.random.choice(["TAG", "TAA", "TGA"]) + utr3 + "\n")
+                use_terminal_symbol = True
+                if use_terminal_symbol:
+                    random_start_pos = np.random.randint(1,int(max_len_of_flanks/2))
+                    random_end_pos   = np.random.randint(1,int(max_len_of_flanks/2))
+                    utr5 = "".join(np.random.choice(["A","C","G","T"], random_start_pos))
+                    utr3 = "".join(np.random.choice(["A","C","G","T"], random_end_pos))
+                    outfile.write(utr5 + \
+                                  "ATG" + \
+                                  line.strip() + \
+                                  np.random.choice(["TAG", "TAA", "TGA"]) + \
+                                  utr3 + "\n")
+
+                else:
+                    random_start_pos = np.random.randint(int(max_len_of_flanks/2))
+                    utr5 = "".join(np.random.choice(["A","C","G","T"], random_start_pos))
+                    utr3 = "".join(np.random.choice(["A","C","G","T"], 15- random_start_pos))
+                    outfile.write(utr5 + "ATG" + line.strip() + np.random.choice(["TAG", "TAA", "TGA"]) + utr3 + "\n")
 
 run("cat seq_gen.out.with_utr.fasta")
 run("../muscle3.8.31_i86linux64 -in seq_gen.out.with_utr.fasta -out seq_gen.out.with_utr.fasta.alignment.fa")

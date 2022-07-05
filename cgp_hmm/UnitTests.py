@@ -9,22 +9,22 @@ from CgpHmmCell import CgpHmmCell
 import Utility
 
 class TestCgpHmmCell(unittest.TestCase):
-    def off_test_get_indices_and_values_from_transition_kernel(self):
+    def test_get_indices_and_values_from_transition_kernel(self):
         cell = CgpHmmCell()
-        #                                                                                        27 weights, 2 codons
-        indices, values = cell.get_indices_and_values_from_transition_kernel(np.array(list(range(10,37))),2)
+        #                                                                                        weights, 2 codons
+        indices, values = cell.get_indices_and_values_from_transition_kernel(np.array(list(range(10,100))),2)
         print("indices =", indices)
         print("values =", values)
-        transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [27] * 2)
+        transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0]] * 2)
         transition_matrix = tf.sparse.reorder(transition_matrix)
         print(tf.sparse.to_dense(transition_matrix))
     def test_get_indices_and_values_from_emission_kernel(self):
         cell = CgpHmmCell()
         #                                                                                  100 weights,     2 codons, 4 = alphabet_size
-        indices, values = cell.get_indices_and_values_from_emission_kernel(np.array(list(range(10,78))),2,4)
+        indices, values = cell.get_indices_and_values_from_emission_kernel(np.array(list(range(10,100))),2,4)
         print("indices =", len(indices))
-        print("values =", values)
-        emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [27,4])
+        print("values =", len(values))
+        emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],5])
         emission_matrix = tf.sparse.reorder(emission_matrix)
         print(tf.sparse.to_dense(emission_matrix))
 
