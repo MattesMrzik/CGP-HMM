@@ -5,11 +5,12 @@ import tensorflow as tf
 import Training
 from CgpHmmLayer import CgpHmmLayer
 from CgpHmmCell import CgpHmmCell
+from Utility import state_id_to_description
 
 import Utility
 
 class TestCgpHmmCell(unittest.TestCase):
-    def test_get_indices_and_values_from_transition_kernel(self):
+    def off_test_get_indices_and_values_from_transition_kernel(self):
         cell = CgpHmmCell()
         #                                                                                        weights, 2 codons
         indices, values = cell.get_indices_and_values_from_transition_kernel(np.array(list(range(10,100))),2)
@@ -18,7 +19,7 @@ class TestCgpHmmCell(unittest.TestCase):
         transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0]] * 2)
         transition_matrix = tf.sparse.reorder(transition_matrix)
         print(tf.sparse.to_dense(transition_matrix))
-    def test_get_indices_and_values_from_emission_kernel(self):
+    def off_test_get_indices_and_values_from_emission_kernel(self):
         cell = CgpHmmCell()
         #                                                                                  100 weights,     2 codons, 4 = alphabet_size
         indices, values = cell.get_indices_and_values_from_emission_kernel(np.array(list(range(10,100))),2,4)
@@ -27,6 +28,21 @@ class TestCgpHmmCell(unittest.TestCase):
         emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],5])
         emission_matrix = tf.sparse.reorder(emission_matrix)
         print(tf.sparse.to_dense(emission_matrix))
+
+    def test_get_indices_and_values_from_emission_kernel_higher_order(self):
+        cell = CgpHmmCell()
+        #                                                                                  100 weights,     2 codons, 4 = alphabet_size
+        indices, values = cell.get_indices_and_values_from_emission_kernel_higher_order(np.array(list(range(10,10000))),2,4)
+        print("indices =", len(indices))
+        print("values =", len(values))
+        emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],6,6,6])
+        emission_matrix = tf.sparse.reorder(emission_matrix)
+        emission_matrix = tf.sparse.to_dense(emission_matrix)
+        for state in range(len(emission_matrix)):
+            tf.print(state_id_to_description(state, 2))
+            tf.print(emission_matrix[state], summarize = -1)
+            tf.print("---------------------------------------------")
+
 
 class TestViterbi(unittest.TestCase):
     def off_test_Viterbi(self):# todo also test with passing a0

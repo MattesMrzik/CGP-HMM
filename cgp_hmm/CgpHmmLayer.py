@@ -22,7 +22,14 @@ class CgpHmmLayer(tf.keras.layers.Layer):
     def call(self, inputs, training = False):
         # todo do i need to reset statse?
         # cell is build again
-        alpha_seq, inputs_seq, count_seq,  alpha_state, loglik_state, count_state = self.F(inputs) #  build and call of CgpHmmCell are called
+        alpha_seq, \
+        inputs_seq, \
+        count_seq, \
+        alpha_state, \
+        loglik_state, \
+        count_state, \
+        old_state_2, \
+        old_state_1 = self.F(inputs) #  build and call of CgpHmmCell are called
 
         # print return sequences
         # prRed("alpha_seq, inputs_seq, count_seq")

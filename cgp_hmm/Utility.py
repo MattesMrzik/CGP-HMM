@@ -2,9 +2,21 @@
 import numpy as np
 from Bio import SeqIO
 from ReadData import read_data_one_hot
+import re
 
 
 np.set_printoptions(linewidth=200)
+
+########################################################################
+########################################################################
+########################################################################
+def state_id_to_description(id, nCodons):
+    states = re.split("\s+", "ig5' start_A start_T start_G")
+    states += ["codon_" + str(i) + "," + str(j) for i in range(nCodons) for j in range(3)]
+    states += re.split("\s+", "stop_t second_stop third_stop ig3'")
+    states += ["insert_" + str(i) + "," + str(j) for i in range(nCodons+1) for j in range(3)]
+    states += ["terminal"]
+    return states[id]
 
 ########################################################################
 ########################################################################
