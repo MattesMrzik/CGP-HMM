@@ -68,52 +68,64 @@ import pandas as pd
 #         print("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
 #         print("\t","ig a t g c1 c2 c3 c1 c2 c3 t a g a a g a ig i1 i2 i3 i1 i2 i3 i1 i2 i3 ter".replace(" ","\t"), sep = "")
 #         print("--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------")
+
+################################################################################
+################################################################################
+################################################################################
 import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
 import tensorflow as tf
-# a = np.array([[[1,2],[3,4]],[[5,6],[7,8]]])
-# b = np.array([[[8,7],[6,5]],[[4,3],[2,1]]])
-# x = tf.tensordot(a,b, axes=(1,0))
-
-# a = np.array(list(range(12))).reshape(12,1)
-# print("a",a)
-# b = tf.expand_dims(a,axis=0)
-# print("b",b)
-
-q = 3
-alphabet_size = 4
-def n(x):
-    return list(range(1,x+1))
-b = np.array([[[[i*j*k*l for i in n(alphabet_size)] for j in n(alphabet_size)] for k in n(alphabet_size)] for l in n(q)], dtype=np.int32)
-b = np.array([[[[i+j*10+k*100+l*1000 for i in n(alphabet_size)] for j in n(alphabet_size)] for k in n(alphabet_size)] for l in n(q)], dtype=np.int32)
-print("b=")
-print(b)
-old_inputs_2 = [[0,0,0,1],[0,1,0,0]]
-old_inputs_1 = [[0,0,1,0],[0,1,0,0]]
-inputs       = [[0,0,0,1],[0,0,1,0]]
-old_inputs_2_t = tf.transpose(old_inputs_2)
-old_inputs_1_t = tf.transpose(old_inputs_1)
-inputs_t       = tf.transpose(inputs)
-bt = tf.transpose(b)
-print("bt=", bt)
-x1 = tf.tensordot(inputs, tf.transpose(b), axes=(1,0))
-print("x1")
-print(x1)
-# x2 = tf.transpose(tf.transpose(old_inputs_1) * tf.transpose(x1))
-old_inputs_1 = tf.expand_dims(old_inputs_1, axis = -1)
-old_inputs_1 = tf.expand_dims(old_inputs_1, axis = -1)
-# now: old_inputs_1 has shape[2 4 1 1]
-# now it can be broadcasted to [2 4 4 3]
-print("shapes of x1 and old_inputs_1 =", tf.shape(x1), tf.shape(old_inputs_1))
-x2 = tf.multiply(old_inputs_1, x1)
-x2 = tf.reduce_sum(x2, axis = 1) # axis 0 is batch, so this has to be 1
-print("x2")
-print(x2)
-old_inputs_2 = tf.expand_dims(old_inputs_2, axis = -1)
-x3 = tf.multiply(old_inputs_2, x2)
-x3 = tf.reduce_sum(x3, axis = 1)
-print("x3")
-print(x3)
+#
+#
+# q = 3
+# alphabet_size = 4
+# def n(x):
+#     return list(range(1,x+1))
+# b = np.array([[[[i*j*k*l for i in n(alphabet_size)] for j in n(alphabet_size)] for k in n(alphabet_size)] for l in n(q)], dtype=np.int32)
+# b = np.array([[[[i+j*10+k*100+l*1000 for i in n(alphabet_size)] for j in n(alphabet_size)] for k in n(alphabet_size)] for l in n(q)], dtype=np.int32)
+# print("b=")
+# print(b)
+# old_inputs_2 = [[0,0,0,1],[0,1,0,0]]
+# old_inputs_1 = [[0,0,1,0],[0,1,0,0]]
+# inputs       = [[0,0,0,1],[0,0,1,0]]
+# old_inputs_2_t = tf.transpose(old_inputs_2)
+# old_inputs_1_t = tf.transpose(old_inputs_1)
+# inputs_t       = tf.transpose(inputs)
+# bt = tf.transpose(b)
+# print("bt=", bt)
+# x1 = tf.tensordot(inputs, tf.transpose(b), axes=(1,0))
+# print("x1")
+# print(x1)
+# # x2 = tf.transpose(tf.transpose(old_inputs_1) * tf.transpose(x1))
+# old_inputs_1 = tf.expand_dims(old_inputs_1, axis = -1)
+# old_inputs_1 = tf.expand_dims(old_inputs_1, axis = -1)
+# # now: old_inputs_1 has shape[2 4 1 1]
+# # now it can be broadcasted to [2 4 4 3]
+# print("shapes of x1 and old_inputs_1 =", tf.shape(x1), tf.shape(old_inputs_1))
+# x2 = tf.multiply(old_inputs_1, x1)
+# print("x2 before reduce sum")
+# print(x2)
+# # reduce sum is along axis that is as large as emission alphabet_size
+# x2 = tf.reduce_sum(x2, axis = 1) # axis 0 is batch, so this has to be 1
+# print("x2")
+# print(x2)
+# old_inputs_2 = tf.expand_dims(old_inputs_2, axis = -1)
+# x3 = tf.multiply(old_inputs_2, x2)
+# x3 = tf.reduce_sum(x3, axis = 1)
+# print("x3")
+# print(x3)
+#
+# b = np.random.rand(3,4,4,4)
+# b = tf.convert_to_tensor(b, dtype=tf.float32)
+# x = tf.keras.activations.softmax(b, axis = [1,2,3])
+# print("after softmax")
+# print(x)
+# x = tf.reduce_sum(x, axis = -1)
+# print(x)
+# x = tf.reduce_sum(x, axis = -1)
+# print(x)
+# x = tf.reduce_sum(x, axis = -1)
+# print(x)
 
 # inputs = tf.concat([old_inputs_2, old_inputs_1, inputs], axis=1)
 # print(inputs)
@@ -142,3 +154,16 @@ print(x3)
 #         print(x)
 #     except:
 #         print(f"x for {i}, {j} didnt work")
+################################################################################
+################################################################################
+################################################################################
+indices = [[0,0,0],[1,0,0],[0,1,0],[0,0,1],[1,0,1]]
+values = [1, 2, 1.5, 2, 1.2]
+m = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = (2,2,2))
+m = tf.sparse.reorder(m)
+m = tf.sparse.reshape(m, (2,4))
+m = tf.sparse.softmax(m)
+m = tf.sparse.reshape(m, (2,2,2))
+
+m = tf.sparse.to_dense(m)
+print(m)
