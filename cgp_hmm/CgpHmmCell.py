@@ -14,9 +14,12 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
 
         self.nCodons = 2
 
-        self.alphabet_size = 4 # without terminal symbol
-        #                  alpha             loglik, count, y_{i-2},                y_{i-1}
-        self.state_size = [self.calc_number_of_states(), 1,      1,     self.alphabet_size + 2, self.alphabet_size + 2]
+        self.alphabet_size = 4 # without terminal symbol and without "papped left flank" symbol
+
+        self.order = 2 # order = 0 -> emission prob depends only on current emission
+        #                  alpha                         old loglik count old_input
+        self.state_size = [self.calc_number_of_states(), 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
+
 
 
     def calc_number_of_states(self):
@@ -50,10 +53,8 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
                                                  initializer="random_normal",
                                                  trainable=True)
 
-        # shape = ((2 + self.nCodons*3 + (self.nCodons+1)*3)*self.alphabet_size , )
-        # multiply this by 4*4=16 as an upper bound to how many parameters are needed
-        shape = (((2 + self.nCodons*3 + (self.nCodons+1)*3)*self.alphabet_size)*16 , )
-        self.emission_kernel = self.add_weight(shape = shape,
+
+        self.emission_kernel = self.add_weight(shape = (self.calc_number_of_states() * 6**(self.order + 1), ),
                                               initializer="random_normal",
                                               trainable=True)
 
@@ -265,15 +266,14 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         emission_matrix = tf.sparse.SparseTensor(indices = indices, \
                                                  values = values, \
                                                  dense_shape = [self.state_size[0], \
-                                                                self.alphabet_size + 2, \
-                                                                self.alphabet_size + 2, \
-                                                                self.alphabet_size + 2])
+                                                                self.alphabet_size + 2] + \
+                                                                [self.alphabet_size + 2] * self.order)
         emission_matrix = tf.sparse.reorder(emission_matrix)
-        # todo: already init matrix in this shape, then only reshape it once
-        # to make it ready to use
         emission_matrix = tf.sparse.reshape(emission_matrix, (self.state_size[0],-1))
         emission_matrix = tf.sparse.softmax(emission_matrix)
-        emission_matrix = tf.sparse.reshape(emission_matrix, (self.state_size[0],self.alphabet_size + 2,self.alphabet_size + 2,self.alphabet_size + 2))
+        emission_matrix = tf.sparse.reshape(emission_matrix, \
+                                            [self.state_size[0],self.alphabet_size + 2] + \
+                                            [self.alphabet_size + 2] * self.order)
         emission_matrix = tf.sparse.to_dense(emission_matrix)
 
         return emission_matrix
@@ -289,58 +289,69 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         return initial_matrix
 
     def call(self, inputs, states, training = None, verbose = False):
-        old_forward, old_loglik, count, old_inputs_2, old_inputs_1 = states
+        if self.order > 0:
+            old_forward, old_loglik, count, old_inputs = states
+        else:
+            old_forward, old_loglik, count = states
+
         count = count + 1 # counts i in alpha(q,i)
 
+        # shape may be (batch_size,1) and not (batchsize,) thats why the second 0 is required
         if count[0,0] == 1:
-            # without initial_dist
-            # #                                                                only allow to start in first state, reshape to vector
-            # alpha = tf.reshape(tf.linalg.matmul(inputs, tf.transpose(self.B))[:,0], (tf.shape(inputs)[0],1)) # todo use transpose_b = True
-            # z = tf.zeros((tf.shape(inputs)[0], self.state_size[0] - 1), dtype = tf.float32)
-            # alpha = tf.concat((alpha, z),1) # 1 is axis
-            # loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
-
             batch_size = tf.shape(inputs)[0]
-            old_inputs_1 = tf.concat([tf.zeros((batch_size,4)), tf.ones((batch_size,1)), tf.zeros((batch_size,1))], axis = 1)
-            old_inputs_2 = old_inputs_1
+
+            if self.order > 0:
+                old_inputs = tf.concat([tf.zeros((batch_size,self.order,4)), \
+                                        tf.ones((batch_size,self.order,1)), \
+                                        tf.zeros((batch_size,self.order,1))], axis = 2)
+
+            # old_inputs_2 = old_inputs_1
 
             R = tf.transpose(self.I)
             # E = tf.linalg.matmul(inputs, tf.transpose(self.B))
 
             E = tf.tensordot(inputs, tf.transpose(self.B), axes = (1,0))
-            old_inputs_1_expanded = tf.expand_dims(old_inputs_1, axis = -1)
-            old_inputs_1_expanded = tf.expand_dims(old_inputs_1_expanded, axis = -1)
-            # now: old_inputs_1 has shape[batchsize 4 1 1]
-            # now it can be broadcasted to [batchsize 4 4 #states]
-            E = tf.multiply(old_inputs_1_expanded, E)
-            # reduce sum is along axis that is as large as emission alphabet_size
-            E = tf.reduce_sum(E, axis = 1) # axis 0 is batch, so this has to be 1
-            old_inputs_2_expanded = tf.expand_dims(old_inputs_2, axis = -1)
-            E = tf.multiply(old_inputs_2_expanded, E)
-            E = tf.reduce_sum(E, axis = 1)
+
+            for i in range(self.order):
+                old_inputs_i_expanded = tf.expand_dims(old_inputs[:,i,:], axis = -1)
+                for j in range(i + 1, self.order):
+                    old_inputs_i_expanded = tf.expand_dims(old_inputs_i_expanded, axis = -1)
+                E = tf.multiply(old_inputs_i_expanded, E)
+                E = tf.reduce_sum(E, axis = 1) # axis 0 is batch, so this has to be 1
+
             alpha = E * R
             loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
 
-        else:
-            # R = tf.sparse.sparse_dense_matmul(tf.sparse.transpose(self.A), old_forward)
+            if False:
 
+                # old_inputs_1_expanded = tf.expand_dims(old_inputs_1, axis = -1)
+                # old_inputs_1_expanded = tf.expand_dims(old_inputs_1_expanded, axis = -1)
+                # now: old_inputs_1 has shape[batchsize 4 1 1]
+                # now it can be broadcasted to [batchsize 4 4 #states]
+                # E = tf.multiply(old_inputs_1_expanded, E)
+                # # reduce sum is along axis that is as large as emission alphabet_size
+                # E = tf.reduce_sum(E, axis = 1) # axis 0 is batch, so this has to be 1
+                # old_inputs_2_expanded = tf.expand_dims(old_inputs_2, axis = -1)
+                # E = tf.multiply(old_inputs_2_expanded, E)
+                # E = tf.reduce_sum(E, axis = 1)
+                # alpha = E * R
+                # loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+                pass
+
+        else:
             # # Is the density of A larger than approximately 15%? maybe just use dense matrix
             # R = tf.sparse.sparse_dense_matmul(self.A, old_forward, adjoint_a = True)
 
             R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
 
-            # E = tf.linalg.matmul(inputs, tf.transpose(self.B))
             E = tf.tensordot(inputs, tf.transpose(self.B), axes = (1,0))
-            old_inputs_1_expanded = tf.expand_dims(old_inputs_1, axis = -1)
-            old_inputs_1_expanded = tf.expand_dims(old_inputs_1_expanded, axis = -1)
-            # now: old_inputs_1 has shape[batchsize 4 1 1]
-            # now it can be broadcasted to [batchsize 4 4 #states]
-            E = tf.multiply(old_inputs_1_expanded, E)
-            # reduce sum is along axis that is as large as emission alphabet_size
-            E = tf.reduce_sum(E, axis = 1) # axis 0 is batch, so this has to be 1
-            old_inputs_2_expanded = tf.expand_dims(old_inputs_2, axis = -1)
-            E = tf.multiply(old_inputs_2_expanded, E)
-            E = tf.reduce_sum(E, axis = 1)
+
+            for i in range(self.order):
+                old_inputs_i_expanded = tf.expand_dims(old_inputs[:,i,:], axis = -1)
+                for j in range(i + 1, self.order):
+                    old_inputs_i_expanded = tf.expand_dims(old_inputs_i_expanded, axis = -1)
+                E = tf.multiply(old_inputs_i_expanded, E)
+                E = tf.reduce_sum(E, axis = 1) # axis 0 is batch, so this has to be 1
 
             Z_i_minus_1 = tf.reduce_sum(old_forward, axis=-1, keepdims = True)
             R /= Z_i_minus_1
@@ -349,7 +360,12 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
 
         # loglik = tf.squeeze(loglik)
         #       return sequences        states
-        return [alpha, inputs, count], [alpha, loglik, count, old_inputs_1, inputs]
+        # return [alpha, inputs, count], [alpha, loglik, count, old_inputs_1, inputs]
+        if self.order > 0:
+            new_old_inputs = tf.concat([tf.expand_dims(inputs, axis = 1), old_inputs[:,:-1,:]], axis = 1)
+            return [alpha, inputs, count], [alpha, loglik, count, new_old_inputs]
+        else:
+            return [alpha, inputs, count], [alpha, loglik, count]
 
 
 class CgpHmmCell(CgpHmmCell_onedim):

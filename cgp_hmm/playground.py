@@ -157,13 +157,5 @@ import tensorflow as tf
 ################################################################################
 ################################################################################
 ################################################################################
-indices = [[0,0,0],[1,0,0],[0,1,0],[0,0,1],[1,0,1]]
-values = [1, 2, 1.5, 2, 1.2]
-m = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = (2,2,2))
-m = tf.sparse.reorder(m)
-m = tf.sparse.reshape(m, (2,4))
-m = tf.sparse.softmax(m)
-m = tf.sparse.reshape(m, (2,2,2))
-
-m = tf.sparse.to_dense(m)
-print(m)
+x = [1,2] + ([1] if False else [])
+print(x)
