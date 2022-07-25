@@ -29,7 +29,7 @@ class TestCgpHmmCell(unittest.TestCase):
         emission_matrix = tf.sparse.reorder(emission_matrix)
         print(tf.sparse.to_dense(emission_matrix))
 
-    def test_get_indices_and_values_from_transition_kernel_higher_order(self):
+    def off_test_get_indices_and_values_from_transition_kernel_higher_order(self):
         cell = CgpHmmCell()
         #                                                                                        weights, 2 codons
         indices, values = cell.get_indices_and_values_from_transition_kernel_higher_order(np.array(list(range(10,100))),2)
@@ -52,6 +52,36 @@ class TestCgpHmmCell(unittest.TestCase):
             tf.print(state_id_to_description(state, 2))
             tf.print(emission_matrix[state], summarize = -1)
             tf.print("---------------------------------------------")
+
+    def off_test_get_indices_and_values_for_emission_higher_order_for_a_state(self):
+        cell = CgpHmmCell()
+        indices = []
+        values = [[]]
+        weights = list(range(100))
+        k = [0]
+        # cell.get_indices_and_values_for_emission_higher_order_for_a_state(0,1,indices,3,4,"ACX",0)
+        cell.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,0,"AAAT",1)
+        cell.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,1,"AATG",1, trainable = False)
+        cell.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,2,"AAAT",2)
+        cell.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,3,"AATG",1, trainable = False)
+        cell.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,4,"N",0)
+        for i, (index,value) in enumerate(zip(indices, values[0])):
+            print("i = ", i, index, value)
+
+    def test_get_indices_and_values_from_emission_kernel_higher_order_v02(self):
+        cell = CgpHmmCell()
+        #                                                                                  100 weights,     2 codons, 4 = alphabet_size
+        indices, values = cell.get_indices_and_values_from_emission_kernel_higher_order_v02(np.array(list(range(10,10000))),2,4)
+        print("indices =", len(indices))
+        print("values =", len(values))
+        emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],6,6,6])
+        emission_matrix = tf.sparse.reorder(emission_matrix)
+        emission_matrix = tf.sparse.to_dense(emission_matrix)
+        for state in range(len(emission_matrix)):
+            tf.print(state_id_to_description(state, 2))
+            tf.print(emission_matrix[state], summarize = -1)
+            tf.print("---------------------------------------------")
+
 
 
 class TestViterbi(unittest.TestCase):

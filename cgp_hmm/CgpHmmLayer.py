@@ -39,7 +39,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         alpha_state = result[3]
         loglik_state = result[4]
         count_state = result[5]
-        old_state = result[6:]
+        if self.C.order > 0:
+            old_state = result[6]
 
 
         # print return sequences

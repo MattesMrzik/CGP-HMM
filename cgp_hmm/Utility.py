@@ -15,7 +15,7 @@ def state_id_to_description(id, nCodons):
     states += ["codon_" + str(i) + "," + str(j) for i in range(nCodons) for j in range(3)]
     states += re.split("\s+", "stop_t second_stop third_stop ig3'")
     states += ["insert_" + str(i) + "," + str(j) for i in range(nCodons+1) for j in range(3)]
-    states += ["terminal"]
+    states += ["terminal", "terminal2"]
     return states[id]
 
 ########################################################################

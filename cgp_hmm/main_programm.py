@@ -30,4 +30,8 @@ cell.transition_kernel = model.get_weights()[0]
 print(tf.math.round(cell.A*100)/100)
 
 cell.emission_kernel = model.get_weights()[1]
-print(tf.math.round(cell.B*100)/100)
+# print(tf.math.round(cell.B*100)/100)
+for state in range(len(cell.B)):
+    tf.print(Utility.state_id_to_description(state, 2))
+    tf.print(cell.B[state], summarize = -1)
+    tf.print("---------------------------------------------")

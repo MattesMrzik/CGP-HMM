@@ -37,6 +37,8 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         number_of_states += 1
         # terminal
         number_of_states += 1
+        # second terminal
+        number_of_states += 1
 
         return number_of_states
 
@@ -139,16 +141,23 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         indices += [[6 + nCodons*3, 7 + nCodons*3]]
         values = tf.concat([values, [1]], axis = 0)
 
-        # ig -> ig, terminal
-        indices += [[7 + nCodons*3, 7 + nCodons*3], [7 + nCodons*3, 8 + nCodons*3 + (nCodons + 1) *3]]
+        # ig -> ig, terminal_1
+        index_of_terminal_1 = 8 + nCodons*3 + (nCodons + 1) *3
+        indices += [[7 + nCodons*3, 7 + nCodons*3], [7 + nCodons*3, index_of_terminal_1]]
         # values = tf.concat([values, [.5] * 2], axis = 0) # this parameter doesnt have to be learned (i think)
         # .5 can be any other number, since softmax(x,x) = [.5, .5]
         # but: TypeError: Cannot convert [0.5, 0.5] to EagerTensor of dtype int32
         values = tf.concat([values, [1] * 2], axis = 0) # this parameter doesnt have to be learned (i think)
 
-        # terminal -> terminal
-        indices += [[8 + nCodons*3 + (nCodons + 1) *3, 8 + nCodons*3 + (nCodons + 1) *3]]
+        # terminal_1 -> terminal_1, terminal_1 -> terminal_2
+        indices += [[index_of_terminal_1, index_of_terminal_1], [index_of_terminal_1, index_of_terminal_1 +1]]
+        values = tf.concat([values, [1] * 2], axis = 0)
+
+        # terminal_2 -> terminal_2
+        indices += [[index_of_terminal_1 +1, index_of_terminal_1 +1]]
         values = tf.concat([values, [1]], axis = 0)
+
+
 
         return indices, values
 
@@ -162,12 +171,99 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         transition_matrix = tf.sparse.to_dense(transition_matrix)
         return transition_matrix
 
+    def nucleotide_ambiguity_code_to_array(self, emission):
+        code = {
+            "A" : [0],
+            "C" : [1],
+            "G" : [2],
+            "T" : [3],
+            "Y" : [1,3],
+            "R" : [0,2],
+            "W" : [0,3],
+            "S" : [1,2],
+            "K" : [2,3],
+            "M" : [0,1],
+            "D" : [0,2,3],
+            "V" : [0,1,2],
+            "H" : [0,1,3],
+            "B" : [1,2,3],
+            "N" : [0,1,2,3],
+            "X" : [5]
+        }
+        return code[emission]
+
+    def get_indices_and_values_for_emission_higher_order_for_a_state(self, weights, k, indices, values, state, emissions, x_emissions_must_preceed, trainable = True):
+
+        count_weights = 0
+        allowed_emissions = [[state]]
+        for i, e in enumerate(["N"] * (self.order - len(emissions) + 1) + list(emissions)[-self.order-1:]):
+            allowed_emissions += [self.nucleotide_ambiguity_code_to_array(e) + ([4] if i < (self.order - x_emissions_must_preceed) else [] ) ]
+        # might be faster, but contains emissions like [state, emission, 4, emission] (order = 0) where an emission is followd by "padded left flank", which will never occur
+        # indices += list(product(*allowed_emissions))
+        for x in product(*allowed_emissions):
+            found_emission = False
+            for i in range(1,self.order +1):
+                if found_emission and x[i] == 4:
+                    # print("not adding ", x)
+                    break
+                if x[i] != 4:
+                    found_emission = True
+            else:
+                indices += [x]
+                count_weights += 1
+        if trainable:
+            values[0] = tf.concat([values[0], weights[k[0]:k[0] + count_weights]], axis = 0)
+            k[0] += count_weights
+        else:
+            values[0] = tf.concat([values[0], [1] * count_weights], axis = 0)
+
+
+    def get_indices_and_values_from_emission_kernel_higher_order_v02(self, w, nCodons, alphabet_size):
+        indices = []
+        values = [[]] # will contain one tensor at index 0, wrapped it in a list such that it can be passed by reference
+        weights = w
+        k = [0]
+
+        # ig 5'
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,0,"N",0)
+        # start a
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,1,"A",0)
+        # start t
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,2,"AT",0)
+        # start g
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,3,"ATG",0, trainable = False)
+        # codon_11
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,4,"ATGN",0)
+        # codon_12
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,5,"ATGNN",0)
+        # all other codons
+        for state in range(6, 6 + nCodons*3 -2):
+            self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,state,"N",0)
+        # stop
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,4 + nCodons*3,"T",self.order)
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,5 + nCodons*3,"TA",self.order)
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,5 + nCodons*3,"TG",self.order)
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,6 + nCodons*3,"TAA",self.order, trainable = False)
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,6 + nCodons*3,"TAG",self.order, trainable = False)
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,6 + nCodons*3,"TGA",self.order, trainable = False)
+        # ig 3'
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,7 + nCodons*3,"N",self.order)
+        # inserts
+        for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
+            self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,state,"N",0)
+        # terminal 1
+        for i in range(1,self.order + 1):
+            self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,8 + nCodons*3 + (nCodons+1)*3,"X" * i,self.order)
+        # terminal 2
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(    weights,k,indices,values,9 + nCodons*3 + (nCodons+1)*3,"X"*(self.order +1),self.order, trainable = False)
+
+        return indices, values[0]
+
     def get_indices_and_values_from_emission_kernel_higher_order(self, w, nCodons, alphabet_size):
         k = 0
         # ig 5'
         #           state, prevprev emission, prev emission, current emission,
         indices = [[0,i,j,k] for i in range(alphabet_size + 1) for j in range(max(alphabet_size, i+1)) for k in range(alphabet_size)]
-
         #                                                     0aig, 0cig, 0gig, 0tig
         values = w[k:k + (alphabet_size+1)*alphabet_size**2 + 4]
         k += (alphabet_size+1)*alphabet_size**2 + 4
@@ -261,7 +357,7 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
     @property
     def B(self):
 
-        indices, values = self.get_indices_and_values_from_emission_kernel_higher_order(self.emission_kernel, self.nCodons, self.alphabet_size)
+        indices, values = self.get_indices_and_values_from_emission_kernel_higher_order_v02(self.emission_kernel, self.nCodons, self.alphabet_size)
 
         emission_matrix = tf.sparse.SparseTensor(indices = indices, \
                                                  values = values, \
@@ -321,22 +417,6 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
 
             alpha = E * R
             loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
-
-            if False:
-
-                # old_inputs_1_expanded = tf.expand_dims(old_inputs_1, axis = -1)
-                # old_inputs_1_expanded = tf.expand_dims(old_inputs_1_expanded, axis = -1)
-                # now: old_inputs_1 has shape[batchsize 4 1 1]
-                # now it can be broadcasted to [batchsize 4 4 #states]
-                # E = tf.multiply(old_inputs_1_expanded, E)
-                # # reduce sum is along axis that is as large as emission alphabet_size
-                # E = tf.reduce_sum(E, axis = 1) # axis 0 is batch, so this has to be 1
-                # old_inputs_2_expanded = tf.expand_dims(old_inputs_2, axis = -1)
-                # E = tf.multiply(old_inputs_2_expanded, E)
-                # E = tf.reduce_sum(E, axis = 1)
-                # alpha = E * R
-                # loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
-                pass
 
         else:
             # # Is the density of A larger than approximately 15%? maybe just use dense matrix

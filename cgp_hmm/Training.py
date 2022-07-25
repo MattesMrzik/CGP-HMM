@@ -37,7 +37,7 @@ def make_dataset(path):
                                          tf.as_dtype(tf.int32),
                                          tf.TensorShape([None]))
 
-    ds = ds.padded_batch(32, padding_values = 5) # 4 is "padded left flank"
+    ds = ds.padded_batch(32, padding_values = 5) # 5 is terminal symbol, 4 is "padded left flank"
 
     def to_one_hot(seq):
         return tf.cast(tf.one_hot(seq, 4 + 2), dtype=tf.float64)
