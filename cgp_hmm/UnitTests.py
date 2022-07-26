@@ -68,10 +68,10 @@ class TestCgpHmmCell(unittest.TestCase):
         for i, (index,value) in enumerate(zip(indices, values[0])):
             print("i = ", i, index, value)
 
-    def test_get_indices_and_values_from_emission_kernel_higher_order_v02(self):
+    def off_test_get_indices_and_values_from_emission_kernel_higher_order_v02(self):
         cell = CgpHmmCell()
         #                                                                                  100 weights,     2 codons, 4 = alphabet_size
-        indices, values = cell.get_indices_and_values_from_emission_kernel_higher_order_v02(np.array(list(range(10,10000))),2,4)
+        indices, values = cell.get_indices_and_values_from_emission_kernel_higher_order_v02(np.array(list(range(10,10000)),dtype = tf.float32),2,4)
         print("indices =", len(indices))
         print("values =", len(values))
         emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],6,6,6])
@@ -82,7 +82,15 @@ class TestCgpHmmCell(unittest.TestCase):
             tf.print(emission_matrix[state], summarize = -1)
             tf.print("---------------------------------------------")
 
-
+    def test_get_indices_and_values_from_initial_kernel(self):
+        cell = CgpHmmCell()
+        indices, values = cell.get_indices_and_values_from_initial_kernel(np.array(list(range(100))), 2)
+        print("indices =", indices)
+        print("values =", values)
+        initial_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],1])
+        initial_matrix = tf.sparse.reorder(initial_matrix)
+        initial_matrix = tf.sparse.to_dense(initial_matrix)
+        print(initial_matrix)
 
 class TestViterbi(unittest.TestCase):
     def off_test_Viterbi(self):# todo also test with passing a0

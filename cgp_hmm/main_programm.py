@@ -35,3 +35,8 @@ for state in range(len(cell.B)):
     tf.print(Utility.state_id_to_description(state, 2))
     tf.print(cell.B[state], summarize = -1)
     tf.print("---------------------------------------------")
+
+cell.init_kernel = model.get_weights()[2]
+for state in range(len(cell.I)):
+    print(Utility.state_id_to_description(state, 2))
+    print(tf.math.round(cell.I[state,0]*100)/100)

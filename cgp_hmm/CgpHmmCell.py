@@ -259,101 +259,6 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
 
         return indices, values[0]
 
-    def get_indices_and_values_from_emission_kernel_higher_order(self, w, nCodons, alphabet_size):
-        k = 0
-        # ig 5'
-        #           state, prevprev emission, prev emission, current emission,
-        indices = [[0,i,j,k] for i in range(alphabet_size + 1) for j in range(max(alphabet_size, i+1)) for k in range(alphabet_size)]
-        #                                                     0aig, 0cig, 0gig, 0tig
-        values = w[k:k + (alphabet_size+1)*alphabet_size**2 + 4]
-        k += (alphabet_size+1)*alphabet_size**2 + 4
-
-        # start a
-        indices += [[1,i,j,0] for i in range(alphabet_size + 1) for j in range(alphabet_size)]
-        values = tf.concat([values,  w[k:k + (alphabet_size+1)*alphabet_size]], axis = 0)
-        k += (alphabet_size+1)*alphabet_size
-
-        # start t
-        indices += [[2,i,0,3] for i in range(alphabet_size)]
-        values = tf.concat([values,  w[k:k + alphabet_size]], axis = 0)
-        k += alphabet_size
-
-        # start g
-        indices += [[3,0,3,2]]
-        values = tf.concat([values,  [1]], axis = 0)
-
-        # codons
-        # this needs to be adjusted if markov chain can start in a state other than ig5'
-        # first two positions of first codons must be handled seperatly
-        indices += [[4,3,2, i] for i in range(alphabet_size)]
-        values = tf.concat([values, w[k:k + alphabet_size]], axis = 0)
-        k += 4
-
-        indices += [[5,2,i, j] for i in range(alphabet_size) for j in range(alphabet_size)]
-        values = tf.concat([values, w[k:k+alphabet_size**2]], axis = 0)
-        k += alphabet_size**2
-
-        # all other codons
-        indices += [[6 + i, j, k, l] for i in range(nCodons * 3 - 2) \
-                                     for j, k, l in product(range(alphabet_size), repeat = 3)]
-        values = tf.concat([values, w[k:k + (nCodons * 3 - 2) * alphabet_size**3]], axis = 0)
-        k +=  (nCodons * 3 - 2) * alphabet_size**3
-
-        # stop t                          t
-        indices += [[4 + nCodons*3, i, j, 3] for i,j in product(range(alphabet_size), repeat = 2)]
-        values = tf.concat([values, w[k:k + alphabet_size**2]], axis = 0)
-        k += alphabet_size**2
-
-        # second stop                  t  a
-        indices += [[5 + nCodons*3, i, 3, 0] for i in range(alphabet_size)]
-        values = tf.concat([values, w[k: k + alphabet_size]], axis = 0)
-        k += alphabet_size
-
-        # second stop                  t  g
-        indices += [[5 + nCodons*3, i, 3, 2] for i in range(alphabet_size)]
-        values = tf.concat([values, w[k: k + alphabet_size]], axis = 0)
-        k += alphabet_size
-
-        # third stop                t  a  a
-        indices += [[6 + nCodons*3, 3, 0, 0]]
-        values = tf.concat([values, [1]], axis = 0)
-
-        # third stop                t  a  g
-        indices += [[6 + nCodons*3, 3, 0, 2]]
-        values = tf.concat([values, [1]], axis = 0)
-
-        # third stop                t  g  a
-        indices += [[6 + nCodons*3, 3, 2, 0]]
-        values = tf.concat([values, [1]], axis = 0)
-
-        # ig3'
-        indices += [[7 + nCodons*3, i,j,k] for i,j,k in product(range(alphabet_size), repeat=3)]# what about terminal symbol
-        values = tf.concat([values, w[k:k + alphabet_size**3]], axis = 0)
-        k += alphabet_size**3
-
-        # inserts
-        indices += [[8 + nCodons*3 + l, i,j,k] for l in range(3*(nCodons+1)) \
-                                               for i,j,k in product(range(alphabet_size), repeat=3)]
-        values = tf.concat([values, w[k:k + alphabet_size**3*3*(nCodons+1)]], axis = 0)
-        k += alphabet_size**3*3*(nCodons+1)
-
-        # terminal                                       terminal symbol
-        indices += [[8 + nCodons*3 + (nCodons+1)*3, i,j,5] for i,j in product(range(alphabet_size), repeat=2)]
-        # cant assign the emissions {acgt} ter. ter. and ter. ter. ter. in this loop,
-        # bc i need these emission to not add to calculated probability of seq
-        values = tf.concat([values, w[k:k + alphabet_size**2]], axis = 0)# todo: maybe just assign all equal probability
-        k += alphabet_size**2
-
-        indices += [[8 + nCodons*3 + (nCodons+1)*3, i, 5, 5] for i in range(alphabet_size)]
-        values = tf.concat([values, w[k:k + alphabet_size]], axis = 0)
-        k += alphabet_size
-
-        indices += [[8 + nCodons*3 + (nCodons+1)*3, 5, 5, 5]]
-        values = tf.concat([values, [1]], axis = 0)
-
-        return indices, values
-
-
     @property
     def B(self):
 
@@ -374,13 +279,28 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
 
         return emission_matrix
 
+    def get_indices_and_values_from_initial_kernel(self, weights, nCodons):
+        k = 0
+
+        # start and codons
+        indices = [[i,0] for i in range(3 + nCodons*3)]
+        values = weights[k:k + 3 + nCodons*3]
+        k += 3 + nCodons*3
+        # inserts
+        indices += [[i,0] for i in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3)]
+        values = tf.concat([values, weights[k:k + (nCodons + 1)*3]], axis = 0)
+        k += (nCodons + 1)*3
+
+        return indices, values
+
     @property
     def I(self):
-        # todo: the markov chain can only start in first state,
-        # easy to generalize
-        initial_matrix = tf.sparse.SparseTensor(indices = [[0,0]], values = [self.init_kernel[0]], dense_shape = [self.state_size[0],1])
+        indices, values = self.get_indices_and_values_from_initial_kernel(self.init_kernel, self.nCodons)
+        initial_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.state_size[0],1])
         initial_matrix = tf.sparse.reorder(initial_matrix)
+        initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.state_size[0]))
         initial_matrix = tf.sparse.softmax(initial_matrix)
+        initial_matrix = tf.sparse.reshape(initial_matrix, (self.state_size[0],1))
         initial_matrix = tf.sparse.to_dense(initial_matrix)
         return initial_matrix
 
@@ -401,7 +321,6 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
                                         tf.ones((batch_size,self.order,1)), \
                                         tf.zeros((batch_size,self.order,1))], axis = 2)
 
-            # old_inputs_2 = old_inputs_1
 
             R = tf.transpose(self.I)
             # E = tf.linalg.matmul(inputs, tf.transpose(self.B))
@@ -439,12 +358,13 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
             loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
 
         # loglik = tf.squeeze(loglik)
-        #       return sequences        states
-        # return [alpha, inputs, count], [alpha, loglik, count, old_inputs_1, inputs]
+
         if self.order > 0:
-            new_old_inputs = tf.concat([tf.expand_dims(inputs, axis = 1), old_inputs[:,:-1,:]], axis = 1)
+            #                                                                        batch, order, one_hot, select every old input but the oldest in last position, this last one gets pushed off the tensor by the current input which is added at first position
+            new_old_inputs = tf.concat([tf.expand_dims(inputs, axis = 1), old_inputs[:, :-1, :]], axis = 1)
             return [alpha, inputs, count], [alpha, loglik, count, new_old_inputs]
         else:
+            #       return sequences        states
             return [alpha, inputs, count], [alpha, loglik, count]
 
 
