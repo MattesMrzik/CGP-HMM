@@ -12,7 +12,7 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         # super(CgpHmmCell, self).__init__()
         super(CgpHmmCell_onedim, self).__init__()
 
-        self.nCodons = 2
+        self.nCodons = 22
 
         self.alphabet_size = 4 # without terminal symbol and without "papped left flank" symbol
 
@@ -231,14 +231,14 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         # start t
         self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,2,"AT",0)
         # start g
-        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,3,"ATG",0, trainable = False)
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,3,"ATG",2, trainable = False)
         # codon_11
-        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,4,"ATGN",0)
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,4,"ATGN",2)
         # codon_12
-        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,5,"ATGNN",0)
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,5,"ATGNN",2)
         # all other codons
         for state in range(6, 6 + nCodons*3 -2):
-            self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,state,"N",0)
+            self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,state,"N",2)
         # stop
         self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,4 + nCodons*3,"T",self.order)
         self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,5 + nCodons*3,"TA",self.order)
@@ -250,7 +250,7 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,7 + nCodons*3,"N",self.order)
         # inserts
         for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
-            self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,state,"N",0)
+            self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,state,"N",self.order)
         # terminal 1
         for i in range(1,self.order + 1):
             self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,8 + nCodons*3 + (nCodons+1)*3,"X" * i,self.order)
@@ -263,7 +263,7 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
     def B(self):
 
         indices, values = self.get_indices_and_values_from_emission_kernel_higher_order_v02(self.emission_kernel, self.nCodons, self.alphabet_size)
-
+        # [state, oldest emission, ..., second youngest emisson, current emission]
         emission_matrix = tf.sparse.SparseTensor(indices = indices, \
                                                  values = values, \
                                                  dense_shape = [self.state_size[0], \
@@ -306,11 +306,14 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
 
     def call(self, inputs, states, training = None, verbose = False):
         if self.order > 0:
+            # old inputs is from newest to oldest
             old_forward, old_loglik, count, old_inputs = states
         else:
             old_forward, old_loglik, count = states
 
         count = count + 1 # counts i in alpha(q,i)
+        # tf.print("count =", count[0,0])
+        # tf.print("inputs[0] =", inputs[0])
 
         # shape may be (batch_size,1) and not (batchsize,) thats why the second 0 is required
         if count[0,0] == 1:

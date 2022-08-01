@@ -75,5 +75,5 @@ def fit_model(path):
     callbacks = [my_callback()]
     callbacks = []
 
-    history = model.fit(data_set, epochs=4, steps_per_epoch=10, callbacks = callbacks) # with callbacks it is way slower
+    history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
     return model, history

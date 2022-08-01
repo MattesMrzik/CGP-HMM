@@ -11,11 +11,11 @@ np.set_printoptions(linewidth=200)
 ########################################################################
 ########################################################################
 def state_id_to_description(id, nCodons):
-    states = re.split("\s+", "ig5' start_A start_T start_G")
-    states += ["codon_" + str(i) + "," + str(j) for i in range(nCodons) for j in range(3)]
-    states += re.split("\s+", "stop_t second_stop third_stop ig3'")
-    states += ["insert_" + str(i) + "," + str(j) for i in range(nCodons+1) for j in range(3)]
-    states += ["terminal", "terminal2"]
+    states = re.split("\s+", "ig5' stA stT stG")
+    states += ["c_" + str(i) + "," + str(j) for i in range(nCodons) for j in range(3)]
+    states += re.split("\s+", "stop1 stop2 stop3 ig3'")
+    states += ["i_" + str(i) + "," + str(j) for i in range(nCodons+1) for j in range(3)]
+    states += ["ter1", "ter2"]
     return states[id]
 
 ########################################################################
@@ -171,6 +171,41 @@ def P_of_X_Y_log_version(a,b,x,y, a0 =[]):
 ########################################################################
 ########################################################################
 # argmax_x: P_theta(x|y)
+
+# todo: implement this in c++
+# maybe write an api for it
+def viterbi_log_version_higher_order(a,b,i,y):
+    import tensorflow as tf
+    nStates = len(a)
+    n = len(y)
+    order = len(tf.shape(b)) -1 -1 # one for state, the other for current emission
+    y_old = [4] * order # oldest to newest
+
+    g = np.log(np.zeros((nStates, n))) # todo: i think it dont need log, since ive got I
+
+    # for every state, at seq pos 0
+    for state in range(nStates):
+        index = [state] + y_old + [y[0]]
+        g[state, 0] = np.log(i[state,0] * b[index])
+
+    # todo only save last col of gamma, for backtracking recompute
+    for i in range(1, n):
+        print(str(i) + "/" + str(n), end = "\r")
+        y_old = y_old[1:] + [y[i-1]]
+        for q in range(nStates):
+            # todo: change this to a for loop, and save current max, may impove runtime a bit
+            # todo: can compute in parallel for different states
+            m = max([np.log(a[state, q]) + g[state, i-1] for state in range(nStates)])
+            index = [q] + y_old + [y[i]]
+            g[q,i] = np.log(b[index]) + m
+    # backtracking
+    x = np.zeros(n, dtype = np.int32)
+    x[n-1] = np.argmax(g[:,n-1])
+    for i in range(n-2, -1, -1):
+        x[i] = np.argmax(np.log(a[:,x[i+1]]) + g[:,i])
+    return(x)
+
+
 def viterbi_log_version(a, b, y, a0 = []):
     n = len(y)
     g = np.log(np.zeros((len(a), n)))
@@ -206,6 +241,23 @@ def brute_force_viterbi_log_version(a,b,y,a0 = []):
             arg_max = guess
     return np.array(arg_max)
 
+########################################################################
+########################################################################
+########################################################################
+def write_to_file(matrix, path):
+    from itertools import product
+    import tensorflow as tf
+    # try:
+    with open(path, "w") as file:
+        x = [list(range(dim_size)) for dim_size in tf.shape(matrix)]
+        for index in product(*x):
+            file.write(str(index))
+            file.write(";")
+            file.write(str(matrix[index].numpy()))
+            file.write("\n")
+    # except:
+    #     print("could not write to file:", path)
+    #     quit(1)
 ########################################################################
 ########################################################################
 ########################################################################
