@@ -6,7 +6,7 @@
 #include <cmath>
 #include <algorithm> // for reverse vector
 
-size_t nCodons = 22;
+size_t nCodons;
 
 std::vector<std::string> splitstr(std::string str, std::string deli = " ") {
     int start = 0;
@@ -58,6 +58,7 @@ std::vector<float> read_I(std::string path) {
     myfile.close();
     return(I);
 }
+
 std::vector<std::vector<float>> read_A(std::string path) {
     std::ifstream myfile (path);
     std::string line;
@@ -170,9 +171,17 @@ void print(std::vector<float> v) {
     }
 }
 void print(std::vector<std::vector<float>> a) {
-    for (auto row : a) {
-        for (auto v : row) {
-            std::cout << std::round(v*100)/100 << "\t";
+    std::cout << "-\t";
+    for (size_t j = 0; j < a.size(); ++j) {
+        std::cout << state_id_to_description(j) << '\t';
+    }
+    std::cout << '\n';
+    for (size_t i = 0; i < a.size(); i++) {
+        std::cout << state_id_to_description(i) << '\t';
+        for (size_t j = 0; j < a[i].size(); j++) {
+            if (i == j) std::cout << "\033[92m"<< std::round(a[i][j]*100)/100 << "\033[0m" << "\t";
+            // else if (state_id_to_description(j).at(0) == 'i' && a[i][j] != 0)  std::cout << "\033[93m"<< std::round(a[i][j]*100)/100 << "\033[0m" << "\t";
+            else std::cout << std::round(a[i][j]*100)/100 << "\t";
         }
         std::cout << '\n';
     }
@@ -462,9 +471,10 @@ int main(int argc, char *argv[]) {
     }
 
     auto I = read_I("I.txt");
+    nCodons = ((I.size() - 10) / 3 - 1)/2;
     // print(I);
     auto A = read_A("A.txt");
-    // print(A);
+    print(A);
     auto B = read_B("B.txt");
     // print(B);
     auto seqs = read_seqs(path);

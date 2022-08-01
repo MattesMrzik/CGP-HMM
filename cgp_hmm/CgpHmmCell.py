@@ -6,13 +6,13 @@ from itertools import product
 def prRed(skk): print("Cell\033[93m {}\033[00m" .format(skk))
 # def prRed(s): pass
 
-class CgpHmmCell_onedim(tf.keras.layers.Layer):
+class CgpHmmCell(tf.keras.layers.Layer):
 # class CgpHmmCell(tf.keras.layers.Layer):
-    def __init__(self):
+    def __init__(self, nCodons):
         # super(CgpHmmCell, self).__init__()
-        super(CgpHmmCell_onedim, self).__init__()
+        super(CgpHmmCell, self).__init__()
 
-        self.nCodons = 22
+        self.nCodons = nCodons
 
         self.alphabet_size = 4 # without terminal symbol and without "papped left flank" symbol
 
@@ -47,6 +47,7 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         s += 1 # delete
         s += (self.nCodons + 1) * 2 # enter/exit insert
         s += self.nCodons # enter codon
+        s += 1 # exit last codon
 
         return(s)
 
@@ -95,7 +96,6 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         # inserts
         offset = 8 + 3*nCodons
         # begin inserts
-
         use_inserts = True
         if use_inserts:
             indices += [[3 + i*3, offset + i*3] for i in range(nCodons + 1)]
@@ -104,7 +104,8 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
 
         # exit last codon
         indices += [[3 + nCodons*3, 4 + nCodons*3]]
-        values = tf.concat([values, [1-w[k-1]]], axis = 0)
+        values = tf.concat([values, [w[k]]], axis = 0)
+        k += 1
 
         # first to second position in insert
         indices += [[offset + i*3, offset + 1 + i*3] for i in range(nCodons + 1)]
@@ -369,8 +370,3 @@ class CgpHmmCell_onedim(tf.keras.layers.Layer):
         else:
             #       return sequences        states
             return [alpha, inputs, count], [alpha, loglik, count]
-
-
-class CgpHmmCell(CgpHmmCell_onedim):
-    def __init__(self):
-        super(CgpHmmCell, self).__init__()

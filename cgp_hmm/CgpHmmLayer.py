@@ -8,11 +8,12 @@ def prRed(skk): print("Layer\033[91m {}\033[00m" .format(skk))
 # def prRed(s): pass
 
 class CgpHmmLayer(tf.keras.layers.Layer):
-    def __init__(self):
+    def __init__(self, nCodons):
         super(CgpHmmLayer, self).__init__()
+        self.nCodons = nCodons
 
     def build(self, input_shape):
-        self.C = CgpHmmCell() # init
+        self.C = CgpHmmCell(self.nCodons) # init
         # self.C.build(input_shape) # build
         # this isnt needed for training but when calling the layer, then i need to build C manually, but it is then called
         # a second time when calling F

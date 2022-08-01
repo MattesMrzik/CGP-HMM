@@ -12,13 +12,13 @@ def prRed(skk): print("Training\033[92m {}\033[00m" .format(skk))
 
 np.set_printoptions(linewidth=400)
 
-def make_model():
+def make_model(nCodons):
 
     alphabet_size = 4
 
     sequences = tf.keras.Input(shape = (None, alphabet_size + 2), name = "sequences")
     # another None added automatically for yet unkown batch_size
-    cgp_hmm_layer = CgpHmmLayer() # init of layer
+    cgp_hmm_layer = CgpHmmLayer(nCodons) # init of layer
 
     loglik = cgp_hmm_layer(sequences) # layer is build, then called
 
@@ -47,8 +47,8 @@ def make_dataset(path):
 
     return ds, seqs
 
-def fit_model(path):
-    model, cgp_hmm_layer = make_model()
+def fit_model(path, nCodons):
+    model, cgp_hmm_layer = make_model(nCodons)
     learning_rate = .1
     optimizer = tf.optimizers.Adam(learning_rate)
     model.compile(optimizer = optimizer)

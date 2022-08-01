@@ -23,39 +23,51 @@ def prRed(skk): print(f"Cell\033[91m {skk} \033[00m")
 
 path = "../data/artificial/single_exon_gene_flanked_by_nonCoding/seq_gen.out.with_utr.fasta"
 path = "/home/mattes/Seafile/Meine_Bibliothek/Uni/Master/CGP-HMM-python-project/data/artificial/MSAgen/test.out.seqs.fa"
+
+nCodons = 30
+run(f"python3 ../data/artificial/MSAgen/useMSAgen.py -c {nCodons}")
+
+path = f"/home/mattes/Seafile/Meine_Bibliothek/Uni/Master/CGP-HMM-python-project/cgp_hmm/out.seqs.{nCodons}codons.fa"
+
 prRed("path = " + path)
-model, history = fit_model(path)
+model, history = fit_model(path, nCodons)
 # model.save("my_saved_model")
 
 plt.plot(history.history['loss'])
 plt.savefig("progress.png")
 
-cell = CgpHmmCell()
+cell = CgpHmmCell(nCodons)
 
-# printing A
-cell.transition_kernel = model.get_weights()[0]
-print(".\t", end ="")
-for state in range(cell.state_size[0]):
-    print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
-print()
-for state in range(cell.state_size[0]):
-    print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
-    for goal_state in cell.A[state]:
-        print((tf.math.round(goal_state*100)/100).numpy(), end = "\t")
+def printA():
+    global cell, model
+    cell.transition_kernel = model.get_weights()[0]
+    print(".\t", end ="")
+    for state in range(cell.state_size[0]):
+        print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
     print()
+    for state in range(cell.state_size[0]):
+        print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
+        for goal_state in cell.A[state]:
+            print((tf.math.round(goal_state*100)/100).numpy(), end = "\t")
+        print()
+printA()
 
-# printing B
-cell.emission_kernel = model.get_weights()[1]
-for state in range(len(cell.B)):
-    tf.print(Utility.state_id_to_description(state, cell.nCodons))
-    tf.print(tf.math.round(cell.B[state]*100).numpy()/100, summarize = -1)
-    tf.print("---------------------------------------------")
+def printB():
+    global cell, model
+    cell.emission_kernel = model.get_weights()[1]
+    for state in range(len(cell.B)):
+        tf.print(Utility.state_id_to_description(state, cell.nCodons))
+        tf.print(tf.math.round(cell.B[state]*100).numpy()/100, summarize = -1)
+        tf.print("---------------------------------------------")
+printB()
 
-# printing I
-cell.init_kernel = model.get_weights()[2]
-for state in range(len(cell.I)):
-    print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
-    print(tf.math.round(cell.I[state,0]*100).numpy()/100)
+def printI():
+    global cell, model
+    cell.init_kernel = model.get_weights()[2]
+    for state in range(len(cell.I)):
+        print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
+        print(tf.math.round(cell.I[state,0]*100).numpy()/100)
+printI()
 
 Utility.write_to_file(cell.A, "A.txt")
 Utility.write_to_file(cell.B, "B.txt")

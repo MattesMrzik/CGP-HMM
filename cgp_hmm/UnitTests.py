@@ -11,9 +11,9 @@ import Utility
 
 class TestCgpHmmCell(unittest.TestCase):
     def off_test_get_indices_and_values_from_transition_kernel(self):
-        cell = CgpHmmCell()
+        cell = CgpHmmCell(2)
         #                                                                                        weights, 2 codons
-        indices, values = cell.get_indices_and_values_from_transition_kernel(np.array(list(range(10,100))),2)
+        indices, values = cell.get_indices_and_values_from_transition_kernel(np.array(list(range(10,100))),cell.nCodons)
         print("indices =", indices)
         print("values =", values)
         transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0]] * 2)
@@ -22,39 +22,52 @@ class TestCgpHmmCell(unittest.TestCase):
     def off_test_get_indices_and_values_from_emission_kernel(self):
         cell = CgpHmmCell()
         #                                                                                  100 weights,     2 codons, 4 = alphabet_size
-        indices, values = cell.get_indices_and_values_from_emission_kernel(np.array(list(range(10,100))),2,4)
+        indices, values = cell.get_indices_and_values_from_emission_kernel(np.array(list(range(10,100))),cell.nCodons,4)
         print("indices =", len(indices))
         print("values =", len(values))
         emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],5])
         emission_matrix = tf.sparse.reorder(emission_matrix)
         print(tf.sparse.to_dense(emission_matrix))
 
-    def off_test_get_indices_and_values_from_transition_kernel_higher_order(self):
-        cell = CgpHmmCell()
+    def test_get_indices_and_values_from_transition_kernel_higher_order(self):
+        cell = CgpHmmCell(4)
         #                                                                                        weights, 2 codons
-        indices, values = cell.get_indices_and_values_from_transition_kernel_higher_order(np.array(list(range(10,100))),2)
-        print("indices =", indices)
-        print("values =", values)
+        indices, values = cell.get_indices_and_values_from_transition_kernel_higher_order(np.array(list(range(10,100))),cell.nCodons)
         transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0]] * 2)
         transition_matrix = tf.sparse.reorder(transition_matrix)
-        print(tf.sparse.to_dense(transition_matrix))
+        transition_matrix = tf.sparse.to_dense(transition_matrix)
+
+        print("-\t", end = "")
+        for i in range(len(transition_matrix)):
+            print(Utility.state_id_to_description(i, cell.nCodons), end = "\t")
+        print()
+        for i in range(len(transition_matrix)):
+            print(Utility.state_id_to_description(i, cell.nCodons), end = "\t")
+            for j in range(len(transition_matrix[i])):
+                if i == j:
+                    print("\033[92m", transition_matrix[i,j].numpy(),"\033[0m", sep = "", end = "\t")
+                else:
+                    print(transition_matrix[i,j].numpy(), end = "\t")
+
+
+            print()
 
     def off_test_get_indices_and_values_from_emission_kernel_higher_order(self):
-        cell = CgpHmmCell()
+        cell = CgpHmmCell(2)
         #                                                                                  100 weights,     2 codons, 4 = alphabet_size
-        indices, values = cell.get_indices_and_values_from_emission_kernel_higher_order(np.array(list(range(10,10000))),2,4)
+        indices, values = cell.get_indices_and_values_from_emission_kernel_higher_order(np.array(list(range(10,10000))),cell.nCodons,4)
         print("indices =", len(indices))
         print("values =", len(values))
         emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],6,6,6])
         emission_matrix = tf.sparse.reorder(emission_matrix)
         emission_matrix = tf.sparse.to_dense(emission_matrix)
         for state in range(len(emission_matrix)):
-            tf.print(state_id_to_description(state, 2))
+            tf.print(state_id_to_description(state, cell.nCodons))
             tf.print(emission_matrix[state], summarize = -1)
             tf.print("---------------------------------------------")
 
     def off_test_get_indices_and_values_for_emission_higher_order_for_a_state(self):
-        cell = CgpHmmCell()
+        cell = CgpHmmCell(2)
         indices = []
         values = [[]]
         weights = list(range(100))
@@ -69,22 +82,22 @@ class TestCgpHmmCell(unittest.TestCase):
             print("i = ", i, index, value)
 
     def off_test_get_indices_and_values_from_emission_kernel_higher_order_v02(self):
-        cell = CgpHmmCell()
+        cell = CgpHmmCell(2)
         #                                                                                  100 weights,     2 codons, 4 = alphabet_size
-        indices, values = cell.get_indices_and_values_from_emission_kernel_higher_order_v02(np.array(list(range(10,10000)),dtype = tf.float32),2,4)
+        indices, values = cell.get_indices_and_values_from_emission_kernel_higher_order_v02(np.array(list(range(10,10000)),dtype = tf.float32),cell.nCodons,4)
         print("indices =", len(indices))
         print("values =", len(values))
         emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],6,6,6])
         emission_matrix = tf.sparse.reorder(emission_matrix)
         emission_matrix = tf.sparse.to_dense(emission_matrix)
         for state in range(len(emission_matrix)):
-            tf.print(state_id_to_description(state, 2))
+            tf.print(state_id_to_description(state, cell.nCodons))
             tf.print(emission_matrix[state], summarize = -1)
             tf.print("---------------------------------------------")
 
-    def test_get_indices_and_values_from_initial_kernel(self):
-        cell = CgpHmmCell()
-        indices, values = cell.get_indices_and_values_from_initial_kernel(np.array(list(range(100))), 2)
+    def off_test_get_indices_and_values_from_initial_kernel(self):
+        cell = CgpHmmCell(2)
+        indices, values = cell.get_indices_and_values_from_initial_kernel(np.array(list(range(100))), cell.nCodons)
         print("indices =", indices)
         print("values =", values)
         initial_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],1])
