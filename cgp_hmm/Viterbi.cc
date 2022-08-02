@@ -349,7 +349,7 @@ float log_prob_of_state_seq(std::vector<std::vector<float>> A,
 }
 void write_to_file(std::vector<std::vector<int>> seqs, std::vector<std::vector<size_t>> state_seqs) {
     std::ofstream file;
-    file.open("my_output_file.txt");
+    file.open("viterbi." + std::to_string(nCodons) + "codons.csv");
     for (size_t i = 0; i < seqs.size(); i++) {
         auto seq = seqs[i];
         auto state_seq = state_seqs[i];
@@ -388,7 +388,7 @@ void write_to_file(std::vector<std::vector<int>> seqs, std::vector<std::vector<s
 
 void write_to_file_atg_aligned(std::vector<std::vector<int>> seqs, std::vector<std::vector<size_t>> state_seqs) {
     std::ofstream file;
-    file.open("my_output_file.txt");
+    file.open("viterbi." + std::to_string(nCodons) + "codons.atg_aligned.csv");
 
     size_t max_index_of_start_a = 0;
     for (size_t i = 0; i < seqs.size(); i++) {
@@ -456,45 +456,33 @@ void write_to_file_atg_aligned(std::vector<std::vector<int>> seqs, std::vector<s
 
 int main(int argc, char *argv[]) {
     char * path;
-    int seq_idx;
-    switch (argc) {
-        case 1:
-            std::cout << "pls enter path to fasta file" << '\n';
-            return(1);
-        case 2:
-            path = argv[1];
-            break;
-        case 3:
-            path = argv[1];
-            std::string index(argv[2]);
-            seq_idx = std::stoi(index);
+    if (argc != 3) {
+        std::cout << "usage: ./main path/to/fasta/file nCodons_used_in_model" << '\n';
+        return(1);
+    }
+    else {
+        path = argv[1];
+        std::string str_nCodons(argv[2]);
+        nCodons = std::stoi(str_nCodons);
     }
 
-    auto I = read_I("I.txt");
-    nCodons = ((I.size() - 10) / 3 - 1)/2;
+    auto I = read_I("I."+std::to_string(nCodons)+"codons.txt");
     // print(I);
-    auto A = read_A("A.txt");
-    print(A);
-    auto B = read_B("B.txt");
+    auto A = read_A("A."+std::to_string(nCodons)+"codons.txt");
+    // print(A);
+    auto B = read_B("B."+std::to_string(nCodons)+"codons.txt");
     // print(B);
     auto seqs = read_seqs(path);
     // print(seqs);
 
-    if (argc == 2){
-        std::vector<std::vector<size_t>> state_seqs;
-        for (auto seq : seqs) {
-            // print(seq, "\t");
-            auto x = viterbi(A,B,I,seq);
-            // print(x);
-            state_seqs.push_back(x);
-            // std::cout << "-" << '\n';
-        }
-        write_to_file_atg_aligned(seqs, state_seqs);
-    }
-    if (argc == 3){
-        auto seq = seqs[seq_idx];
-        print(seq, "\t");
+    std::vector<std::vector<size_t>> state_seqs;
+    for (auto seq : seqs) {
+        // print(seq, "\t");
         auto x = viterbi(A,B,I,seq);
-        print(x);
+        // print(x);
+        state_seqs.push_back(x);
+        // std::cout << "-" << '\n';
     }
+    write_to_file_atg_aligned(seqs, state_seqs);
+    write_to_file(seqs, state_seqs);
 }
