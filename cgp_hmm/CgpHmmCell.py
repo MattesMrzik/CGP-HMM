@@ -349,6 +349,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
             E = tf.tensordot(inputs, tf.transpose(self.B), axes = (1,0))
 
+            # todo: immer neue tensoren vielleicht langsam und doppelte for schleife
+            # liebe ienfach index berechnen zb ACT 1*4 + 2*4 + 4*4
             for i in range(self.order):
                 old_inputs_i_expanded = tf.expand_dims(old_inputs[:,i,:], axis = -1)
                 for j in range(i + 1, self.order):

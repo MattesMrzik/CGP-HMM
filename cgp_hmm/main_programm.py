@@ -49,7 +49,7 @@ def printA():
         for goal_state in cell.A[state]:
             print((tf.math.round(goal_state*100)/100).numpy(), end = "\t")
         print()
-printA()
+# printA()
 
 def printB():
     global cell, model
@@ -58,7 +58,7 @@ def printB():
         tf.print(Utility.state_id_to_description(state, cell.nCodons))
         tf.print(tf.math.round(cell.B[state]*100).numpy()/100, summarize = -1)
         tf.print("---------------------------------------------")
-printB()
+# printB()
 
 def printI():
     global cell, model
@@ -66,7 +66,7 @@ def printI():
     for state in range(len(cell.I)):
         print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
         print(tf.math.round(cell.I[state,0]*100).numpy()/100)
-printI()
+# printI()
 
 Utility.write_to_file(cell.A, f"A.{nCodons}codons.txt")
 Utility.write_to_file(cell.B, f"B.{nCodons}codons.txt")
@@ -128,6 +128,6 @@ with open(f"viterbi.{nCodons}codons.csv", "r") as viterbi_file:
             else:
                 stats["stop_too_late"] += 1
 
-nSeqs = sum([v for v in stats.values()])/2
+nSeqs = sum([v for v in stats.values()])/2 # div by 2 bc every seq appears twice in stats (in start and stop)
 for key, value in stats.items():
     print(key, value/nSeqs)
