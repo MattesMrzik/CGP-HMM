@@ -52,6 +52,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return(s)
 
     def build(self, input_shape):
+        tf.print("tfcell is build")
+        print("cell is build")
         self.transition_kernel = self.add_weight(shape = (self.calc_number_of_transition_parameters(),), # todo: (self.state_size[0], ) is this shape good?
                                                  initializer="random_normal",
                                                  trainable=True)
@@ -150,7 +152,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # but: TypeError: Cannot convert [0.5, 0.5] to EagerTensor of dtype int32
         values = tf.concat([values, [1] * 2], axis = 0) # this parameter doesnt have to be learned (i think)
 
-        # terminal_1 -> terminal_1, terminal_1 -> terminal_2
+        # terminal_1 -> terminal_1, a mix of true bases and X are emitted
+        # terminal_1 -> terminal_2, only X are emitted
         indices += [[index_of_terminal_1, index_of_terminal_1], [index_of_terminal_1, index_of_terminal_1 +1]]
         values = tf.concat([values, [1] * 2], axis = 0)
 

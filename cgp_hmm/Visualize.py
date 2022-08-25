@@ -5,7 +5,7 @@ import numpy as np
 import re
 from Utility import state_id_to_description
 
-nCodons = 5
+nCodons = 3
 n_most_likely_emissions = 3
 id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
 with open(f"graph.{nCodons}codons.gv", "w") as graph:
@@ -44,7 +44,7 @@ with open(f"graph.{nCodons}codons.gv", "w") as graph:
                 graph.write("\tshape = none\n")
                 graph.write("\tlabel = <<table border=\"0\" cellspacing=\"0\"> \n")
                 try:
-                    color = {"c_":"crimson", "i_": "teal"}[j[0:2]]
+                    color = {"c_":"teal", "i_": "crimson"}[j[0:2]]
                 except:
                     color = "white"
                 graph.write(f"\t\t<tr><td port=\"port1\" border=\"1\" bgcolor=\"{color}\">" + j + "</td></tr>\n")
@@ -55,7 +55,7 @@ with open(f"graph.{nCodons}codons.gv", "w") as graph:
 
             prob = float(line[2])
             if prob > 0:
-                graph.write(f"\"{i}\" -> \"{j}\"\n")
+                graph.write(f"\"{i}\" -> \"{j}\" [label = {np.round(prob, 4)} fontsize=\"{30*prob + 5}pt\"]\n")
     graph.write("}")
 run(f"cat graph.{nCodons}codons.gv")
 run(f"dot -Tpng graph.{nCodons}codons.gv -o graph.{nCodons}codons.png")
