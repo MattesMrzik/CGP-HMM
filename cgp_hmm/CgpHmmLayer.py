@@ -35,6 +35,11 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # old_state_2, \
         # old_state_1 = self.F(inputs) #  build and call of CgpHmmCell are called
 
+        # todo: felix macht auch nochmal a und b
+        self.C.init_cell()
+        # tf.print("in call of layer: self.C.init =", self.C.init)
+
+
         result = self.F(inputs) #  build and call of CgpHmmCell are called
         alpha_seq = result[0]
         inputs_seq = result[1]

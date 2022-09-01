@@ -20,6 +20,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         #                  alpha                         old loglik count old_input
         self.state_size = [self.calc_number_of_states(), 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
 
+        # self.init = True
+
 
 
     def calc_number_of_states(self):
@@ -222,7 +224,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     def get_indices_and_values_from_emission_kernel_higher_order_v02(self, w, nCodons, alphabet_size):
         indices = []
-        values = [[]] # will contain one tensor at index 0, wrapped it in a list such that it can be passed by reference
+        values = [[]] # will contain one tensor at index 0, wrapped it in a list such that it can be passed by reference, ie such that it is mutable
         weights = w
         k = [0]
 
@@ -306,6 +308,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         initial_matrix = tf.sparse.to_dense(initial_matrix)
         return initial_matrix
 
+    def init_cell(self):
+        self.init = True
+
     def call(self, inputs, states, training = None, verbose = False):
         if self.order > 0:
             # old inputs is from newest to oldest
@@ -318,7 +323,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # tf.print("inputs[0] =", inputs[0])
 
         # shape may be (batch_size,1) and not (batchsize,) thats why the second 0 is required
-        if count[0,0] == 1:
+        if count[0,0] == 1: #todo: maby use states all zero
+        # if self.init:
+            # tf.print("count[0,0] =", count[0,0], "self.init =", self.init)
             batch_size = tf.shape(inputs)[0]
 
             if self.order > 0:
@@ -341,8 +348,11 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
             alpha = E * R
             loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+            # self.init = False
 
         else:
+            # tf.print("count[0,0] =", count[0,0], "self.init =", self.init)
+
             # # Is the density of A larger than approximately 15%? maybe just use dense matrix
             # R = tf.sparse.sparse_dense_matmul(self.A, old_forward, adjoint_a = True)
 

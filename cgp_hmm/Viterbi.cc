@@ -78,7 +78,13 @@ std::vector<std::vector<float>> read_A(std::string path) {
             last_row = current_row;
             row.clear();
         }
-        row.push_back(std::stof(splitstr(line, ";")[1]));
+        try {
+            row.push_back(std::stof(splitstr(line, ";")[1]));
+        }
+        catch (const std::exception &e) {
+            // todo: this was needed to convert e-43 to float
+            row.push_back(0.0f);
+        }
     }
     A.push_back(row);
     return A;
@@ -469,7 +475,7 @@ void write_to_file_atg_aligned(std::vector<std::vector<int>> seqs, std::vector<s
 int main(int argc, char *argv[]) {
     char * path;
     if (argc != 3) {
-        std::cout << "usage: ./main path/to/fasta/file nCodons_used_in_model" << '\n';
+        std::cout << "usage: ./Viterbi path/to/fasta/file nCodons_used_in_model" << '\n';
         return(1);
     }
     else {
@@ -477,7 +483,6 @@ int main(int argc, char *argv[]) {
         std::string str_nCodons(argv[2]);
         nCodons = std::stoi(str_nCodons);
     }
-
     auto I = read_I("output/" + std::to_string(nCodons) + "codons/I." + std::to_string(nCodons) + "codons.txt");
     // print(I);
     auto A = read_A("output/" + std::to_string(nCodons) + "codons/A." + std::to_string(nCodons) + "codons.txt");
@@ -495,6 +500,7 @@ int main(int argc, char *argv[]) {
         state_seqs.push_back(x);
         // std::cout << "-" << '\n';
     }
+
     write_to_file_atg_aligned(seqs, state_seqs);
     write_to_file(seqs, state_seqs);
 }

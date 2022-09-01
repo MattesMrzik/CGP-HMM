@@ -1,0 +1,3 @@
+[submodule "MSAgen"]
+	path = MSAgen
+	url = https://github.com/MattesMrzik/MSAgen

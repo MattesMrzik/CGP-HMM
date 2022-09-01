@@ -10,6 +10,22 @@ np.set_printoptions(linewidth=200)
 ########################################################################
 ########################################################################
 ########################################################################
+def run(command):
+    import subprocess
+    import random
+    import time
+    random_id = random.randint(0,1000000)
+    with open(f"temporary_script_file.{random_id}.sh","w") as file:
+        file.write("#!/bin/bash\n")
+        file.write(f"echo \033[91m running: \"{command}\" \033[00m\n")
+        file.write(command)
+
+    subprocess.Popen(f"chmod +x temporary_script_file.{random_id}.sh".split(" ")).wait()
+    subprocess.Popen(f"./temporary_script_file.{random_id}.sh").wait()
+    subprocess.Popen(f"rm temporary_script_file.{random_id}.sh".split(" ")).wait()
+########################################################################
+########################################################################
+########################################################################
 def state_id_to_description(id, nCodons):
     states = re.split("\s+", "ig5' stA stT stG")
     states += ["c_" + str(i) + "," + str(j) for i in range(nCodons) for j in range(3)]

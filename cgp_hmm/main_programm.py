@@ -8,25 +8,17 @@ from Training import make_dataset
 import Utility
 import numpy as np
 from Bio import SeqIO
-from pyutils import run # my local python package
+from Utility import run
 
 from CgpHmmCell import CgpHmmCell
 
 def prRed(skk): print(f"Cell\033[91m {skk} \033[00m")
 
-# states, emissions = Utility.generate_state_emission_seqs(a,b,n,l)
-# with open("../rest/sparse_toy_emissions.out","w") as out_handle:
-#     for id, emission in enumerate(emissions):
-#         out_handle.write(">id" + str(id) + "\n")
-#         out_handle.write("".join([["A","C","G","T"][i] for i in emission]) + "\n")
+nCodons = 1
 
-path = "../data/artificial/single_exon_gene_flanked_by_nonCoding/seq_gen.out.with_utr.fasta"
-path = "/home/mattes/Seafile/Meine_Bibliothek/Uni/Master/CGP-HMM-python-project/data/artificial/MSAgen/test.out.seqs.fa"
+run(f"python3 useMSAgen.py -c {nCodons}")
 
-nCodons = 4
-run(f"python3 ../data/artificial/MSAgen/useMSAgen.py -c {nCodons}")
-
-path = f"/home/mattes/Documents/CGP-HMM-python-project/cgp_hmm/output/{nCodons}codons/out.seqs.{nCodons}codons.fa"
+path = f"output/{nCodons}codons/out.seqs.{nCodons}codons.fa"
 
 prRed("path = " + path)
 model, history = fit_model(path, nCodons)
