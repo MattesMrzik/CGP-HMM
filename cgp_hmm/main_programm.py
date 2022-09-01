@@ -23,10 +23,10 @@ def prRed(skk): print(f"Cell\033[91m {skk} \033[00m")
 path = "../data/artificial/single_exon_gene_flanked_by_nonCoding/seq_gen.out.with_utr.fasta"
 path = "/home/mattes/Seafile/Meine_Bibliothek/Uni/Master/CGP-HMM-python-project/data/artificial/MSAgen/test.out.seqs.fa"
 
-nCodons = 3
+nCodons = 4
 run(f"python3 ../data/artificial/MSAgen/useMSAgen.py -c {nCodons}")
 
-path = f"/home/mattes/Documents/CGP-HMM-python-project/cgp_hmm/out.seqs.{nCodons}codons.fa"
+path = f"/home/mattes/Documents/CGP-HMM-python-project/cgp_hmm/output/{nCodons}codons/out.seqs.{nCodons}codons.fa"
 
 prRed("path = " + path)
 model, history = fit_model(path, nCodons)
@@ -68,12 +68,12 @@ def printI():
         print(tf.math.round(cell.I[state,0]*100).numpy()/100)
 # printI()
 
-Utility.write_to_file(cell.A, f"A.{nCodons}codons.txt")
-Utility.write_to_file(cell.B, f"B.{nCodons}codons.txt")
-Utility.write_to_file(cell.I, f"I.{nCodons}codons.txt")
+Utility.write_to_file(cell.A, f"output/{nCodons}codons/A.{nCodons}codons.txt")
+Utility.write_to_file(cell.B, f"output/{nCodons}codons/B.{nCodons}codons.txt")
+Utility.write_to_file(cell.I, f"output/{nCodons}codons/I.{nCodons}codons.txt")
 
 # running Viterbi
-run("./main " + path + " " + str(nCodons))
+run("./Viterbi " + path + " " + str(nCodons))
 
 stats = {"start_not_found" : 0,\
          "start_too_early" : 0,\
@@ -84,8 +84,8 @@ stats = {"start_not_found" : 0,\
          "stop_correct" : 0,\
          "stop_too_late" : 0}
 
-with open(f"viterbi.{nCodons}codons.csv", "r") as viterbi_file:
-    with open(f"out.start_stop_pos.{nCodons}codons.txt", "r") as start_stop_file:
+with open(f"output/{nCodons}codons/viterbi.{nCodons}codons.csv", "r") as viterbi_file:
+    with open(f"output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt", "r") as start_stop_file:
         for v_line in viterbi_file:
             try:
                 ss_line = start_stop_file.readline()
@@ -129,5 +129,9 @@ with open(f"viterbi.{nCodons}codons.csv", "r") as viterbi_file:
                 stats["stop_too_late"] += 1
 
 nSeqs = sum([v for v in stats.values()])/2 # div by 2 bc every seq appears twice in stats (in start and stop)
-for key, value in stats.items():
-    print(key, value/nSeqs)
+
+with open(f"output/{nCodons}codons/statistics.txt", "w") as file:
+    for key, value in stats.items():
+        file.write(key + "\t" + str(value/nSeqs) + "\n")
+
+run(f"python3 Visualize.py -c {nCodons}")

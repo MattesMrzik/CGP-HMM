@@ -21,8 +21,8 @@ def make_model(nCodons):
     cgp_hmm_layer = CgpHmmLayer(nCodons) # init of layer
 
     loglik = cgp_hmm_layer(sequences) # layer is build, then called
-
-    print([tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik)])
+# "[tf.keras.layers.Lambda(lambda x:x, name = \"loglik\")(loglik)] =", [
+    print(tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik))
 
     model = tf.keras.Model(inputs = sequences, outputs = [tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik)]) #  the output of the model is the value that is computed by a final layer that picks the loglike of the [alpha, loglik, count]
 

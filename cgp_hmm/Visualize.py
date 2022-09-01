@@ -5,13 +5,23 @@ import numpy as np
 import re
 from Utility import state_id_to_description
 
-nCodons = 3
+import argparse
+
+parser = argparse.ArgumentParser(
+    description='description')
+parser.add_argument('-c', '--nCodons', required=True,
+                    help='number of codons')
+
+args = parser.parse_args()
+
+nCodons = int(args.nCodons)
+
 n_most_likely_emissions = 3
 id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
-with open(f"graph.{nCodons}codons.gv", "w") as graph:
+with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
 
     most_likely = {}
-    with open(f"B.{nCodons}codons.txt", "r") as b:
+    with open(f"output/{nCodons}codons/B.{nCodons}codons.txt", "r") as b:
         for line in b:
             line = re.sub("[(|)| ]","", line.strip())
             line = re.split(",|;", line)
@@ -21,14 +31,13 @@ with open(f"graph.{nCodons}codons.gv", "w") as graph:
                 most_likely[state] = [("".join(list(map(lambda x: id_to_base[int(x)], line[1:-1]))), np.round(prob,4))]
             else:
                 most_likely[state].append(("".join(list(map(lambda x: id_to_base[int(x)], line[1:-1]))), np.round(prob,4)))
-    print(most_likely)
     for key in most_likely.keys():
         most_likely[key] = sorted(most_likely[key], key = lambda x: x[1], reverse = True)
-        print(most_likely[key])
+        # print(most_likely[key])
     graph.write("DiGraph G{\nrankdir=LR;\n")
     # graph.write("nodesep=0.5; splines=polyline;")
 
-    with open(f"A.{nCodons}codons.txt","r") as a:
+    with open(f"output/{nCodons}codons/A.{nCodons}codons.txt","r") as a:
         for line in a:
             line = re.sub("[(|)| ]","", line.strip())
             line = re.split(",|;", line)
@@ -57,5 +66,5 @@ with open(f"graph.{nCodons}codons.gv", "w") as graph:
             if prob > 0:
                 graph.write(f"\"{i}\" -> \"{j}\" [label = {np.round(prob, 4)} fontsize=\"{30*prob + 5}pt\"]\n")
     graph.write("}")
-run(f"cat graph.{nCodons}codons.gv")
-run(f"dot -Tpng graph.{nCodons}codons.gv -o graph.{nCodons}codons.png")
+# run(f"cat graph.{nCodons}codons.gv")
+run(f"dot -Tpng output/{nCodons}codons/graph.{nCodons}codons.gv -o output/{nCodons}codons/graph.{nCodons}codons.png")

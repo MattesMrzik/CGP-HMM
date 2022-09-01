@@ -52,8 +52,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return(s)
 
     def build(self, input_shape):
-        tf.print("tfcell is build")
-        print("cell is build")
         self.transition_kernel = self.add_weight(shape = (self.calc_number_of_transition_parameters(),), # todo: (self.state_size[0], ) is this shape good?
                                                  initializer="random_normal",
                                                  trainable=True)

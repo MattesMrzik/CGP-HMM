@@ -1,2 +1,2 @@
 main: Viterbi.cc
-	g++ Viterbi.cc -o main
+	g++ Viterbi.cc -o Viterbi

@@ -349,7 +349,14 @@ float log_prob_of_state_seq(std::vector<std::vector<float>> A,
 }
 void write_to_file(std::vector<std::vector<int>> seqs, std::vector<std::vector<size_t>> state_seqs) {
     std::ofstream file;
-    file.open("viterbi." + std::to_string(nCodons) + "codons.csv");
+    try {
+        file.open("output/" + std::to_string(nCodons) + "codons/viterbi." + std::to_string(nCodons) + "codons.csv");
+    }
+    catch (const std::exception &e) {
+        std::cout << "Caught " << e.what() << std::endl;
+    }
+
+
     for (size_t i = 0; i < seqs.size(); i++) {
         auto seq = seqs[i];
         auto state_seq = state_seqs[i];
@@ -388,7 +395,12 @@ void write_to_file(std::vector<std::vector<int>> seqs, std::vector<std::vector<s
 
 void write_to_file_atg_aligned(std::vector<std::vector<int>> seqs, std::vector<std::vector<size_t>> state_seqs) {
     std::ofstream file;
-    file.open("viterbi." + std::to_string(nCodons) + "codons.atg_aligned.csv");
+    try {
+        file.open("output/" + std::to_string(nCodons) + "codons/viterbi." + std::to_string(nCodons) + "codons.atg_aligned.csv");
+    }
+    catch (const std::exception &e) {
+        std::cout << "Caught " << e.what() << std::endl;
+    }
 
     size_t max_index_of_start_a = 0;
     for (size_t i = 0; i < seqs.size(); i++) {
@@ -466,14 +478,14 @@ int main(int argc, char *argv[]) {
         nCodons = std::stoi(str_nCodons);
     }
 
-    auto I = read_I("I."+std::to_string(nCodons)+"codons.txt");
+    auto I = read_I("output/" + std::to_string(nCodons) + "codons/I." + std::to_string(nCodons) + "codons.txt");
     // print(I);
-    auto A = read_A("A."+std::to_string(nCodons)+"codons.txt");
+    auto A = read_A("output/" + std::to_string(nCodons) + "codons/A." + std::to_string(nCodons) + "codons.txt");
     // print(A);
-    auto B = read_B("B."+std::to_string(nCodons)+"codons.txt");
+    auto B = read_B("output/" + std::to_string(nCodons) + "codons/B." + std::to_string(nCodons) + "codons.txt");
     // print(B);
     auto seqs = read_seqs(path);
-    // print(seqs);
+    // print(seqs, " ");
 
     std::vector<std::vector<size_t>> state_seqs;
     for (auto seq : seqs) {

@@ -2,6 +2,8 @@
 import tensorflow as tf
 import numpy as np
 
+from Utility import description_to_state_id
+
 from CgpHmmCell import CgpHmmCell
 
 def prRed(skk): print("Layer\033[91m {}\033[00m" .format(skk))
@@ -57,11 +59,49 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         loglik_mean = tf.reduce_mean(loglik_state)
         # squeeze removes dimensions of size 1, ie shape (1,3,2,1) -> (3,2)
-        self.add_loss(tf.squeeze(-loglik_mean))
+
+        # regularization
+        # siehe Treffen_04
+        alpha = 4 # todo: scale punishment for inserts with different factor?
+        probs_to_be_punished = []
+
+        def add_reg(f, to):
+            probs_to_be_punished.append(tf.math.log(1 - \
+                                        self.C.A[description_to_state_id(f, self.C.nCodons), \
+                                                 description_to_state_id(to, self.C.nCodons)]))
+        # deletes to be punished
+        for i in range(1, self.C.nCodons):
+            add_reg("stG", f"c_{i},0")
+        add_reg("stG", "stop1")
+        for i in range(self.C.nCodons - 1):
+            for j in range(i + 2, self.C.nCodons):
+                add_reg(f"c_{i},2", f"c_{j},0")
+            add_reg(f"c_{i},2", "stop1")
+        # inserts to be punished
+        add_reg("stG", "i_0,0")
+        for i in range(self.C.nCodons):
+            add_reg(f"c_{i},2", f"i_{i+1},0")
+
+        reg_mean = sum(probs_to_be_punished) / len(probs_to_be_punished)
+
+
+        if loglik_mean < 0 and reg_mean >0:
+            tf.print("not same sign")
+        if loglik_mean > 0 and reg_mean <0:
+            tf.print("not same sign")
+
+
+        self.add_loss(tf.squeeze(-loglik_mean - alpha * reg_mean))
+
+        # if training:
+            # tf.print("loglik_mean = ", loglik_mean)
+            # tf.print("reg_mean = ", reg_mean)
+
 
         if training:
             prRed("training is true")
             self.add_metric(loglik_mean, "loglik")
+            self.add_metric(reg_mean, f"reg_mean, not yet multiplied by alpha({alpha})")
         else:
             prRed("training is false")
 

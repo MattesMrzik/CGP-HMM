@@ -18,6 +18,16 @@ def state_id_to_description(id, nCodons):
     states += ["ter1", "ter2"]
     return states[id]
 
+def description_to_state_id(des, nCodons):
+    states = re.split("\s+", "ig5' stA stT stG")
+    states += ["c_" + str(i) + "," + str(j) for i in range(nCodons) for j in range(3)]
+    states += re.split("\s+", "stop1 stop2 stop3 ig3'")
+    states += ["i_" + str(i) + "," + str(j) for i in range(nCodons+1) for j in range(3)]
+    states += ["ter1", "ter2"]
+    try:
+        return states.index(des)
+    except:
+        return -1
 ########################################################################
 ########################################################################
 ########################################################################
