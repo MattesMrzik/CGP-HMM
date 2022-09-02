@@ -323,8 +323,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # tf.print("inputs[0] =", inputs[0])
 
         # shape may be (batch_size,1) and not (batchsize,) thats why the second 0 is required
-        if count[0,0] == 1: #todo: maby use states all zero
-        # if self.init:
+        # if count[0,0] == 1: #todo: maby use states all zero
+        if self.init:
             # tf.print("count[0,0] =", count[0,0], "self.init =", self.init)
             batch_size = tf.shape(inputs)[0]
 
@@ -348,7 +348,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
             alpha = E * R
             loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
-            # self.init = False
+            self.init = False
 
         else:
             # tf.print("count[0,0] =", count[0,0], "self.init =", self.init)
