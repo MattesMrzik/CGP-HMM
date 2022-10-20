@@ -7,18 +7,23 @@ import matplotlib.pyplot as plt
 from CgpHmmLayer import CgpHmmLayer
 from ReadData import read_data_one_hot
 from ReadData import read_data
+from ReadData import read_data_with_order
 
 def prRed(skk): print("Training\033[92m {}\033[00m" .format(skk))
 
 np.set_printoptions(linewidth=400)
 
-def make_model(nCodons):
+def make_model(nCodons, order_transformed_input, order):
 
     alphabet_size = 4
 
-    sequences = tf.keras.Input(shape = (None, alphabet_size + 2), name = "sequences")
+    if order_transformed_input:
+        #                                                                              terminal
+        sequences = tf.keras.Input(shape = (None, (alphabet_size + 1) ** (order + 1) + 1), name = "sequences")
+    else:
+        sequences = tf.keras.Input(shape = (None, alphabet_size + 2), name = "sequences")
     # another None added automatically for yet unkown batch_size
-    cgp_hmm_layer = CgpHmmLayer(nCodons) # init of layer
+    cgp_hmm_layer = CgpHmmLayer(nCodons, order_transformed_input) # init of layer
 
     loglik = cgp_hmm_layer(sequences) # layer is build, then called
 # "[tf.keras.layers.Lambda(lambda x:x, name = \"loglik\")(loglik)] =", [
@@ -29,26 +34,33 @@ def make_model(nCodons):
     return model, cgp_hmm_layer
 
 
-def make_dataset(path):
-    seqs = []
-    seqs = read_data(path)
+def make_dataset(path, order_transformed_input, order):
+    if order_transformed_input:
+        seqs = read_data_with_order(path, 2) #  2 is order
+    else:
+        seqs = read_data(path)
 
     ds = tf.data.Dataset.from_generator(lambda: seqs,
                                          tf.as_dtype(tf.int32),
                                          tf.TensorShape([None]))
+    if order_transformed_input:
+        ds = ds.padded_batch(32, padding_values = (4 + 1)**order)
 
-    ds = ds.padded_batch(32, padding_values = 5) # 5 is terminal symbol, 4 is "padded left flank"
+        def to_one_hot(seq):
+            return tf.cast(tf.one_hot(seq, (4 + 1)**(order + 1) + 1), dtype=tf.float64)
+    else:
+        ds = ds.padded_batch(32, padding_values = 5) # 5 is terminal symbol, 4 is "padded left flank"
 
-    def to_one_hot(seq):
-        return tf.cast(tf.one_hot(seq, 4 + 2), dtype=tf.float64)
+        def to_one_hot(seq):
+            return tf.cast(tf.one_hot(seq, 4 + 1 + 1), dtype=tf.float64)
 
     ds = ds.map(to_one_hot)
     ds = ds.repeat()
 
     return ds, seqs
 
-def fit_model(path, nCodons):
-    model, cgp_hmm_layer = make_model(nCodons)
+def fit_model(path, nCodons, order_transformed_input, order):
+    model, cgp_hmm_layer = make_model(nCodons, order_transformed_input, order)
     learning_rate = .1
     optimizer = tf.optimizers.Adam(learning_rate)
     model.compile(optimizer = optimizer)
@@ -58,7 +70,7 @@ def fit_model(path, nCodons):
     # _, seqs = make_dataset()# first return value is data_set
     # model(seqs)
 
-    data_set = make_dataset(path)[0] # [1] is data tensor
+    data_set = make_dataset(path, order_transformed_input, order)[0] # [1] is data tensor
 
     class my_callback(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):

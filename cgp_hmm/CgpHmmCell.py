@@ -2,13 +2,14 @@
 import tensorflow as tf
 import numpy as np
 from itertools import product
+from Utility import higher_order_emission_to_id
 
 def prRed(skk): print("Cell\033[93m {}\033[00m" .format(skk))
 # def prRed(s): pass
 
 class CgpHmmCell(tf.keras.layers.Layer):
 # class CgpHmmCell(tf.keras.layers.Layer):
-    def __init__(self, nCodons):
+    def __init__(self, nCodons, order_transformed_input):
         # super(CgpHmmCell, self).__init__()
         super(CgpHmmCell, self).__init__()
 
@@ -17,8 +18,15 @@ class CgpHmmCell(tf.keras.layers.Layer):
         self.alphabet_size = 4 # without terminal symbol and without "papped left flank" symbol
 
         self.order = 2 # order = 0 -> emission prob depends only on current emission
-        #                  alpha                         old loglik count old_input
-        self.state_size = [self.calc_number_of_states(), 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
+
+        self.order_transformed_input = order_transformed_input
+
+        if self.order_transformed_input:
+            self.state_size = [self.calc_number_of_states(), 1,         1]
+        else:
+            #                  alpha                         old loglik, count, old_input
+            self.state_size = [self.calc_number_of_states(), 1,          1] +  ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
+
 
         # self.init = True
 
@@ -41,6 +49,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         number_of_states += 1
         # second terminal
         number_of_states += 1
+
+        if self.order_transformed_input:
+            number_of_states -= 1 #  we only need one terminal state
 
         return number_of_states
 
@@ -149,17 +160,23 @@ class CgpHmmCell(tf.keras.layers.Layer):
         indices += [[7 + nCodons*3, 7 + nCodons*3], [7 + nCodons*3, index_of_terminal_1]]
         # values = tf.concat([values, [.5] * 2], axis = 0) # this parameter doesnt have to be learned (i think)
         # .5 can be any other number, since softmax(x,x) = [.5, .5]
-        # but: TypeError: Cannot convert [0.5, 0.5] to EagerTensor of dtype int32
+        # but: TypeError: Cannot convert [0.5, 0.5] to EagerTensor of dtype int32   (todo)
         values = tf.concat([values, [1] * 2], axis = 0) # this parameter doesnt have to be learned (i think)
 
-        # terminal_1 -> terminal_1, a mix of true bases and X are emitted
-        # terminal_1 -> terminal_2, only X are emitted
-        indices += [[index_of_terminal_1, index_of_terminal_1], [index_of_terminal_1, index_of_terminal_1 +1]]
-        values = tf.concat([values, [1] * 2], axis = 0)
 
-        # terminal_2 -> terminal_2
-        indices += [[index_of_terminal_1 +1, index_of_terminal_1 +1]]
-        values = tf.concat([values, [1]], axis = 0)
+        if self.order_transformed_input:
+            # terminal -> terminal
+            indices += [[index_of_terminal_1, index_of_terminal_1]]
+            values = tf.concat([values, [1]], axis = 0)
+        else:
+            # terminal_1 -> terminal_1, a mix of true bases and X are emitted
+            # terminal_1 -> terminal_2, only X are emitted
+            indices += [[index_of_terminal_1, index_of_terminal_1], [index_of_terminal_1, index_of_terminal_1 +1]]
+            values = tf.concat([values, [1] * 2], axis = 0)
+
+            # terminal_2 -> terminal_2
+            indices += [[index_of_terminal_1 +1, index_of_terminal_1 +1]]
+            values = tf.concat([values, [1]], axis = 0)
 
 
 
@@ -198,6 +215,11 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     def get_indices_and_values_for_emission_higher_order_for_a_state(self, weights, k, indices, values, state, emissions, x_emissions_must_preceed, trainable = True):
 
+        if self.order_transformed_input and emissions[-1] == "X":
+            indices += [[state,(self.alphabet_size + 1) ** (self.order +1) ]]
+            values[0] = tf.concat([values[0], [1]], axis = 0)
+            return
+
         count_weights = 0
         allowed_emissions = [[state]]
         for i, e in enumerate(["N"] * (self.order - len(emissions) + 1) + list(emissions)[-self.order-1:]):
@@ -213,14 +235,16 @@ class CgpHmmCell(tf.keras.layers.Layer):
                 if x[i] != 4:
                     found_emission = True
             else:
-                indices += [x]
+                if self.order_transformed_input:
+                    indices += [[state, higher_order_emission_to_id(x[1:], self.alphabet_size, self.order)]] # because first entry is state
+                else:
+                    indices += [x]
                 count_weights += 1
         if trainable:
             values[0] = tf.concat([values[0], weights[k[0]:k[0] + count_weights]], axis = 0)
             k[0] += count_weights
         else:
             values[0] = tf.concat([values[0], [1] * count_weights], axis = 0)
-
 
     def get_indices_and_values_from_emission_kernel_higher_order_v02(self, w, nCodons, alphabet_size):
         indices = []
@@ -255,31 +279,47 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # inserts
         for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
             self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,state,"N",self.order)
-        # terminal 1
-        for i in range(1,self.order + 1):
-            self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,8 + nCodons*3 + (nCodons+1)*3,"X" * i,self.order)
-        # terminal 2
-        self.get_indices_and_values_for_emission_higher_order_for_a_state(    weights,k,indices,values,9 + nCodons*3 + (nCodons+1)*3,"X"*(self.order +1),self.order, trainable = False)
+
+        if self.order_transformed_input:
+            self.get_indices_and_values_for_emission_higher_order_for_a_state(\
+                         weights,k,indices,values,8 + nCodons*3 + (nCodons+1)*3,"X",self.order)
+        else:
+            # terminal 1
+            for i in range(1,self.order + 1):
+                self.get_indices_and_values_for_emission_higher_order_for_a_state(\
+                         weights,k,indices,values,8 + nCodons*3 + (nCodons+1)*3,"X" * i,self.order)
+            # terminal 2
+            self.get_indices_and_values_for_emission_higher_order_for_a_state(\
+                         weights,k,indices,values,9 + nCodons*3 + (nCodons+1)*3,"X" * (self.order +1),self.order, trainable = False)
 
         return indices, values[0]
 
     @property
     def B(self):
-
         indices, values = self.get_indices_and_values_from_emission_kernel_higher_order_v02(self.emission_kernel, self.nCodons, self.alphabet_size)
-        # [state, oldest emission, ..., second youngest emisson, current emission]
-        emission_matrix = tf.sparse.SparseTensor(indices = indices, \
-                                                 values = values, \
-                                                 dense_shape = [self.state_size[0], \
-                                                                self.alphabet_size + 2] + \
-                                                                [self.alphabet_size + 2] * self.order)
-        emission_matrix = tf.sparse.reorder(emission_matrix)
-        emission_matrix = tf.sparse.reshape(emission_matrix, (self.state_size[0],-1))
-        emission_matrix = tf.sparse.softmax(emission_matrix)
-        emission_matrix = tf.sparse.reshape(emission_matrix, \
-                                            [self.state_size[0],self.alphabet_size + 2] + \
-                                            [self.alphabet_size + 2] * self.order)
-        emission_matrix = tf.sparse.to_dense(emission_matrix)
+
+        if self.order_transformed_input:
+            emission_matrix = tf.sparse.SparseTensor(indices = indices, \
+                                                     values = values, \
+                                                     dense_shape = [self.state_size[0], \
+                                                                    (self.alphabet_size + 1) ** (self.order + 1) + 1])
+            emission_matrix = tf.sparse.reorder(emission_matrix)
+            emission_matrix = tf.sparse.softmax(emission_matrix)
+            emission_matrix = tf.sparse.to_dense(emission_matrix)
+        else:
+            # [state, oldest emission, ..., second youngest emisson, current emission]
+            emission_matrix = tf.sparse.SparseTensor(indices = indices, \
+                                                     values = values, \
+                                                     dense_shape = [self.state_size[0], \
+                                                                    self.alphabet_size + 2] + \
+                                                                    [self.alphabet_size + 2] * self.order)
+            emission_matrix = tf.sparse.reorder(emission_matrix)
+            emission_matrix = tf.sparse.reshape(emission_matrix, (self.state_size[0],-1))
+            emission_matrix = tf.sparse.softmax(emission_matrix)
+            emission_matrix = tf.sparse.reshape(emission_matrix, \
+                                                [self.state_size[0],self.alphabet_size + 2] + \
+                                                [self.alphabet_size + 2] * self.order)
+            emission_matrix = tf.sparse.to_dense(emission_matrix)
 
         return emission_matrix
 
@@ -311,7 +351,29 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def init_cell(self):
         self.init = True
 
-    def call(self, inputs, states, training = None, verbose = False):
+    def call_order_transformed_input(self, inputs, states, training = None, verbose = False):
+        old_forward, old_loglik, count = states
+        count = count + 1
+        if count[0,0] == 1:
+
+            R = tf.transpose(self.I)
+            E = tf.matmul(inputs, tf.transpose(self.B))
+            alpha = E * R
+            loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+
+        else:
+            R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
+            E = tf.matmul(inputs, tf.transpose(self.B))
+
+            Z_i_minus_1 = tf.reduce_sum(old_forward, axis=-1, keepdims = True)
+            R /= Z_i_minus_1
+            alpha = E * R
+            loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+
+        return [alpha, inputs, count], [alpha, loglik, count]
+
+
+    def call_old_inputs(self, inputs, states, training = None, verbose = False):
         if self.order > 0:
             # old inputs is from newest to oldest
             old_forward, old_loglik, count, old_inputs = states
@@ -323,8 +385,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # tf.print("inputs[0] =", inputs[0])
 
         # shape may be (batch_size,1) and not (batchsize,) thats why the second 0 is required
-        # if count[0,0] == 1: #todo: maby use states all zero
-        if self.init:
+        if count[0,0] == 1: #todo: maby use states all zero
+        # if self.init:
             # tf.print("count[0,0] =", count[0,0], "self.init =", self.init)
             batch_size = tf.shape(inputs)[0]
 
@@ -383,3 +445,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
         else:
             #       return sequences        states
             return [alpha, inputs, count], [alpha, loglik, count]
+
+
+    def call(self, inputs, states, training = None, verbose = False):
+        if self.order_transformed_input:
+            return self.call_order_transformed_input(inputs, states, training, verbose)
+        else:
+            return self.call_old_inputs(inputs, states, training, verbose)

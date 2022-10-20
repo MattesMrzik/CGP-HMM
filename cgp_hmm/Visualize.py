@@ -4,6 +4,7 @@ from Utility import run
 import numpy as np
 import re
 from Utility import state_id_to_description
+from Utility import id_to_higher_order_emission
 
 import argparse
 
@@ -11,8 +12,17 @@ parser = argparse.ArgumentParser(
     description='description')
 parser.add_argument('-c', '--nCodons', required=True,
                     help='number of codons')
+parser.add_argument('-o', '--order', required=True,
+                    help='order of the emission model')
+
+parser.add_argument('-t', action='store_true', help ="if passed, then order_transformed_input is used")
 
 args = parser.parse_args()
+
+try:
+    args.order = int(args.order)
+except:
+    print("args.order must be int")
 
 nCodons = int(args.nCodons)
 
@@ -27,10 +37,16 @@ with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
             line = re.split(",|;", line)
             state = state_id_to_description(int(line[0]), nCodons)
             prob = float(line[-1])
-            if not state in most_likely:
-                most_likely[state] = [("".join(list(map(lambda x: id_to_base[int(x)], line[1:-1]))), np.round(prob,4))]
+            if args.t:
+                emissions_tuple = id_to_higher_order_emission(int(line[1]), len(id_to_base)-2, args.order)
+                emissions_tuple = ("".join(list(map(lambda x: id_to_base[int(x)], emissions_tuple))), np.round(prob,4))
             else:
-                most_likely[state].append(("".join(list(map(lambda x: id_to_base[int(x)], line[1:-1]))), np.round(prob,4)))
+                emissions_tuple = ("".join(list(map(lambda x: id_to_base[int(x)], line[1:-1]))), np.round(prob,4))
+            if not state in most_likely:
+                most_likely[state] = [emissions_tuple]
+            else:
+                most_likely[state].append(emissions_tuple)
+
     for key in most_likely.keys():
         most_likely[key] = sorted(most_likely[key], key = lambda x: x[1], reverse = True)
         # print(most_likely[key])

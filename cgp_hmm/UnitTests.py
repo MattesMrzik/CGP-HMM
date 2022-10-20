@@ -6,8 +6,30 @@ import Training
 from CgpHmmLayer import CgpHmmLayer
 from CgpHmmCell import CgpHmmCell
 from Utility import state_id_to_description
+from Utility import higher_order_emission_to_id
+from Utility import id_to_higher_order_emission
 
-import Utility
+
+class TestUtiliy(unittest.TestCase):
+    # 4 is alphabet_size
+    def test_higher_order_emission_to_id(self):
+        self.assertEqual(higher_order_emission_to_id([0,0,0], 4, 2), 0)
+        self.assertEqual(higher_order_emission_to_id([0,0,1], 4, 2), 1)
+        self.assertEqual(higher_order_emission_to_id([0,2,3], 4, 2), 13)
+        self.assertEqual(higher_order_emission_to_id([2,2,2], 4, 2), 62)
+        self.assertEqual(higher_order_emission_to_id([2,2,2], 4, 2), 62)
+        self.assertEqual(higher_order_emission_to_id("X", 4, 2), 125)
+        self.assertEqual(higher_order_emission_to_id(5, 4, 2), 125)
+        self.assertEqual(higher_order_emission_to_id([5], 4, 2), 125)
+
+    def test_id_to_higher_order_emission(self):
+        self.assertEqual(id_to_higher_order_emission(0,4,2),[0,0,0])
+        self.assertEqual(id_to_higher_order_emission(1,4,2),[0,0,1])
+        self.assertEqual(id_to_higher_order_emission(13,4,2),[0,2,3])
+        self.assertEqual(id_to_higher_order_emission(62,4,2),[2,2,2])
+        self.assertEqual(id_to_higher_order_emission(125,4,2),[5])
+
+
 
 class TestCgpHmmCell(unittest.TestCase):
     def off_test_get_indices_and_values_from_transition_kernel(self):
@@ -29,8 +51,8 @@ class TestCgpHmmCell(unittest.TestCase):
         emission_matrix = tf.sparse.reorder(emission_matrix)
         print(tf.sparse.to_dense(emission_matrix))
 
-    def test_get_indices_and_values_from_transition_kernel_higher_order(self):
-        cell = CgpHmmCell(4)
+    def off_test_get_indices_and_values_from_transition_kernel_higher_order(self):
+        cell = CgpHmmCell(4)# todo add arguments
         #                                                                                        weights, 2 codons
         indices, values = cell.get_indices_and_values_from_transition_kernel_higher_order(np.array(list(range(10,100))),cell.nCodons)
         transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0]] * 2)

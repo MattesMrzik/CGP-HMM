@@ -176,6 +176,7 @@ void print(std::vector<float> v) {
         std::cout << c << '\n';
     }
 }
+
 void print(std::vector<std::vector<float>> a) {
     std::cout << "-\t";
     for (size_t j = 0; j < a.size(); ++j) {
@@ -186,6 +187,17 @@ void print(std::vector<std::vector<float>> a) {
         std::cout << state_id_to_description(i) << '\t';
         for (size_t j = 0; j < a[i].size(); j++) {
             if (i == j) std::cout << "\033[92m"<< std::round(a[i][j]*100)/100 << "\033[0m" << "\t";
+            // else if (state_id_to_description(j).at(0) == 'i' && a[i][j] != 0)  std::cout << "\033[93m"<< std::round(a[i][j]*100)/100 << "\033[0m" << "\t";
+            else std::cout << std::round(a[i][j]*100)/100 << "\t";
+        }
+        std::cout << '\n';
+    }
+}
+void printB(std::vector<std::vector<float>> a) {
+    std::cout << '\n';
+    for (size_t i = 0; i < a.size(); i++) {
+        for (size_t j = 0; j < a[i].size(); j++) {
+            if (i == j) std::cout << std::round(a[i][j]*100)/100 << "\t";
             // else if (state_id_to_description(j).at(0) == 'i' && a[i][j] != 0)  std::cout << "\033[93m"<< std::round(a[i][j]*100)/100 << "\033[0m" << "\t";
             else std::cout << std::round(a[i][j]*100)/100 << "\t";
         }
@@ -286,6 +298,108 @@ std::vector<size_t> viterbi(std::vector<std::vector<float>> A,
                 }
             }
             icolumn.push_back(std::log(B[q][y_old[0]][y_old[1]][Y[i]]) + M);
+            // icolumn_max.push_back(max_state);
+        }
+        dp_g.push_back(icolumn);
+        icolumn.clear();
+        // dp_g_pointer_to_max.push_back(icolumn_max);
+        // icolumn_max.clear();
+    }
+
+
+    // for (size_t i = 0; i < n; i++) {
+    //     std::cout << "i = " << i << '\t';
+    //     for (auto value : dp_g[i]) {
+    //         std::cout << std::round(value*100)/100 << '\t';
+    //     }
+    //     std::cout << '\n';
+    // }
+
+    // backtracking
+    std::vector<size_t> x;
+    size_t last_state = 0;
+    float max_prob_last_state = std::log(0);
+    for (size_t state = 0; state < nStates; state++) {
+        if (dp_g[n-1][state] > max_prob_last_state) {
+            last_state = state;
+            max_prob_last_state = dp_g[n-1][state];
+        }
+    }
+    x.push_back(last_state);
+
+    int n_as_int = static_cast<int>(n);
+    for (int i = n_as_int-2; i != -1; i--) {
+        int max_state = 0;
+        float max_value = std::log(0);
+        for (size_t state = 0; state < nStates; state++) {
+            auto m = dp_g[i][state] + std::log(A[state][x[x.size()-1]]);
+            if (m > max_value) {
+                max_value = m;
+                max_state = state;
+            }
+        }
+        x.push_back(max_state);
+    }
+    std::reverse(x.begin(), x.end());
+    return x;
+}
+
+size_t higher_order_emission_to_id(std::vector<int> emission) {
+    size_t s = 0;
+    for (size_t i = 0; i < emission.size(); i++) {
+        s += emission[i] * pow(4 + 1, emission.size() - i - 1);
+    }
+    return s;
+}
+std::vector<size_t> viterbi_order_transformed_input(std::vector<std::vector<float>> A,
+                                                    std::vector<std::vector<float>> B,
+                                                    std::vector<float> I,
+                                                    std::vector<int> Y)
+{
+    auto nStates = A.size();
+    auto n = Y.size();
+    auto order = 2;
+    std::vector<int> y_old {4,4};
+    // i, state
+    std::vector<std::vector<float>> dp_g;
+    std::vector<std::vector<size_t>> dp_g_pointer_to_max;
+
+    std::vector<float> icolumn;
+    std::vector<size_t> icolumn_max(nStates);
+    for (size_t state = 0; state < nStates; state++) {
+        // auto value = std::log(I[state] * B[state][y_old[0]][y_old[1]][Y[0]]);
+        auto value = std::log(I[state] * B[state][higher_order_emission_to_id( {y_old[0], y_old[1], Y[0]} )]);
+        icolumn.push_back(value);
+    }
+    dp_g.push_back(icolumn);
+    icolumn.clear();
+    // dp_g_pointer_to_max.push_back(icolumn_max);
+    // icolumn_max.clear();
+    for (size_t i = 1; i < n; i++) {
+        y_old.erase(y_old.begin());
+        y_old.push_back(Y[i-1]);// das war fälschilicher weise in der for schleufe,, ripriprip
+        for (size_t q = 0; q < nStates; q++) {
+            auto M = std::log(0);
+            size_t max_state = 0;
+            for (size_t state = 0; state < nStates; state++) {
+                // size_t my_state = 2;
+                // size_t my_prev_state = 1;
+                // size_t my_i = 2;
+                // if (i == my_i && q == my_state && state == my_prev_state) {
+                //     std::cout << "A = " << A[my_prev_state][my_state] << '\n';
+                //     std::cout << "dp_g = " << dp_g[i-1][my_prev_state] << '\n';
+                //     auto mm = std::log(A[state][q]) + dp_g[i-1][state];
+                //     std::cout << "m = " << mm << '\n';
+                //     std::cout << "b index = " << " " << q << " " << y_old[0]<< " " << y_old[1]<< " " << Y[i]<< '\n';
+                //     std::cout << "b = " << B[q][y_old[0]][y_old[1]][Y[i]] << '\n';
+                // }
+                auto m = std::log(A[state][q]) + dp_g[i-1][state];
+                if (m > M) {
+                    M = m;
+                    max_state = state;
+                }
+            }
+            icolumn.push_back(std::log(B[q][higher_order_emission_to_id( {y_old[0], y_old[1], Y[i]} )]) + M);
             // icolumn_max.push_back(max_state);
         }
         dp_g.push_back(icolumn);
@@ -473,6 +587,10 @@ void write_to_file_atg_aligned(std::vector<std::vector<int>> seqs, std::vector<s
 }
 
 int main(int argc, char *argv[]) {
+    std::cout << "alphabet size is set 4" << '\n';
+    bool order_transformed_input = true;
+    std::cout << "order transformed = " << order_transformed_input << '\n';
+
     char * path;
     if (argc != 3) {
         std::cout << "usage: ./Viterbi path/to/fasta/file nCodons_used_in_model" << '\n';
@@ -483,24 +601,36 @@ int main(int argc, char *argv[]) {
         std::string str_nCodons(argv[2]);
         nCodons = std::stoi(str_nCodons);
     }
+    auto seqs = read_seqs(path);
+    // print(seqs, " ");
     auto I = read_I("output/" + std::to_string(nCodons) + "codons/I." + std::to_string(nCodons) + "codons.txt");
     // print(I);
     auto A = read_A("output/" + std::to_string(nCodons) + "codons/A." + std::to_string(nCodons) + "codons.txt");
     // print(A);
-    auto B = read_B("output/" + std::to_string(nCodons) + "codons/B." + std::to_string(nCodons) + "codons.txt");
-    // print(B);
-    auto seqs = read_seqs(path);
-    // print(seqs, " ");
 
     std::vector<std::vector<size_t>> state_seqs;
-    for (auto seq : seqs) {
-        // print(seq, "\t");
-        auto x = viterbi(A,B,I,seq);
-        // print(x);
-        state_seqs.push_back(x);
-        // std::cout << "-" << '\n';
-    }
 
+    if (order_transformed_input){
+        auto B = read_A("output/" + std::to_string(nCodons) + "codons/B." + std::to_string(nCodons) + "codons.txt");
+        for (auto seq : seqs) {
+            // print(seq, "\t");
+            auto x = viterbi_order_transformed_input(A,B,I,seq);
+            // print(x);
+            state_seqs.push_back(x);
+            // std::cout << "-" << '\n';
+        }
+    }
+    else {
+        auto B = read_B("output/" + std::to_string(nCodons) + "codons/B." + std::to_string(nCodons) + "codons.txt");
+        for (auto seq : seqs) {
+            // print(seq, "\t");
+            auto x = viterbi(A,B,I,seq);
+            // print(x);
+            state_seqs.push_back(x);
+            // std::cout << "-" << '\n';
+        }
+
+    }
     write_to_file_atg_aligned(seqs, state_seqs);
     write_to_file(seqs, state_seqs);
 }

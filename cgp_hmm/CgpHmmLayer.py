@@ -10,17 +10,20 @@ def prRed(skk): print("Layer\033[91m {}\033[00m" .format(skk))
 # def prRed(s): pass
 
 class CgpHmmLayer(tf.keras.layers.Layer):
-    def __init__(self, nCodons):
+    def __init__(self, nCodons, order_transformed_input):
         super(CgpHmmLayer, self).__init__()
         self.nCodons = nCodons
+        self.order_transformed_input = order_transformed_input
 
     def build(self, input_shape):
-        self.C = CgpHmmCell(self.nCodons) # init
+        # print("in build of layer")
+        self.C = CgpHmmCell(self.nCodons, self.order_transformed_input) # init
         # self.C.build(input_shape) # build
         # this isnt needed for training but when calling the layer, then i need to build C manually, but it is then called
         # a second time when calling F
-
+        # tf.print("before RNN")
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C
+        # tf.print("after RNN")
 
     def call(self, inputs, training = False):
         # todo do i need to reset statse?
@@ -35,19 +38,23 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # old_state_2, \
         # old_state_1 = self.F(inputs) #  build and call of CgpHmmCell are called
 
+        # tf.print("in call of layer")
+
         # todo: felix macht auch nochmal a und b
         self.C.init_cell()
         # tf.print("in call of layer: self.C.init =", self.C.init)
 
-
+        # tf.print("before result = self.F(inputs)")
         result = self.F(inputs) #  build and call of CgpHmmCell are called
+        # tf.print("after result = self.F(inputs)")
+
         alpha_seq = result[0]
         inputs_seq = result[1]
         count_seq = result[2]
         alpha_state = result[3]
         loglik_state = result[4]
         count_state = result[5]
-        if self.C.order > 0:
+        if self.C.order > 0 and not self.C.order_transformed_input:
             old_state = result[6]
 
 

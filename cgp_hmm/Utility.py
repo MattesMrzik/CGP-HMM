@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import numpy as np
 from Bio import SeqIO
-from ReadData import read_data_one_hot
 import re
 
 
@@ -44,6 +43,28 @@ def description_to_state_id(des, nCodons):
         return states.index(des)
     except:
         return -1
+
+def higher_order_emission_to_id(emission, alphabet_size, order):
+    # todo: emission 4,4,4 = I,I,I is not used, i might give this id to X
+    # also 4,1,4 is not used
+    if emission == "X" or emission ==  alphabet_size +1 or emission == [alphabet_size+1]:
+        return (alphabet_size + 1)**(order + 1)
+    #                                 initial symbol
+    return sum([base*(alphabet_size + 1)**(len(emission) - i -1) for i, base in enumerate(emission)])
+
+def id_to_higher_order_emission(id, alphabet_size, order):
+    emission = []
+    if id == (alphabet_size + 1)**(order + 1):
+        return [alphabet_size +1]
+    for i in range(order,0,-1):
+        fits = int(id/((alphabet_size+1)**i))
+        if fits < 1:
+            emission += [0]
+        else:
+            id -= fits*((alphabet_size+1)**i)
+            emission += [int(fits)]
+    emission += [int(id)]
+    return emission
 ########################################################################
 ########################################################################
 ########################################################################
@@ -267,23 +288,7 @@ def brute_force_viterbi_log_version(a,b,y,a0 = []):
             arg_max = guess
     return np.array(arg_max)
 
-########################################################################
-########################################################################
-########################################################################
-def write_to_file(matrix, path):
-    from itertools import product
-    import tensorflow as tf
-    # try:
-    with open(path, "w") as file:
-        x = [list(range(dim_size)) for dim_size in tf.shape(matrix)]
-        for index in product(*x):
-            file.write(str(index))
-            file.write(";")
-            file.write(str(matrix[index].numpy()))
-            file.write("\n")
-    # except:
-    #     print("could not write to file:", path)
-    #     quit(1)
+
 ########################################################################
 ########################################################################
 ########################################################################
@@ -305,7 +310,6 @@ def write_to_file(matrix, path):
 #
 # a0 = np.array([.3,.7])
 #
-# seqs = read_data_one_hot("../rest/seq-gen.out")
 # seqs = list(seqs.numpy())
 # np.random.shuffle(seqs)
 # y = seqs[0]

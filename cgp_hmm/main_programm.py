@@ -9,25 +9,28 @@ import Utility
 import numpy as np
 from Bio import SeqIO
 from Utility import run
+import WriteData
 
 from CgpHmmCell import CgpHmmCell
 
 def prRed(skk): print(f"Cell\033[91m {skk} \033[00m")
 
 nCodons = 1
+order_transformed_input = True
+order = 2
 
 run(f"python3 useMSAgen.py -c {nCodons}")
 
 path = f"output/{nCodons}codons/out.seqs.{nCodons}codons.fa"
 
 prRed("path = " + path)
-model, history = fit_model(path, nCodons)
+model, history = fit_model(path, nCodons, order_transformed_input, order)
 # model.save("my_saved_model")
 
 plt.plot(history.history['loss'])
 plt.savefig("progress.png")
 
-cell = CgpHmmCell(nCodons)
+cell = CgpHmmCell(nCodons, order_transformed_input)
 cell.transition_kernel = model.get_weights()[0]
 cell.emission_kernel = model.get_weights()[1]
 cell.init_kernel = model.get_weights()[2]
@@ -60,9 +63,11 @@ def printI():
         print(tf.math.round(cell.I[state,0]*100).numpy()/100)
 # printI()
 
-Utility.write_to_file(cell.A, f"output/{nCodons}codons/A.{nCodons}codons.txt")
-Utility.write_to_file(cell.B, f"output/{nCodons}codons/B.{nCodons}codons.txt")
-Utility.write_to_file(cell.I, f"output/{nCodons}codons/I.{nCodons}codons.txt")
+WriteData.write_to_file(cell.A, f"output/{nCodons}codons/A.{nCodons}codons.txt")
+WriteData.write_to_file(cell.B, f"output/{nCodons}codons/B.{nCodons}codons.txt")
+WriteData.write_order_transformed_B_to_csv(cell.B, f"output/{nCodons}codons/B.{nCodons}codons.csv", order, nCodons)
+
+WriteData.write_to_file(cell.I, f"output/{nCodons}codons/I.{nCodons}codons.txt")
 
 # running Viterbi
 run("./Viterbi " + path + " " + str(nCodons))
@@ -126,4 +131,4 @@ with open(f"output/{nCodons}codons/statistics.txt", "w") as file:
     for key, value in stats.items():
         file.write(key + "\t" + str(value/nSeqs) + "\n")
 
-run(f"python3 Visualize.py -c {nCodons}")
+run(f"python3 Visualize.py -c {nCodons} -o {order} {'-t' if order_transformed_input else ''}")
