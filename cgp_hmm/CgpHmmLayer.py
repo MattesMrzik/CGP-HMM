@@ -54,7 +54,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         alpha_state = result[3]
         loglik_state = result[4]
         count_state = result[5]
-        if self.C.order > 0 and not self.C.order_transformed_input:
+        if self.C.order > 0 and not self.C.order_transformed_input : # or True to checksquare
             old_state = result[6]
 
 
@@ -79,8 +79,9 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         def add_reg(f, to):
             probs_to_be_punished.append(tf.math.log(1 - \
-                                        self.C.A[description_to_state_id(f, self.C.nCodons), \
+                                        self.C.A_dense()[description_to_state_id(f, self.C.nCodons), \
                                                  description_to_state_id(to, self.C.nCodons)]))
+
         # deletes to be punished
         for i in range(1, self.C.nCodons):
             add_reg("stG", f"c_{i},0")

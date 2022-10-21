@@ -63,11 +63,11 @@ def printI():
         print(tf.math.round(cell.I[state,0]*100).numpy()/100)
 # printI()
 
-WriteData.write_to_file(cell.A, f"output/{nCodons}codons/A.{nCodons}codons.txt")
-WriteData.write_to_file(cell.B, f"output/{nCodons}codons/B.{nCodons}codons.txt")
-WriteData.write_order_transformed_B_to_csv(cell.B, f"output/{nCodons}codons/B.{nCodons}codons.csv", order, nCodons)
+WriteData.write_to_file(cell.A_dense(), f"output/{nCodons}codons/A.{nCodons}codons.txt")
+WriteData.write_to_file(cell.B_dense(), f"output/{nCodons}codons/B.{nCodons}codons.txt")
+WriteData.write_order_transformed_B_to_csv(cell.B_dense(), f"output/{nCodons}codons/B.{nCodons}codons.csv", order, nCodons)
 
-WriteData.write_to_file(cell.I, f"output/{nCodons}codons/I.{nCodons}codons.txt")
+WriteData.write_to_file(cell.I_dense(), f"output/{nCodons}codons/I.{nCodons}codons.txt")
 
 # running Viterbi
 run("./Viterbi " + path + " " + str(nCodons))
