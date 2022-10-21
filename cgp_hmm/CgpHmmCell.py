@@ -21,16 +21,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         self.order_transformed_input = order_transformed_input
 
-        self.checksquare = False
+        # self.checksquare = False
+        # self.state_size = [tf.TensorShape([1,18]), 1,         1, 7] #self.calc_number_of_states()
 
-        if self.order_transformed_input:
-            if self.checksquare:
-                self.state_size = [tf.TensorShape([1,18]), 1,         1, 7] #self.calc_number_of_states()
-            else:
-                self.state_size = [self.calc_number_of_states(), 1,      1]
-        else:
-            #                  alpha                         old loglik, count, old_input
-            self.state_size = [self.calc_number_of_states(), 1,          1] +  ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
+        self.state_size = [self.calc_number_of_states(), 1,      1]
+
+        # not order transformed input
+        # #                  alpha                         old loglik, count, old_input
+        # self.state_size = [self.calc_number_of_states(), 1,          1] +  ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
 
         # call_order: inputs = [1 126]
         # call_order: E = [18 1]
@@ -56,10 +54,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # call_order: alpha= [18 1]
         # call_order: use_sparse: loglik = [18 1]
 
+        # the above doesnt seem to be a problem anymore
 
         # self.init = True
 
-        self.use_sparse = True
+        # self.use_sparse = True
+        #
+        # if not self.order_transformed_input:
+        #     self.use_sparse = False
 
 
 
@@ -79,10 +81,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # terminal
         number_of_states += 1
         # second terminal
-        number_of_states += 1
-
-        if self.order_transformed_input:
-            number_of_states -= 1 #  we only need one terminal state
+        # number_of_states += 1 # this is only needed for not order transformed input
 
         return number_of_states
 
@@ -108,7 +107,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
         self.init_kernel = self.add_weight(shape = (self.calc_number_of_states(),),
                                            initializer = "random_normal",
                                            trainable=True)
-
 
 
     def get_indices_and_values_from_transition_kernel_higher_order(self, w, nCodons):
@@ -195,31 +193,25 @@ class CgpHmmCell(tf.keras.layers.Layer):
         values = tf.concat([values, [1] * 2], axis = 0) # this parameter doesnt have to be learned (i think)
 
 
-        if self.order_transformed_input:
+        # if self.order_transformed_input:
             # terminal -> terminal
-            indices += [[index_of_terminal_1, index_of_terminal_1]]
-            values = tf.concat([values, [1]], axis = 0)
-        else:
-            # terminal_1 -> terminal_1, a mix of true bases and X are emitted
-            # terminal_1 -> terminal_2, only X are emitted
-            indices += [[index_of_terminal_1, index_of_terminal_1], [index_of_terminal_1, index_of_terminal_1 +1]]
-            values = tf.concat([values, [1] * 2], axis = 0)
+        indices += [[index_of_terminal_1, index_of_terminal_1]]
+        values = tf.concat([values, [1]], axis = 0)
 
-            # terminal_2 -> terminal_2
-            indices += [[index_of_terminal_1 +1, index_of_terminal_1 +1]]
-            values = tf.concat([values, [1]], axis = 0)
+        # not order transformed input
+        # else:
+        #     # terminal_1 -> terminal_1, a mix of true bases and X are emitted
+        #     # terminal_1 -> terminal_2, only X are emitted
+        #     indices += [[index_of_terminal_1, index_of_terminal_1], [index_of_terminal_1, index_of_terminal_1 +1]]
+        #     values = tf.concat([values, [1] * 2], axis = 0)
+        #
+        #     # terminal_2 -> terminal_2
+        #     indices += [[index_of_terminal_1 +1, index_of_terminal_1 +1]]
+        #     values = tf.concat([values, [1]], axis = 0)
 
 
 
         return indices, values
-
-
-    @property
-    def A(self):
-        if self.use_sparse:
-            return self.A_sparse()
-        else:
-            return self.A_dense()
 
     def A_sparse(self):
         indices, values = self.get_indices_and_values_from_transition_kernel_higher_order(self.transition_kernel, self.nCodons)
@@ -254,7 +246,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     def get_indices_and_values_for_emission_higher_order_for_a_state(self, weights, k, indices, values, state, emissions, x_emissions_must_preceed, trainable = True):
 
-        if self.order_transformed_input and emissions[-1] == "X":
+        # if self.order_transformed_input and emissions[-1] == "X":
+        if emissions[-1] == "X":
             indices += [[state,(self.alphabet_size + 1) ** (self.order +1) ]]
             values[0] = tf.concat([values[0], [1]], axis = 0)
             return
@@ -274,10 +267,11 @@ class CgpHmmCell(tf.keras.layers.Layer):
                 if x[i] != 4:
                     found_emission = True
             else:
-                if self.order_transformed_input:
-                    indices += [[state, higher_order_emission_to_id(x[1:], self.alphabet_size, self.order)]] # because first entry is state
-                else:
-                    indices += [x]
+                # if self.order_transformed_input:
+                indices += [[state, higher_order_emission_to_id(x[1:], self.alphabet_size, self.order)]] # because first entry is state
+                # not order transformed input
+                # else:
+                #     indices += [x]
                 count_weights += 1
         if trainable:
             values[0] = tf.concat([values[0], weights[k[0]:k[0] + count_weights]], axis = 0)
@@ -319,53 +313,49 @@ class CgpHmmCell(tf.keras.layers.Layer):
         for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
             self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,state,"N",self.order)
 
-        if self.order_transformed_input:
-            self.get_indices_and_values_for_emission_higher_order_for_a_state(\
-                         weights,k,indices,values,8 + nCodons*3 + (nCodons+1)*3,"X",self.order)
-        else:
-            # terminal 1
-            for i in range(1,self.order + 1):
-                self.get_indices_and_values_for_emission_higher_order_for_a_state(\
-                         weights,k,indices,values,8 + nCodons*3 + (nCodons+1)*3,"X" * i,self.order)
-            # terminal 2
-            self.get_indices_and_values_for_emission_higher_order_for_a_state(\
-                         weights,k,indices,values,9 + nCodons*3 + (nCodons+1)*3,"X" * (self.order +1),self.order, trainable = False)
+        # if self.order_transformed_input:
+        self.get_indices_and_values_for_emission_higher_order_for_a_state(\
+                     weights,k,indices,values,8 + nCodons*3 + (nCodons+1)*3,"X",self.order)
+
+        # not order transfromed input
+        # else:
+        #     # terminal 1
+        #     for i in range(1,self.order + 1):
+        #         self.get_indices_and_values_for_emission_higher_order_for_a_state(\
+        #                  weights,k,indices,values,8 + nCodons*3 + (nCodons+1)*3,"X" * i,self.order)
+        #     # terminal 2
+        #     self.get_indices_and_values_for_emission_higher_order_for_a_state(\
+        #                  weights,k,indices,values,9 + nCodons*3 + (nCodons+1)*3,"X" * (self.order +1),self.order, trainable = False)
 
         return indices, values[0]
 
-    @property
-    def B(self):
-        if self.use_sparse:
-            return self.B_sparse()
-        else:
-            return self.B_dense()
-
     def B_sparse(self):
         indices, values = self.get_indices_and_values_from_emission_kernel_higher_order_v02(self.emission_kernel, self.nCodons, self.alphabet_size)
-
-        if self.order_transformed_input:
-            emission_matrix = tf.sparse.SparseTensor(indices = indices, \
-                                                     values = values, \
-                                                     dense_shape = [self.calc_number_of_states(), \
-                                                                    (self.alphabet_size + 1) ** (self.order + 1) + 1])
-            emission_matrix = tf.sparse.reorder(emission_matrix)
-            emission_matrix = tf.sparse.softmax(emission_matrix)
-        else:
-            # [state, oldest emission, ..., second youngest emisson, current emission]
-            emission_matrix = tf.sparse.SparseTensor(indices = indices, \
-                                                     values = values, \
-                                                     dense_shape = [self.state_size[0], \
-                                                                    self.alphabet_size + 2] + \
-                                                                    [self.alphabet_size + 2] * self.order)
-            emission_matrix = tf.sparse.reorder(emission_matrix)
-            emission_matrix = tf.sparse.reshape(emission_matrix, (self.state_size[0],-1))
-            emission_matrix = tf.sparse.softmax(emission_matrix)
-            emission_matrix = tf.sparse.reshape(emission_matrix, \
-                                                [self.state_size[0],self.alphabet_size + 2] + \
-                                                [self.alphabet_size + 2] * self.order)
+        emission_matrix = tf.sparse.SparseTensor(indices = indices, \
+                                                 values = values, \
+                                                 dense_shape = [self.calc_number_of_states(), \
+                                                                (self.alphabet_size + 1) ** (self.order + 1) + 1])
+        emission_matrix = tf.sparse.reorder(emission_matrix)
+        emission_matrix = tf.sparse.softmax(emission_matrix)
         return emission_matrix
 
-    def B_dense(self):
+    def B_not_order_transformed_input():
+        indices, values = self.get_indices_and_values_from_emission_kernel_higher_order_v02(self.emission_kernel, self.nCodons, self.alphabet_size)
+        # [state, oldest emission, ..., second youngest emisson, current emission]
+        emission_matrix = tf.sparse.SparseTensor(indices = indices, \
+                                                 values = values, \
+                                                 dense_shape = [self.state_size[0], \
+                                                                self.alphabet_size + 2] + \
+                                                                [self.alphabet_size + 2] * self.order)
+        emission_matrix = tf.sparse.reorder(emission_matrix)
+        emission_matrix = tf.sparse.reshape(emission_matrix, (self.state_size[0],-1))
+        emission_matrix = tf.sparse.softmax(emission_matrix)
+        emission_matrix = tf.sparse.reshape(emission_matrix, \
+                                            [self.state_size[0],self.alphabet_size + 2] + \
+                                            [self.alphabet_size + 2] * self.order)
+        return emission_matrix
+
+    def B_dense(self): #  this is order transformed if sparse is
         return tf.sparse.to_dense(self.B_sparse())
 
     def get_indices_and_values_from_initial_kernel(self, weights, nCodons):
@@ -384,12 +374,18 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def I(self):
-        if self.use_sparse:
-            return self.I_sparse()
-        else:
-            return self.I_dense()
+        return self.I_sparse()
+        # return self.I_dense()
+    @property
+    def B(self):
+        return self.B_sparse()
+        # return self.B_dense()
+    @property
+    def A(self):
+        return self.A_sparse()
+        # return self.A_dense()
 
-    def I_sparse(self):
+    def I_sparse(self): # todo this is not yet used in call()
         indices, values = self.get_indices_and_values_from_initial_kernel(self.init_kernel, self.nCodons)
         initial_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.calc_number_of_states(),1])
         initial_matrix = tf.sparse.reorder(initial_matrix)
@@ -404,28 +400,27 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def init_cell(self):
         self.inita = True
         self.correct_order = 0
-
-    def call_order_transformed_input(self, inputs, states, training = None, verbose = False):
-
-        if self.checksquare:
-            old_forward, old_loglik, count, checksquare = states
-        else:
-            old_forward, old_loglik, count= states
+    # order transformed input, sparse
+    def call(self, inputs, states, training = None, verbose = False):
+        # verbose = True
+        # if self.checksquare:
+        #     old_forward, old_loglik, count, checksquare = states
+        # else:
+        #     old_forward, old_loglik, count= states
+        old_forward, old_loglik, count= states
 
         count = count + 1
         inputs = tf.dtypes.cast(inputs, tf.float32) # tried this to fix:
         # TypeError: Failed to convert elements of SparseTensor(indices=Tensor("cgp_hmm_layer/rnn/cgp_hmm_cell/SparseReorder:0", shape=(672, 2), dtype=int64), values=Tensor("cgp_hmm_layer/rnn/cgp_hmm_cell/SparseSoftmax/SparseSoftmax:0", shape=(672,), dtype=float32), dense_shape=Tensor("cgp_hmm_layer/rnn/cgp_hmm_cell/SparseTensor_1/dense_shape:0", shape=(2,), dtype=int64)) to Tensor. Consider casting elements to a supported type. See https://www.tensorflow.org/api_docs/python/tf/dtypes for supported TF dtypes.
-        tf.print(self.correct_order,"call_order: inputs =", tf.shape(inputs))
-        self.correct_order += 1
 
-        if self.use_sparse:
-            # inputs is shape batch * 126 (= (4+1)^3+1)
-            # E = tf.linalg.matvec(tf.sparse.to_dense(self.B), tf.transpose(inputs)) # this works but isnt sparse
-            # E = tf.linalg.matvec(inputs, self.B, b_is_sparse = True)
+        # inputs is shape batch * 126 (= (4+1)^3+1)
 
-            # E = tf.sparse.sparse_dense_matmul(self.B, inputs) # todo: why does this also work? the deminesions shoudnt match
-            E = tf.sparse.sparse_dense_matmul(self.B, tf.transpose(inputs))
+        # E = tf.sparse.sparse_dense_matmul(self.B, inputs) # todo: why does this also work? the deminesions shoudnt match
+        E = tf.sparse.sparse_dense_matmul(self.B, tf.transpose(inputs))
 
+        if verbose:
+            tf.print(self.correct_order,"call_order: inputs =", tf.shape(inputs))
+            self.correct_order += 1
             tf.print(self.correct_order,"call_order: E =", tf.shape(E))
             self.correct_order += 1
             tf.print(self.correct_order,"call_order: A =", tf.shape(self.A))
@@ -446,54 +441,78 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.print(self.correct_order,"call_order: count =", count[0,0])
             self.correct_order += 1
 
-            if self.inita:
-                # tf.print("self.init = ", self.init)
-                self.inita = False
-            if count[0,0] == 1:
-                R = self.I_dense()
+        if self.inita:
+            # tf.print("self.init = ", self.init)
+            self.inita = False
+        if count[0,0] == 1:
+            R = self.I_dense() # this might have to be dense, bc TypeError: 'R' must have the same nested structure in the main and else branches:
+            # and in the else branch it is dense
+            if verbose:
                 tf.print(self.correct_order,"call_order: R if =", tf.shape(R))
                 self.correct_order += 1
-            else:
-                # R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
-                R = tf.sparse.sparse_dense_matmul(self.A, old_forward, adjoint_b = True) # todo: can use transposed shape in state_size, then i can save this adjoint and alpha ? tf.transpose(alpha)
 
-                Z_i_minus_1 = tf.reduce_sum(old_forward, axis=-1, keepdims = True)
-                R /= Z_i_minus_1
+        else:
+            # R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
+            R = tf.sparse.sparse_dense_matmul(self.A, old_forward, adjoint_b = True, adjoint_a = True) # todo: can use transposed shape in state_size, then i can save this adjoint and alpha ? tf.transpose(alpha)
+
+            Z_i_minus_1 = tf.reduce_sum(old_forward, axis=-1, keepdims = True)
+            R /= Z_i_minus_1
+            if verbose:
                 tf.print(self.correct_order,"call_order: R else =", tf.shape(R))
                 self.correct_order += 1
-            alpha = E * R
-            alpha = tf.transpose(alpha)
+        alpha = E * R
+        alpha = tf.transpose(alpha)
+        if verbose:
             tf.print(self.correct_order,"call_order: alpha=", tf.shape(alpha))
             self.correct_order += 1
 
-            if self.use_sparse:
-                loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
-                tf.print(self.correct_order,"call_order: use_sparse: loglik =", tf.shape(loglik))
-                self.correct_order += 1
-            else:
-                loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
 
-        if not self.use_sparse:
-            E = tf.matmul(inputs, tf.transpose(self.B))
+        loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+        if verbose:
+            tf.print(self.correct_order,"call_order: use_sparse: loglik =", tf.shape(loglik))
+            self.correct_order += 1
 
-            if self.inita:
-                # tf.print("self.init = ", self.init)
-                self.inita = False
-            if count[0,0] == 1:
-                R = tf.transpose(self.I)
-            else:
-                R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
-                Z_i_minus_1 = tf.reduce_sum(old_forward, axis=-1, keepdims = True)
-                R /= Z_i_minus_1
-            alpha = E * R
+        if verbose:
+            tf.print()
 
-            loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
-        tf.print()
+        # if self.checksquare:
+        #     return [alpha, inputs, count, checksquare], [alpha, loglik, count, checksquare]
+        # else:
+        return [alpha, inputs, count], [alpha, loglik, count]
 
-        if self.checksquare:
-            return [alpha, inputs, count, checksquare], [alpha, loglik, count, checksquare]
+    def call_order_transformed_input_not_sparse(self, inputs, states, training = None, verbose = False):
+        # verbose = True
+        # if self.checksquare:
+        #     old_forward, old_loglik, count, checksquare = states
+        # else:
+        #     old_forward, old_loglik, count= states
+        old_forward, old_loglik, count= states
+
+        count = count + 1
+        inputs = tf.dtypes.cast(inputs, tf.float32) # tried this to fix:
+        # TypeError: Failed to convert elements of SparseTensor(indices=Tensor("cgp_hmm_layer/rnn/cgp_hmm_cell/SparseReorder:0", shape=(672, 2), dtype=int64), values=Tensor("cgp_hmm_layer/rnn/cgp_hmm_cell/SparseSoftmax/SparseSoftmax:0", shape=(672,), dtype=float32), dense_shape=Tensor("cgp_hmm_layer/rnn/cgp_hmm_cell/SparseTensor_1/dense_shape:0", shape=(2,), dtype=int64)) to Tensor. Consider casting elements to a supported type. See https://www.tensorflow.org/api_docs/python/tf/dtypes for supported TF dtypes.
+
+        E = tf.matmul(inputs, tf.transpose(self.B))
+
+        if self.inita:
+            # tf.print("self.init = ", self.init)
+            self.inita = False
+        if count[0,0] == 1:
+            R = tf.transpose(self.I_dense())
         else:
-            return [alpha, inputs, count], [alpha, loglik, count]
+            R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
+            Z_i_minus_1 = tf.reduce_sum(old_forward, axis=-1, keepdims = True)
+            R /= Z_i_minus_1
+        alpha = E * R
+
+        loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+        if verbose:
+            tf.print()
+
+        # if self.checksquare:
+        #     return [alpha, inputs, count, checksquare], [alpha, loglik, count, checksquare]
+        # else:
+        return [alpha, inputs, count], [alpha, loglik, count]
 
     def call_old_inputs(self, inputs, states, training = None, verbose = False):
         if self.order > 0:
@@ -508,7 +527,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         # shape may be (batch_size,1) and not (batchsize,) thats why the second 0 is required
         if count[0,0] == 1: #todo: maby use states all zero
-        # if self.init:
+        # if self.inita:
             # tf.print("count[0,0] =", count[0,0], "self.init =", self.init)
             batch_size = tf.shape(inputs)[0]
 
@@ -518,9 +537,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
                                         tf.zeros((batch_size,self.order,1))], axis = 2)
 
 
-            R = tf.transpose(self.I)
+            R = tf.transpose(self.I_dense())
             # E = tf.linalg.matmul(inputs, tf.transpose(self.B))
-
             E = tf.tensordot(inputs, tf.transpose(self.B), axes = (1,0))
 
             for i in range(self.order):
@@ -532,7 +550,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
             alpha = E * R
             loglik = tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
-            self.init = False
+            self.inita = False
 
         else:
             # tf.print("count[0,0] =", count[0,0], "self.init =", self.init)
@@ -569,8 +587,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
             return [alpha, inputs, count], [alpha, loglik, count]
 
 
-    def call(self, inputs, states, training = None, verbose = False):
-        if self.order_transformed_input:
-            return self.call_order_transformed_input(inputs, states, training, verbose)
-        else:
-            return self.call_old_inputs(inputs, states, training, verbose)
+    # def call(self, inputs, states, training = None, verbose = False):
+    #     if self.order_transformed_input:
+    #         return self.call_order_transformed_input(inputs, states, training, verbose)
+    #     else:
+    #         return self.call_old_inputs(inputs, states, training, verbose)

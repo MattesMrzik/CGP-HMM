@@ -15,8 +15,8 @@ from CgpHmmCell import CgpHmmCell
 
 def prRed(skk): print(f"Cell\033[91m {skk} \033[00m")
 
-nCodons = 1
-order_transformed_input = True
+nCodons = 30
+order_transformed_input = True # if this is false, dense matrices are used
 order = 2
 
 run(f"python3 useMSAgen.py -c {nCodons}")
