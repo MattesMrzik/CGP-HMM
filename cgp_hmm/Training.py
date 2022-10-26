@@ -2,18 +2,28 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
+import time
+from random import randint
 
+
+from Utility import run
+from Utility import append_time_ram_stamp_to_file
 
 from CgpHmmLayer import CgpHmmLayer
 from ReadData import read_data_one_hot
 from ReadData import read_data
 from ReadData import read_data_with_order
 
-def prRed(skk): print("Training\033[92m {}\033[00m" .format(skk))
+import time
+
+def prRed(skk): print(f"Training\033[96m {skk}\033[00m")
 
 np.set_printoptions(linewidth=400)
 
 def make_model(nCodons, order_transformed_input, order):
+    start = time.perf_counter()
+    run_id = randint(0,100)
+    append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
 
     alphabet_size = 4
 
@@ -22,19 +32,26 @@ def make_model(nCodons, order_transformed_input, order):
         sequences = tf.keras.Input(shape = (None, (alphabet_size + 1) ** (order + 1) + 1), name = "sequences")
     else:
         sequences = tf.keras.Input(shape = (None, alphabet_size + 2), name = "sequences")
+
     # another None added automatically for yet unkown batch_size
+
     cgp_hmm_layer = CgpHmmLayer(nCodons, order_transformed_input) # init of layer
 
     loglik = cgp_hmm_layer(sequences) # layer is build, then called
-# "[tf.keras.layers.Lambda(lambda x:x, name = \"loglik\")(loglik)] =", [
+    # "[tf.keras.layers.Lambda(lambda x:x, name = \"loglik\")(loglik)] =", [
     print(tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik))
 
     model = tf.keras.Model(inputs = sequences, outputs = [tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik)]) #  the output of the model is the value that is computed by a final layer that picks the loglike of the [alpha, loglik, count]
 
+    append_time_ram_stamp_to_file(start, f"Traning.make_model() end   {run_id}", f"./bench/{nCodons}codons/stamps.log")
     return model, cgp_hmm_layer
 
 
-def make_dataset(path, order_transformed_input, order):
+def make_dataset(path, order_transformed_input, order, nCodons):
+    start = time.perf_counter()
+    run_id = randint(0,100)
+    append_time_ram_stamp_to_file(start, f"Training.make_dataset() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
+
     if order_transformed_input:
         seqs = read_data_with_order(path, 2) #  2 is order
     else:
@@ -47,45 +64,106 @@ def make_dataset(path, order_transformed_input, order):
         ds = ds.padded_batch(32, padding_values = (4 + 1)**order)
 
         def to_one_hot(seq):
-            return tf.cast(tf.one_hot(seq, (4 + 1)**(order + 1) + 1), dtype=tf.float64)
+            return tf.cast(tf.one_hot(seq, (4 + 1)**(order + 1) + 1), dtype=tf.float32)
     else:
         ds = ds.padded_batch(32, padding_values = 5) # 5 is terminal symbol, 4 is "padded left flank"
 
         def to_one_hot(seq):
-            return tf.cast(tf.one_hot(seq, 4 + 1 + 1), dtype=tf.float64)
+            return tf.cast(tf.one_hot(seq, 4 + 1 + 1), dtype=tf.float32)
 
     ds = ds.map(to_one_hot)
     ds = ds.repeat()
 
+    append_time_ram_stamp_to_file(start, f"Training.make_dataset() end   {run_id}", f"./bench/{nCodons}codons/stamps.log")
     return ds, seqs
 
+# from memory_profiler import profile
+# @profile
 def fit_model(path, nCodons, order_transformed_input, order):
+
+
     model, cgp_hmm_layer = make_model(nCodons, order_transformed_input, order)
+
     learning_rate = .1
+
     optimizer = tf.optimizers.Adam(learning_rate)
+
+    start = time.perf_counter()
+    run_id = randint(0,100)
+    append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
     model.compile(optimizer = optimizer)
+    append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", f"./bench/{nCodons}codons/stamps.log")
+
 
     # manual call to forward algo
 
     # _, seqs = make_dataset()# first return value is data_set
     # model(seqs)
 
-    data_set = make_dataset(path, order_transformed_input, order)[0] # [1] is data tensor
+    data_set = make_dataset(path, order_transformed_input, order, nCodons)[0] # [1] is data tensor
 
-    class my_callback(tf.keras.callbacks.Callback):
+
+
+    output_path = f"bench/{nCodons}codons"
+
+
+    # class my_callback(tf.keras.callbacks.Callback):
+    #     def on_epoch_begin(self, epoch, logs = None):
+    #         print("model.weights")
+    #         print("A =", tf.nn.softmax(model.get_weights()[0]))
+
+    class write_time_epoch_start_callback(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):
-            print("model.weights")
-            print("A =", tf.nn.softmax(model.get_weights()[0]))
-    checkpoint_path = "training_1/cp.ckpt"
-    cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
-                                                     save_weights_only=True,
-                                                     verbose=1)
+            with open(f"{output_path}/callbackoutput_time_start.txt", "a") as file:
+                file.write(f"{time.time()}\n")
+    class write_time_epoch_end_callback(tf.keras.callbacks.Callback):
+        def on_epoch_end(self, epoch, logs = None):
+            with open(f"{output_path}/callbackoutput_time_end.txt", "a") as file:
+                file.write(f"{time.time()}\n")
+
+    import os, psutil
+    process = psutil.Process(os.getpid())
+
+    # todo: oder nicht epoch sondern batch
+    # on_train_batch_begin
+    class write_ram_epoch_start_callback(tf.keras.callbacks.Callback):
+        def on_epoch_begin(self, epoch, logs = None):
+            # with open(f"{output_path}/callbackoutput_ram_start.txt", "a") as file:
+            #     file.write(f"{process.memory_info().rss}\n")
+            append_time_ram_stamp_to_file(0, "epoch_begin", f"./bench/{nCodons}codons/stamps.log")
+
+    class write_ram_epoch_end_callback(tf.keras.callbacks.Callback):
+        def on_epoch_end(self, epoch, logs = None):
+            # with open(f"{output_path}/callbackoutput_ram_end.txt", "a") as file:
+            #     file.write(f"{process.memory_info().rss}\n")
+                #                              oder vms     Virtual Memory Size
+            append_time_ram_stamp_to_file(0, "epoch_end", f"./bench/{nCodons}codons/stamps.log")
+
+    class exit_after_first_batch(tf.keras.callbacks.Callback):
+        def on_train_batch_end(self, batch, logs = None):
+            exit(1)
+
+    # checkpoint_path = "training_1/cp.ckpt"
+    # cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
+    #                                                  save_weights_only=True,
+    #                                                  verbose=1)
 
 
     # callbacks = [tf.keras.callbacks.LambdaCallback(on_epoch_end = lambda epoch, logs: print("A =", tf.nn.softmax(model.get_weights()[0])))]
-    callbacks = [cp_callback]
-    callbacks = [my_callback()]
     callbacks = []
+    callbacks = [write_time_epoch_start_callback(),
+                 write_time_epoch_end_callback(),
+                 write_ram_epoch_start_callback(),
+                 write_ram_epoch_end_callback(),
+                 exit_after_first_batch()]
 
+    # todo add write traning time per epoch to file callback
+
+
+    start = time.perf_counter()
+    run_id = randint(0,100)
+    append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
     history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
+    append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", f"./bench/{nCodons}codons/stamps.log")
+
     return model, history

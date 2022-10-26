@@ -12,7 +12,7 @@ from Utility import id_to_higher_order_emission
 
 class TestUtiliy(unittest.TestCase):
     # 4 is alphabet_size
-    def test_higher_order_emission_to_id(self):
+    def off_test_higher_order_emission_to_id(self):
         self.assertEqual(higher_order_emission_to_id([0,0,0], 4, 2), 0)
         self.assertEqual(higher_order_emission_to_id([0,0,1], 4, 2), 1)
         self.assertEqual(higher_order_emission_to_id([0,2,3], 4, 2), 13)
@@ -22,7 +22,7 @@ class TestUtiliy(unittest.TestCase):
         self.assertEqual(higher_order_emission_to_id(5, 4, 2), 125)
         self.assertEqual(higher_order_emission_to_id([5], 4, 2), 125)
 
-    def test_id_to_higher_order_emission(self):
+    def off_test_id_to_higher_order_emission(self):
         self.assertEqual(id_to_higher_order_emission(0,4,2),[0,0,0])
         self.assertEqual(id_to_higher_order_emission(1,4,2),[0,0,1])
         self.assertEqual(id_to_higher_order_emission(13,4,2),[0,2,3])
@@ -70,8 +70,6 @@ class TestCgpHmmCell(unittest.TestCase):
                     print("\033[92m", transition_matrix[i,j].numpy(),"\033[0m", sep = "", end = "\t")
                 else:
                     print(transition_matrix[i,j].numpy(), end = "\t")
-
-
             print()
 
     def off_test_get_indices_and_values_from_emission_kernel_higher_order(self):
@@ -187,8 +185,34 @@ class Test_Helpers(unittest.TestCase):
                                    delta = 0.0000001)
 
 class TestForward(unittest.TestCase):
-    def off_test_tf_scaled_forward_to_manual_scaled_forward(self):
-        pass
+    def test_tf_scaled_forward_to_manual_scaled_forward(self):
+        import ReadData
+        nCodons = 2
+        order_transformed_input = True
+        cgp_hmm_layer = CgpHmmLayer(nCodons, order_transformed_input)
+
+        #                              alphabet_size + 1) ** (order + 1) + 1
+        cgp_hmm_layer.build(tf.shape([1,126]))
+
+        #                                       order
+        inputs = ReadData.read_data_with_order("output/for_unit_tests/coding_seqs.2codons.txt",2)
+        print(inputs)
+
+        result = cgp_hmm_layer.F(inputs) #  build and call of CgpHmmCell are called
+        # tf.print("after result = self.F(inputs)")
+
+        alpha_seq = result[0]
+        inputs_seq = result[1]
+        count_seq = result[2]
+        alpha_state = result[3]
+        loglik_state = result[4]
+        count_state = result[5]
+
+        a = cgp_hmm_layer.C.A_dense()
+        b = cgp_hmm_layer.C.B_dense()
+        i = cgp_hmm_layer.C.I_dense()
+
+
     # manual forward <-- using the z of manual --> manual scaled forward
     def off_test_manual_scaled_forward_to_manual_true_forward(self):
         pass

@@ -1,21 +1,39 @@
 #!/usr/bin/env python3
 import tensorflow as tf
 import numpy as np
+import time
+import tracemalloc
+from random import randint
+
+# from memory_profiler import profile
+# WARNING:tensorflow:AutoGraph could not transform <bound method LineProfiler.wrap_function of <memory_profiler.LineProfiler object at 0x7fd8c4032af0>> and will run it as-is.
+# Cause: generators are not supported
+
 
 from Utility import description_to_state_id
+from Utility import append_time_stamp_to_file
+from Utility import append_time_ram_stamp_to_file
 
 from CgpHmmCell import CgpHmmCell
 
-def prRed(skk): print("Layer\033[91m {}\033[00m" .format(skk))
+def prRed(skk): print("Layer\033[96m {}\033[00m" .format(skk))
 # def prRed(s): pass
 
 class CgpHmmLayer(tf.keras.layers.Layer):
     def __init__(self, nCodons, order_transformed_input):
+        start = time.perf_counter()
+        run_id = randint(0,100)
+        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
         super(CgpHmmLayer, self).__init__()
         self.nCodons = nCodons
         self.order_transformed_input = order_transformed_input
 
+        append_time_ram_stamp_to_file(start, f"Layer.call() end  {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
+
     def build(self, input_shape):
+        start = time.perf_counter()
+        run_id = randint(0,100)
+        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
         # print("in build of layer")
         self.C = CgpHmmCell(self.nCodons, self.order_transformed_input) # init
         # self.C.build(input_shape) # build
@@ -25,18 +43,15 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C
         # tf.print("after RNN")
 
+        append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
+
     def call(self, inputs, training = False):
+        start = time.perf_counter()
+        run_id = randint(0,100)
+        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
         # todo do i need to reset statse?
         # cell is build again
 
-        # alpha_seq, \
-        # inputs_seq, \
-        # count_seq, \
-        # alpha_state, \
-        # loglik_state, \
-        # count_state, \
-        # old_state_2, \
-        # old_state_1 = self.F(inputs) #  build and call of CgpHmmCell are called
 
         # tf.print("in call of layer")
 
@@ -79,8 +94,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         def add_reg(f, to):
             probs_to_be_punished.append(tf.math.log(1 - \
-                                        self.C.A_dense()[description_to_state_id(f, self.C.nCodons), \
-                                                 description_to_state_id(to, self.C.nCodons)]))
+                                        self.C.A_dense()[description_to_state_id(f, self.nCodons), \
+                                                 description_to_state_id(to, self.nCodons)]))
 
         # deletes to be punished
         for i in range(1, self.C.nCodons):
@@ -118,4 +133,5 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         else:
             prRed("training is false")
 
+        append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
         return loglik_state

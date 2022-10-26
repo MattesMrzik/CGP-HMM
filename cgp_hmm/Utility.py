@@ -2,26 +2,68 @@
 import numpy as np
 from Bio import SeqIO
 import re
-
+import time
+import tensorflow as tf
+from resource import getrusage
+from resource import RUSAGE_SELF
 
 np.set_printoptions(linewidth=200)
 
 ########################################################################
 ########################################################################
 ########################################################################
-def run(command):
-    import subprocess
-    import random
-    import time
-    random_id = random.randint(0,1000000)
-    with open(f"temporary_script_file.{random_id}.sh","w") as file:
-        file.write("#!/bin/bash\n")
-        file.write(f"echo \033[91m running: \"{command}\" \033[00m\n")
-        file.write(command)
+def append_time_stamp_to_file(time, description, path):
+    with open(path, "a") as file:
+        file.write(f"{time}\t{description}\n")
+def append_time_ram_stamp_to_file(start, description, path):
+    with open(path, "a") as file:
+        s = [time.perf_counter(),
+             time.perf_counter() - start,
+             getrusage(RUSAGE_SELF).ru_maxrss]
+        s = [str(round(x,5)) for x in s]
+        s = "\t".join(s + [description + "\n"])
+        file.write(s)
 
-    subprocess.Popen(f"chmod +x temporary_script_file.{random_id}.sh".split(" ")).wait()
-    subprocess.Popen(f"./temporary_script_file.{random_id}.sh").wait()
-    subprocess.Popen(f"rm temporary_script_file.{random_id}.sh".split(" ")).wait()
+    # if re.search("init", description) or True:
+    #     tf.print("in append time and ram stamp")
+    #     with open(path,"r") as file:
+    #         for line in file:
+    #             tf.print(line.strip())
+    #     tf.print("done with printing file")
+
+def remove_old_bench_files(nCodons):
+
+        output_path = f"bench/{nCodons}codons"
+
+        run(f"rm {output_path}/callbackoutput_time_start.txt")
+        run(f"rm {output_path}/callbackoutput_time_end.txt")
+        run(f"rm {output_path}/callbackoutput_ram_start.txt")
+        run(f"rm {output_path}/callbackoutput_ram_end.txt")
+        run(f"rm {output_path}/stamps.log")
+def remove_old_verbose_files(nCodons):
+
+        output_path = f"verbose/{nCodons}codons"
+
+        run(f"rm {output_path}/*")
+
+########################################################################
+########################################################################
+########################################################################
+def run(command):
+    import os
+    os.system(command)
+    # import subprocess
+    # import random
+    # import time
+    # random_id = random.randint(0,1000000)
+    # with open(f"temporary_script_file.{random_id}.sh","w") as file:
+    #     file.write("#!/bin/bash\n")
+    #     file.write(f"echo \033[91m running: \"{command}\" \033[00m\n")
+    #     file.write(command)
+    #
+    # subprocess.Popen(f"chmod +x temporary_script_file.{random_id}.sh".split(" ")).wait()
+    # subprocess.Popen(f"./temporary_script_file.{random_id}.sh").wait()
+    # subprocess.Popen(f"rm temporary_script_file.{random_id}.sh".split(" ")).wait()
 ########################################################################
 ########################################################################
 ########################################################################
@@ -151,6 +193,23 @@ def forward_log_version(a,b,y, a0 = []):
     return alpha, p
 
 def forward_felix_version(a,b,y, a0 = []):
+    num_states = len(a)
+    alpha = np.zeros((num_states,len(y)))
+    if len(a0) == 0:
+        alpha[0,0] = b[0,y[0]] # one must start in the first state
+    else:
+        alpha[:,0] = a0 * b[:,y[0]]
+    z = np.zeros(len(y))
+    z[0] = sum([alpha[q_,0] for q_ in range(num_states)])
+    for i in range(1,len(y)):
+        for q in range(num_states):
+            alpha[q,i] = b[q,y[i]] * sum([a[q_,q] * alpha[q_,i-1]/z[i-1] for q_ in range(num_states)])
+        z[i] = sum([alpha[q_,i] for q_ in range(num_states)])
+    #P(Y=y)
+    return alpha, z
+
+def forward_felix_version_ordertransformedinput(a,b,y, a0 = []):
+    # y is asumed to be one hot
     num_states = len(a)
     alpha = np.zeros((num_states,len(y)))
     if len(a0) == 0:

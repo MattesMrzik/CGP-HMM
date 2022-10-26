@@ -44,5 +44,4 @@ def read_data_with_order(path, order, alphabet = ["A","C","G","T"]):
                 seq_of_tuple_ids.append(higher_order_emission_to_id(t, len(alphabet), order))
                 last_bases = last_bases[1:] + [AA_to_id[base]]
             seqs.append(seq_of_tuple_ids)
-            break
     return seqs

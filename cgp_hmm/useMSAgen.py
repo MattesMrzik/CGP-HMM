@@ -85,7 +85,7 @@ with open(f"output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt","w") 
 # run("/home/mattes/Documents/CGP-HMM-python-project/data/artificial/muscle3.8.31_i86linux64" +
 #      f" -in output/{nCodons}codons/out.seqs.{nCodons}codons.fa -out output/{nCodons}codons/out.seqs.{nCodons}codons.align.fa -clw")
 
-run(f"head output/{nCodons}codons/out.seqs.{nCodons}codons.align.fa")
+# run(f"head output/{nCodons}codons/out.seqs.{nCodons}codons.align.fa")
 
 run(f"head output/{nCodons}codons/profile.{nCodons}codons.txt")
 

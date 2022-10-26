@@ -11,17 +11,39 @@ from Bio import SeqIO
 from Utility import run
 import WriteData
 
+from Utility import remove_old_bench_files
+from Utility import remove_old_verbose_files
+
 from CgpHmmCell import CgpHmmCell
 
-def prRed(skk): print(f"Cell\033[91m {skk} \033[00m")
+import argparse
 
-nCodons = 30
+parser = argparse.ArgumentParser(
+    description='description')
+parser.add_argument('-c', '--nCodons',
+                    help='number of codons')
+
+args = parser.parse_args()
+
+if not args.nCodons:
+    nCodons = 1
+else:
+    nCodons = int(args.nCodons)
+
+def prRed(skk): print(f"main\033[96m {skk} \033[00m")
+
 order_transformed_input = True # if this is false, dense matrices are used
 order = 2
 
 run(f"python3 useMSAgen.py -c {nCodons}")
 
 path = f"output/{nCodons}codons/out.seqs.{nCodons}codons.fa"
+
+run(f"mkdir -p bench/{nCodons}codons")
+remove_old_bench_files(nCodons)
+run(f"mkdir -p verbose/{nCodons}codons")
+remove_old_verbose_files(nCodons)
+run(f"mkdir -p output/{nCodons}codons/")
 
 prRed("path = " + path)
 model, history = fit_model(path, nCodons, order_transformed_input, order)
@@ -64,7 +86,7 @@ def printI():
 # printI()
 
 WriteData.write_to_file(cell.A_dense(), f"output/{nCodons}codons/A.{nCodons}codons.txt")
-WriteData.write_to_file(cell.B_dense(), f"output/{nCodons}codons/B.{nCodons}codons.txt")
+WriteData.write_to_file(tf.transpose(cell.B_dense()), f"output/{nCodons}codons/B.{nCodons}codons.txt")
 WriteData.write_order_transformed_B_to_csv(cell.B_dense(), f"output/{nCodons}codons/B.{nCodons}codons.csv", order, nCodons)
 
 WriteData.write_to_file(cell.I_dense(), f"output/{nCodons}codons/I.{nCodons}codons.txt")
