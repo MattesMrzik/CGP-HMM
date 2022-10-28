@@ -41,7 +41,6 @@ path = f"output/{nCodons}codons/out.seqs.{nCodons}codons.fa"
 
 run(f"mkdir -p bench/{nCodons}codons")
 remove_old_bench_files(nCodons)
-run(f"mkdir -p verbose/{nCodons}codons")
 remove_old_verbose_files(nCodons)
 run(f"mkdir -p output/{nCodons}codons/")
 
@@ -84,7 +83,6 @@ def printI():
         print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
         print(tf.math.round(cell.I[state,0]*100).numpy()/100)
 # printI()
-
 WriteData.write_to_file(cell.A_dense(), f"output/{nCodons}codons/A.{nCodons}codons.txt")
 WriteData.write_to_file(tf.transpose(cell.B_dense()), f"output/{nCodons}codons/B.{nCodons}codons.txt")
 WriteData.write_order_transformed_B_to_csv(cell.B_dense(), f"output/{nCodons}codons/B.{nCodons}codons.csv", order, nCodons)

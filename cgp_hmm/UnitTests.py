@@ -8,6 +8,7 @@ from CgpHmmCell import CgpHmmCell
 from Utility import state_id_to_description
 from Utility import higher_order_emission_to_id
 from Utility import id_to_higher_order_emission
+from itertools import product
 
 
 class TestUtiliy(unittest.TestCase):
@@ -29,9 +30,66 @@ class TestUtiliy(unittest.TestCase):
         self.assertEqual(id_to_higher_order_emission(62,4,2),[2,2,2])
         self.assertEqual(id_to_higher_order_emission(125,4,2),[5])
 
-
-
 class TestCgpHmmCell(unittest.TestCase):
+
+    def test_get_emissions_that_fit_ambiguity_mask(self):
+        nCodons = 1 # is irrelevant here
+        cell = CgpHmmCell(nCodons)# when writing this test, order was always set to 2
+        d = dict(zip("ACGTI", range(5)))
+
+        mask = "A"
+        allowed_ho_emissions = "ACGT ACGT A"
+        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions.split(" ")])]
+        x_bases_must_preceed = 2
+        self.assertEqual(cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed), allowed_ho_emissions)
+
+        mask = "ANT"
+        allowed_ho_emissions = "A ACGT T"
+        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions.split(" ")])]
+        x_bases_must_preceed = 2
+        self.assertEqual(cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed), allowed_ho_emissions)
+
+        mask = "AN"
+        allowed_ho_emissions = "ACGTI A ACGT"
+        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions.split(" ")])]
+        x_bases_must_preceed = 1
+        self.assertEqual(cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed), allowed_ho_emissions)
+
+        mask = "ATG"
+        allowed_ho_emissions = "AI TI G"
+        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions.split(" ")])]
+        x_bases_must_preceed = 0
+        self.assertEqual(cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed), allowed_ho_emissions)
+
+        mask = "ATN"
+        allowed_ho_emissions = "AI TI ACGT"
+        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions.split(" ")])]
+        x_bases_must_preceed = 0
+        self.assertEqual(cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed), allowed_ho_emissions)
+
+        mask = "N"
+        allowed_ho_emissions = "ACGTI ACGTI ACGT"
+        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions.split(" ")])]
+        x_bases_must_preceed = 0
+        self.assertEqual(cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed), allowed_ho_emissions)
+
+    def test_has_I_emission_after_base(self):
+        nCodons = 1 # is irrelevant here
+        cell = CgpHmmCell(nCodons)# when writing this test, order was always set to 2
+        self.assertFalse(cell.has_I_emission_after_base([4,4,4]))
+        self.assertFalse(cell.has_I_emission_after_base([4,4,2]))
+
+        self.assertTrue(cell.has_I_emission_after_base([4,2,4]))
+        self.assertTrue(cell.has_I_emission_after_base([0,2,4]))
+
+    def test_strip_or_pad_emission_with_n(self):
+        nCodons = 1 # is irrelevant here
+        cell = CgpHmmCell(nCodons)# when writing this test, order was always set to 2
+        self.assertEqual(cell.strip_or_pad_emission_with_n("A"), list("NNA"))
+        self.assertEqual(cell.strip_or_pad_emission_with_n("AC"), list("NAC"))
+        self.assertEqual(cell.strip_or_pad_emission_with_n("AAA"), list("AAA"))
+        self.assertEqual(cell.strip_or_pad_emission_with_n("AAAA"), list("AAA"))
+
     def off_test_get_indices_and_values_from_transition_kernel(self):
         cell = CgpHmmCell(2)
         #                                                                                        weights, 2 codons
@@ -185,7 +243,7 @@ class Test_Helpers(unittest.TestCase):
                                    delta = 0.0000001)
 
 class TestForward(unittest.TestCase):
-    def test_tf_scaled_forward_to_manual_scaled_forward(self):
+    def off_test_tf_scaled_forward_to_manual_scaled_forward(self):
         import ReadData
         nCodons = 2
         order_transformed_input = True

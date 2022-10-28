@@ -154,8 +154,8 @@ def fit_model(path, nCodons, order_transformed_input, order):
     callbacks = [write_time_epoch_start_callback(),
                  write_time_epoch_end_callback(),
                  write_ram_epoch_start_callback(),
-                 write_ram_epoch_end_callback(),
-                 exit_after_first_batch()]
+                 write_ram_epoch_end_callback()]#,
+                 # exit_after_first_batch()]
 
     # todo add write traning time per epoch to file callback
 

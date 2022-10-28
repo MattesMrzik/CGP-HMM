@@ -12,7 +12,7 @@ def prRed(skk): print("Cell\033[96m {}\033[00m" .format(skk))
 
 class CgpHmmCell(tf.keras.layers.Layer):
 # class CgpHmmCell(tf.keras.layers.Layer):
-    def __init__(self, nCodons, order_transformed_input):
+    def __init__(self, nCodons, order_transformed_input = True):
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Cell.__init__() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
@@ -255,35 +255,51 @@ class CgpHmmCell(tf.keras.layers.Layer):
         }
         return code[emission]
 
-    def get_indices_and_values_for_emission_higher_order_for_a_state(self, weights, k, indices, values, state, emissions, x_emissions_must_preceed, trainable = True):
+    def has_I_emission_after_base(self, emission, alphabet_size = 4, order = 2):
+        found_emission = False
+        invalid_emission = False
+        for i in range(1,order +1):
+            if found_emission and emission[i] == alphabet_size:
+                # print("not adding ", x)
+                invalid_emission = True
+                break
+            if emission[i] != alphabet_size:
+                found_emission = True
+        return invalid_emission
+
+    def strip_or_pad_emission_with_n(self, ho_emission):
+        return ["N"] * (self.order - len(ho_emission) + 1) + list(ho_emission)[-self.order-1:]
+
+    def get_emissions_that_fit_ambiguity_mask(self, ho_mask, x_bases_must_preceed):
+
+        # getting the allowd base emissions in each slot
+        # ie "NNA" and x_bases_must_preceed = 2 -> [][0,1,2,3], [0,1,2,3], [0]]
+        allowed_bases = [0] * (self.order + 1)
+        for i, emission in enumerate(self.strip_or_pad_emission_with_n(ho_mask)):
+            allowed_bases[i] = self.nucleotide_ambiguity_code_to_array(emission)
+            if i < self.order - x_bases_must_preceed:
+                allowed_bases[i] += [4] # initial emission symbol
+                
+        allowed_ho_emissions = []
+        for ho_emission in product(*allowed_bases):
+            if not self.has_I_emission_after_base(ho_emission):
+                allowed_ho_emissions += [ho_emission]
+
+        return allowed_ho_emissions
+
+    def get_indices_and_values_for_emission_higher_order_for_a_state(self, weights, k, indices, values, state, mask, x_bases_must_preceed, trainable = True):
 
         # if self.order_transformed_input and emissions[-1] == "X":
-        if emissions[-1] == "X":
+        if mask[-1] == "X":
             indices += [[state, (self.alphabet_size + 1) ** (self.order +1)]]
             values[0] = tf.concat([values[0], [1]], axis = 0)
             return
 
         count_weights = 0
-        allowed_emissions = [[state]]
-        for i, e in enumerate(["N"] * (self.order - len(emissions) + 1) + list(emissions)[-self.order-1:]):
-            allowed_emissions += [self.nucleotide_ambiguity_code_to_array(e) + ([4] if i < (self.order - x_emissions_must_preceed) else [] ) ]
-        # might be faster, but contains emissions like [state, emission, 4, emission] (order = 0) where an emission is followd by "padded left flank", which will never occur
-        # indices += list(product(*allowed_emissions))
-        for x in product(*allowed_emissions):
-            found_emission = False
-            for i in range(1,self.order +1):
-                if found_emission and x[i] == 4:
-                    # print("not adding ", x)
-                    break
-                if x[i] != 4:
-                    found_emission = True
-            else:
-                # if self.order_transformed_input:
-                indices += [[state, higher_order_emission_to_id(x[1:], self.alphabet_size, self.order)]] # because first entry is state
-                # not order transformed input
-                # else:
-                #     indices += [x]
-                count_weights += 1
+        for ho_emission in self. get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed):
+            indices += [[state, higher_order_emission_to_id(ho_emission, self.alphabet_size, self.order)]]
+            count_weights += 1
+
         if trainable:
             values[0] = tf.concat([values[0], weights[k[0]:k[0] + count_weights]], axis = 0)
             k[0] += count_weights
@@ -345,11 +361,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
         emission_matrix = tf.sparse.SparseTensor(indices = indices, \
                                                  values = values, \
                                                  dense_shape = [self.calc_number_of_states(), \
-                                                                (self.alphabet_size + 1) ** (self.order + 1) + 1])
+                                                            (self.alphabet_size + 1) ** (self.order + 1) + 1])
         emission_matrix = tf.sparse.reorder(emission_matrix)
         emission_matrix = tf.sparse.softmax(emission_matrix)
-        emission_matrix = tf.sparse.reshape(emission_matrix, ((self.alphabet_size + 1) ** (self.order + 1) + 1, \
-                                                        self.calc_number_of_states()))
+        emission_matrix = tf.sparse.transpose(emission_matrix)
         return emission_matrix
 
     def B_not_order_transformed_input():
@@ -417,11 +432,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     def init_cell(self):
         self.inita = True
-        self.correct_order = 0
     # order transformed input, sparse
     def call(self, inputs, states, training = None, verbose = False):
-        run_id = randint(0,100)
-        verbose = 2
 
         # if self.checksquare:
         #     old_forward, old_loglik, count, checksquare = states
@@ -430,25 +442,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
         old_forward, old_loglik, count = states
         count = count + 1
 
-        # check = 0.0 # can use this instead of self.correct_order
-        # while check != count[0,0]:
-        #     check += 1
-        check = 0.0
-        for i in range(100):
-            if i == count[0,0]:
-                check = float(i)
-
+        run_id = randint(0,100)
+        verbose = 0
 
         print_to_file = True
         if print_to_file:
-            outstream = f"file://./verbose/{self.nCodons}codons/{self.correct_order}_{run_id}.txt"
-            # outstream = f"file://./verbose/{self.nCodons}codons/{check}_{run_id}.txt"
+            outstream = f"file://./verbose/{self.nCodons}codons.txt"
         else:
             outstream = sys.stdout
-
-        self.correct_order += 1
-         # tried this to fix:
-        # TypeError: Failed to convert elements of SparseTensor(indices=Tensor("cgp_hmm_layer/rnn/cgp_hmm_cell/SparseReorder:0", shape=(672, 2), dtype=int64), values=Tensor("cgp_hmm_layer/rnn/cgp_hmm_cell/SparseSoftmax/SparseSoftmax:0", shape=(672,), dtype=float32), dense_shape=Tensor("cgp_hmm_layer/rnn/cgp_hmm_cell/SparseTensor_1/dense_shape:0", shape=(2,), dtype=int64)) to Tensor. Consider casting elements to a supported type. See https://www.tensorflow.org/api_docs/python/tf/dtypes for supported TF dtypes.
 
         # inputs is shape batch * 126 (= (4+1)^3+1)
 
@@ -456,39 +457,29 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # E = tf.sparse.sparse_dense_matmul(self.B, tf.transpose(inputs))
         E = tf.sparse.sparse_dense_matmul(inputs, self.B)
 
+        def verbose_print(string, data):
+            if verbose:
+                tf.print(count[0,0], run_id, string, tf.shape(data), output_stream = outstream, sep = ";")
+                if verbose == 2:
+                    tf.print(count[0,0], run_id, ">" + string, data, output_stream = outstream, sep = ";", summarize=-1)
+
         if verbose:
-            tf.print("inputs =", tf.shape(inputs), "\n", output_stream = outstream)
-            tf.print("E =", tf.shape(E), "\n", output_stream = outstream)
-            tf.print("A =", tf.shape(self.A), "\n", output_stream = outstream)
-            tf.print("B =", tf.shape(self.B), "\n", output_stream = outstream)
-            tf.print("old_forward =", tf.shape(old_forward), "\n", output_stream = outstream)
-            tf.print("old_loglik =", tf.shape(old_loglik), "\n", output_stream = outstream)
-            tf.print("count =", tf.shape(count), "\n", output_stream = outstream)
-            tf.print("count =", count[0,0], "\n", output_stream = outstream)
-
-            if verbose == 2:
-                tf.print("---> inputs =", (inputs), "\n", output_stream = outstream)
-                tf.print("---> E =", (E), "\n", summarize=1000, output_stream = outstream)
-                tf.print("---> A =", (self.A), "\n", output_stream = outstream)
-                tf.print("---> B =", (self.B), "\n", output_stream = outstream)
-                tf.print("---> old_forward =", (old_forward), "\n", summarize=1000, output_stream = outstream)
-                tf.print("---> old_loglik =", (old_loglik), "\n", summarize=1000, output_stream = outstream)
-
+            verbose_print("count", count[0,0])
+            verbose_print("inputs", inputs)
+            verbose_print("old_forward", old_forward)
+            verbose_print("old_loglik", old_loglik)
+            verbose_print("E", E)
 
         if self.inita:
-            # tf.print("self.init = ", self.init)
+            # tf.print(count[0,0], run_id, " ", "self.init = ", self.init)
             self.inita = False
 
 
         if count[0,0] == 1:
             R = self.I # this might have to be dense, bc TypeError: 'R' must have the same nested structure in the main and else branches:
             # and in the else branch it is dense
-            if verbose:
-                tf.print("R if =", tf.shape(R), "\n", output_stream = outstream)
-
-                if verbose == 2:
-                    tf.print("---> R if =", (R), "\n", summarize=1000, output_stream = outstream)
-
+            verbose_print("A", self.A_dense())
+            verbose_print("B", self.B_dense())
         else:
             # R = tf.linalg.matvec(self.A, old_forward, transpose_a = True)
             # R = tf.sparse.sparse_dense_matmul(self.A, old_forward, adjoint_b = True, adjoint_a = True) # todo: can use transposed shape in state_size, then i can save this adjoint and alpha ? tf.transpose(alpha)
@@ -496,26 +487,15 @@ class CgpHmmCell(tf.keras.layers.Layer):
             # Z_i_minus_1 = tf.reduce_sum(old_forward, axis=-1, keepdims = True)
             Z_i_minus_1 = tf.reduce_sum(old_forward, axis=1, keepdims = True)
             R /= Z_i_minus_1
-            if verbose:
-                tf.print("R else =", tf.shape(R), "\n", output_stream = outstream)
-                if verbose == 2:
-                    tf.print("---> R else =", (R), "\n", summarize=1000, output_stream = outstream)
         alpha = E * R
         # alpha = tf.transpose(alpha)
-        if verbose:
-            tf.print("new alpha=", tf.shape(alpha), "\n", output_stream = outstream)
-            if verbose == 2:
-                tf.print("---> new alpha=", (alpha), "\n", summarize=1000, output_stream = outstream)
-
-
 
         loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis=-1, keepdims = True, name = "loglik")) # todo keepdims = True?
+
         if verbose:
-            tf.print("loglik =", tf.shape(loglik), "\n", output_stream = outstream)
-            if verbose == 2:
-                tf.print("---> loglik =", (loglik), "\n", summarize=1000, output_stream = outstream)
-
-
+            verbose_print("R", R)
+            verbose_print("forward", alpha)
+            verbose_print("loglik", loglik)
 
         # if self.checksquare:
         #     return [alpha, inputs, count, checksquare], [alpha, loglik, count, checksquare]

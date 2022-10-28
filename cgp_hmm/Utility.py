@@ -9,61 +9,7 @@ from resource import RUSAGE_SELF
 
 np.set_printoptions(linewidth=200)
 
-########################################################################
-########################################################################
-########################################################################
-def append_time_stamp_to_file(time, description, path):
-    with open(path, "a") as file:
-        file.write(f"{time}\t{description}\n")
-def append_time_ram_stamp_to_file(start, description, path):
-    with open(path, "a") as file:
-        s = [time.perf_counter(),
-             time.perf_counter() - start,
-             getrusage(RUSAGE_SELF).ru_maxrss]
-        s = [str(round(x,5)) for x in s]
-        s = "\t".join(s + [description + "\n"])
-        file.write(s)
 
-    # if re.search("init", description) or True:
-    #     tf.print("in append time and ram stamp")
-    #     with open(path,"r") as file:
-    #         for line in file:
-    #             tf.print(line.strip())
-    #     tf.print("done with printing file")
-
-def remove_old_bench_files(nCodons):
-
-        output_path = f"bench/{nCodons}codons"
-
-        run(f"rm {output_path}/callbackoutput_time_start.txt")
-        run(f"rm {output_path}/callbackoutput_time_end.txt")
-        run(f"rm {output_path}/callbackoutput_ram_start.txt")
-        run(f"rm {output_path}/callbackoutput_ram_end.txt")
-        run(f"rm {output_path}/stamps.log")
-def remove_old_verbose_files(nCodons):
-
-        output_path = f"verbose/{nCodons}codons"
-
-        run(f"rm {output_path}/*")
-
-########################################################################
-########################################################################
-########################################################################
-def run(command):
-    import os
-    os.system(command)
-    # import subprocess
-    # import random
-    # import time
-    # random_id = random.randint(0,1000000)
-    # with open(f"temporary_script_file.{random_id}.sh","w") as file:
-    #     file.write("#!/bin/bash\n")
-    #     file.write(f"echo \033[91m running: \"{command}\" \033[00m\n")
-    #     file.write(command)
-    #
-    # subprocess.Popen(f"chmod +x temporary_script_file.{random_id}.sh".split(" ")).wait()
-    # subprocess.Popen(f"./temporary_script_file.{random_id}.sh").wait()
-    # subprocess.Popen(f"rm temporary_script_file.{random_id}.sh".split(" ")).wait()
 ########################################################################
 ########################################################################
 ########################################################################
@@ -107,6 +53,180 @@ def id_to_higher_order_emission(id, alphabet_size, order):
             emission += [int(fits)]
     emission += [int(id)]
     return emission
+########################################################################
+########################################################################
+########################################################################
+def transform_verbose_txt_to_csv(path, nCodons):
+    log = {}
+    with open(path,"r") as file:
+        for line in file:
+            line = line.strip().split(";")
+            # beginning of data entry
+            if len(line) == 4:
+                if line[2][0] != ">":
+                    continue
+                count = int(line[0])
+                run_id = int(line[1])
+                description = line[2][1:]
+                data = [round(float(x),3) for x in re.sub("[\[\]]","", line[3]).split(" ")]
+            else:
+                data = [round(float(x),3) for x in re.sub("[\[\]]","", line[0]).split(" ")]
+            if count not in log:
+                e = {description : [data]}
+                log[count] = {run_id : e}
+            else:
+                if run_id not in log[count]:
+                    e = {description : [data]}
+                    log[count][run_id] = e
+                else:
+                    if description not in log[count][run_id]:
+                        log[count][run_id][description] = [data]
+                    else:
+                        log[count][run_id][description].append(data)
+    # for count in log.keys():
+    #     for id in log[count].keys():
+    #         for description in log[count][id].keys():
+    #             for data in log[count][id][description]:
+    #                 print(count,id,description,data, sep = "\t")
+
+
+    with open(path + ".csv","w") as file:
+        import numpy as np
+        sep = ";"
+        decimal_seperator = ","
+        file.write("A\n" + sep*2)
+        for id in log[1]:
+            for i in range(len(log[1][id]["A"])):
+                file.write(state_id_to_description(i, nCodons))
+                file.write(sep)
+            file.write("\n")
+            for row_id, data in enumerate(log[1][id]["A"]):
+                file.write(sep)
+                file.write(state_id_to_description(row_id, nCodons))
+                file.write(sep)
+                file.write(sep.join(list(map(str,data))).replace(".",decimal_seperator))
+                file.write("\n")
+            break
+        file.write("B\n" + sep*2)
+        for id in log[1]:
+            for i in range(len(log[1][id]["A"])):
+                file.write(state_id_to_description(i, nCodons))
+                file.write(sep)
+            file.write("\n")
+            for row_id, data in enumerate(log[1][id]["B"]):
+                alphabet_size = 4
+                order = 2
+                file.write("".join(["ACGTIT"[b] for b in id_to_higher_order_emission(row_id, alphabet_size, order)]))
+                file.write(sep)
+                file.write(str(row_id))
+                file.write(sep)
+                file.write(sep.join(list(map(str,data))).replace(".",decimal_seperator))
+                file.write("\n")
+            break
+
+        for i in sorted(list(log)):
+            for id in log[i]:
+                file.write(str(id)+"_")
+                max_len = max([len(v) for k,v in log[i][id].items() if k not in ["A","B"]])
+                inputs = sep.join("i") # since i will decode the one_hot encoding
+                E = sep.join("E" * len(log[i][id]["E"][0]))
+                R = sep.join("R" * len(log[i][id]["R"][0]))
+                a = sep.join("a" * len(log[i][id]["forward"][0]))
+                l = sep.join("l" * len(log[i][id]["loglik"][0]))
+                file.write(f"{i}{sep}{inputs}{sep}{E}{sep}{R}{sep}{a}{sep}{l}\n")
+                for row in range(max_len):
+                    file.write(str(i))
+                    file.write(sep)
+                    try:
+                        file.write(str(np.argmax(log[i][id]["inputs"][row])).replace(".",decimal_seperator))
+                        file.write(sep)
+                    except:
+                        file.write(sep)
+                        file.write(sep)
+                    try:
+                        file.write(sep.join(list(map(str, log[i][id]["E"][row]))).replace(".",decimal_seperator))
+                        file.write(sep)
+                    except:
+                        file.write(sep * (len(log[i][id]["E"][0])-1))
+                        file.write(sep)
+                    try:
+                        file.write(sep.join(list(map(str, log[i][id]["R"][row]))).replace(".",decimal_seperator))
+                        file.write(sep)
+                    except:
+                        file.write(sep * (len(log[i][id]["R"][0])-1))
+                        file.write(sep)
+                    try:
+                        file.write(sep.join(list(map(str, log[i][id]["forward"][row]))).replace(".",decimal_seperator))
+                        file.write(sep)
+                    except:
+                        file.write(sep * (len(log[i][id]["forward"][0])-1))
+                        file.write(sep)
+                    try:
+                        file.write(sep.join(list(map(str, log[i][id]["loglik"][row]))).replace(".",decimal_seperator))
+                        file.write(sep)
+                    except:
+                        file.write(sep * (len(log[i][id]["loglik"][0])-1).replace(".",decimal_seperator))
+                        file.write(sep)
+                    file.write("\n")
+
+if __name__ == "__main__":
+    transform_verbose_txt_to_csv("verbose/1codons.txt",1)
+
+########################################################################
+########################################################################
+########################################################################
+def append_time_stamp_to_file(time, description, path):
+    with open(path, "a") as file:
+        file.write(f"{time}\t{description}\n")
+def append_time_ram_stamp_to_file(start, description, path):
+    with open(path, "a") as file:
+        s = [time.perf_counter(),
+             time.perf_counter() - start,
+             getrusage(RUSAGE_SELF).ru_maxrss]
+        s = [str(round(x,5)) for x in s]
+        s = "\t".join(s + [description + "\n"])
+        file.write(s)
+
+    # if re.search("init", description) or True:
+    #     tf.print("in append time and ram stamp")
+    #     with open(path,"r") as file:
+    #         for line in file:
+    #             tf.print(line.strip())
+    #     tf.print("done with printing file")
+
+def remove_old_bench_files(nCodons):
+
+        output_path = f"bench/{nCodons}codons"
+
+        run(f"rm {output_path}/callbackoutput_time_start.txt")
+        run(f"rm {output_path}/callbackoutput_time_end.txt")
+        run(f"rm {output_path}/callbackoutput_ram_start.txt")
+        run(f"rm {output_path}/callbackoutput_ram_end.txt")
+        run(f"rm {output_path}/stamps.log")
+def remove_old_verbose_files(nCodons):
+
+        output_path = f"verbose"
+
+        run(f"rm {output_path}/{nCodons}codons.txt")
+
+########################################################################
+########################################################################
+########################################################################
+def run(command):
+    import os
+    os.system(command)
+    # import subprocess
+    # import random
+    # import time
+    # random_id = random.randint(0,1000000)
+    # with open(f"temporary_script_file.{random_id}.sh","w") as file:
+    #     file.write("#!/bin/bash\n")
+    #     file.write(f"echo \033[91m running: \"{command}\" \033[00m\n")
+    #     file.write(command)
+    #
+    # subprocess.Popen(f"chmod +x temporary_script_file.{random_id}.sh".split(" ")).wait()
+    # subprocess.Popen(f"./temporary_script_file.{random_id}.sh").wait()
+    # subprocess.Popen(f"rm temporary_script_file.{random_id}.sh".split(" ")).wait()
 ########################################################################
 ########################################################################
 ########################################################################
