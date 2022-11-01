@@ -126,13 +126,13 @@ def fit_model(path, nCodons, order_transformed_input, order):
 
     # todo: oder nicht epoch sondern batch
     # on_train_batch_begin
-    class write_ram_epoch_start_callback(tf.keras.callbacks.Callback):
+    class write_time_ram_epoch_start_callback(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):
             # with open(f"{output_path}/callbackoutput_ram_start.txt", "a") as file:
             #     file.write(f"{process.memory_info().rss}\n")
             append_time_ram_stamp_to_file(0, "epoch_begin", f"./bench/{nCodons}codons/stamps.log")
 
-    class write_ram_epoch_end_callback(tf.keras.callbacks.Callback):
+    class write_time_ram_epoch_end_callback(tf.keras.callbacks.Callback):
         def on_epoch_end(self, epoch, logs = None):
             # with open(f"{output_path}/callbackoutput_ram_end.txt", "a") as file:
             #     file.write(f"{process.memory_info().rss}\n")
@@ -151,10 +151,8 @@ def fit_model(path, nCodons, order_transformed_input, order):
 
     # callbacks = [tf.keras.callbacks.LambdaCallback(on_epoch_end = lambda epoch, logs: print("A =", tf.nn.softmax(model.get_weights()[0])))]
     callbacks = []
-    callbacks = [write_time_epoch_start_callback(),
-                 write_time_epoch_end_callback(),
-                 write_ram_epoch_start_callback(),
-                 write_ram_epoch_end_callback()]#,
+    callbacks = [write_time_ram_epoch_start_callback(),
+                 write_time_ram_epoch_end_callback()]#,
                  # exit_after_first_batch()]
 
     # todo add write traning time per epoch to file callback
