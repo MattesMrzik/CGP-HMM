@@ -75,6 +75,7 @@ def plot_time_and_ram(path, bar = False):
                 ram_peaks[int(re.search("\d+", file).group(0))-1] = ram_peak
 
     max_n_codons_extrapolate = max_n_codons * 2
+    max_n_codons_extrapolate = max_n_codons
 
     if bar:
         scale_time_by = 20000
@@ -107,8 +108,12 @@ def plot_time_and_ram(path, bar = False):
         # plt.plot(, times, "bo-")
         # plt.plot(np.arange(max_n_codons), ram_peaks, "rx-")
         x = np.arange(1,max_n_codons +1)
-        ceof_times = np.polyfit(x,times, 3)
-        coef_ram_peaks = np.polyfit(x,ram_peaks/1024, 3)
+        degree = 4
+        # should coefs all be positive? for a runtime s
+        coef_times = np.polyfit(x,times, degree) # coef for x^degree is coef_times[0]
+        coef_ram_peaks = np.polyfit(x,ram_peaks/1024, degree)
+        print("coef_times:", coef_times)
+        print("coef_ram_peaks:", coef_ram_peaks)
 
         color = 'tab:red'
         ax1.set_xlabel('ncodons')
@@ -116,7 +121,7 @@ def plot_time_and_ram(path, bar = False):
         ax1.plot(x, times, color=color)
 
         x_extrapolate = np.arange(1,max_n_codons_extrapolate+1)
-        y = [np.polyval(ceof_times,x) for x in x_extrapolate]
+        y = [np.polyval(coef_times,x) for x in x_extrapolate]
         ax1.plot(x_extrapolate, y, color = "tab:orange")
         ax1.tick_params(axis='y', labelcolor=color)
 

@@ -20,22 +20,22 @@ def prRed(skk): print(f"Training\033[96m {skk}\033[00m")
 
 np.set_printoptions(linewidth=400)
 
-def make_model(nCodons, order_transformed_input, order):
+def make_model(config):
     start = time.perf_counter()
     run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
 
     alphabet_size = 4
 
-    if order_transformed_input:
-        #                                                                              terminal
-        sequences = tf.keras.Input(shape = (None, (alphabet_size + 1) ** (order + 1) + 1), name = "sequences")
+    if config["order_transformed_input"]:
+        #                                                                                        terminal
+        sequences = tf.keras.Input(shape = (None, (alphabet_size + 1) ** (config["order"] + 1) + 1), name = "sequences")
     else:
         sequences = tf.keras.Input(shape = (None, alphabet_size + 2), name = "sequences")
 
     # another None added automatically for yet unkown batch_size
 
-    cgp_hmm_layer = CgpHmmLayer(nCodons, order_transformed_input) # init of layer
+    cgp_hmm_layer = CgpHmmLayer(config) # init of layer
 
     loglik = cgp_hmm_layer(sequences) # layer is build, then called
     # "[tf.keras.layers.Lambda(lambda x:x, name = \"loglik\")(loglik)] =", [
@@ -43,28 +43,28 @@ def make_model(nCodons, order_transformed_input, order):
 
     model = tf.keras.Model(inputs = sequences, outputs = [tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik)]) #  the output of the model is the value that is computed by a final layer that picks the loglike of the [alpha, loglik, count]
 
-    append_time_ram_stamp_to_file(start, f"Traning.make_model() end   {run_id}", f"./bench/{nCodons}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Traning.make_model() end   {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
     return model, cgp_hmm_layer
 
 
-def make_dataset(path, order_transformed_input, order, nCodons):
+def make_dataset(config):
     start = time.perf_counter()
     run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Training.make_dataset() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Training.make_dataset() start {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
 
-    if order_transformed_input:
-        seqs = read_data_with_order(path, 2) #  2 is order
+    if config["order_transformed_input"]:
+        seqs = read_data_with_order(config["fasta_path"], config["order"])
     else:
-        seqs = read_data(path)
+        seqs = read_data(config["fasta_path"])
 
     ds = tf.data.Dataset.from_generator(lambda: seqs,
                                          tf.as_dtype(tf.int32),
                                          tf.TensorShape([None]))
-    if order_transformed_input:
-        ds = ds.padded_batch(32, padding_values = (4 + 1)**order)
+    if config["order_transformed_input"]:
+        ds = ds.padded_batch(32, padding_values = (4 + 1)**config["order"])
 
         def to_one_hot(seq):
-            return tf.cast(tf.one_hot(seq, (4 + 1)**(order + 1) + 1), dtype=tf.float32)
+            return tf.cast(tf.one_hot(seq, (4 + 1)**(config["order"] + 1) + 1), dtype=tf.float32)
     else:
         ds = ds.padded_batch(32, padding_values = 5) # 5 is terminal symbol, 4 is "padded left flank"
 
@@ -74,15 +74,16 @@ def make_dataset(path, order_transformed_input, order, nCodons):
     ds = ds.map(to_one_hot)
     ds = ds.repeat()
 
-    append_time_ram_stamp_to_file(start, f"Training.make_dataset() end   {run_id}", f"./bench/{nCodons}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Training.make_dataset() end   {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
     return ds, seqs
 
 # from memory_profiler import profile
 # @profile
-def fit_model(path, nCodons, order_transformed_input, order):
+def fit_model(config):
+    nCodons = config["nCodons"]
 
 
-    model, cgp_hmm_layer = make_model(nCodons, order_transformed_input, order)
+    model, cgp_hmm_layer = make_model(config)
 
     learning_rate = .1
 
@@ -100,7 +101,7 @@ def fit_model(path, nCodons, order_transformed_input, order):
     # _, seqs = make_dataset()# first return value is data_set
     # model(seqs)
 
-    data_set = make_dataset(path, order_transformed_input, order, nCodons)[0] # [1] is data tensor
+    data_set = make_dataset(config)[0] # [1] is data tensor
 
 
 
@@ -156,6 +157,7 @@ def fit_model(path, nCodons, order_transformed_input, order):
                  # exit_after_first_batch()]
 
     # todo add write traning time per epoch to file callback
+
 
 
     start = time.perf_counter()

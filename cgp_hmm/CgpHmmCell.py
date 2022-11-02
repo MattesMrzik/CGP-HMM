@@ -7,28 +7,32 @@ from Utility import append_time_ram_stamp_to_file
 import time
 from random import randint
 
-def prRed(skk): print("Cell\033[96m {}\033[00m" .format(skk))
-# def prRed(s): pass
 
 class CgpHmmCell(tf.keras.layers.Layer):
 # class CgpHmmCell(tf.keras.layers.Layer):
-    def __init__(self, nCodons, order_transformed_input = True):
+    def __init__(self, config):
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Cell.__init__() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
+        append_time_ram_stamp_to_file(start, f"Cell.__init__() start {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
 
         # super(CgpHmmCell, self).__init__()
         super(CgpHmmCell, self).__init__()
 
-        self.nCodons = nCodons
+        self.nCodons = config["nCodons"]
 
-        self.alphabet_size = 4 # without terminal symbol and without "papped left flank" symbol
+        self.alphabet_size = config["alphabet_size"] # without terminal symbol and without "papped left flank" symbol
 
-        self.order = 2 # order = 0 -> emission prob depends only on current emission
+        self.order = config["order"] # order = 0 -> emission prob depends only on current emission
+
+        self.config = config
 
         self.state_size = [self.calc_number_of_states(), 1,      1]
 
-        append_time_ram_stamp_to_file(start, f"Cell.__init__() end   {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
+        if not config["order_transformed_input"]:
+            self.state_size = [self.calc_number_of_states(), 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
+
+
+        append_time_ram_stamp_to_file(start, f"Cell.__init__() end   {run_id}", self.config["bench_path"])
 
     def calc_number_of_states(self):
         # ig 5'
@@ -46,6 +50,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # terminal
         number_of_states += 1
 
+        if self.config["order_transformed_input"]:
+            number_of_states += 1
+
         return number_of_states
 
     def calc_number_of_transition_parameters(self):
@@ -60,13 +67,16 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def build(self, input_shape):
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Cell.build() start {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
-        self.transition_kernel = self.add_weight(shape = (self.calc_number_of_transition_parameters(),), # todo: (self.state_size[0], ) is this shape good?
+        append_time_ram_stamp_to_file(start, f"Cell.build() start {run_id}", self.config["bench_path"])
+        self.transition_kernel = self.add_weight(shape = (self.calc_number_of_transition_parameters(),),
                                                  initializer="random_normal",
                                                  trainable=True)
 
+        how_many_emissions = (self.alphabet_size + 1)**(self.order + 1) +1
+        if not self.config["order_transformed_input"]:
+            how_many_emissions = (self.alphabet_size + 2)**(self.order + 1)
 
-        self.emission_kernel = self.add_weight(shape = (self.calc_number_of_states() * 6**(self.order + 1), ),
+        self.emission_kernel = self.add_weight(shape = (self.calc_number_of_states() * how_many_emissions, ),
                                               initializer="random_normal",
                                               trainable=True)
 
@@ -74,7 +84,19 @@ class CgpHmmCell(tf.keras.layers.Layer):
                                            initializer = "random_normal",
                                            trainable=True)
 
-        append_time_ram_stamp_to_file(start, f"Cell.build() end   {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
+
+
+        if self.config["call_type"] == 4 and self.config["order_transformed_input"]:
+            self.transition_kernel = self.add_weight(shape = (self.calc_number_of_states(),self.calc_number_of_states()),
+                                                     initializer="random_normal",
+                                                     trainable=True)
+            self.emission_kernel = self.add_weight(shape = (how_many_emissions, self.calc_number_of_states()),
+                                                  initializer="random_normal",
+                                                  trainable=True)
+
+
+
+        append_time_ram_stamp_to_file(start, f"Cell.build() end   {run_id}", self.config["bench_path"])
 
 
     def init_cell(self):
@@ -205,6 +227,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def A(self):
         return self.A_sparse
         # return self.A_dense
+    @property
+
+    def A_full_model(self):
+        transition_matrix = self.transition_kernel
+        transition_matrix = tf.nn.softmax(transition_matrix)
+        return transition_matrix
 
 ############################################################################
 ############################################################################
@@ -234,15 +262,15 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def strip_or_pad_emission_with_n(self, ho_emission):
         return ["N"] * (self.order - len(ho_emission) + 1) + list(ho_emission)[-self.order-1:]
 
-    def has_I_emission_after_base(self, emission, alphabet_size = 4, order = 2):
+    def has_I_emission_after_base(self, emission):
         found_emission = False
         invalid_emission = False
-        for i in range(1,order +1):
-            if found_emission and emission[i] == alphabet_size:
+        for i in range(1,self.order +1):
+            if found_emission and emission[i] == self.config["alphabet_size"]:
                 # print("not adding ", x)
                 invalid_emission = True
                 break
-            if emission[i] != alphabet_size:
+            if emission[i] != self.config["alphabet_size"]:
                 found_emission = True
         return invalid_emission
 
@@ -269,7 +297,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
                                                                      mask, \
                                                                      x_bases_must_preceed, \
                                                                      trainable = True):
-
         # if self.order_transformed_input and emissions[-1] == "X":
         if mask[-1] == "X":
             indices += [[state, (self.alphabet_size + 1) ** (self.order +1)]]
@@ -286,6 +313,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
             k[0] += count_weights
         else:
             values[0] = tf.concat([values[0], [1] * count_weights], axis = 0)
+
+    def get_indices_and_values_for_emission_higher_order_for_a_state_old_inputs(self, w, nCodons, alphabet_size):
+        pass
 
     def get_indices_and_values_from_emission_kernel_higher_order(self, w, nCodons, alphabet_size):
         indices = []
@@ -321,7 +351,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
         for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
             self.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,state,"N",self.order)
 
-        # if self.order_transformed_input:
         self.get_indices_and_values_for_emission_higher_order_for_a_state(\
                      weights,k,indices,values,8 + nCodons*3 + (nCodons+1)*3,"X",self.order)
 
@@ -347,7 +376,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def B(self):
         return self.B_sparse
         # return self.B_dense()
-
+    @property
+    def B_full_model(self):
+        if self.config["call_type"] == 4:
+            emission_matrix = self.emission_kernel
+            emission_matrix = tf.nn.softmax(emission_matrix)
+            return emission_matrix
 ############################################################################
 ############################################################################
 ############################################################################
@@ -385,6 +419,65 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return self.I_dense
 ################################################################################
 ################################################################################
+################################################################################
+    def call_old_inputs(self, inputs, states, training = None, verbose = False):
+        pass
+        # for i in range(self.order):
+        #     old_inputs_i_expanded = tf.expand_dims(old_inputs[:,i,:], axis = -1)
+        #     for j in range(i + 1, self.order):
+        #         old_inputs_i_expanded = tf.expand_dims(old_inputs_i_expanded, axis = -1)
+        #     E = tf.multiply(old_inputs_i_expanded, E)
+        #     E = tf.reduce_sum(E, axis = 1) # axis 0 is batch, so this has to be 1
+
+################################################################################
+    def call_full_model(self, inputs, states, training = None, verbose = False):
+        old_forward, old_loglik, count = states
+        count = count + 1
+
+        run_id = randint(0,100)
+
+        verbose = 0 # 0: no verbose, 1: print shapes, 2: print shapes and values
+        print_to_file = False
+        if verbose:
+            if print_to_file:
+                outstream = f"file://./verbose/{self.nCodons}codons.txt"
+            else:
+                import sys
+                outstream = sys.stdout
+
+        E = tf.matmul(inputs, self.B_full_model)
+
+        def verbose_print(string, data):
+            if verbose:
+                tf.print(count[0,0], run_id, string, tf.shape(data), output_stream = outstream, sep = ";")
+                if verbose == 2:
+                    tf.print(count[0,0], run_id, ">" + string, data, output_stream = outstream, sep = ";", summarize=-1)
+
+        if verbose:
+            verbose_print("count", count[0,0])
+            verbose_print("inputs", inputs)
+            verbose_print("old_forward", old_forward)
+            verbose_print("old_loglik", old_loglik)
+            verbose_print("E", E)
+
+        if count[0,0] == 1:
+            R = self.I_dense
+            verbose_print("A", self.A_full_model)
+            verbose_print("B", self.B_full_model)
+        else:
+            R = tf.matmul(old_forward, self.A_full_model)
+            Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
+            R /= Z_i_minus_1
+
+        alpha = E * R
+
+        loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik")) # todo keepdims = True?
+        if verbose:
+            verbose_print("R", R)
+            verbose_print("forward", alpha)
+            verbose_print("loglik", loglik)
+
+        return [alpha, inputs, count], [alpha, loglik, count]
 ################################################################################
     def call_sparse(self, inputs, states, training = None, verbose = False): # call_sparse
         old_forward, old_loglik, count = states
@@ -441,9 +534,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
             verbose_print("loglik", loglik)
 
         return [alpha, inputs, count], [alpha, loglik, count]
-
 ################################################################################
-    def call(self, inputs, states, training = None, verbose = False): # call_A_sparse
+    def call_A_sparse(self, inputs, states, training = None, verbose = False): # call_A_sparse
         old_forward, old_loglik, count = states
         count = count + 1
 
@@ -603,5 +695,18 @@ class CgpHmmCell(tf.keras.layers.Layer):
             verbose_print("loglik", loglik)
 
         return [alpha, inputs, count], [alpha, loglik, count]
+################################################################################
+
+    def call(self, inputs, states, training = None, verbose = False):
+        if self.config["call_type"] == 0:
+            return self.call_sparse(inputs, states, training, verbose)
+        elif self.config["call_type"] == 1:
+            return self.call_B_sparse(inputs, states, training, verbose)
+        elif self.config["call_type"] == 2:
+            return self.call_A_sparse(inputs, states, training, verbose)
+        elif self.config["call_type"] == 3:
+            return self.call_dense(inputs, states, training, verbose)
+        elif self.config["call_type"] == 4:
+            return self.call_full_model(inputs, states, training, verbose)
 
 ################################################################################

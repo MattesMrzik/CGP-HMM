@@ -20,22 +20,23 @@ def prRed(skk): print("Layer\033[96m {}\033[00m" .format(skk))
 # def prRed(s): pass
 
 class CgpHmmLayer(tf.keras.layers.Layer):
-    def __init__(self, nCodons, order_transformed_input):
+    def __init__(self, config):
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
+        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
         super(CgpHmmLayer, self).__init__()
-        self.nCodons = nCodons
-        self.order_transformed_input = order_transformed_input
+        self.nCodons = config['nCodons']
+        self.config = config
+        self.order_transformed_input = config['order_transformed_input']
 
-        append_time_ram_stamp_to_file(start, f"Layer.call() end  {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
+        append_time_ram_stamp_to_file(start, f"Layer.call() end  {run_id}", self.config["bench_path"])
 
     def build(self, input_shape):
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
+        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", self.config["bench_path"])
         # print("in build of layer")
-        self.C = CgpHmmCell(self.nCodons, self.order_transformed_input) # init
+        self.C = CgpHmmCell(self.config) # init
         # self.C.build(input_shape) # build
         # this isnt needed for training but when calling the layer, then i need to build C manually, but it is then called
         # a second time when calling F
@@ -43,12 +44,12 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C
         # tf.print("after RNN")
 
-        append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
+        append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config["bench_path"])
 
     def call(self, inputs, training = False):
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
+        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", self.config["bench_path"])
         # todo do i need to reset statse?
         # cell is build again
 
@@ -93,9 +94,14 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         probs_to_be_punished = []
 
         def add_reg(f, to):
-            probs_to_be_punished.append(tf.math.log(1 - \
-                                        self.C.A_dense[description_to_state_id(f, self.nCodons), \
-                                                 description_to_state_id(to, self.nCodons)]))
+            if not self.config["call_type"] == 4:
+                probs_to_be_punished.append(tf.math.log(1 - \
+                                            self.C.A_dense[description_to_state_id(f, self.nCodons), \
+                                                     description_to_state_id(to, self.nCodons)]))
+            else:
+                 probs_to_be_punished.append(tf.math.log(1 - \
+                                             self.C.A_full_model[description_to_state_id(f, self.nCodons), \
+                                                      description_to_state_id(to, self.nCodons)]))
 
         # deletes to be punished
         for i in range(1, self.C.nCodons):
@@ -133,5 +139,5 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         else:
             prRed("training is false")
 
-        append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", f"./bench/{self.nCodons}codons/stamps.log")
+        append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config["bench_path"])
         return loglik_state
