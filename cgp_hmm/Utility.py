@@ -50,65 +50,65 @@ def plot_time_against_ram(path):
     plt.show()
 
 ################################################################################
-def plot_time_and_ram(path, bar = False):
+def plot_time_and_ram(path, bar = False, extrapolate = 1, degree = 3):
     import os
     import matplotlib.pyplot as plt
-    files = os.listdir(path)
-    files = sorted(files, key = lambda x: int(re.search("\d+", x).group(0)))
-    max_n_codons = int(re.search("\d+", files[-1]).group(0))
-    times = np.zeros(max_n_codons)
-    ram_peaks = np.zeros(max_n_codons)
-    for file in files:
-        if os.path.isdir(f"{path}/{file}"):
-            with open(f"{path}/{file}/stamps.log","r") as infile:
-                min_time = float("inf")
-                max_time = 0
-                ram_peak = 0
-                for line in infile:
-                    time = float(line.split("\t")[0])
-                    min_time = min(min_time, time)
-                    max_time = max(max_time, time)
 
-                    ram = float(line.split("\t")[2])
-                    ram_peak = max(ram_peak, ram)
-                times[int(re.search("\d+", file).group(0))-1] = max_time - min_time
-                ram_peaks[int(re.search("\d+", file).group(0))-1] = ram_peak
+    def get_infos_from(type):
+        files = os.listdir(path)
+        files = sorted(files, key = lambda x: int(re.search("\d+", x).group(0)))
+        max_n_codons = int(re.search("\d+", files[-1]).group(0))
+        times = np.zeros(max_n_codons)
+        ram_peaks = np.zeros(max_n_codons)
+        for dir in files:
+            if os.path.isdir(f"{path}/{dir}"):
+                if os.path.exists(f"{path}/{dir}/{type}"):
+                    with open(f"{path}/{dir}/{type}","r") as infile:
+                        min_time = float("inf")
+                        max_time = 0
+                        ram_peak = 0
+                        for line in infile:
+                            description = line.split("\t")[3]
 
-    max_n_codons_extrapolate = max_n_codons * 2
-    max_n_codons_extrapolate = max_n_codons
+                            time = float(line.split("\t")[0])
+                            min_time = min(min_time, time)
+                            if re.search("Training.model.fit.. end", description):
+                                max_time = max(max_time, time)
 
-    if bar:
-        scale_time_by = 20000
-        print("times =", times)
-        times = times * scale_time_by
-        print("ram_peaks =", ram_peaks)
-        barWidth = 0.25
-        fig = plt.subplots(figsize =(12, 8))
+                            ram = float(line.split("\t")[2])
+                            ram_peak = max(ram_peak, ram)
+                        times[int(re.search("\d+", dir).group(0))-1] = max_time - min_time
+                        ram_peaks[int(re.search("\d+", dir).group(0))-1] = ram_peak
+
+        for i in range(max_n_codons-1,-1,-1):
+            if times[i] == 0:
+                max_n_codons -=1
+        times = times[:max_n_codons]
+        ram_peaks = ram_peaks[:max_n_codons]
+
+        return {"max_n_codons":max_n_codons, "times":times, "max_ram_peaks":ram_peaks}
 
 
-        br1_xpositions = np.arange(max_n_codons)
-        br2_xpositions = [x + barWidth for x in br1_xpositions]
 
-        plt.bar(br1_xpositions, times, color ='r', width = barWidth,
-            edgecolor ='grey', label ='times in sec')
-        plt.bar(br2_xpositions, ram_peaks, color ='b', width = barWidth,
-            edgecolor ='grey', label ='ram_peaks in mb')
+    fig = plt.figure(figsize=(12, 12))
+    from itertools import product
+    for i in range(5):
+        # 3_TrueorderTransformedInput.log
 
-        plt.xticks([r + barWidth/2 for r in range(max_n_codons)],
-                    np.arange(max_n_codons) + 1)
+        info = get_infos_from(f"{i}_TrueorderTransformedInput.log")
+        print(f"{i}_TrueorderTransformedInput.log")
+        max_n_codons = info["max_n_codons"]
 
-        def addlabels(x,y, scale_y = 1):
-            for i in range(len(x)):
-                plt.text(x[i],y[i],round(y[i] * scale_y))
+        max_n_codons_extrapolate = max_n_codons * extrapolate
 
-        addlabels(br1_xpositions, times, 1/scale_time_by)
-        addlabels(br2_xpositions, ram_peaks, 1/1024)
-    else:
-        fig, ax1 = plt.subplots()
+        times = info["times"]
+        ram_peaks = info["max_ram_peaks"]
+
+        ax1 = fig.add_subplot(320 + i +1)
         # plt.plot(, times, "bo-")
         # plt.plot(np.arange(max_n_codons), ram_peaks, "rx-")
         x = np.arange(1,max_n_codons +1)
-        degree = 4
+
         # should coefs all be positive? for a runtime s
         coef_times = np.polyfit(x,times, degree) # coef for x^degree is coef_times[0]
         coef_ram_peaks = np.polyfit(x,ram_peaks/1024, degree)
@@ -118,31 +118,41 @@ def plot_time_and_ram(path, bar = False):
         color = 'tab:red'
         ax1.set_xlabel('ncodons')
         ax1.set_ylabel('time in sec', color=color)
-        ax1.plot(x, times, color=color)
+        ax1.plot(x, times, "rx")
 
         x_extrapolate = np.arange(1,max_n_codons_extrapolate+1)
         y = [np.polyval(coef_times,x) for x in x_extrapolate]
-        ax1.plot(x_extrapolate, y, color = "tab:orange")
+        if extrapolate:
+            ax1.plot(x_extrapolate, y, color = "tab:red")
         ax1.tick_params(axis='y', labelcolor=color)
 
         ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
 
         color = 'tab:blue'
         ax2.set_ylabel('ram_peak in mb', color=color)  # we already handled the x-label with ax1
-        ax2.plot(x, ram_peaks/1024, color=color)
+        ax2.plot(x, ram_peaks/1024, "bx")
         y = [np.polyval(coef_ram_peaks ,x) for x in x_extrapolate]
-        ax2.plot(x_extrapolate, y, color = "tab:green")
+        if extrapolate:
+            ax2.plot(x_extrapolate, y, color = "tab:blue")
         ax2.tick_params(axis='y', labelcolor=color)
 
+        title = ["AB sparse","A dense","B dense","AB dense","full matrices"][i]
+        def x_to_power_of(exponent):
+            if exponent == 0:
+                return ""
+            elif exponent == 1:
+                return "x"
+            else:
+                return f"x^{exponent}"
+        title = " + ".join([f"{round(c,2)} {x_to_power_of(len(coef_times)-i-1)}"for i, c in enumerate(coef_times)]) + title
+        title += " " + " + ".join([f"{round(c,2)} {x_to_power_of(len(coef_times)-i-1)}"for i, c in enumerate(coef_ram_peaks)])
+        ax1.title.set_text(title)
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
-
-
-    plt.plot()
     plt.savefig("bench.png")
 
 if __name__ == "__main__":
-    plot_time_and_ram("bench")
+    plot_time_and_ram("bench", extrapolate = 1, degree = 2)
 ########################################################################
 ########################################################################
 ########################################################################

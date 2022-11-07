@@ -23,18 +23,18 @@ class CgpHmmLayer(tf.keras.layers.Layer):
     def __init__(self, config):
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
+        append_time_ram_stamp_to_file(start, f"Layer.init() start {run_id}", config["bench_path"])
         super(CgpHmmLayer, self).__init__()
         self.nCodons = config['nCodons']
         self.config = config
         self.order_transformed_input = config['order_transformed_input']
 
-        append_time_ram_stamp_to_file(start, f"Layer.call() end  {run_id}", self.config["bench_path"])
+        append_time_ram_stamp_to_file(start, f"Layer.init() end  {run_id}", self.config["bench_path"])
 
     def build(self, input_shape):
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", self.config["bench_path"])
+        append_time_ram_stamp_to_file(start, f"Layer.build() start {run_id}", self.config["bench_path"])
         # print("in build of layer")
         self.C = CgpHmmCell(self.config) # init
         # self.C.build(input_shape) # build
@@ -44,7 +44,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C
         # tf.print("after RNN")
 
-        append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config["bench_path"])
+        append_time_ram_stamp_to_file(start, f"Layer.build() end   {run_id}", self.config["bench_path"])
 
     def call(self, inputs, training = False):
         start = time.perf_counter()

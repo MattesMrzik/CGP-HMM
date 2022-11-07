@@ -23,7 +23,7 @@ np.set_printoptions(linewidth=400)
 def make_model(config):
     start = time.perf_counter()
     run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", config["bench_path"])
 
     alphabet_size = 4
 
@@ -43,14 +43,14 @@ def make_model(config):
 
     model = tf.keras.Model(inputs = sequences, outputs = [tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik)]) #  the output of the model is the value that is computed by a final layer that picks the loglike of the [alpha, loglik, count]
 
-    append_time_ram_stamp_to_file(start, f"Traning.make_model() end   {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Traning.make_model() end   {run_id}", config["bench_path"])
     return model, cgp_hmm_layer
 
 
 def make_dataset(config):
     start = time.perf_counter()
     run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Training.make_dataset() start {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Training.make_dataset() start {run_id}", config["bench_path"])
 
     if config["order_transformed_input"]:
         seqs = read_data_with_order(config["fasta_path"], config["order"])
@@ -58,7 +58,7 @@ def make_dataset(config):
         seqs = read_data(config["fasta_path"])
 
     ds = tf.data.Dataset.from_generator(lambda: seqs,
-                                         tf.as_dtype(tf.int32),
+                                         tf.as_dtype(tf.int32), # has to be int, bc one_hot doesnt work for floats
                                          tf.TensorShape([None]))
     if config["order_transformed_input"]:
         ds = ds.padded_batch(32, padding_values = (4 + 1)**config["order"])
@@ -74,7 +74,7 @@ def make_dataset(config):
     ds = ds.map(to_one_hot)
     ds = ds.repeat()
 
-    append_time_ram_stamp_to_file(start, f"Training.make_dataset() end   {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Training.make_dataset() end   {run_id}", config["bench_path"])
     return ds, seqs
 
 # from memory_profiler import profile
@@ -91,9 +91,9 @@ def fit_model(config):
 
     start = time.perf_counter()
     run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config["bench_path"])
     model.compile(optimizer = optimizer)
-    append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", f"./bench/{nCodons}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config["bench_path"])
 
 
     # manual call to forward algo
@@ -131,14 +131,14 @@ def fit_model(config):
         def on_epoch_begin(self, epoch, logs = None):
             # with open(f"{output_path}/callbackoutput_ram_start.txt", "a") as file:
             #     file.write(f"{process.memory_info().rss}\n")
-            append_time_ram_stamp_to_file(0, "epoch_begin", f"./bench/{nCodons}codons/stamps.log")
+            append_time_ram_stamp_to_file(0, "epoch_begin", config["bench_path"])
 
     class write_time_ram_epoch_end_callback(tf.keras.callbacks.Callback):
         def on_epoch_end(self, epoch, logs = None):
             # with open(f"{output_path}/callbackoutput_ram_end.txt", "a") as file:
             #     file.write(f"{process.memory_info().rss}\n")
                 #                              oder vms     Virtual Memory Size
-            append_time_ram_stamp_to_file(0, "epoch_end", f"./bench/{nCodons}codons/stamps.log")
+            append_time_ram_stamp_to_file(0, "epoch_end", config["bench_path"])
 
     class exit_after_first_batch(tf.keras.callbacks.Callback):
         def on_train_batch_end(self, batch, logs = None):
@@ -162,8 +162,8 @@ def fit_model(config):
 
     start = time.perf_counter()
     run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", f"./bench/{nCodons}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
     history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
-    append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", f"./bench/{nCodons}codons/stamps.log")
+    append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
 
     return model, history

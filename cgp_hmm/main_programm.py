@@ -23,6 +23,8 @@ parser = argparse.ArgumentParser(
     description='description')
 parser.add_argument('-c', '--nCodons',
                     help='number of codons')
+parser.add_argument('-t', '--type',
+                    help='type of cell.call()')
 
 args = parser.parse_args()
 
@@ -31,7 +33,7 @@ config = {}
 config["nCodons"] = int(args.nCodons) if args.nCodons else 1
 config["order"] = 2
 config["order_transformed_input"] = True
-config["call_type"] = 4 # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel
+config["call_type"] = int(args.type) if args.type else 3 # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel
 
 config["alphabet_size"] = 4
 config["fasta_path"] = f"output/{config['nCodons']}codons/out.seqs.{config['nCodons']}codons.fa"
@@ -43,10 +45,12 @@ nCodons = config["nCodons"]
 run(f"mkdir -p output/{nCodons}codons/")
 run(f"mkdir -p verbose")
 run(f"mkdir -p {'/'.join(config['bench_path'].split('/')[:-1])}")
+run(f"rm {config['bench_path']}")
 
 run(f"python3 useMSAgen.py -c {nCodons}")
 
 model, history = fit_model(config)
+print("done fitting")
 # model.save("my_saved_model")
 
 plt.plot(history.history['loss'])
@@ -85,6 +89,7 @@ def printI():
         print(tf.math.round(cell.I[state,0]*100).numpy()/100)
 # printI()
 
+#  bc with call type 4 A_dense fails
 if not config["call_type"] == 4:
     WriteData.write_to_file(cell.A_dense, f"output/{nCodons}codons/A.{nCodons}codons.txt")
     WriteData.write_to_file(tf.transpose(cell.B_dense), f"output/{nCodons}codons/B.{nCodons}codons.txt")
@@ -154,4 +159,5 @@ if not config["call_type"] == 4:
         for key, value in stats.items():
             file.write(key + "\t" + str(value/nSeqs) + "\n")
 
+if config["nCodons"] < 10:
     run(f"python3 Visualize.py -c {nCodons} -o {config['order']} {'-t' if config['order_transformed_input'] else ''}")

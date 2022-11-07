@@ -13,7 +13,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def __init__(self, config):
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Cell.__init__() start {run_id}", f"./bench/{config['nCodons']}codons/stamps.log")
+        append_time_ram_stamp_to_file(start, f"Cell.__init__() start {run_id}", config["bench_path"])
 
         # super(CgpHmmCell, self).__init__()
         super(CgpHmmCell, self).__init__()
@@ -26,15 +26,22 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         self.config = config
 
-        self.state_size = [self.calc_number_of_states(), 1,      1]
+        self.state_size = [self.number_of_states, 1,      1]
 
         if not config["order_transformed_input"]:
-            self.state_size = [self.calc_number_of_states(), 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
+            self.state_size = [self.number_of_states, 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
+
+        self.indices_for_weights_A = self.get_indices_for_weights_from_transition_kernel_higher_order()
+        self.indices_for_constants_A = self.get_indices_for_constants_from_transition_kernel_higher_order()
+
+        self.indices_for_weights_B = self.get_indices_for_weights_from_emission_kernel_higher_order()
+        self.indices_for_constants_B = self.get_indices_for_constants_from_emission_kernel_higher_order()
 
 
         append_time_ram_stamp_to_file(start, f"Cell.__init__() end   {run_id}", self.config["bench_path"])
 
-    def calc_number_of_states(self):
+    @property
+    def number_of_states(self):
         # ig 5'
         number_of_states = 1
         # start
@@ -55,42 +62,44 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         return number_of_states
 
-    def calc_number_of_transition_parameters(self):
-        s = 1 # ig5'
-        s += 1 # delete
-        s += (self.nCodons + 1) * 2 # enter/exit insert
-        s += self.nCodons # enter codon
-        s += 1 # exit last codon
 
-        return(s)
+        # this is for shared parameter vesion which ran slow
+        # s = 1 # ig5'
+        # s += 1 # delete
+        # s += (self.nCodons + 1) * 2 # enter/exit insert
+        # s += self.nCodons # enter codon
+        # s += 1 # exit last codon
+        #
+        # return(s)
 
     def build(self, input_shape):
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Cell.build() start {run_id}", self.config["bench_path"])
-        self.transition_kernel = self.add_weight(shape = (self.calc_number_of_transition_parameters(),),
+        self.transition_kernel = self.add_weight(shape = (len(self.indices_for_weights_A),),
                                                  initializer="random_normal",
                                                  trainable=True)
 
-        how_many_emissions = (self.alphabet_size + 1)**(self.order + 1) +1
+        how_many_emissions = len(self.indices_for_weights_B)
         if not self.config["order_transformed_input"]:
-            how_many_emissions = (self.alphabet_size + 2)**(self.order + 1)
+            how_many_emissions = self.number_of_states * (self.alphabet_size + 2)**(self.order + 1)
 
-        self.emission_kernel = self.add_weight(shape = (self.calc_number_of_states() * how_many_emissions, ),
+        self.emission_kernel = self.add_weight(shape = (how_many_emissions, ),
                                               initializer="random_normal",
                                               trainable=True)
 
-        self.init_kernel = self.add_weight(shape = (self.calc_number_of_states(),),
+        self.init_kernel = self.add_weight(shape = (self.number_of_states,),
                                            initializer = "random_normal",
                                            trainable=True)
 
 
 
         if self.config["call_type"] == 4 and self.config["order_transformed_input"]:
-            self.transition_kernel = self.add_weight(shape = (self.calc_number_of_states(),self.calc_number_of_states()),
+            self.transition_kernel = self.add_weight(shape = (self.number_of_states,self.number_of_states),
                                                      initializer="random_normal",
                                                      trainable=True)
-            self.emission_kernel = self.add_weight(shape = (how_many_emissions, self.calc_number_of_states()),
+            how_many_emissions = (self.config["alphabet_size"] + 1) ** (self.config["order"] + 1 ) + 1
+            self.emission_kernel = self.add_weight(shape = (how_many_emissions, self.number_of_states),
                                                   initializer="random_normal",
                                                   trainable=True)
 
@@ -106,8 +115,77 @@ class CgpHmmCell(tf.keras.layers.Layer):
 ############################################################################
 ############################################################################
 ############################################################################
+    def get_indices_for_constants_from_transition_kernel_higher_order(self):
+        nCodons = self.nCodons
+        # from start a
+        indices = [[1,2]]
+        # from start t
+        indices += [[2,3]]
 
-    def get_indices_and_values_from_transition_kernel_higher_order(self, w, nCodons):
+        # first to second codon position
+        indices += [[4 + i*3, 5 + i*3] for i in range(nCodons)]
+        # second to third codon position
+        indices += [[5 + i*3, 6 + i*3] for i in range(nCodons)]
+
+        # inserts
+        offset = 8 + 3*nCodons
+        # begin inserts
+
+
+        # first to second position in insert
+        indices += [[offset + i*3, offset + 1 + i*3] for i in range(nCodons + 1)]
+        # second to third position in insert
+        indices += [[offset + 1 + i*3, offset + 2 + i*3] for i in range(nCodons + 1)]
+        # ending an insert
+
+        # stop T
+        indices += [[4 + nCodons*3, 5 + nCodons*3]]
+
+        # second to third position in stop
+        indices += [[5 + nCodons*3, 6 + nCodons*3]]
+
+        # stop -> ig 3'
+        indices += [[6 + nCodons*3, 7 + nCodons*3]]
+
+
+        index_of_terminal_1 = 8 + nCodons*3 + (nCodons + 1) *3
+        indices += [[index_of_terminal_1, index_of_terminal_1]]
+
+        return indices
+
+    def get_indices_for_weights_from_transition_kernel_higher_order(self): # no shared parameters
+        nCodons = self.nCodons
+        # from ig 5'
+        indices = [[0,0], [0,1]]
+
+        # enter codon
+        indices += [[3 + i*3, 4 + i*3] for i in range(nCodons)]
+
+        # begin inserts
+        offset = 8 + 3*nCodons
+        indices += [[3 + i*3, offset + i*3] for i in range(nCodons + 1)]
+        # ending an insert
+        indices += [[offset + 2 + i*3, 4 + i*3] for i in range(nCodons + 1)]
+        # continuing an insert
+        indices += [[offset + 2 + i*3, offset + i*3] for i in range(nCodons +1)]
+
+        # exit last codon
+        indices += [[3 + nCodons*3, 4 + nCodons*3]]
+
+        # deletes
+        i_delete = [3 + i*3 for i in range(nCodons) for j in range(nCodons-i)]
+        j_delete = [4 + j*3 for i in range(1,nCodons+1) for j in range(i,nCodons+1)]
+        indices += [[i,j] for i,j in zip(i_delete, j_delete)]
+
+        # ig -> ig, terminal_1
+        index_of_terminal_1 = 8 + nCodons*3 + (nCodons + 1) *3
+        indices += [[7 + nCodons*3, 7 + nCodons*3], [7 + nCodons*3, index_of_terminal_1]]
+
+
+        return indices
+
+    def get_indices_and_values_from_transition_kernel_higher_order(self, w):
+        nCodons = self.nCodons
         k = 0
         # ig 5'
         indices = [[0,0], [0,1]]
@@ -211,22 +289,32 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         return indices, values
 
+
     @property
     def A_sparse(self):
-        indices, values = self.get_indices_and_values_from_transition_kernel_higher_order(self.transition_kernel, self.nCodons)
-        transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.calc_number_of_states()] * 2)
+        values = tf.concat([self.transition_kernel, [1.0] * len(self.indices_for_constants_A)], axis = 0)
+        transition_matrix = tf.sparse.SparseTensor(indices = self.indices_for_weights_A + self.indices_for_constants_A, \
+                                                   values = values, dense_shape = [self.number_of_states] * 2)
         transition_matrix = tf.sparse.reorder(transition_matrix)
         transition_matrix = tf.sparse.softmax(transition_matrix)
         return transition_matrix
+
+    # @property
+    # def A_sparse(self):
+    #     indices, values = self.get_indices_and_values_from_transition_kernel_higher_order(self.transition_kernel, self.nCodons)
+    #     transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.number_of_states] * 2)
+    #     transition_matrix = tf.sparse.reorder(transition_matrix)
+    #     transition_matrix = tf.sparse.softmax(transition_matrix)
+    #     return transition_matrix
 
     @property
     def A_dense(self): # ca 7% != 0
         return tf.sparse.to_dense(self.A_sparse)
 
-    @property
-    def A(self):
-        return self.A_sparse
-        # return self.A_dense
+    # @property
+    # def A(self):
+    #     return self.A_sparse
+    #     # return self.A_dense
     @property
 
     def A_full_model(self):
@@ -356,12 +444,75 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         return indices, values[0]
 
+    def get_indices_for_emission_higher_order_for_a_state(self, \
+                                                          indices, \
+                                                          state, \
+                                                          mask, \
+                                                          x_bases_must_preceed):
+        # if self.order_transformed_input and emissions[-1] == "X":
+        if mask[-1] == "X":
+            indices += [[state, (self.alphabet_size + 1) ** (self.order +1)]]
+            return
+
+        count_weights = 0
+        for ho_emission in self. get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed):
+            indices += [[state, higher_order_emission_to_id(ho_emission, self.alphabet_size, self.order)]]
+
+    def get_indices_for_weights_from_emission_kernel_higher_order(self):
+        start = time.perf_counter()
+        run_id = randint(0,100)
+        append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() start   {run_id}", self.config["bench_path"])
+        nCodons = self.nCodons
+        indices = []
+
+        # ig 5'
+        self.get_indices_for_emission_higher_order_for_a_state(indices,0,"N",0)
+        # start a
+        self.get_indices_for_emission_higher_order_for_a_state(indices,1,"A",0)
+        # start t
+        self.get_indices_for_emission_higher_order_for_a_state(indices,2,"AT",0)
+
+        # codon_11
+        self.get_indices_for_emission_higher_order_for_a_state(indices,4,"ATGN",2)
+        # codon_12
+        self.get_indices_for_emission_higher_order_for_a_state(indices,5,"ATGNN",2)
+        # all other codons
+        for state in range(6, 6 + nCodons*3 -2):
+            self.get_indices_for_emission_higher_order_for_a_state(indices,state,"N",2)
+        # stop
+        self.get_indices_for_emission_higher_order_for_a_state(indices,4 + nCodons*3,"T",self.order)
+        self.get_indices_for_emission_higher_order_for_a_state(indices,5 + nCodons*3,"TA",self.order)
+        self.get_indices_for_emission_higher_order_for_a_state(indices,5 + nCodons*3,"TG",self.order)
+        # ig 3'
+        self.get_indices_for_emission_higher_order_for_a_state(indices,7 + nCodons*3,"N",self.order)
+        # inserts
+        for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
+            self.get_indices_for_emission_higher_order_for_a_state(indices,state,"N",self.order)
+
+        self.get_indices_for_emission_higher_order_for_a_state(\
+                              indices,8 + nCodons*3 + (nCodons+1)*3,"X",self.order)
+        append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() end   {run_id}", self.config["bench_path"])
+
+        return indices
+
+    def get_indices_for_constants_from_emission_kernel_higher_order(self):
+        nCodons = self.nCodons
+        indices = []
+
+        self.get_indices_for_emission_higher_order_for_a_state(indices,3,"ATG",2)
+        self.get_indices_for_emission_higher_order_for_a_state(indices,6 + nCodons*3,"TAA",self.order)
+        self.get_indices_for_emission_higher_order_for_a_state(indices,6 + nCodons*3,"TAG",self.order)
+        self.get_indices_for_emission_higher_order_for_a_state(indices,6 + nCodons*3,"TGA",self.order)
+
+        return indices
+
     @property
     def B_sparse(self):
-        indices, values = self.get_indices_and_values_from_emission_kernel_higher_order(self.emission_kernel, self.nCodons, self.alphabet_size)
-        emission_matrix = tf.sparse.SparseTensor(indices = indices, \
+        values = tf.concat([self.emission_kernel, [1.0] * len(self.indices_for_constants_B)], axis = 0)
+        # indices, values = self.get_indices_and_values_from_emission_kernel_higher_order(self.emission_kernel, self.nCodons, self.alphabet_size)
+        emission_matrix = tf.sparse.SparseTensor(indices = self.indices_for_weights_B + self.indices_for_constants_B, \
                                                  values = values, \
-                                                 dense_shape = [self.calc_number_of_states(), \
+                                                 dense_shape = [self.number_of_states, \
                                                             (self.alphabet_size + 1) ** (self.order + 1) + 1])
         emission_matrix = tf.sparse.reorder(emission_matrix)
         emission_matrix = tf.sparse.softmax(emission_matrix)
@@ -372,9 +523,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def B_dense(self): #  this is order transformed if sparse is
         return tf.sparse.to_dense(self.B_sparse)
 
-    @property
-    def B(self):
-        return self.B_sparse
+    # @property
+    # def B(self):
+    #     return self.B_sparse
         # return self.B_dense()
     @property
     def B_full_model(self):
@@ -402,11 +553,11 @@ class CgpHmmCell(tf.keras.layers.Layer):
     @property
     def I_sparse(self): # todo this is not yet used in call()
         indices, values = self.get_indices_and_values_from_initial_kernel(self.init_kernel, self.nCodons)
-        initial_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.calc_number_of_states(),1])
+        initial_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.number_of_states,1])
         initial_matrix = tf.sparse.reorder(initial_matrix)
-        initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.calc_number_of_states()))
+        initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.number_of_states))
         initial_matrix = tf.sparse.softmax(initial_matrix)
-        # initial_matrix = tf.sparse.reshape(initial_matrix, (self.calc_number_of_states(),1))
+        # initial_matrix = tf.sparse.reshape(initial_matrix, (self.number_of_states,1))
         return initial_matrix
 
     @property
@@ -496,7 +647,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         # inputs is shape batch * 126 (= (4+1)^3+1)
 
-        E = tf.sparse.sparse_dense_matmul(inputs, self.B) # returns dense
+        E = tf.sparse.sparse_dense_matmul(inputs, self.B_sparse) # returns dense
 
         def verbose_print(string, data):
             if verbose:
@@ -520,7 +671,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             verbose_print("A", self.A_dense)
             verbose_print("B", self.B_dense)
         else:
-            R = tf.sparse.sparse_dense_matmul(old_forward, self.A)
+            R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
             Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
             R /= Z_i_minus_1
         alpha = E * R # batch * state_size
@@ -609,7 +760,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         # inputs is shape batch * 126 (= (4+1)^3+1)
 
-        E = tf.sparse.sparse_dense_matmul(inputs, self.B) # returns dense
+        E = tf.sparse.sparse_dense_matmul(inputs, self.B_sparse) # returns dense
 
         def verbose_print(string, data):
             if verbose:
@@ -710,3 +861,18 @@ class CgpHmmCell(tf.keras.layers.Layer):
             return self.call_full_model(inputs, states, training, verbose)
 
 ################################################################################
+
+if __name__ == '__main__':
+    import numpy as np
+    config = {}
+
+    config["nCodons"] = 1
+    config["order"] = 2
+    config["order_transformed_input"] = True
+    config["call_type"] = 4 # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel
+    config["bench_path"] = f"./bench/{config['nCodons']}codons/{config['call_type']}_{config['order_transformed_input']}orderTransformedInput.log"
+
+    config["alphabet_size"] = 4
+    c = CgpHmmCell(config)
+    print(len(c.get_indices_and_values_from_transition_kernel_higher_order(np.arange(10000))[0]))
+    print(len(c.get_indices_for_weights_from_transition_kernel_higher_order()), len(c.get_indices_for_constants_from_transition_kernel_higher_order()))
