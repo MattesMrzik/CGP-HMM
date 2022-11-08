@@ -8,12 +8,22 @@ from CgpHmmCell import CgpHmmCell
 from Utility import state_id_to_description
 from Utility import higher_order_emission_to_id
 from Utility import id_to_higher_order_emission
+import Utility
 from itertools import product
+import os
 
+config = {}
+config["nCodons"] = 1
+config["order"] = 2
+config["order_transformed_input"] = True
+config["call_type"] = 3 # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel
+
+config["alphabet_size"] = 4
+config["bench_path"] = f"./bench/unittest"
 
 class TestUtiliy(unittest.TestCase):
     # 4 is alphabet_size
-    def off_test_higher_order_emission_to_id(self):
+    def test_higher_order_emission_to_id(self):
         self.assertEqual(higher_order_emission_to_id([0,0,0], 4, 2), 0)
         self.assertEqual(higher_order_emission_to_id([0,0,1], 4, 2), 1)
         self.assertEqual(higher_order_emission_to_id([0,2,3], 4, 2), 13)
@@ -23,7 +33,7 @@ class TestUtiliy(unittest.TestCase):
         self.assertEqual(higher_order_emission_to_id(5, 4, 2), 125)
         self.assertEqual(higher_order_emission_to_id([5], 4, 2), 125)
 
-    def off_test_id_to_higher_order_emission(self):
+    def test_id_to_higher_order_emission(self):
         self.assertEqual(id_to_higher_order_emission(0,4,2),[0,0,0])
         self.assertEqual(id_to_higher_order_emission(1,4,2),[0,0,1])
         self.assertEqual(id_to_higher_order_emission(13,4,2),[0,2,3])
@@ -33,8 +43,7 @@ class TestUtiliy(unittest.TestCase):
 class TestCgpHmmCell(unittest.TestCase):
 
     def test_get_emissions_that_fit_ambiguity_mask(self):
-        nCodons = 1 # is irrelevant here
-        cell = CgpHmmCell(nCodons)# when writing this test, order was always set to 2
+        cell = CgpHmmCell(config)# when writing this test, order was always set to 2
         d = dict(zip("ACGTI", range(5)))
 
         mask = "A"
@@ -56,39 +65,62 @@ class TestCgpHmmCell(unittest.TestCase):
         self.assertEqual(cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed), allowed_ho_emissions)
 
         mask = "ATG"
-        allowed_ho_emissions = "AI TI G"
-        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions.split(" ")])]
+        allowed_ho_emissions_chars = "AI T G"
+        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions_chars.split(" ")])]
+        allowed_ho_emissions_chars = "I I G"
+        allowed_ho_emissions += [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions_chars.split(" ")])]
         x_bases_must_preceed = 0
-        self.assertEqual(cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed), allowed_ho_emissions)
+        calculated_by_code = cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed)
+        calculated_by_hand = allowed_ho_emissions
+        calculated_by_code = sorted(calculated_by_code)
+        calculated_by_hand = sorted(calculated_by_hand)
+        self.assertEqual(calculated_by_code, calculated_by_hand)
 
         mask = "ATN"
-        allowed_ho_emissions = "AI TI ACGT"
-        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions.split(" ")])]
+        allowed_ho_emissions_chars = "AI T ACGT"
+        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions_chars.split(" ")])]
+        allowed_ho_emissions_chars = "I I ACGT"
+        allowed_ho_emissions += [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions_chars.split(" ")])]
         x_bases_must_preceed = 0
-        self.assertEqual(cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed), allowed_ho_emissions)
+        calculated_by_code = cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed)
+        calculated_by_hand = allowed_ho_emissions
+        calculated_by_code = sorted(calculated_by_code)
+        calculated_by_hand = sorted(calculated_by_hand)
+        self.assertEqual(calculated_by_code, calculated_by_hand)
 
         mask = "N"
-        allowed_ho_emissions = "ACGTI ACGTI ACGT"
-        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions.split(" ")])]
+
+        allowed_ho_emissions_chars = "ACGTI ACGT ACGT"
+        allowed_ho_emissions = [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions_chars.split(" ")])]
+        allowed_ho_emissions_chars = "I I ACGT"
+        allowed_ho_emissions += [tuple(map(lambda y:d[y], ho_emission)) for ho_emission in product(*[list(x) for x in allowed_ho_emissions_chars.split(" ")])]
         x_bases_must_preceed = 0
-        self.assertEqual(cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed), allowed_ho_emissions)
+        calculated_by_code = cell.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed)
+        calculated_by_hand = allowed_ho_emissions
+        calculated_by_code = sorted(calculated_by_code)
+        calculated_by_hand = sorted(calculated_by_hand)
+        self.assertEqual(calculated_by_code, calculated_by_hand)
 
     def test_has_I_emission_after_base(self):
-        nCodons = 1 # is irrelevant here
-        cell = CgpHmmCell(nCodons)# when writing this test, order was always set to 2
+        cell = CgpHmmCell(config)# when writing this test, order was always set to 2
         self.assertFalse(cell.has_I_emission_after_base([4,4,4]))
         self.assertFalse(cell.has_I_emission_after_base([4,4,2]))
+        self.assertFalse(cell.has_I_emission_after_base([4,1,2]))
+        self.assertFalse(cell.has_I_emission_after_base([0,1,2]))
 
         self.assertTrue(cell.has_I_emission_after_base([4,2,4]))
+        self.assertTrue(cell.has_I_emission_after_base([1,4,4]))
         self.assertTrue(cell.has_I_emission_after_base([0,2,4]))
+        self.assertTrue(cell.has_I_emission_after_base([3,4,3]))
 
     def test_strip_or_pad_emission_with_n(self):
-        nCodons = 1 # is irrelevant here
-        cell = CgpHmmCell(nCodons)# when writing this test, order was always set to 2
+        cell = CgpHmmCell(config)# when writing this test, order was always set to 2
         self.assertEqual(cell.strip_or_pad_emission_with_n("A"), list("NNA"))
         self.assertEqual(cell.strip_or_pad_emission_with_n("AC"), list("NAC"))
         self.assertEqual(cell.strip_or_pad_emission_with_n("AAA"), list("AAA"))
         self.assertEqual(cell.strip_or_pad_emission_with_n("AAAA"), list("AAA"))
+
+    # these test just print stuff
 
     def off_test_get_indices_and_values_from_transition_kernel(self):
         cell = CgpHmmCell(2)
@@ -99,6 +131,7 @@ class TestCgpHmmCell(unittest.TestCase):
         transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0]] * 2)
         transition_matrix = tf.sparse.reorder(transition_matrix)
         print(tf.sparse.to_dense(transition_matrix))
+
     def off_test_get_indices_and_values_from_emission_kernel(self):
         cell = CgpHmmCell()
         #                                                                                  100 weights,     2 codons, 4 = alphabet_size
@@ -184,7 +217,7 @@ class TestCgpHmmCell(unittest.TestCase):
         print(initial_matrix)
 
 class TestViterbi(unittest.TestCase):
-    def off_test_Viterbi(self):# todo also test with passing a0
+    def off_test_Viterbi(self):
         state_space_size = 3
         emission_space_size = 4
         a = tf.nn.softmax(np.random.rand(state_space_size, state_space_size))
@@ -193,29 +226,18 @@ class TestViterbi(unittest.TestCase):
         n = 6
         l = 5
         state_seq, emission_seq = Utility.generate_state_emission_seqs(a,b,n,l,a0)
-        # print("true", np.argmax( state_seq, axis = -1))
 
+        # always starting in state 0
         for i, y in enumerate(emission_seq):
-            # print(i, np.argmax(seq, axis = -1))
-            print("always on state 0")
             x = Utility.viterbi_log_version(a,b,y)
-            print("x of viterbi =\t", x)
-            print(Utility.P_of_X_Y(a,b,x,y))
             x = Utility.brute_force_viterbi_log_version(a,b,y)
-            print("x of brute force =\t", x)
-            print(Utility.P_of_X_Y(a,b,x,y))
             self.assertTrue(all(Utility.viterbi_log_version(a,b,y) \
                                 == \
                                 Utility.brute_force_viterbi_log_version(a,b,y)))
+
         for i, y in enumerate(emission_seq):
-            # print(i, np.argmax(seq, axis = -1))
-            print("--> a0")
             x = Utility.viterbi_log_version(a,b,y, a0)
-            print("x of viterbi =\t", x)
-            print(Utility.P_of_X_Y(a,b,x,y,a0))
             x = Utility.brute_force_viterbi_log_version(a,b,y, a0)
-            print("x of brute force =\t", x)
-            print(Utility.P_of_X_Y(a,b,x,y,a0))
             self.assertTrue(all(Utility.viterbi_log_version(a,b,y, a0) \
                                 == \
                                 Utility.brute_force_viterbi_log_version(a,b,y, a0)))
@@ -243,39 +265,143 @@ class Test_Helpers(unittest.TestCase):
                                    delta = 0.0000001)
 
 class TestForward(unittest.TestCase):
-    def off_test_tf_scaled_forward_to_manual_scaled_forward(self):
+    # todo: test also if X can be reached earlier
+    def test_tf_scaled_forward_to_manual_scaled_forward(self):
         import ReadData
-        nCodons = 2
-        order_transformed_input = True
-        cgp_hmm_layer = CgpHmmLayer(nCodons, order_transformed_input)
+        import WriteData
+        from pyutils import run
 
-        #                              alphabet_size + 1) ** (order + 1) + 1
-        cgp_hmm_layer.build(tf.shape([1,126]))
+        local_config = config.copy()
+        local_config["nCodons"] = 2
+        local_config["write_return_sequnces"] = True
+        # >seq1
+        # ACATGCAAGGTTAATTG
+        # >seq2
+        # CACATGCAAGGTTAAT
+        # >seq3
+        # ACATGCAAGGTTA
 
-        #                                       order
-        inputs = ReadData.read_data_with_order("output/for_unit_tests/coding_seqs.2codons.txt",2)
-        print(inputs)
+        input_seqs = ["ACATGCAAGGTTAATTG", "CACATGCAAGGTTAAT", "ACATGCAAGGTTA"]
+        input_seqs = ["ACATGCAAGGTTAATTG", "CCCATGGTACGCTAAG", "AGATGCCCTGGTAGA"]
+        max_len = max([len(seq) for seq in input_seqs])
 
-        result = cgp_hmm_layer.F(inputs) #  build and call of CgpHmmCell are called
-        # tf.print("after result = self.F(inputs)")
+        for i in range(len(input_seqs)):
+            local_config["fasta_path"] = f"output/for_unit_tests/{i}_out.seqs.2codons.fa"
+            # if i != 1:
+            #     continue
+            shuffeld = [input_seqs[(j+i)%len(input_seqs)] for j in range(len(input_seqs))]
 
-        alpha_seq = result[0]
-        inputs_seq = result[1]
-        count_seq = result[2]
-        alpha_state = result[3]
-        loglik_state = result[4]
-        count_state = result[5]
+            with open(local_config["fasta_path"], "w") as file:
+                for j, s in enumerate(shuffeld):
+                    file.write(f">seq{j}\n")
+                    file.write(s)
+                    file.write("\n")
+            file.close()
 
-        a = cgp_hmm_layer.C.A_dense()
-        b = cgp_hmm_layer.C.B_dense()
-        i = cgp_hmm_layer.C.I_dense()
+            # run(f"cat {local_config['fasta_path']}")
+
+            os.system("rm ./output/for_unit_tests/manual_forward.txt")
+            os.system("rm ./output/for_unit_tests/return_sequnces.txt")
+
+            model, cgp_hmm_layer = Training.make_model(local_config)
+            learning_rate = .1
+
+            optimizer = tf.optimizers.Adam(learning_rate)
+
+            model.compile(optimizer = optimizer)
+
+            data_set, seqs = Training.make_dataset(local_config)
+            # for seq in seqs:
+            #     print(seq)
+
+
+            cell = CgpHmmCell(local_config)
+            cell.transition_kernel = model.get_weights()[0]
+            cell.emission_kernel = model.get_weights()[1]
+            cell.init_kernel = model.get_weights()[2]
+
+            history = model.fit(data_set, epochs=1, steps_per_epoch=1)
+
+            WriteData.write_order_transformed_B_to_csv(cell.B_dense, f"output/for_unit_tests/B.csv", local_config["order"], local_config["nCodons"])
+            WriteData.write_to_file(cell.A_dense, f"output/for_unit_tests/A.txt")
+            WriteData.write_to_file(tf.transpose(cell.B_dense), f"output/for_unit_tests/B.txt")
+            WriteData.write_to_file(cell.I_dense, f"output/for_unit_tests/I.txt")
+
+            with open("./output/for_unit_tests/seq.txt","w") as file:
+                file.write(','.join([str(id) for id in seqs[0]]))
+                file.write("\n")
+
+            alpha, z = Utility.forward_felix_version(cell.A_dense, \
+                                                     cell.B_dense, \
+                                                     seqs[0] \
+                                                     + [Utility.higher_order_emission_to_id("X", local_config["alphabet_size"], local_config["order"])] \
+                                                     * (max_len - len(seqs[0])), \
+                                                     a0 = cell.I_dense)
+
+            outstream = f"file://./output/for_unit_tests/manual_forward.txt"
+            tf.print(alpha, summarize = -1, output_stream = outstream)
+
+            with open("output/for_unit_tests/return_sequnces.txt", "r") as file:
+                for j, line in enumerate(file):
+                    line = line.split(";")[2]
+                    line = line[1:-2].split(" ")
+                    line = list(map(float, line))
+                    for k, entry in enumerate(line):
+                        if abs(entry - alpha[k,j]) > 0.000000001:
+                            print("i =", j, "state =", k)
+                            print(f"tf = {entry} != {alpha[k,j]} hand")
+                        #                      tf     hand
+                        self.assertAlmostEqual(entry, alpha[k,j], places = 6)
+
+            print("-----------------------------------------------------------")
+
+        # cgp_hmm_layer = CgpHmmLayer(local_config)
+        #   alphabet_size + 1) ** (order + 1) + 1
+        # emissions_size = 126
+        #
+        # batch_size = 32
+        #
+        # inputs = ReadData.read_data_with_order("output/for_unit_tests/out.seqs.2codons.fa", config["order"], verbose = False)
+        # # pad some seqs
+        # inputs = [seq + [emissions_size-1] * (i%5) for i, seq in enumerate(inputs) if i < batch_size]
+        # max_seq_len = max([len(seq) for seq in inputs])
+        # inputs = [seq + [emissions_size-1] * (max_seq_len-len(seq)) for seq in inputs]
+        # def to_one_hot(seq):
+        #     return tf.cast(tf.one_hot(seq, emissions_size), dtype=tf.float32)
+        # inputs = list(map(to_one_hot, inputs))
+        # for seq in inputs:
+        #     print(seq)
+        #
+        # if batch_size == 1:
+        #     inputs = tf.expand_dims(inputs, axis = 0)
+        #
+        # #  this didnt work, trying now with calling F()
+        # # model, cgp_hmm_layer = Training.make_model(config)
+        # # model(inputs)
+        #
+        # #                             is this batch_size or rather seq_len?
+        # cgp_hmm_layer.build("inputs usnt used in buid")
+        #
+        # result = cgp_hmm_layer.F(inputs) #  build and call of CgpHmmCell are called
+        # # tf.print("after result = self.F(inputs)")
+        #
+        # alpha_seq = result[0]
+        # inputs_seq = result[1]
+        # count_seq = result[2]
+        # alpha_state = result[3]
+        # loglik_state = result[4]
+        # count_state = result[5]
+        #
+        # a = cgp_hmm_layer.C.A_dense()
+        # b = cgp_hmm_layer.C.B_dense()
+        # i = cgp_hmm_layer.C.I_dense()
 
 
     # manual forward <-- using the z of manual --> manual scaled forward
-    def off_test_manual_scaled_forward_to_manual_true_forward(self):
+    def test_manual_scaled_forward_to_manual_true_forward(self):
         pass
     # tf scaled forward <-- using the z of tf --> manual forward
-    def off_test_tf_scaled_transformed_forward_to_manual_true_forward(self):
+    def test_tf_scaled_transformed_forward_to_manual_true_forward(self):
         pass
     # need to test manual true forward ie check if sum q alpha qn is same as brute force p(y)
 

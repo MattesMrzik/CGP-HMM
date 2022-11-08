@@ -20,7 +20,6 @@ def write_order_transformed_B_to_csv(b, path, order, nCodons, alphabet = ["A","C
     from itertools import product
     import tensorflow as tf
     b = tf.transpose(b)
-    print(tf.shape(b))
     with open(path, "w") as file:
         # write emissions
         for emission in [""] + list(product(alphabet + ["I"], repeat = order +1)) + ["X"]:

@@ -31,7 +31,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         append_time_ram_stamp_to_file(start, f"Layer.init() end  {run_id}", self.config["bench_path"])
 
-    def build(self, input_shape):
+    def build(self, inputs):
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Layer.build() start {run_id}", self.config["bench_path"])
@@ -46,7 +46,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         append_time_ram_stamp_to_file(start, f"Layer.build() end   {run_id}", self.config["bench_path"])
 
-    def call(self, inputs, training = False):
+    def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", self.config["bench_path"])
@@ -73,8 +73,18 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # if self.C.order > 0 and not self.C.order_transformed_input : # or True to checksquare
         #     old_state = result[6]
 
+        if "write_return_sequnces" in self.config and self.config["write_return_sequnces"]:
+            outstream = f"file://./output/for_unit_tests/return_sequnces.txt"
 
-        # print return sequences
+            # tf.print("alpha_seq, inputs_seq, count_seq", output_stream = outstream)
+            # tf.print(f"{tf.shape(count_seq)} {tf.shape(inputs_seq)} {tf.shape(alpha_seq)}", output_stream = outstream)
+            for i in range(tf.shape(alpha_seq)[0]): # = batch_size
+                if i != 0:
+                    continue
+                for j in range(tf.shape(alpha_seq)[1]): # = seq length
+                    tf.print(count_seq[i,j], tf.argmax(inputs_seq[i,j]), alpha_seq[i,j], sep = ";", summarize = -1, output_stream = outstream)
+
+
         # prRed("alpha_seq, inputs_seq, count_seq")
         # print(tf.shape(count_seq),tf.shape(inputs_seq),tf.shape(alpha_seq))
         # for i in range(tf.shape(alpha_seq)[0]): # = batch_size

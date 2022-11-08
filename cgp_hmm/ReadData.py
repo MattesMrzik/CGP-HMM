@@ -31,17 +31,23 @@ def read_data(path, alphabet = ["A","C","G","T"]):
 # let order = 1, seq = AG
 # then seqs = (IA = 4*(alphabet_size (=4) + 1)^1 + 0*5^0) = 20
 #             (AG = 0*(alphabet_size (=4) + 1)^1 + 2*5^0) = 2
-def read_data_with_order(path, order, alphabet = ["A","C","G","T"]):
+def read_data_with_order(path, order, alphabet = ["A","C","G","T"], verbose = False):
     seqs = []
+    def log(s):
+        if verbose:
+            print(s)
     AA_to_id = dict([(aa, id) for id, aa in enumerate(alphabet)])
     with open(path,"r") as handle:
+        log(f"opened: {path}")
         for record in SeqIO.parse(handle,"fasta"):
             seq = record.seq
-            seq_of_tuple_ids = []
+            log(f"seq = {seq}")
+            seq_of_tuple_ids = [] # 21, 124
             last_bases = [4] * order # 4 is padded left flank
             for base in seq:
                 t = (last_bases + [AA_to_id[base]])
                 seq_of_tuple_ids.append(higher_order_emission_to_id(t, len(alphabet), order))
                 last_bases = last_bases[1:] + [AA_to_id[base]]
             seqs.append(seq_of_tuple_ids)
+    log(f"read {len(seqs)} sequnces")
     return seqs

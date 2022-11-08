@@ -157,17 +157,17 @@ if __name__ == "__main__":
 ########################################################################
 ########################################################################
 def state_id_to_description(id, nCodons):
-    states = re.split("\s+", "ig5' stA stT stG")
+    states = re.split(" ", "ig5' stA stT stG")
     states += ["c_" + str(i) + "," + str(j) for i in range(nCodons) for j in range(3)]
-    states += re.split("\s+", "stop1 stop2 stop3 ig3'")
+    states += re.split(" ", "stop1 stop2 stop3 ig3'")
     states += ["i_" + str(i) + "," + str(j) for i in range(nCodons+1) for j in range(3)]
     states += ["ter1", "ter2"]
     return states[id]
 
 def description_to_state_id(des, nCodons):
-    states = re.split("\s+", "ig5' stA stT stG")
+    states = re.split(" ", "ig5' stA stT stG")
     states += ["c_" + str(i) + "," + str(j) for i in range(nCodons) for j in range(3)]
-    states += re.split("\s+", "stop1 stop2 stop3 ig3'")
+    states += re.split(" ", "stop1 stop2 stop3 ig3'")
     states += ["i_" + str(i) + "," + str(j) for i in range(nCodons+1) for j in range(3)]
     states += ["ter1", "ter2"]
     try:
@@ -178,7 +178,7 @@ def description_to_state_id(des, nCodons):
 def higher_order_emission_to_id(emission, alphabet_size, order):
     # todo: emission 4,4,4 = I,I,I is not used, i might give this id to X
     # also 4,1,4 is not used
-    if emission == "X" or emission ==  alphabet_size +1 or emission == [alphabet_size+1]:
+    if emission == "X" or emission ==  alphabet_size + 1 or emission == [alphabet_size+1]:
         return (alphabet_size + 1)**(order + 1)
     #                                 initial symbol
     return sum([base*(alphabet_size + 1)**(len(emission) - i -1) for i, base in enumerate(emission)])
@@ -457,6 +457,7 @@ def forward_log_version(a,b,y, a0 = []):
     return alpha, p
 
 def forward_felix_version(a,b,y, a0 = []):
+    b = tf.transpose(b)
     num_states = len(a)
     alpha = np.zeros((num_states,len(y)))
     if len(a0) == 0:
@@ -467,27 +468,39 @@ def forward_felix_version(a,b,y, a0 = []):
     z[0] = sum([alpha[q_,0] for q_ in range(num_states)])
     for i in range(1,len(y)):
         for q in range(num_states):
+
+            try:
+                asdf = b[q,y[i]] * sum([a[q_,q] * alpha[q_,i-1]/z[i-1] for q_ in range(num_states)])
+            except:
+                print("y[i] =", y[i])
+                print("b[q,y[i]] =", b[q,y[i]])
+                for q_ in range(num_states):
+                    print("q_ =", q_)
+                    # print("a[q_,q] =", a[q_,q])
+                    print("alpha[q_,i-1] =", alpha[q_,i-1])
+                    print("z[i-1] =",z[i-1])
+
             alpha[q,i] = b[q,y[i]] * sum([a[q_,q] * alpha[q_,i-1]/z[i-1] for q_ in range(num_states)])
         z[i] = sum([alpha[q_,i] for q_ in range(num_states)])
     #P(Y=y)
     return alpha, z
 
-def forward_felix_version_ordertransformedinput(a,b,y, a0 = []):
-    # y is asumed to be one hot
-    num_states = len(a)
-    alpha = np.zeros((num_states,len(y)))
-    if len(a0) == 0:
-        alpha[0,0] = b[0,y[0]] # one must start in the first state
-    else:
-        alpha[:,0] = a0 * b[:,y[0]]
-    z = np.zeros(len(y))
-    z[0] = sum([alpha[q_,0] for q_ in range(num_states)])
-    for i in range(1,len(y)):
-        for q in range(num_states):
-            alpha[q,i] = b[q,y[i]] * sum([a[q_,q] * alpha[q_,i-1]/z[i-1] for q_ in range(num_states)])
-        z[i] = sum([alpha[q_,i] for q_ in range(num_states)])
-    #P(Y=y)
-    return alpha, z
+# def forward_felix_version_ordertransformedinput(a,b,y, a0 = []):
+#     # y is asumed to be one hot
+#     num_states = len(a)
+#     alpha = np.zeros((num_states,len(y)))
+#     if len(a0) == 0:
+#         alpha[0,0] = b[0,y[0]] # one must start in the first state
+#     else:
+#         alpha[:,0] = a0 * b[:,y[0]]
+#     z = np.zeros(len(y))
+#     z[0] = sum([alpha[q_,0] for q_ in range(num_states)])
+#     for i in range(1,len(y)):
+#         for q in range(num_states):
+#             alpha[q,i] = b[q,y[i]] * sum([a[q_,q] * alpha[q_,i-1]/z[i-1] for q_ in range(num_states)])
+#         z[i] = sum([alpha[q_,i] for q_ in range(num_states)])
+#     #P(Y=y)
+#     return alpha, z
 
 def brute_force_P_of_Y(a,b,y, a0 = []):
     from itertools import product

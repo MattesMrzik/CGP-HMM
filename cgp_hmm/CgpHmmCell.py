@@ -57,7 +57,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # terminal
         number_of_states += 1
 
-        if self.config["order_transformed_input"]:
+        if not self.config["order_transformed_input"]:
             number_of_states += 1
 
         return number_of_states
@@ -353,7 +353,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def has_I_emission_after_base(self, emission):
         found_emission = False
         invalid_emission = False
-        for i in range(1,self.order +1):
+        for i in range(self.order +1):
             if found_emission and emission[i] == self.config["alphabet_size"]:
                 # print("not adding ", x)
                 invalid_emission = True

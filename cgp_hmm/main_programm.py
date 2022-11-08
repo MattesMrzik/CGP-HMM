@@ -50,7 +50,7 @@ run(f"rm {config['bench_path']}")
 run(f"python3 useMSAgen.py -c {nCodons}")
 
 model, history = fit_model(config)
-print("done fitting")
+print("done fit_model()")
 # model.save("my_saved_model")
 
 plt.plot(history.history['loss'])

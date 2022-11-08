@@ -37,7 +37,7 @@ def make_model(config):
 
     cgp_hmm_layer = CgpHmmLayer(config) # init of layer
 
-    loglik = cgp_hmm_layer(sequences) # layer is build, then called
+    loglik = cgp_hmm_layer(sequences) # layer is build, then calle. it seems i cant call build before to avoid building it here again
     # "[tf.keras.layers.Lambda(lambda x:x, name = \"loglik\")(loglik)] =", [
     print(tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik))
 
@@ -61,7 +61,7 @@ def make_dataset(config):
                                          tf.as_dtype(tf.int32), # has to be int, bc one_hot doesnt work for floats
                                          tf.TensorShape([None]))
     if config["order_transformed_input"]:
-        ds = ds.padded_batch(32, padding_values = (4 + 1)**config["order"])
+        ds = ds.padded_batch(32, padding_values = (4 + 1)**(config["order"] + 1))
 
         def to_one_hot(seq):
             return tf.cast(tf.one_hot(seq, (4 + 1)**(config["order"] + 1) + 1), dtype=tf.float32)
