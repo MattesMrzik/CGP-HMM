@@ -269,7 +269,7 @@ class TestForward(unittest.TestCase):
     def test_tf_scaled_forward_to_manual_scaled_forward(self):
         import ReadData
         import WriteData
-        from pyutils import run
+        from Utility import run
 
         local_config = config.copy()
         local_config["nCodons"] = 2
