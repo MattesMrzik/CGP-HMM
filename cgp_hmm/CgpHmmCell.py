@@ -497,13 +497,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         # ig 5'
         self.get_indices_for_emission_higher_order_for_a_state(indices,0,"N",0)
-        print("ig5 done")
         # start a
         self.get_indices_for_emission_higher_order_for_a_state(indices,1,"A",0)
-        print("a done")
         # start t
         self.get_indices_for_emission_higher_order_for_a_state(indices,2,"AT",0)
-        print("t donde")
 
         # codon_11
         self.get_indices_for_emission_higher_order_for_a_state(indices,4,"ATGN",2)
@@ -512,22 +509,18 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # all other codons
         for state in range(6, 6 + nCodons*3 -2):
             self.get_indices_for_emission_higher_order_for_a_state(indices,state,"N",2)
-            print("codon state", state, "done")
         # stop
         self.get_indices_for_emission_higher_order_for_a_state(indices,4 + nCodons*3,"T",self.order)
         self.get_indices_for_emission_higher_order_for_a_state(indices,5 + nCodons*3,"TA",self.order)
         self.get_indices_for_emission_higher_order_for_a_state(indices,5 + nCodons*3,"TG",self.order)
-        print("stop done")
         # ig 3'
         self.get_indices_for_emission_higher_order_for_a_state(indices,7 + nCodons*3,"N",self.order)
         # inserts
         for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
             self.get_indices_for_emission_higher_order_for_a_state(indices,state,"N",self.order)
-            print("insert state", state, "done")
 
         self.get_indices_for_emission_higher_order_for_a_state(\
                               indices,8 + nCodons*3 + (nCodons+1)*3,"X",self.order)
-        print("X done")
 
         append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() end   {run_id}", self.config["bench_path"])
 
