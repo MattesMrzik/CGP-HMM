@@ -153,8 +153,10 @@ def fit_model(config):
     # callbacks = [tf.keras.callbacks.LambdaCallback(on_epoch_end = lambda epoch, logs: print("A =", tf.nn.softmax(model.get_weights()[0])))]
     callbacks = []
     callbacks = [write_time_ram_epoch_start_callback(),
-                 write_time_ram_epoch_end_callback()]#,
-                 # exit_after_first_batch()]
+                 write_time_ram_epoch_end_callback()]
+
+    if "exit_after_first_batch" in config and config["exit_after_first_batch"]:
+        callbacks += [exit_after_first_batch()]
 
     # todo add write traning time per epoch to file callback
 

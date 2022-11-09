@@ -33,15 +33,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         self.state_size = [self.number_of_states, 1,      1]
 
-        if not config["order_transformed_input"]:
-            self.state_size = [self.number_of_states, 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
+        # if not config["order_transformed_input"]:
+        #     self.state_size = [self.number_of_states, 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
 
         self.indices_for_weights_A = self.get_indices_for_weights_from_transition_kernel_higher_order()
         self.indices_for_constants_A = self.get_indices_for_constants_from_transition_kernel_higher_order()
 
         self.indices_for_weights_B = self.get_indices_for_weights_from_emission_kernel_higher_order()
         self.indices_for_constants_B = self.get_indices_for_constants_from_emission_kernel_higher_order()
-
 
         append_time_ram_stamp_to_file(start, f"Cell.__init__() end   {run_id}", self.config["bench_path"])
 
@@ -622,7 +621,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         print_to_file = False
         if verbose:
             if print_to_file:
-                outstream = f"file://./verbose/{self.nCodons}codons.txt"
+                outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
                 outstream = sys.stdout
@@ -671,7 +670,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         print_to_file = False
         if verbose:
             if print_to_file:
-                outstream = f"file://./verbose/{self.nCodons}codons.txt"
+                outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
                 outstream = sys.stdout
@@ -727,7 +726,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         print_to_file = False
         if verbose:
             if print_to_file:
-                outstream = f"file://./verbose/{self.nCodons}codons.txt"
+                outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
                 outstream = sys.stdout
@@ -784,7 +783,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         print_to_file = False
         if verbose:
             if print_to_file:
-                outstream = f"file://./verbose/{self.nCodons}codons.txt"
+                outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
                 outstream = sys.stdout
@@ -835,11 +834,11 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         run_id = randint(0,100)
 
-        verbose = 0 # 0: no verbose, 1: print shapes, 2: print shapes and values
-        print_to_file = False
+        verbose = 2 # 0: no verbose, 1: print shapes, 2: print shapes and values
+        print_to_file = True
         if verbose:
             if print_to_file:
-                outstream = f"file://./verbose/{self.nCodons}codons.txt"
+                outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
                 outstream = sys.stdout

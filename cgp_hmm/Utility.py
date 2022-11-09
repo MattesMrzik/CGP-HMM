@@ -92,11 +92,11 @@ def plot_time_and_ram(path, bar = False, extrapolate = 1, degree = 3):
 
     fig = plt.figure(figsize=(12, 12))
     from itertools import product
-    for i in range(5):
+    for id in range(6):
         # 3_TrueorderTransformedInput.log
 
-        info = get_infos_from(f"{i}_TrueorderTransformedInput.log")
-        print(f"{i}_TrueorderTransformedInput.log")
+        info = get_infos_from(f"{id}_TrueorderTransformedInput.log")
+        print(f"{id}_TrueorderTransformedInput.log")
         max_n_codons = info["max_n_codons"]
 
         max_n_codons_extrapolate = max_n_codons * extrapolate
@@ -144,8 +144,8 @@ def plot_time_and_ram(path, bar = False, extrapolate = 1, degree = 3):
                 return "x"
             else:
                 return f"x^{exponent}"
-        title = " + ".join([f"{round(c,2)} {x_to_power_of(len(coef_times)-i-1)}"for i, c in enumerate(coef_times)]) + title
-        title += " " + " + ".join([f"{round(c,2)} {x_to_power_of(len(coef_times)-i-1)}"for i, c in enumerate(coef_ram_peaks)])
+        title = " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}" for jj, cc in enumerate(coef_times)]) + title
+        title += " " + " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram_peaks)])
         ax1.title.set_text(title)
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
 

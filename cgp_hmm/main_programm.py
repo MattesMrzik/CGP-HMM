@@ -25,9 +25,9 @@ parser.add_argument('-c', '--nCodons',
                     help='number of codons')
 parser.add_argument('-t', '--type',
                     help='type of cell.call()')
-
 parser.add_argument('-p', '--path',
                     help='path to src')
+parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
 
 args = parser.parse_args()
 
@@ -42,6 +42,8 @@ config["alphabet_size"] = 4
 config["src_path"] = "." if not args.path else args.path
 config["fasta_path"] = f"{config['src_path']}/output/{config['nCodons']}codons/out.seqs.{config['nCodons']}codons.fa"
 config["bench_path"] = f"{config['src_path']}/bench/{config['nCodons']}codons/{config['call_type']}_{config['order_transformed_input']}orderTransformedInput.log"
+config["exit_after_first_batch"] = args.b
+
 
 nCodons = config["nCodons"]
 
@@ -49,6 +51,7 @@ run(f"mkdir -p {config['src_path']}/output/{nCodons}codons/")
 run(f"mkdir -p {config['src_path']}/verbose")
 run(f"mkdir -p {'/'.join(config['bench_path'].split('/')[:-1])}")
 run(f"rm {config['src_path']}/{config['bench_path']}")
+run(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
 
 run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons}")
 
