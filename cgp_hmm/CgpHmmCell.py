@@ -5,6 +5,8 @@ from itertools import product
 from Utility import higher_order_emission_to_id
 from Utility import append_time_ram_stamp_to_file
 from Utility import description_to_state_id
+from Utility import state_id_to_description
+from Utility import get_state_id_description_dict
 import time
 from random import randint
 
@@ -26,6 +28,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         self.order = config["order"] # order = 0 -> emission prob depends only on current emission
 
         self.config = config
+
+        self.config["state_id_description_dict"] = get_state_id_description_dict(config["nCodons"])
 
         self.state_size = [self.number_of_states, 1,      1]
 
@@ -322,12 +326,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
         transition_matrix = self.transition_kernel
         transition_matrix = tf.nn.softmax(transition_matrix)
         return transition_matrix
-
 ############################################################################
 ############################################################################
 ############################################################################
 
     def nucleotide_ambiguity_code_to_array(self, emission):
+        # todo: somehow having this dict as self.code made it slower, why???
         code = {
             "A" : [0],
             "C" : [1],
@@ -379,12 +383,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return False
 
     def state_is_third_pos_in_frame(self, state):
-        for i in range(self.nCodons):
-            if state == description_to_state_id(f"c_{i},2", self.nCodons):
-                return True
-        for i in range(self.nCodons + 1):
-            if state == description_to_state_id(f"i_{i},2", self.nCodons):
-                return True
+        if state_id_to_description(state, self.nCodons, self.config["state_id_description_dict"][-1] == "2"):
+            return True
+        if state_id_to_description(state, self.nCodons, self.config["state_id_description_dict"][-1] == "2"):
+            return True
         return False
 
     def get_emissions_that_fit_ambiguity_mask(self, ho_mask, x_bases_must_preceed, state):
@@ -495,10 +497,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         # ig 5'
         self.get_indices_for_emission_higher_order_for_a_state(indices,0,"N",0)
+        print("ig5 done")
         # start a
         self.get_indices_for_emission_higher_order_for_a_state(indices,1,"A",0)
+        print("a done")
         # start t
         self.get_indices_for_emission_higher_order_for_a_state(indices,2,"AT",0)
+        print("t donde")
 
         # codon_11
         self.get_indices_for_emission_higher_order_for_a_state(indices,4,"ATGN",2)
@@ -507,18 +512,23 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # all other codons
         for state in range(6, 6 + nCodons*3 -2):
             self.get_indices_for_emission_higher_order_for_a_state(indices,state,"N",2)
+            print("codon state", state, "done")
         # stop
         self.get_indices_for_emission_higher_order_for_a_state(indices,4 + nCodons*3,"T",self.order)
         self.get_indices_for_emission_higher_order_for_a_state(indices,5 + nCodons*3,"TA",self.order)
         self.get_indices_for_emission_higher_order_for_a_state(indices,5 + nCodons*3,"TG",self.order)
+        print("stop done")
         # ig 3'
         self.get_indices_for_emission_higher_order_for_a_state(indices,7 + nCodons*3,"N",self.order)
         # inserts
         for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
             self.get_indices_for_emission_higher_order_for_a_state(indices,state,"N",self.order)
+            print("insert state", state, "done")
 
         self.get_indices_for_emission_higher_order_for_a_state(\
                               indices,8 + nCodons*3 + (nCodons+1)*3,"X",self.order)
+        print("X done")
+
         append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() end   {run_id}", self.config["bench_path"])
 
         return indices

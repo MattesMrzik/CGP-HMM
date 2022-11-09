@@ -26,6 +26,9 @@ parser.add_argument('-c', '--nCodons',
 parser.add_argument('-t', '--type',
                     help='type of cell.call()')
 
+parser.add_argument('-p', '--path',
+                    help='path to src')
+
 args = parser.parse_args()
 
 config = {}
@@ -36,30 +39,30 @@ config["order_transformed_input"] = True
 config["call_type"] = int(args.type) if args.type else 3 # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel
 
 config["alphabet_size"] = 4
-config["fasta_path"] = f"output/{config['nCodons']}codons/out.seqs.{config['nCodons']}codons.fa"
-config["bench_path"] = f"./bench/{config['nCodons']}codons/{config['call_type']}_{config['order_transformed_input']}orderTransformedInput.log"
+config["src_path"] = "." if not args.path else args.path
+config["fasta_path"] = f"{config['src_path']}/output/{config['nCodons']}codons/out.seqs.{config['nCodons']}codons.fa"
+config["bench_path"] = f"{config['src_path']}/bench/{config['nCodons']}codons/{config['call_type']}_{config['order_transformed_input']}orderTransformedInput.log"
 
 nCodons = config["nCodons"]
 
-
-run(f"mkdir -p output/{nCodons}codons/")
-run(f"mkdir -p verbose")
+run(f"mkdir -p {config['src_path']}/output/{nCodons}codons/")
+run(f"mkdir -p {config['src_path']}/verbose")
 run(f"mkdir -p {'/'.join(config['bench_path'].split('/')[:-1])}")
-run(f"rm {config['bench_path']}")
+run(f"rm {config['src_path']}/{config['bench_path']}")
 
-run(f"python3 useMSAgen.py -c {nCodons}")
+run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons}")
 
 model, history = fit_model(config)
 print("done fit_model()")
 # model.save("my_saved_model")
 
-with open(f"output/{nCodons}codons/loss.log", "w") as file:
+with open(f"{config['src_path']}/output/{nCodons}codons/loss.log", "w") as file:
     for loss in history.history['loss']:
         file.write(str(loss))
         file.write("\n")
 
 plt.plot(history.history['loss'])
-plt.savefig("progress.png")
+plt.savefig(f"{config['src_path']}/progress.png")
 
 cell = CgpHmmCell(config)
 cell.transition_kernel = model.get_weights()[0]
@@ -96,14 +99,14 @@ def printI():
 
 #  bc with call type 4 A_dense fails
 if not config["call_type"] == 4:
-    WriteData.write_to_file(cell.A_dense, f"output/{nCodons}codons/A.{nCodons}codons.txt")
-    WriteData.write_to_file(tf.transpose(cell.B_dense), f"output/{nCodons}codons/B.{nCodons}codons.txt")
-    WriteData.write_order_transformed_B_to_csv(cell.B_dense, f"output/{nCodons}codons/B.{nCodons}codons.csv", config["order"], nCodons)
+    WriteData.write_to_file(cell.A_dense, f"{config['src_path']}/output/{nCodons}codons/A.{nCodons}codons.txt")
+    WriteData.write_to_file(tf.transpose(cell.B_dense), f"{config['src_path']}/output/{nCodons}codons/B.{nCodons}codons.txt")
+    WriteData.write_order_transformed_B_to_csv(cell.B_dense, f"{config['src_path']}/output/{nCodons}codons/B.{nCodons}codons.csv", config["order"], nCodons)
 
-    WriteData.write_to_file(cell.I_dense, f"output/{nCodons}codons/I.{nCodons}codons.txt")
+    WriteData.write_to_file(cell.I_dense, f"{config['src_path']}/output/{nCodons}codons/I.{nCodons}codons.txt")
 
     # running Viterbi
-    run("./Viterbi " + config["fasta_path"] + " " + str(nCodons))
+    run(f"{config['src_path']}/Viterbi " + config["fasta_path"] + " " + str(nCodons))
 
     stats = {"start_not_found" : 0,\
              "start_too_early" : 0,\
@@ -114,8 +117,8 @@ if not config["call_type"] == 4:
              "stop_correct" : 0,\
              "stop_too_late" : 0}
 
-    with open(f"output/{nCodons}codons/viterbi.{nCodons}codons.csv", "r") as viterbi_file:
-        with open(f"output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt", "r") as start_stop_file:
+    with open(f"{config['src_path']}/output/{nCodons}codons/viterbi.{nCodons}codons.csv", "r") as viterbi_file:
+        with open(f"{config['src_path']}/output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt", "r") as start_stop_file:
             for v_line in viterbi_file:
                 try:
                     ss_line = start_stop_file.readline()
@@ -160,9 +163,9 @@ if not config["call_type"] == 4:
 
     nSeqs = sum([v for v in stats.values()])/2 # div by 2 bc every seq appears twice in stats (in start and stop)
 
-    with open(f"output/{nCodons}codons/statistics.txt", "w") as file:
+    with open(f"{config['src_path']}/output/{nCodons}codons/statistics.txt", "w") as file:
         for key, value in stats.items():
             file.write(key + "\t" + str(value/nSeqs) + "\n")
 
 if config["nCodons"] < 10:
-    run(f"python3 Visualize.py -c {nCodons} -o {config['order']} {'-t' if config['order_transformed_input'] else ''}")
+    run(f"python3 {config['src_path']}/Visualize.py -c {nCodons} -o {config['order']} {'-t' if config['order_transformed_input'] else ''}")
