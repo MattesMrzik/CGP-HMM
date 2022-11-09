@@ -156,7 +156,7 @@ if __name__ == "__main__":
 ########################################################################
 ########################################################################
 ########################################################################
-def get_state_id_description_dict(nCodons):
+def get_state_id_description_list(nCodons):
     states = re.split(" ", "ig5' stA stT stG")
     states += ["c_" + str(i) + "," + str(j) for i in range(nCodons) for j in range(3)]
     states += re.split(" ", "stop1 stop2 stop3 ig3'")
@@ -164,16 +164,16 @@ def get_state_id_description_dict(nCodons):
     states += ["ter1", "ter2"]
     return states
 
-def state_id_to_description(id, nCodons, state_id_description_dict = None):
-    if not state_id_description_dict:
-        state_id_description_dict = get_state_id_description_dict(nCodons)
-    return state_id_description_dict[id]
+def state_id_to_description(id, nCodons, state_id_description_list = None):
+    if not state_id_description_list:
+        state_id_description_list = get_state_id_description_list(nCodons)
+    return state_id_description_list[id]
 
-def description_to_state_id(des, nCodons, state_id_description_dict = None):
-    if not state_id_description_dict:
-        state_id_description_dict = get_state_id_description_dict(nCodons)
+def description_to_state_id(des, nCodons, state_id_description_list = None):
+    if not state_id_description_list:
+        state_id_description_list = get_state_id_description_list(nCodons)
     try:
-        return state_id_description_dict.index(des)
+        return state_id_description_list.index(des)
     except:
         return -1
 

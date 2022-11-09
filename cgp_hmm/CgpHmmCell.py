@@ -6,7 +6,7 @@ from Utility import higher_order_emission_to_id
 from Utility import append_time_ram_stamp_to_file
 from Utility import description_to_state_id
 from Utility import state_id_to_description
-from Utility import get_state_id_description_dict
+from Utility import get_state_id_description_list
 import time
 from random import randint
 
@@ -29,7 +29,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         self.config = config
 
-        self.config["state_id_description_dict"] = get_state_id_description_dict(config["nCodons"])
+        self.config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
 
         self.state_size = [self.number_of_states, 1,      1]
 
@@ -383,9 +383,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return False
 
     def state_is_third_pos_in_frame(self, state):
-        if state_id_to_description(state, self.nCodons, self.config["state_id_description_dict"][-1] == "2"):
-            return True
-        if state_id_to_description(state, self.nCodons, self.config["state_id_description_dict"][-1] == "2"):
+        des = state_id_to_description(state, self.nCodons, self.config["state_id_description_list"])
+        if des [-1] == "2" and des != "stop2" and des != "ter2":
             return True
         return False
 
@@ -400,9 +399,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
                 allowed_bases[i] += [4] # initial emission symbol
 
         allowed_ho_emissions = []
+        state_is_third_pos_in_frame_bool = self.state_is_third_pos_in_frame(state)
         for ho_emission in product(*allowed_bases):
             if not self.has_I_emission_after_base(ho_emission) \
-            and not (self.state_is_third_pos_in_frame(state) and self.emission_is_stop_codon(ho_emission)):
+            and not (state_is_third_pos_in_frame_bool and self.emission_is_stop_codon(ho_emission)):
                 allowed_ho_emissions += [ho_emission]
 
         return allowed_ho_emissions

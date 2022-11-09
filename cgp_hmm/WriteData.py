@@ -19,8 +19,8 @@ def write_to_file(matrix, path):
 def write_order_transformed_B_to_csv(b, path, order, nCodons, alphabet = ["A","C","G","T"]):
     from itertools import product
     import tensorflow as tf
-    from Utility import get_state_id_description_dict
-    state_id_description_dict = get_state_id_description_dict(nCodons)
+    from Utility import get_state_id_description_list
+    state_id_description_list = get_state_id_description_list(nCodons)
 
     b = tf.transpose(b)
     with open(path, "w") as file:
@@ -31,7 +31,7 @@ def write_order_transformed_B_to_csv(b, path, order, nCodons, alphabet = ["A","C
         file.write("\n")
 
         for state_id in range(tf.shape(b)[0]):
-            file.write(str(state_id_to_description(state_id, nCodons, state_id_description_dict)))
+            file.write(str(state_id_to_description(state_id, nCodons, state_id_description_list)))
             file.write("\t")
             for prob in b[state_id]:
                 file.write(str(prob.numpy()))

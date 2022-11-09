@@ -31,6 +31,25 @@ parser.add_argument('-v', action='store_true', help ="test python viterbi algo")
 args = parser.parse_args()
 
 class TestUtiliy(unittest.TestCase):
+    def test_state_id_description_conversion(self):
+        nCodons = 2
+        manual = "ig5' stA stT stG c_0,0 c_0,1 c_0,2 c_1,0 c_1,1 c_1,2 stop1 stop2 stop3 ig3' i_0,0 i_0,1 i_0,2 i_1,0 i_1,1 i_1,2 i_2,0 i_2,1 i_2,2 ter1 ter2".split(" ")
+        state_id_description_list = Utility.get_state_id_description_list(nCodons)
+        for i, des in enumerate(manual):
+            self.assertEqual(des, state_id_description_list[i])
+        for i, des in enumerate(manual):
+            self.assertEqual(des, Utility.state_id_to_description(i, nCodons))
+        for i, des in enumerate(manual):
+            self.assertEqual(des, Utility.state_id_to_description(i, nCodons, state_id_description_list))
+
+        for i, des in enumerate(manual):
+            self.assertEqual(i, state_id_description_list.index(des))
+        for i, des in enumerate(manual):
+            self.assertEqual(i, Utility.description_to_state_id(des, nCodons))
+        for i, des in enumerate(manual):
+            self.assertEqual(i, Utility.description_to_state_id(des, nCodons, state_id_description_list))
+
+
     # 4 is alphabet_size
     def test_higher_order_emission_to_id(self):
         self.assertEqual(higher_order_emission_to_id([0,0,0], 4, 2), 0)
