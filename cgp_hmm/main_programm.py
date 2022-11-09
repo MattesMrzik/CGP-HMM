@@ -53,6 +53,11 @@ model, history = fit_model(config)
 print("done fit_model()")
 # model.save("my_saved_model")
 
+with open(f"output/{nCodons}codons/loss.log", "w") as file:
+    for loss in history.history['loss']:
+        file.write(str(loss))
+        file.write("\n")
+
 plt.plot(history.history['loss'])
 plt.savefig("progress.png")
 

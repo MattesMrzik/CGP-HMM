@@ -4,6 +4,7 @@ import numpy as np
 from itertools import product
 from Utility import higher_order_emission_to_id
 from Utility import append_time_ram_stamp_to_file
+from Utility import description_to_state_id
 import time
 from random import randint
 
@@ -362,7 +363,31 @@ class CgpHmmCell(tf.keras.layers.Layer):
                 found_emission = True
         return invalid_emission
 
-    def get_emissions_that_fit_ambiguity_mask(self, ho_mask, x_bases_must_preceed):
+    def emission_is_stop_codon(self, ho_emission):
+        stops = [[3,0,0],[3,0,2],[3,2,0]]
+        if len(ho_emission) < 3:
+            return False
+
+        def same(a,b):
+            for i in range(3):
+                if a[i] != b[len(b) - 3 + i]:
+                    return False
+            return True
+        for stop in stops:
+            if same(ho_emission, stop):
+                return True
+        return False
+
+    def state_is_third_pos_in_frame(self, state):
+        for i in range(self.nCodons):
+            if state == description_to_state_id(f"c_{i},2", self.nCodons):
+                return True
+        for i in range(self.nCodons + 1):
+            if state == description_to_state_id(f"i_{i},2", self.nCodons):
+                return True
+        return False
+
+    def get_emissions_that_fit_ambiguity_mask(self, ho_mask, x_bases_must_preceed, state):
 
         # getting the allowd base emissions in each slot
         # ie "NNA" and x_bases_must_preceed = 2 -> [][0,1,2,3], [0,1,2,3], [0]]
@@ -374,10 +399,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         allowed_ho_emissions = []
         for ho_emission in product(*allowed_bases):
-            if not self.has_I_emission_after_base(ho_emission):
+            if not self.has_I_emission_after_base(ho_emission) \
+            and not (self.state_is_third_pos_in_frame(state) and self.emission_is_stop_codon(ho_emission)):
                 allowed_ho_emissions += [ho_emission]
 
         return allowed_ho_emissions
+
 
     def get_indices_and_values_for_emission_higher_order_for_a_state(self, weights, \
                                                                      k, indices, \
@@ -392,7 +419,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
             return
 
         count_weights = 0
-        for ho_emission in self. get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed):
+        for ho_emission in self. get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state):
+
             indices += [[state, higher_order_emission_to_id(ho_emission, self.alphabet_size, self.order)]]
             count_weights += 1
 
@@ -455,7 +483,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             return
 
         count_weights = 0
-        for ho_emission in self. get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed):
+        for ho_emission in self. get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state):
             indices += [[state, higher_order_emission_to_id(ho_emission, self.alphabet_size, self.order)]]
 
     def get_indices_for_weights_from_emission_kernel_higher_order(self):
