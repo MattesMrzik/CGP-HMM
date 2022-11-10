@@ -96,6 +96,9 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
 
         loglik_mean = tf.reduce_mean(loglik_state)
+        import math
+        if math.isnan(loglik_mean):
+            exit(1)
         # squeeze removes dimensions of size 1, ie shape (1,3,2,1) -> (3,2)
 
         # regularization
