@@ -28,6 +28,7 @@ parser.add_argument('-t', '--type',
 parser.add_argument('-p', '--path',
                     help='path to src')
 parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
+parser.add_argument('-n', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
 
 args = parser.parse_args()
 
@@ -43,6 +44,8 @@ config["src_path"] = "." if not args.path else args.path
 config["fasta_path"] = f"{config['src_path']}/output/{config['nCodons']}codons/out.seqs.{config['nCodons']}codons.fa"
 config["bench_path"] = f"{config['src_path']}/bench/{config['nCodons']}codons/{config['call_type']}_{config['order_transformed_input']}orderTransformedInput.log"
 config["exit_after_first_batch"] = args.b
+config["exit_after_loglik_is_nan"] = args.n
+
 
 
 nCodons = config["nCodons"]

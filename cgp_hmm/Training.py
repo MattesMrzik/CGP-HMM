@@ -144,6 +144,12 @@ def fit_model(config):
         def on_train_batch_end(self, batch, logs = None):
             exit(1)
 
+    class exit_after_loglik_is_nan(tf.keras.callbacks.Callback):
+        def on_train_batch_end(self, batch, logs = None):
+            if tf.math.reduce_any(tf.math.is_nan(logs["loglik"])):
+                print("loglik_mean contained nan")
+                exit(1)
+
     # checkpoint_path = "training_1/cp.ckpt"
     # cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
     #                                                  save_weights_only=True,
@@ -157,6 +163,8 @@ def fit_model(config):
 
     if "exit_after_first_batch" in config and config["exit_after_first_batch"]:
         callbacks += [exit_after_first_batch()]
+    if "exit_after_loglik_is_nan" in config and config["exit_after_loglik_is_nan"]:
+        callbacks += [exit_after_loglik_is_nan()]
 
     # todo add write traning time per epoch to file callback
 
