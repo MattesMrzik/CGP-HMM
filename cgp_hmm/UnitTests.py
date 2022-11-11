@@ -70,6 +70,14 @@ class TestUtiliy(unittest.TestCase):
 
 class TestCgpHmmCell(unittest.TestCase):
 
+    def test_get_indices_for_weights_from_transition_kernel_higher_order(self):
+        local_config = config.copy()
+        local_config["nCodons"] = 100
+        cell = CgpHmmCell(local_config)
+        indices_for_weights_A = cell.get_indices_for_weights_from_transition_kernel_higher_order()
+        print(indices_for_weights_A)
+
+
     def test_state_is_third_pos_in_frame(self):
 
         local_config = config.copy()

@@ -96,7 +96,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
 
         loglik_mean = tf.reduce_mean(loglik_state)
-        
+
         # squeeze removes dimensions of size 1, ie shape (1,3,2,1) -> (3,2)
 
         # regularization
@@ -130,13 +130,14 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         reg_mean = sum(probs_to_be_punished) / len(probs_to_be_punished)
 
 
-        if loglik_mean < 0 and reg_mean >0:
-            tf.print("not same sign")
-        if loglik_mean > 0 and reg_mean <0:
-            tf.print("not same sign")
+        # if loglik_mean < 0 and reg_mean >0:
+        #     tf.print("not same sign")
+        # if loglik_mean > 0 and reg_mean <0:
+        #     tf.print("not same sign")
 
-
-        self.add_loss(tf.squeeze(-loglik_mean - alpha * reg_mean))
+        # todo
+        # self.add_loss(tf.squeeze(-loglik_mean - alpha * reg_mean))
+        self.add_loss(tf.squeeze(-loglik_mean))
 
         # if training:
             # tf.print("loglik_mean = ", loglik_mean)
