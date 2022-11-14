@@ -1,6 +1,21 @@
 #!/usr/bin/env python3
+import argparse
 
-# import cgp_hmm
+parser = argparse.ArgumentParser(
+    description='description')
+parser.add_argument('-c', '--nCodons',
+                    help='number of codons')
+parser.add_argument('-t', '--type',
+                    help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
+parser.add_argument('-p', '--path',
+                    help='path to src')
+parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
+parser.add_argument('-n', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
+parser.add_argument('-v', '--verbose', nargs = "?", const = "2", help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")
+parser.add_argument('-s', '--verbose_to_stdout', action='store_true', help ="verbose to stdout instead of to file")
+
+args = parser.parse_args()
+
 import matplotlib.pyplot as plt
 import tensorflow as tf
 from Training import fit_model
@@ -16,23 +31,6 @@ from Utility import remove_old_verbose_files
 
 from CgpHmmCell import CgpHmmCell
 
-
-import argparse
-
-parser = argparse.ArgumentParser(
-    description='description')
-parser.add_argument('-c', '--nCodons',
-                    help='number of codons')
-parser.add_argument('-t', '--type',
-                    help='type of cell.call()')
-parser.add_argument('-p', '--path',
-                    help='path to src')
-parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
-parser.add_argument('-n', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
-parser.add_argument('-v', '--verbose', nargs = "?", const = "2", help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")
-
-args = parser.parse_args()
-
 config = {}
 
 config["nCodons"] = int(args.nCodons) if args.nCodons else 1
@@ -47,7 +45,9 @@ config["bench_path"] = f"{config['src_path']}/bench/{config['nCodons']}codons/{c
 config["exit_after_first_batch"] = args.b
 config["exit_after_loglik_is_nan"] = args.n
 config["verbose"] = int(args.verbose) if args.verbose else 0
+config["print_to_file"] = not args.verbose_to_stdout
 
+print("config =", config)
 
 
 nCodons = config["nCodons"]

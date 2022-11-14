@@ -618,9 +618,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         run_id = randint(0,100)
 
         verbose = self.config["verbose"]
-        print_to_file = False
+
         if verbose:
-            if print_to_file:
+            if self.config["print_to_file"]:
                 outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
@@ -667,9 +667,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         run_id = randint(0,100)
 
         verbose = self.config["verbose"]
-        print_to_file = False
+
         if verbose:
-            if print_to_file:
+            if self.config["print_to_file"]:
                 outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
@@ -723,9 +723,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         run_id = randint(0,100)
 
         verbose = self.config["verbose"]
-        print_to_file = False
+
         if verbose:
-            if print_to_file:
+            if self.config["print_to_file"]:
                 outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
@@ -780,9 +780,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         run_id = randint(0,100)
 
         verbose = self.config["verbose"]
-        print_to_file = False
+
         if verbose:
-            if print_to_file:
+            if self.config["print_to_file"]:
                 outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
@@ -835,9 +835,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         run_id = randint(0,100)
 
         verbose = self.config["verbose"]
-        print_to_file = True
+
         if verbose:
-            if print_to_file:
+            if self.config["print_to_file"]:
                 outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
