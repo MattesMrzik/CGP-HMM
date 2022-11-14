@@ -37,6 +37,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         #     self.state_size = [self.number_of_states, 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
 
         self.indices_for_weights_A = self.get_indices_for_weights_from_transition_kernel_higher_order()
+        # vielleich einfach den consts auch ein weigt geben, welches durch softmax eh dann 1 wird
+        # dann hat der gradient zwar mehr einträge, aber es muss ein concat der values und indices gemacht werden,
         self.indices_for_constants_A = self.get_indices_for_constants_from_transition_kernel_higher_order()
 
         self.indices_for_weights_B = self.get_indices_for_weights_from_emission_kernel_higher_order()
@@ -82,6 +84,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(start, f"Cell.build() start {run_id}", self.config["bench_path"])
         self.transition_kernel = self.add_weight(shape = (len(self.indices_for_weights_A),),
                                                  initializer="random_normal",
+                                                 dtype = self.config["dtype"],
                                                  trainable=True)
 
         how_many_emissions = len(self.indices_for_weights_B)
@@ -90,10 +93,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         self.emission_kernel = self.add_weight(shape = (how_many_emissions, ),
                                               initializer="random_normal",
+                                              dtype = self.config["dtype"],
                                               trainable=True)
 
         self.init_kernel = self.add_weight(shape = (self.number_of_states,),
                                            initializer = "random_normal",
+                                           dtype = self.config["dtype"],
                                            trainable=True)
 
 
@@ -101,10 +106,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
         if self.config["call_type"] == 4 and self.config["order_transformed_input"]:
             self.transition_kernel = self.add_weight(shape = (self.number_of_states,self.number_of_states),
                                                      initializer="random_normal",
+                                                     dtype = self.config["dtype"],
                                                      trainable=True)
             how_many_emissions = (self.config["alphabet_size"] + 1) ** (self.config["order"] + 1 ) + 1
             self.emission_kernel = self.add_weight(shape = (how_many_emissions, self.number_of_states),
                                                   initializer="random_normal",
+                                                  dtype = self.config["dtype"],
                                                   trainable=True)
 
 
@@ -296,7 +303,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def A_sparse(self):
-        values = tf.concat([self.transition_kernel, [1.0] * len(self.indices_for_constants_A)], axis = 0)
+        consts = tf.cast([1.0] * len(self.indices_for_constants_A), dtype = self.config["dtype"])
+        values = tf.concat([self.transition_kernel, consts], axis = 0)
         transition_matrix = tf.sparse.SparseTensor(indices = self.indices_for_weights_A + self.indices_for_constants_A, \
                                                    values = values, dense_shape = [self.number_of_states] * 2)
         transition_matrix = tf.sparse.reorder(transition_matrix)
@@ -538,7 +546,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def B_sparse(self):
-        values = tf.concat([self.emission_kernel, [1.0] * len(self.indices_for_constants_B)], axis = 0)
+        consts = tf.cast([1.0] * len(self.indices_for_constants_B), dtype = self.config["dtype"])
+        values = tf.concat([self.emission_kernel, consts], axis = 0)
         # indices, values = self.get_indices_and_values_from_emission_kernel_higher_order(self.emission_kernel, self.nCodons, self.alphabet_size)
         emission_matrix = tf.sparse.SparseTensor(indices = self.indices_for_weights_B + self.indices_for_constants_B, \
                                                  values = values, \
@@ -691,10 +700,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
             verbose_print("old_forward", old_forward)
             verbose_print("old_loglik", old_loglik)
             verbose_print("E", E)
-
-        if self.inita:
-            # tf.print(count[0,0], run_id, " ", "self.init = ", self.init)
-            self.inita = False
 
         if count[0,0] == 1:
             R = self.I # this might have to be dense, bc TypeError: 'R' must have the same nested structure in the main and else branches: and in the else branch it is dense

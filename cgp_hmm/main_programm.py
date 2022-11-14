@@ -9,6 +9,7 @@ parser.add_argument('-t', '--type',
                     help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
 parser.add_argument('-p', '--path',
                     help='path to src')
+parser.add_argument('-d', '--dytpe64', action='store_true', help='using dytpe tf.float64')
 parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
 parser.add_argument('-n', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
 parser.add_argument('-v', '--verbose', nargs = "?", const = "2", help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")
@@ -46,9 +47,14 @@ config["exit_after_first_batch"] = args.b
 config["exit_after_loglik_is_nan"] = args.n
 config["verbose"] = int(args.verbose) if args.verbose else 0
 config["print_to_file"] = not args.verbose_to_stdout
+config["dtype"] = tf.float64 if args.dytpe64 else tf.float32
+
 
 print("config =", config)
 
+if config["dtype"] == tf.float64:
+    policy = tf.keras.mixed_precision.Policy("float64")
+    tf.keras.mixed_precision.set_global_policy(policy)
 
 nCodons = config["nCodons"]
 

@@ -29,9 +29,9 @@ def make_model(config):
 
     if config["order_transformed_input"]:
         #                                                                                        terminal
-        sequences = tf.keras.Input(shape = (None, (alphabet_size + 1) ** (config["order"] + 1) + 1), name = "sequences")
+        sequences = tf.keras.Input(shape = (None, (alphabet_size + 1) ** (config["order"] + 1) + 1), name = "sequences", dtype = config["dtype"])
     else:
-        sequences = tf.keras.Input(shape = (None, alphabet_size + 2), name = "sequences")
+        sequences = tf.keras.Input(shape = (None, alphabet_size + 2), name = "sequences", dtype = config["dtype"])
 
     # another None added automatically for yet unkown batch_size
 
@@ -64,12 +64,12 @@ def make_dataset(config):
         ds = ds.padded_batch(32, padding_values = (4 + 1)**(config["order"] + 1))
 
         def to_one_hot(seq):
-            return tf.cast(tf.one_hot(seq, (4 + 1)**(config["order"] + 1) + 1), dtype=tf.float32)
+            return tf.cast(tf.one_hot(seq, (4 + 1)**(config["order"] + 1) + 1), dtype=config["dtype"])
     else:
         ds = ds.padded_batch(32, padding_values = 5) # 5 is terminal symbol, 4 is "padded left flank"
 
         def to_one_hot(seq):
-            return tf.cast(tf.one_hot(seq, 4 + 1 + 1), dtype=tf.float32)
+            return tf.cast(tf.one_hot(seq, 4 + 1 + 1), dtype=config["dtype"])
 
     ds = ds.map(to_one_hot)
     ds = ds.repeat()
