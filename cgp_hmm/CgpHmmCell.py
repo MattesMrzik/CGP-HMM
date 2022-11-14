@@ -601,7 +601,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 ################################################################################
 ################################################################################
 ################################################################################
-    def call_old_inputs(self, inputs, states, training = None, verbose = False):
+    def call_old_inputs(self, inputs, states, training = None):
         pass
         # for i in range(self.order):
         #     old_inputs_i_expanded = tf.expand_dims(old_inputs[:,i,:], axis = -1)
@@ -611,13 +611,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
         #     E = tf.reduce_sum(E, axis = 1) # axis 0 is batch, so this has to be 1
 
 ################################################################################
-    def call_full_model(self, inputs, states, training = None, verbose = False):
+    def call_full_model(self, inputs, states, training = None):
         old_forward, old_loglik, count = states
         count = count + 1
 
         run_id = randint(0,100)
 
-        verbose = 0 # 0: no verbose, 1: print shapes, 2: print shapes and values
+        verbose = self.config["verbose"]
         print_to_file = False
         if verbose:
             if print_to_file:
@@ -660,13 +660,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         return [alpha, inputs, count], [alpha, loglik, count]
 ################################################################################
-    def call_sparse(self, inputs, states, training = None, verbose = False): # call_sparse
+    def call_sparse(self, inputs, states, training = None): # call_sparse
         old_forward, old_loglik, count = states
         count = count + 1
 
         run_id = randint(0,100)
 
-        verbose = 0 # 0: no verbose, 1: print shapes, 2: print shapes and values
+        verbose = self.config["verbose"]
         print_to_file = False
         if verbose:
             if print_to_file:
@@ -716,13 +716,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         return [alpha, inputs, count], [alpha, loglik, count]
 ################################################################################
-    def call_A_sparse(self, inputs, states, training = None, verbose = False): # call_A_sparse
+    def call_A_sparse(self, inputs, states, training = None): # call_A_sparse
         old_forward, old_loglik, count = states
         count = count + 1
 
         run_id = randint(0,100)
 
-        verbose = 0 # 0: no verbose, 1: print shapes, 2: print shapes and values
+        verbose = self.config["verbose"]
         print_to_file = False
         if verbose:
             if print_to_file:
@@ -773,13 +773,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return [alpha, inputs, count], [alpha, loglik, count]
 
 ################################################################################
-    def call_B_sparse(self, inputs, states, training = None, verbose = False): # call_B_sparse
+    def call_B_sparse(self, inputs, states, training = None): # call_B_sparse
         old_forward, old_loglik, count = states
         count = count + 1
 
         run_id = randint(0,100)
 
-        verbose = 0 # 0: no verbose, 1: print shapes, 2: print shapes and values
+        verbose = self.config["verbose"]
         print_to_file = False
         if verbose:
             if print_to_file:
@@ -828,13 +828,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         return [alpha, inputs, count], [alpha, loglik, count]
 ################################################################################
-    def call_dense(self, inputs, states, training = None, verbose = False): # call_dense
+    def call_dense(self, inputs, states, training = None): # call_dense
         old_forward, old_loglik, count = states
         count = count + 1
 
         run_id = randint(0,100)
 
-        verbose = 2 # 0: no verbose, 1: print shapes, 2: print shapes and values
+        verbose = self.config["verbose"]
         print_to_file = True
         if verbose:
             if print_to_file:
@@ -878,17 +878,17 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return [alpha, inputs, count], [alpha, loglik, count]
 ################################################################################
 
-    def call(self, inputs, states, training = None, verbose = False):
+    def call(self, inputs, states, training = None):
         if self.config["call_type"] == 0:
-            return self.call_sparse(inputs, states, training, verbose)
+            return self.call_sparse(inputs, states, training)
         elif self.config["call_type"] == 1:
-            return self.call_B_sparse(inputs, states, training, verbose)
+            return self.call_B_sparse(inputs, states, training)
         elif self.config["call_type"] == 2:
-            return self.call_A_sparse(inputs, states, training, verbose)
+            return self.call_A_sparse(inputs, states, training)
         elif self.config["call_type"] == 3:
-            return self.call_dense(inputs, states, training, verbose)
+            return self.call_dense(inputs, states, training)
         elif self.config["call_type"] == 4:
-            return self.call_full_model(inputs, states, training, verbose)
+            return self.call_full_model(inputs, states, training)
 
 ################################################################################
 

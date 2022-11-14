@@ -29,6 +29,7 @@ parser.add_argument('-p', '--path',
                     help='path to src')
 parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
 parser.add_argument('-n', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
+parser.add_argument('-v', '--verbose', nargs = "?", const = "2", help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")
 
 args = parser.parse_args()
 
@@ -45,6 +46,7 @@ config["fasta_path"] = f"{config['src_path']}/output/{config['nCodons']}codons/o
 config["bench_path"] = f"{config['src_path']}/bench/{config['nCodons']}codons/{config['call_type']}_{config['order_transformed_input']}orderTransformedInput.log"
 config["exit_after_first_batch"] = args.b
 config["exit_after_loglik_is_nan"] = args.n
+config["verbose"] = int(args.verbose) if args.verbose else 0
 
 
 
