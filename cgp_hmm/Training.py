@@ -150,6 +150,7 @@ def fit_model(config):
                 print("loglik_mean contained nan")
                 exit(1)
 
+
     # checkpoint_path = "training_1/cp.ckpt"
     # cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
     #                                                  save_weights_only=True,
@@ -166,7 +167,6 @@ def fit_model(config):
     if "exit_after_loglik_is_nan" in config and config["exit_after_loglik_is_nan"]:
         callbacks += [exit_after_loglik_is_nan()]
 
-    # todo add write traning time per epoch to file callback
 
 
 
