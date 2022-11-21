@@ -52,8 +52,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(start, f"Layer.build() end   {run_id}", self.config["bench_path"])
 
     def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
-        tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call: tf")
+        # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
+        # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call: tf")
 
         start = time.perf_counter()
         run_id = randint(0,100)

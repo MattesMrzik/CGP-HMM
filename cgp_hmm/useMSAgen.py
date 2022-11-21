@@ -16,12 +16,15 @@ parser = argparse.ArgumentParser(
     description='description')
 parser.add_argument('-c', '--nCodons', required=True,
                     help='number of codons')
+parser.add_argument('-l', '--length_factor',
+                    help='length os seq is length of coding times this factor')
+
 
 args = parser.parse_args()
 
 nCodons = int(args.nCodons)
 
-seqlen = int(nCodons * 3 * 2 + 6)
+seqlen = int(nCodons * 3 * 2 + 6) if not args.length_factor else int(nCodons * 3 * float(args.length_factor) + 6)
 
 sequences, posDict = MSAgen.generate_sequences(num_sequences = 100, # the number of sequences to generate
                                                seqlen = seqlen, # length of each sequence (in bp)

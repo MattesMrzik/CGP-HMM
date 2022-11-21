@@ -713,51 +713,18 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse: tf")
 
 
+
         # print values of A B loglik alpha to see whether nan appear bc of nan loglik
         # bc some underflow in model (=A or B) and therefor the model ie liklihood breaks
         # or the gradient gets infinite or sth like this
 
         old_forward, old_loglik, count = states
         # print("optype", self.A_dense.op.type)
-        # print("cell.call_sparse() being traced")
-        # tf.print("optype", self.A_dense.op.type)
-        # print("---------------str",str(self.A_sparse)[:100])
-        # tf.print("==============tfstr",str(self.A_sparse)[:100])
-        index = 75
-        # print(str(self.A_sparse))
-        # if str(self.A_sparse)[index] == "1":
-        #     print(1)
-        #     tf.print(1)
-        # else:
-        #     print(2)
-        #     tf.print(2)
 
-        # if training and False:
-        #     if not tf.math.reduce_any(tf.math.is_nan(self.transition_kernel)):
-        #         print("tf.math.is_nan(self.transition_kernel) =", tf.math.is_nan(self.transition_kernel))
-        #         print("optype", self.A_dense.op.type)
-        #
-        #         if tf.math.reduce_any(tf.math.is_nan(self.A_dense)):
-        #             print(self.A_dense)
-        #             print("A is nan")
-        #             exit(1)
-        #         if tf.math.reduce_any(tf.math.is_nan(self.B_dense)):
-        #             print(self.B_dense)
-        #             print("B is nan")
-        #             exit(1)
-        #         if tf.math.reduce_any(tf.math.is_nan(old_forward)):
-        #             print(old_forward)
-        #             print("old_forward is nan")
-        #             exit(1)
-        #         if tf.math.reduce_any(tf.math.is_nan(old_loglik)):
-        #             print(old_loglik)
-        #             print("old_loglik is nan")
-        #             exit(1)
-        #         if tf.math.reduce_any(tf.math.is_nan(self.I_dense)):
-        #             print(self.I_dense)
-        #             print("I is nan")
-        #             exit(1)
-
+        tf.debugging.Assert(tf.math.reduce_any(tf.math.is_finite(self.A_dense)), [self.A_dense, count[0,0]], name = "A_dense_beginning_of_call", summarize = -1)
+        tf.debugging.Assert(tf.math.reduce_any(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = -1)
+        tf.debugging.Assert(tf.math.reduce_any(tf.math.is_finite(old_forward)),  [old_forward, count[0,0]],  name = "old_forward",               summarize = -1)
+        tf.debugging.Assert(tf.math.reduce_any(tf.math.is_finite(old_loglik)),   [old_loglik, count[0,0]],   name = "old_loglik",                summarize = -1)
 
         count = count + 1
 
@@ -797,10 +764,17 @@ class CgpHmmCell(tf.keras.layers.Layer):
             R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
             Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
             R /= Z_i_minus_1
+            tf.debugging.Assert(tf.math.reduce_any(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "loglik",                    summarize = -1)
         alpha = E * R # batch * state_size
 
         # keepsdims is true such that shape of result is (32,1) rather than (32,)
         loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik"))
+
+        tf.debugging.Assert(tf.math.reduce_any(tf.math.is_finite(self.A_dense)), [self.A_dense, count[0,0]], name = "A_dense_beginning_of_call", summarize = -1)
+        tf.debugging.Assert(tf.math.reduce_any(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = -1)
+        tf.debugging.Assert(tf.math.reduce_any(tf.math.is_finite(alpha)),        [alpha, count[0,0]],        name = "alpha",                     summarize = -1)
+        tf.debugging.Assert(tf.math.reduce_any(tf.math.is_finite(loglik)),       [old_loglik, count[0,0]],   name = "loglik",                    summarize = -1)
+
 
         if verbose:
             verbose_print("R", R)

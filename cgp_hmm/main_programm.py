@@ -18,6 +18,7 @@ parser.add_argument('--cpu_gpu', action='store_true', help ="print whether gpu o
 parser.add_argument('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
 parser.add_argument('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
 parser.add_argument('-o', '--only_keep_verbose_of_last_batch', action='store_true', help ="only_keep_verbose_of_last_batch")
+parser.add_argument('-l',help = 'lenght of onput seqs when using MSAgen')
 
 
 args = parser.parse_args()
@@ -119,7 +120,7 @@ run(f"mkdir -p {'/'.join(config['bench_path'].split('/')[:-1])}")
 run(f"rm {config['src_path']}/{config['bench_path']}")
 run(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
 
-run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons}")
+run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} {'-l' + args.l if args.l else ''}")
 
 model, history = fit_model(config)
 print("done fit_model()")
