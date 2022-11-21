@@ -15,6 +15,10 @@ parser.add_argument('-n', action='store_true', help ="exit_after_loglik_is_nan, 
 parser.add_argument('-v', '--verbose', nargs = "?", const = "2", help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")
 parser.add_argument('-s', '--verbose_to_stdout', action='store_true', help ="verbose to stdout instead of to file")
 parser.add_argument('--cpu_gpu', action='store_true', help ="print whether gpu or cpu is used")
+parser.add_argument('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
+parser.add_argument('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
+parser.add_argument('-o', '--only_keep_verbose_of_last_batch', action='store_true', help ="only_keep_verbose_of_last_batch")
+
 
 args = parser.parse_args()
 
@@ -27,6 +31,7 @@ import numpy as np
 from Bio import SeqIO
 from Utility import run
 import WriteData
+from tensorflow.python.client import device_lib
 
 from Utility import remove_old_bench_files
 from Utility import remove_old_verbose_files
@@ -49,28 +54,62 @@ config["exit_after_loglik_is_nan"] = args.n
 config["verbose"] = int(args.verbose) if args.verbose else 0
 config["print_to_file"] = not args.verbose_to_stdout
 config["dtype"] = tf.float64 if args.dytpe64 else tf.float32
+config["use_weights_for_consts"] = args.use_weights_for_consts
+config["only_keep_verbose_of_last_batch"] = args.only_keep_verbose_of_last_batch
+
+from Utility import get_state_id_description_list
+config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
+
+from Utility import get_indices_for_weights_from_transition_kernel_higher_order
+from Utility import get_indices_for_constants_from_transition_kernel_higher_order
+from Utility import get_indices_for_weights_from_emission_kernel_higher_order
+from Utility import get_indices_for_constants_from_emission_kernel_higher_order
+from Utility import get_indices_from_initial_kernel
+
+config["indices_for_weights_A"] = get_indices_for_weights_from_transition_kernel_higher_order(config)
+config["indices_for_constants_A"] = get_indices_for_constants_from_transition_kernel_higher_order(config)
+config["indices_for_A"] = config["indices_for_weights_A"] + config["indices_for_constants_A"]
+
+config["indices_for_weights_B"] = get_indices_for_weights_from_emission_kernel_higher_order(config)
+config["indices_for_constants_B"] = get_indices_for_constants_from_emission_kernel_higher_order(config)
+config["indices_for_B"] = config["indices_for_weights_B"] + config["indices_for_constants_B"]
+
+config["indices_for_I"] = get_indices_from_initial_kernel(config)
+
 
 if args.cpu_gpu:
     tf.debugging.set_log_device_placement(True) # shows whether cpu or gpu is used
 
-print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+num_physical_gpus = len(tf.config.list_physical_devices('GPU'))
+print("Num GPUs Available: ", num_physical_gpus, "tf.config.list_physical_devices")
 
-phisical_gpus = tf.config.experimental.list_physical_devices("GPU")
-print(phisical_gpus) # [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
-tf.config.experimental.set_virtual_device_configuration(
-    phisical_gpus[0],
-    [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=512),
-    tf.config.experimental.VirtualDeviceConfiguration(memory_limit=512)]
-)
-logical_gpus = tf.config.experimental.list_logical_devices('GPU')
-print("logical_gpus =", logical_gpus)
+if num_physical_gpus and args.split_gpu:
+    phisical_gpus = tf.config.experimental.list_physical_devices("GPU")
+    print(phisical_gpus) # [PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+    tf.config.experimental.set_virtual_device_configuration(
+        phisical_gpus[0],
+        [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=512),
+        tf.config.experimental.VirtualDeviceConfiguration(memory_limit=512)]
+    )
+    logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+    print("logical_gpus =", logical_gpus, "tf.config.experimental.list_logical_devices")
+    num_gpu = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
 
+    print("Using", num_gpu, "GPUs. device_lib.list_local_devices()")
 
-print("config =", config)
+    print("printing local devices")
+    for i, x in  enumerate(device_lib.list_local_devices()):
+        print(i, x.name)
+
+print("=====> config <========================================================")
+# print("config =", config)
+for key,value in config.items():
+    print(f"{key}: {str(value)[:50]}{' ...' if len(str(value)) > 50 else ''}")
 
 if config["dtype"] == tf.float64:
     policy = tf.keras.mixed_precision.Policy("float64")
     tf.keras.mixed_precision.set_global_policy(policy)
+print("=====> config <========================================================")
 
 nCodons = config["nCodons"]
 
@@ -95,9 +134,9 @@ plt.plot(history.history['loss'])
 plt.savefig(f"{config['src_path']}/progress.png")
 
 cell = CgpHmmCell(config)
-cell.transition_kernel = model.get_weights()[0]
-cell.emission_kernel = model.get_weights()[1]
-cell.init_kernel = model.get_weights()[2]
+cell.init_kernel = model.get_weights()[0]
+cell.transition_kernel = model.get_weights()[1]
+cell.emission_kernel = model.get_weights()[2]
 
 def printA():
     global cell, model

@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import time
 from random import randint
-
+import os
 
 from Utility import run
 from Utility import append_time_ram_stamp_to_file
@@ -13,6 +13,7 @@ from CgpHmmLayer import CgpHmmLayer
 from ReadData import read_data_one_hot
 from ReadData import read_data
 from ReadData import read_data_with_order
+from tensorflow.python.client import device_lib
 
 import time
 
@@ -37,7 +38,7 @@ def make_model(config):
 
     cgp_hmm_layer = CgpHmmLayer(config) # init of layer
 
-    loglik = cgp_hmm_layer(sequences) # layer is build, then calle. it seems i cant call build before to avoid building it here again
+    loglik = cgp_hmm_layer(sequences) # layer is build, then called. it seems i cant call build before to avoid building it here again
     # "[tf.keras.layers.Lambda(lambda x:x, name = \"loglik\")(loglik)] =", [
     print(tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik))
 
@@ -83,27 +84,24 @@ def fit_model(config):
     nCodons = config["nCodons"]
 
 
-    model, cgp_hmm_layer = make_model(config)
+    # model, cgp_hmm_layer = make_model(config)
+
+    num_gpu = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
+    print("Using", num_gpu, "GPUs. device_lib.list_local_devices()")
+
+    num_gpu = len(tf.config.experimental.list_logical_devices('GPU'))
+    print("Using", num_gpu, "GPUs.tf.config.experimental.list_logical_devices('GPU')")
 
     learning_rate = .1
 
     optimizer = tf.optimizers.Adam(learning_rate)
 
-    start = time.perf_counter()
-    run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config["bench_path"])
-    model.compile(optimizer = optimizer)
-    append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config["bench_path"])
-
-
-    # manual call to forward algo
+     # manual call to forward algo
 
     # _, seqs = make_dataset()# first return value is data_set
     # model(seqs)
 
     data_set = make_dataset(config)[0] # [1] is data tensor
-
-
 
     output_path = f"bench/{nCodons}codons"
 
@@ -112,6 +110,7 @@ def fit_model(config):
     #     def on_epoch_begin(self, epoch, logs = None):
     #         print("model.weights")
     #         print("A =", tf.nn.softmax(model.get_weights()[0]))
+
 
     class write_time_epoch_start_callback(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):
@@ -122,8 +121,8 @@ def fit_model(config):
             with open(f"{output_path}/callbackoutput_time_end.txt", "a") as file:
                 file.write(f"{time.time()}\n")
 
-    import os, psutil
-    process = psutil.Process(os.getpid())
+    # import os, psutil
+    # process = psutil.Process(os.getpid())
 
     # todo: oder nicht epoch sondern batch
     # on_train_batch_begin
@@ -150,6 +149,10 @@ def fit_model(config):
                 print("loglik_mean contained nan")
                 exit(1)
 
+    class remove_verbose_at_batch_begin(tf.keras.callbacks.Callback):
+        def on_train_batch_begin(self, batch, logs = None):
+            os.system(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
+
 
     # checkpoint_path = "training_1/cp.ckpt"
     # cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
@@ -166,14 +169,39 @@ def fit_model(config):
         callbacks += [exit_after_first_batch()]
     if "exit_after_loglik_is_nan" in config and config["exit_after_loglik_is_nan"]:
         callbacks += [exit_after_loglik_is_nan()]
+    if "only_keep_verbose_of_last_batch" in config and config["only_keep_verbose_of_last_batch"]:
+        callbacks += [remove_verbose_at_batch_begin()]
 
 
+    if num_gpu > 1:
+        mirrored_strategy = tf.distribute.MirroredStrategy()
+        with mirrored_strategy.scope():
+            model, cgp_hmm_layer = make_model(config)
+            start = time.perf_counter()
+            run_id = randint(0,100)
+            append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config["bench_path"])
+            model.compile(optimizer = optimizer)
+            append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config["bench_path"])
+
+            start = time.perf_counter()
+            run_id = randint(0,100)
+            append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
+            history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
+            append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
+    else:
+         model, cgp_hmm_layer = make_model(config)
+         start = time.perf_counter()
+         run_id = randint(0,100)
+         append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config["bench_path"])
+         model.compile(optimizer = optimizer)
+         append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config["bench_path"])
+
+         start = time.perf_counter()
+         run_id = randint(0,100)
+         append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
+         history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
+         append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
 
 
-    start = time.perf_counter()
-    run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
-    history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
-    append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
 
     return model, history

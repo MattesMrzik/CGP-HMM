@@ -1,19 +1,29 @@
 #!/usr/bin/env python3
 import tensorflow as tf
 import numpy as np
-from itertools import product
+
 from Utility import higher_order_emission_to_id
 from Utility import append_time_ram_stamp_to_file
 from Utility import description_to_state_id
 from Utility import state_id_to_description
-from Utility import get_state_id_description_list
+
+
+from Utility import get_indices_for_weights_from_transition_kernel_higher_order
+from Utility import get_indices_for_constants_from_transition_kernel_higher_order
+from Utility import get_indices_for_weights_from_emission_kernel_higher_order
+from Utility import get_indices_for_constants_from_emission_kernel_higher_order
+
 import time
 from random import randint
+from itertools import product
 
 
 class CgpHmmCell(tf.keras.layers.Layer):
 # class CgpHmmCell(tf.keras.layers.Layer):
     def __init__(self, config):
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell init")
+        tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell init: tf")
+
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Cell.__init__() start {run_id}", config["bench_path"])
@@ -29,20 +39,32 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         self.config = config
 
-        self.config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
-
         self.state_size = [self.number_of_states, 1,      1]
 
-        # if not config["order_transformed_input"]:
-        #     self.state_size = [self.number_of_states, 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
+        if not config["order_transformed_input"]:
+            self.state_size = [self.number_of_states, 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
 
-        self.indices_for_weights_A = self.get_indices_for_weights_from_transition_kernel_higher_order()
+        self.indices_for_weights_A = config["indices_for_weights_A"]# if "indices_for_weights_A" in config else get_indices_for_weights_from_transition_kernel_higher_order(config)
         # vielleich einfach den consts auch ein weigt geben, welches durch softmax eh dann 1 wird
         # dann hat der gradient zwar mehr einträge, aber es muss ein concat der values und indices gemacht werden,
-        self.indices_for_constants_A = self.get_indices_for_constants_from_transition_kernel_higher_order()
+        self.indices_for_constants_A = config["indices_for_constants_A"] #if "indices_for_constants_A" in config else get_indices_for_constants_from_transition_kernel_higher_order(config)
+        self.indices_for_A = config["indices_for_A"]
 
-        self.indices_for_weights_B = self.get_indices_for_weights_from_emission_kernel_higher_order()
-        self.indices_for_constants_B = self.get_indices_for_constants_from_emission_kernel_higher_order()
+
+        self.indices_for_weights_B = config["indices_for_weights_B"]#if "indices_for_weights_B" in config else get_indices_for_weights_from_emission_kernel_higher_order(config)
+        self.indices_for_constants_B = config["indices_for_constants_B"]# if "indices_for_constants_B" in config else get_indices_for_constants_from_emission_kernel_higher_order(config)
+        self.indices_for_B = config["indices_for_B"]
+
+        self.indices_for_I = config["indices_for_I"]
+
+        # self.indices_for_weights_A = self.get_indices_for_weights_from_transition_kernel_higher_order()
+        # # vielleich einfach den consts auch ein weigt geben, welches durch softmax eh dann 1 wird
+        # # dann hat der gradient zwar mehr einträge, aber es muss ein concat der values und indices gemacht werden,
+        # self.indices_for_constants_A = self.get_indices_for_constants_from_transition_kernel_higher_order()
+        #
+        # self.indices_for_weights_B = self.get_indices_for_weights_from_emission_kernel_higher_order()
+        # self.indices_for_constants_B = self.get_indices_for_constants_from_emission_kernel_higher_order()
+
 
         append_time_ram_stamp_to_file(start, f"Cell.__init__() end   {run_id}", self.config["bench_path"])
 
@@ -79,41 +101,61 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # return(s)
 
     def build(self, input_shape):
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build")
+        tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build: tf")
+
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Cell.build() start {run_id}", self.config["bench_path"])
-        self.transition_kernel = self.add_weight(shape = (len(self.indices_for_weights_A),),
-                                                 initializer="random_normal",
-                                                 dtype = self.config["dtype"],
-                                                 trainable=True)
 
-        how_many_emissions = len(self.indices_for_weights_B)
-        if not self.config["order_transformed_input"]:
-            how_many_emissions = self.number_of_states * (self.alphabet_size + 2)**(self.order + 1)
 
-        self.emission_kernel = self.add_weight(shape = (how_many_emissions, ),
-                                              initializer="random_normal",
-                                              dtype = self.config["dtype"],
-                                              trainable=True)
-
-        self.init_kernel = self.add_weight(shape = (self.number_of_states,),
+        self.init_kernel = self.add_weight(shape = (len(self.indices_for_I),),
                                            initializer = "random_normal",
                                            dtype = self.config["dtype"],
-                                           trainable=True)
+                                           trainable=True, name = "init_kernel")
 
 
-
+        # full model
         if self.config["call_type"] == 4 and self.config["order_transformed_input"]:
             self.transition_kernel = self.add_weight(shape = (self.number_of_states,self.number_of_states),
                                                      initializer="random_normal",
                                                      dtype = self.config["dtype"],
-                                                     trainable=True)
+                                                     trainable=True, name = "transition_kernel")
             how_many_emissions = (self.config["alphabet_size"] + 1) ** (self.config["order"] + 1 ) + 1
             self.emission_kernel = self.add_weight(shape = (how_many_emissions, self.number_of_states),
                                                   initializer="random_normal",
                                                   dtype = self.config["dtype"],
-                                                  trainable=True)
+                                                  trainable=True, name = "emission_kernel")
+        else:
+            if self.config["use_weights_for_consts"]:
+                self.transition_kernel = self.add_weight(shape = (len(self.config["indices_for_A"]),),
+                                                         initializer="random_normal",
+                                                         dtype = self.config["dtype"],
+                                                         trainable=True, name = "transition_kernel")
+                how_many_emissions = len(self.config["indices_for_B"])
+                if not self.config["order_transformed_input"]:
+                    how_many_emissions = self.number_of_states * (self.alphabet_size + 2)**(self.order + 1)
 
+                self.emission_kernel = self.add_weight(shape = (how_many_emissions, ),
+                                                      initializer="random_normal",
+                                                      dtype = self.config["dtype"],
+                                                      trainable=True, name = "emission_kernel")
+
+                # i need more weights for the indices that where for consts before
+            else:
+                self.transition_kernel = self.add_weight(shape = (len(self.indices_for_weights_A),),
+                                                         initializer="random_normal",
+                                                         dtype = self.config["dtype"],
+                                                         trainable=True, name = "transition_kernel")
+
+                how_many_emissions = len(self.indices_for_weights_B)
+                if not self.config["order_transformed_input"]:
+                    how_many_emissions = self.number_of_states * (self.alphabet_size + 2)**(self.order + 1)
+
+                self.emission_kernel = self.add_weight(shape = (how_many_emissions, ),
+                                                      initializer="random_normal",
+                                                      dtype = self.config["dtype"],
+                                                      trainable=True, name = "emission_kernel")
 
 
         append_time_ram_stamp_to_file(start, f"Cell.build() end   {run_id}", self.config["bench_path"])
@@ -303,12 +345,16 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def A_sparse(self):
-        consts = tf.cast([1.0] * len(self.indices_for_constants_A), dtype = self.config["dtype"])
-        values = tf.concat([self.transition_kernel, consts], axis = 0)
-        transition_matrix = tf.sparse.SparseTensor(indices = self.indices_for_weights_A + self.indices_for_constants_A, \
-                                                   values = values, dense_shape = [self.number_of_states] * 2)
+        if self.config["use_weights_for_consts"]:
+            transition_matrix = tf.sparse.SparseTensor(indices = self.indices_for_A, \
+                                                       values = self.transition_kernel, dense_shape = [self.number_of_states] * 2)
+        else:
+            consts = tf.cast([1.0] * len(self.indices_for_constants_A), dtype = self.config["dtype"])
+            values = tf.concat([self.transition_kernel, consts], axis = 0)
+            transition_matrix = tf.sparse.SparseTensor(indices = self.indices_for_weights_A + self.indices_for_constants_A, \
+                                                       values = values, dense_shape = [self.number_of_states] * 2)
         transition_matrix = tf.sparse.reorder(transition_matrix)
-        transition_matrix = tf.sparse.softmax(transition_matrix)
+        transition_matrix = tf.sparse.softmax(transition_matrix, name = "A_sparse")
         return transition_matrix
 
     # @property
@@ -321,7 +367,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def A_dense(self): # ca 7% != 0
-        return tf.sparse.to_dense(self.A_sparse)
+        return tf.sparse.to_dense(self.A_sparse, name = "A_dense")
 
     # @property
     # def A(self):
@@ -331,7 +377,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     def A_full_model(self):
         transition_matrix = self.transition_kernel
-        transition_matrix = tf.nn.softmax(transition_matrix)
+        transition_matrix = tf.nn.softmax(transition_matrix, name = "A_full_model")
         return transition_matrix
 ############################################################################
 ############################################################################
@@ -546,21 +592,28 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def B_sparse(self):
-        consts = tf.cast([1.0] * len(self.indices_for_constants_B), dtype = self.config["dtype"])
-        values = tf.concat([self.emission_kernel, consts], axis = 0)
-        # indices, values = self.get_indices_and_values_from_emission_kernel_higher_order(self.emission_kernel, self.nCodons, self.alphabet_size)
-        emission_matrix = tf.sparse.SparseTensor(indices = self.indices_for_weights_B + self.indices_for_constants_B, \
-                                                 values = values, \
-                                                 dense_shape = [self.number_of_states, \
-                                                            (self.alphabet_size + 1) ** (self.order + 1) + 1])
+
+        if self.config["use_weights_for_consts"]:
+            emission_matrix = tf.sparse.SparseTensor(indices = self.indices_for_B, \
+                                                     values = self.emission_kernel, \
+                                                     dense_shape = [self.number_of_states, \
+                                                                (self.alphabet_size + 1) ** (self.order + 1) + 1])
+        else:
+            consts = tf.cast([1.0] * len(self.indices_for_constants_B), dtype = self.config["dtype"])
+            values = tf.concat([self.emission_kernel, consts], axis = 0)
+            # indices, values = self.get_indices_and_values_from_emission_kernel_higher_order(self.emission_kernel, self.nCodons, self.alphabet_size)
+            emission_matrix = tf.sparse.SparseTensor(indices = self.indices_for_weights_B + self.indices_for_constants_B, \
+                                                     values = values, \
+                                                     dense_shape = [self.number_of_states, \
+                                                                (self.alphabet_size + 1) ** (self.order + 1) + 1])
         emission_matrix = tf.sparse.reorder(emission_matrix)
         emission_matrix = tf.sparse.softmax(emission_matrix)
-        emission_matrix = tf.sparse.transpose(emission_matrix)
+        emission_matrix = tf.sparse.transpose(emission_matrix, name = "B_sparse")
         return emission_matrix
 
     @property # ca 17% != 0
     def B_dense(self): #  this is order transformed if sparse is
-        return tf.sparse.to_dense(self.B_sparse)
+        return tf.sparse.to_dense(self.B_sparse, name = "B_dense")
 
     # @property
     # def B(self):
@@ -570,38 +623,24 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def B_full_model(self):
         if self.config["call_type"] == 4:
             emission_matrix = self.emission_kernel
-            emission_matrix = tf.nn.softmax(emission_matrix)
+            emission_matrix = tf.nn.softmax(emission_matrix, name = "B_full_model")
             return emission_matrix
 ############################################################################
 ############################################################################
 ############################################################################
-    def get_indices_and_values_from_initial_kernel(self, weights, nCodons):
-        k = 0
-
-        # start and codons
-        indices = [[i,0] for i in range(3 + nCodons*3)]
-        values = weights[k:k + 3 + nCodons*3]
-        k += 3 + nCodons*3
-        # inserts
-        indices += [[i,0] for i in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3)]
-        values = tf.concat([values, weights[k:k + (nCodons + 1)*3]], axis = 0)
-        k += (nCodons + 1)*3
-
-        return indices, values
-
     @property
     def I_sparse(self): # todo this is not yet used in call()
-        indices, values = self.get_indices_and_values_from_initial_kernel(self.init_kernel, self.nCodons)
-        initial_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.number_of_states,1])
+        # indices, values = self.get_indices_and_values_from_initial_kernel(self.init_kernel, self.nCodons)
+        initial_matrix = tf.sparse.SparseTensor(indices = self.indices_for_I, values = self.init_kernel, dense_shape = [self.number_of_states,1])
         initial_matrix = tf.sparse.reorder(initial_matrix)
         initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.number_of_states))
-        initial_matrix = tf.sparse.softmax(initial_matrix)
+        initial_matrix = tf.sparse.softmax(initial_matrix, name = "I_sparse")
         # initial_matrix = tf.sparse.reshape(initial_matrix, (self.number_of_states,1))
         return initial_matrix
 
     @property
     def I_dense(self):
-        return tf.sparse.to_dense(self.I_sparse)
+        return tf.sparse.to_dense(self.I_sparse, name = "I_dense")
 
     @property
     def I(self):
@@ -670,7 +709,56 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return [alpha, inputs, count], [alpha, loglik, count]
 ################################################################################
     def call_sparse(self, inputs, states, training = None): # call_sparse
+        # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse")
+        # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse: tf")
+
+
+        # print values of A B loglik alpha to see whether nan appear bc of nan loglik
+        # bc some underflow in model (=A or B) and therefor the model ie liklihood breaks
+        # or the gradient gets infinite or sth like this
+
         old_forward, old_loglik, count = states
+        # print("optype", self.A_dense.op.type)
+        # print("cell.call_sparse() being traced")
+        # tf.print("optype", self.A_dense.op.type)
+        # print("---------------str",str(self.A_sparse)[:100])
+        # tf.print("==============tfstr",str(self.A_sparse)[:100])
+        index = 75
+        # print(str(self.A_sparse))
+        # if str(self.A_sparse)[index] == "1":
+        #     print(1)
+        #     tf.print(1)
+        # else:
+        #     print(2)
+        #     tf.print(2)
+
+        # if training and False:
+        #     if not tf.math.reduce_any(tf.math.is_nan(self.transition_kernel)):
+        #         print("tf.math.is_nan(self.transition_kernel) =", tf.math.is_nan(self.transition_kernel))
+        #         print("optype", self.A_dense.op.type)
+        #
+        #         if tf.math.reduce_any(tf.math.is_nan(self.A_dense)):
+        #             print(self.A_dense)
+        #             print("A is nan")
+        #             exit(1)
+        #         if tf.math.reduce_any(tf.math.is_nan(self.B_dense)):
+        #             print(self.B_dense)
+        #             print("B is nan")
+        #             exit(1)
+        #         if tf.math.reduce_any(tf.math.is_nan(old_forward)):
+        #             print(old_forward)
+        #             print("old_forward is nan")
+        #             exit(1)
+        #         if tf.math.reduce_any(tf.math.is_nan(old_loglik)):
+        #             print(old_loglik)
+        #             print("old_loglik is nan")
+        #             exit(1)
+        #         if tf.math.reduce_any(tf.math.is_nan(self.I_dense)):
+        #             print(self.I_dense)
+        #             print("I is nan")
+        #             exit(1)
+
+
         count = count + 1
 
         run_id = randint(0,100)

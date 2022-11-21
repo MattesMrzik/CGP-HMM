@@ -21,6 +21,8 @@ def prRed(skk): print("Layer\033[96m {}\033[00m" .format(skk))
 
 class CgpHmmLayer(tf.keras.layers.Layer):
     def __init__(self, config):
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init")
+        tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init: tf")
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Layer.init() start {run_id}", config["bench_path"])
@@ -32,6 +34,9 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(start, f"Layer.init() end  {run_id}", self.config["bench_path"])
 
     def build(self, inputs):
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer build")
+        tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer build: tf")
+
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Layer.build() start {run_id}", self.config["bench_path"])
@@ -47,6 +52,9 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(start, f"Layer.build() end   {run_id}", self.config["bench_path"])
 
     def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
+        print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
+        tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call: tf")
+
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", self.config["bench_path"])
@@ -145,11 +153,12 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
 
         if training:
-            prRed("training is true")
+            # prRed("training is true")
             self.add_metric(loglik_mean, "loglik")
             self.add_metric(reg_mean, f"reg_mean, not yet multiplied by alpha({alpha})")
         else:
-            prRed("training is false")
+            # prRed("training is false")
+            pass
 
         append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config["bench_path"])
         return loglik_state
