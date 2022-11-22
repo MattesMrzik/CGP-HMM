@@ -764,7 +764,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
             R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
             Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
             R /= Z_i_minus_1
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "loglik",                    summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",      summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero",      summarize = -1)
         alpha = E * R # batch * state_size
 
         # keepsdims is true such that shape of result is (32,1) rather than (32,)
@@ -773,7 +774,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
         tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, count[0,0]], name = "A_dense_beginning_of_call", summarize = -1)
         tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = -1)
         tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),        [alpha, count[0,0]],        name = "alpha",                     summarize = -1)
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)),       [loglik, count[0,0]],       name = "loglik",                    summarize = -1)
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)),       [loglik, count[0,0]],       name = "loglik_finite",             summarize = -1)
+        # i think this should be allowed since sum across alpha can be 1, then log is 0, which is fine
+        # tf.debugging.Assert(tf.math.reduce_all(loglik != 0),                     [loglik, count[0,0]],       name = "loglik_nonzero",            summarize = -1)
+
 
         #todo also check if loglik is zero, bc then a seq should be impossible to be emitted, which shouldnt be the case
 
