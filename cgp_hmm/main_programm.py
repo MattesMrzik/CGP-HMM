@@ -38,7 +38,7 @@ config["exit_after_first_batch"] = args.b
 config["exit_after_loglik_is_nan"] = args.n
 config["verbose"] = int(args.verbose) if args.verbose else 0
 config["print_to_file"] = not args.verbose_to_stdout
-config["dtype"] = tf.float64 if args.dytpe64 else tf.float32
+config["dtype"] = "tf.float64" if args.dytpe64 else "tf.float32"
 config["use_weights_for_consts"] = args.use_weights_for_consts
 config["only_keep_verbose_of_last_batch"] = args.only_keep_verbose_of_last_batch
 config["weaken_softmax"] = args.weaken_softmax
@@ -51,6 +51,25 @@ from Utility import get_indices_for_constants_from_transition_kernel_higher_orde
 from Utility import get_indices_for_weights_from_emission_kernel_higher_order
 from Utility import get_indices_for_constants_from_emission_kernel_higher_order
 from Utility import get_indices_from_initial_kernel
+
+
+
+config["indices_for_weights_A"] = get_indices_for_weights_from_transition_kernel_higher_order(config)
+config["indices_for_constants_A"] = get_indices_for_constants_from_transition_kernel_higher_order(config)
+config["indices_for_A"] = config["indices_for_weights_A"] + config["indices_for_constants_A"]
+
+config["indices_for_weights_B"] = get_indices_for_weights_from_emission_kernel_higher_order(config)
+config["indices_for_constants_B"] = get_indices_for_constants_from_emission_kernel_higher_order(config)
+config["indices_for_B"] = config["indices_for_weights_B"] + config["indices_for_constants_B"]
+
+config["indices_for_I"] = get_indices_from_initial_kernel(config)
+
+
+print("=====> config <========================================================")
+# print("config =", config)
+for key,value in config.items():
+    print(f"{key}: {str(value)[:50]}{' ...' if len(str(value)) > 50 else ''}")
+print("=====> config <========================================================")
 
 import tensorflow as tf
 import matplotlib.pyplot as plt
@@ -68,16 +87,11 @@ from Utility import remove_old_verbose_files
 
 from CgpHmmCell import CgpHmmCell
 
-config["indices_for_weights_A"] = get_indices_for_weights_from_transition_kernel_higher_order(config)
-config["indices_for_constants_A"] = get_indices_for_constants_from_transition_kernel_higher_order(config)
-config["indices_for_A"] = config["indices_for_weights_A"] + config["indices_for_constants_A"]
+config["dtype"] = tf.float64 if args.dytpe64 else tf.float32
 
-config["indices_for_weights_B"] = get_indices_for_weights_from_emission_kernel_higher_order(config)
-config["indices_for_constants_B"] = get_indices_for_constants_from_emission_kernel_higher_order(config)
-config["indices_for_B"] = config["indices_for_weights_B"] + config["indices_for_constants_B"]
-
-config["indices_for_I"] = get_indices_from_initial_kernel(config)
-
+if config["dtype"] == tf.float64:
+    policy = tf.keras.mixed_precision.Policy("float64")
+    tf.keras.mixed_precision.set_global_policy(policy)
 
 if args.cpu_gpu:
     tf.debugging.set_log_device_placement(True) # shows whether cpu or gpu is used
@@ -102,16 +116,6 @@ if num_physical_gpus and args.split_gpu:
     print("printing local devices")
     for i, x in  enumerate(device_lib.list_local_devices()):
         print(i, x.name)
-
-print("=====> config <========================================================")
-# print("config =", config)
-for key,value in config.items():
-    print(f"{key}: {str(value)[:50]}{' ...' if len(str(value)) > 50 else ''}")
-
-if config["dtype"] == tf.float64:
-    policy = tf.keras.mixed_precision.Policy("float64")
-    tf.keras.mixed_precision.set_global_policy(policy)
-print("=====> config <========================================================")
 
 nCodons = config["nCodons"]
 
