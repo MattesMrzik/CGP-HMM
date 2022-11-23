@@ -19,25 +19,9 @@ parser.add_argument('--split_gpu', action='store_true', help ="split gpu into 2 
 parser.add_argument('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
 parser.add_argument('-o', '--only_keep_verbose_of_last_batch', action='store_true', help ="only_keep_verbose_of_last_batch")
 parser.add_argument('-l',help = 'lenght of onput seqs when using MSAgen')
-
+parser.add_argument('--weaken_softmax', action='store_true', help ="weaken_softmax such that after softmax the are no near zero or zero values")
 
 args = parser.parse_args()
-
-import tensorflow as tf
-import matplotlib.pyplot as plt
-from Training import fit_model
-from Training import make_dataset
-import Utility
-import numpy as np
-from Bio import SeqIO
-from Utility import run
-import WriteData
-from tensorflow.python.client import device_lib
-
-from Utility import remove_old_bench_files
-from Utility import remove_old_verbose_files
-
-from CgpHmmCell import CgpHmmCell
 
 config = {}
 
@@ -57,6 +41,7 @@ config["print_to_file"] = not args.verbose_to_stdout
 config["dtype"] = tf.float64 if args.dytpe64 else tf.float32
 config["use_weights_for_consts"] = args.use_weights_for_consts
 config["only_keep_verbose_of_last_batch"] = args.only_keep_verbose_of_last_batch
+config["weaken_softmax"] = args.weaken_softmax
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
@@ -66,6 +51,22 @@ from Utility import get_indices_for_constants_from_transition_kernel_higher_orde
 from Utility import get_indices_for_weights_from_emission_kernel_higher_order
 from Utility import get_indices_for_constants_from_emission_kernel_higher_order
 from Utility import get_indices_from_initial_kernel
+
+import tensorflow as tf
+import matplotlib.pyplot as plt
+from Training import fit_model
+from Training import make_dataset
+import Utility
+import numpy as np
+from Bio import SeqIO
+from Utility import run
+import WriteData
+from tensorflow.python.client import device_lib
+
+from Utility import remove_old_bench_files
+from Utility import remove_old_verbose_files
+
+from CgpHmmCell import CgpHmmCell
 
 config["indices_for_weights_A"] = get_indices_for_weights_from_transition_kernel_higher_order(config)
 config["indices_for_constants_A"] = get_indices_for_constants_from_transition_kernel_higher_order(config)

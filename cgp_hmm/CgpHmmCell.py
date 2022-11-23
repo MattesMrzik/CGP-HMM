@@ -7,6 +7,7 @@ from Utility import append_time_ram_stamp_to_file
 from Utility import description_to_state_id
 from Utility import state_id_to_description
 
+from Utility import tfprint
 
 from Utility import get_indices_for_weights_from_transition_kernel_higher_order
 from Utility import get_indices_for_constants_from_transition_kernel_higher_order
@@ -345,6 +346,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def A_sparse(self):
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.transition_kernel)), [self.transition_kernel], name = "self.transition_kernel_when_at_property_A_sparse", summarize = -1)
         if self.config["use_weights_for_consts"]:
             transition_matrix = tf.sparse.SparseTensor(indices = self.indices_for_A, \
                                                        values = self.transition_kernel, dense_shape = [self.number_of_states] * 2)
@@ -355,6 +357,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
                                                        values = values, dense_shape = [self.number_of_states] * 2)
         transition_matrix = tf.sparse.reorder(transition_matrix)
         transition_matrix = tf.sparse.softmax(transition_matrix, name = "A_sparse")
+
+        if self.config["weaken_softmax"]:
+            transition_matrix = tf.sparse.map_values(tf.add, transition_matrix, 0.0001)
+            s = tf.sparse.reduce_sum(transition_matrix, axis = 0, name = "A_sparse_weakend_softmax")
+            # tfprint(s)
+            # tfprint(1/s)
+            inverse_s = 1/s
+            transition_matrix = transition_matrix * inverse_s
         return transition_matrix
 
     # @property
@@ -592,6 +602,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def B_sparse(self):
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.emission_kernel)), [self.emission_kernel], name = "self.emission_kernel_when_at_property_B_sparse", summarize = -1)
 
         if self.config["use_weights_for_consts"]:
             emission_matrix = tf.sparse.SparseTensor(indices = self.indices_for_B, \
@@ -608,6 +619,15 @@ class CgpHmmCell(tf.keras.layers.Layer):
                                                                 (self.alphabet_size + 1) ** (self.order + 1) + 1])
         emission_matrix = tf.sparse.reorder(emission_matrix)
         emission_matrix = tf.sparse.softmax(emission_matrix)
+
+        if self.config["weaken_softmax"]:
+            emission_matrix = tf.sparse.map_values(tf.add, emission_matrix, 0.0001)
+            s = tf.sparse.reduce_sum(emission_matrix, axis = 0, name = "B_sparse_weakend_softmax")
+            # tfprint(s)
+            # tfprint(1/s)
+            inverse_s = 1/s
+            emission_matrix = emission_matrix * inverse_s
+
         emission_matrix = tf.sparse.transpose(emission_matrix, name = "B_sparse")
         return emission_matrix
 
@@ -630,11 +650,20 @@ class CgpHmmCell(tf.keras.layers.Layer):
 ############################################################################
     @property
     def I_sparse(self): # todo this is not yet used in call()
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.init_kernel)), [self.init_kernel], name = "self.init_kernel_when_at_property_I_sparse", summarize = -1)
+
         # indices, values = self.get_indices_and_values_from_initial_kernel(self.init_kernel, self.nCodons)
         initial_matrix = tf.sparse.SparseTensor(indices = self.indices_for_I, values = self.init_kernel, dense_shape = [self.number_of_states,1])
         initial_matrix = tf.sparse.reorder(initial_matrix)
         initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.number_of_states))
         initial_matrix = tf.sparse.softmax(initial_matrix, name = "I_sparse")
+        if self.config["weaken_softmax"]:
+            initial_matrix = tf.sparse.map_values(tf.add, initial_matrix, 0.0001)
+            s = tf.sparse.reduce_sum(initial_matrix, axis = 0, name = "B_sparse_weakend_softmax")
+            # tfprint(s)
+            # tfprint(1/s)
+            inverse_s = 1/s
+            initial_matrix = initial_matrix * inverse_s
         # initial_matrix = tf.sparse.reshape(initial_matrix, (self.number_of_states,1))
         return initial_matrix
 
@@ -712,8 +741,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse: tf")
 
-
-
         # print values of A B loglik alpha to see whether nan appear bc of nan loglik
         # bc some underflow in model (=A or B) and therefor the model ie liklihood breaks
         # or the gradient gets infinite or sth like this
@@ -721,12 +748,15 @@ class CgpHmmCell(tf.keras.layers.Layer):
         old_forward, old_loglik, count = states
         # print("optype", self.A_dense.op.type)
 
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, old_loglik, old_forward, count[0,0]], name = "A_dense_beginning_of_call", summarize = -1)
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = -1)
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),  [old_forward, count[0,0]],  name = "old_forward",               summarize = -1)
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),   [old_loglik, count[0,0]],   name = "old_loglik",                summarize = -1)
+        check_assert = False
 
-        count = count + 1
+        if check_assert:
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, old_loglik, old_forward, count[0,0]], name = "A_dense_beginning_of_call", summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),  [old_forward, count[0,0]],  name = "old_forward",               summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),   [old_loglik, count[0,0]],   name = "old_loglik",                summarize = -1)
+
+        count = tf.math.add(count, 1)
 
         run_id = randint(0,100)
 
@@ -764,23 +794,24 @@ class CgpHmmCell(tf.keras.layers.Layer):
             R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
             Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
             R /= Z_i_minus_1
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",      summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero",      summarize = -1)
+            if check_assert:
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",      summarize = -1)
+                tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero",      summarize = -1)
         alpha = E * R # batch * state_size
 
         # keepsdims is true such that shape of result is (32,1) rather than (32,)
-        loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik"))
+        # loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik"))
+        loglik = tf.math.add(old_loglik, tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True)), name = "loglik")
 
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, count[0,0]], name = "A_dense_beginning_of_call", summarize = -1)
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = -1)
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),        [alpha, count[0,0]],        name = "alpha",                     summarize = -1)
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)),       [loglik, count[0,0]],       name = "loglik_finite",             summarize = -1)
-        # i think this should be allowed since sum across alpha can be 1, then log is 0, which is fine
-        # tf.debugging.Assert(tf.math.reduce_all(loglik != 0),                     [loglik, count[0,0]],       name = "loglik_nonzero",            summarize = -1)
+        if check_assert:
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, count[0,0]], name = "A_dense_beginning_of_call", summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),        [alpha, count[0,0]],        name = "alpha",                     summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)),       [loglik, count[0,0]],       name = "loglik_finite",             summarize = -1)
+            # i think this should be allowed since sum across alpha can be 1, then log is 0, which is fine
+            # tf.debugging.Assert(tf.math.reduce_all(loglik != 0),                     [loglik, count[0,0]],       name = "loglik_nonzero",            summarize = -1)
 
-
-        #todo also check if loglik is zero, bc then a seq should be impossible to be emitted, which shouldnt be the case
-
+            #todo also check if loglik is zero, bc then a seq should be impossible to be emitted, which shouldnt be the case
 
         if verbose:
             verbose_print("R", R)

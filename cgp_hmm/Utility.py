@@ -559,6 +559,9 @@ def get_state_id_description_list(nCodons):
 def state_id_to_description(id, nCodons, state_id_description_list = None):
     if not state_id_description_list:
         state_id_description_list = get_state_id_description_list(nCodons)
+    # print("nCodons =", nCodons)
+    # print("id =", id)
+    # print("state_id_to_descriptcation =", state_id_description_list)
     return state_id_description_list[id]
 
 def description_to_state_id(des, nCodons, state_id_description_list = None):
@@ -743,6 +746,12 @@ def remove_old_verbose_files(nCodons):
 
         run(f"rm {output_path}/{nCodons}codons.txt")
 
+################################################################################
+################################################################################
+################################################################################
+def tfprint(s):
+    print("py: ", s)
+    tf.print("tf: ", s)
 ################################################################################
 ################################################################################
 ################################################################################
@@ -1023,11 +1032,11 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
-        description='pass "-f filename" to transfrom verbose output of E,R,alpha to csv\nand "-c [int]" for nCodons')
+        description='pass "-f filename" to transfrom verbose output of E,R,alpha to csv\nand "-c [int]" for nCodons\nmust have -b option when running main_programm')
     parser.add_argument('-f', '--filename',
-                        help='pass "-f filename" to transfrom verbose output of E,R,alpha to csv')
+                        help='pass "-f filename" to transfrom verbose output of E,R,alpha to csv', required = True)
     parser.add_argument('-c', '--nCodons',
-                        help ='nCodons')
+                        help ='nCodons', required = True)
     parser.add_argument('-p', action='store_true', help ="plot bench folder")
 
     args = parser.parse_args()

@@ -1,19 +1,14 @@
 #!/usr/bin/env python3
 
-from Utility import run
-import numpy as np
-import re
-from Utility import state_id_to_description
-from Utility import id_to_higher_order_emission
 
 import argparse
 
 parser = argparse.ArgumentParser(
-    description='description')
+description='description')
 parser.add_argument('-c', '--nCodons', required=True,
-                    help='number of codons')
+help='number of codons')
 parser.add_argument('-o', '--order', required=True,
-                    help='order of the emission model')
+help='order of the emission model')
 
 parser.add_argument('-t', action='store_true', help ="if passed, then order_transformed_input is used")
 
@@ -26,7 +21,13 @@ except:
 
 nCodons = int(args.nCodons)
 
+from Utility import run
+import numpy as np
+import re
+from Utility import state_id_to_description
+from Utility import id_to_higher_order_emission
 n_most_likely_emissions = 3
+
 id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
 with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
 

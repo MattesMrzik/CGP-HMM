@@ -8,6 +8,7 @@ import os
 
 from Utility import run
 from Utility import append_time_ram_stamp_to_file
+from Utility import transform_verbose_txt_to_csv
 
 from CgpHmmLayer import CgpHmmLayer
 from ReadData import read_data_one_hot
@@ -141,6 +142,9 @@ def fit_model(config):
 
     class exit_after_first_batch(tf.keras.callbacks.Callback):
         def on_train_batch_end(self, batch, logs = None):
+            # das vielleicht rein ins callback, da ja exit und der code hier dann ja gar nicht mehr erreicht wird
+            if config["verbose"] and config["exit_after_first_batch"]:
+                transform_verbose_txt_to_csv(f"{config['src_path']}/verbose/{nCodons}codons.txt", nCodons)
             exit(1)
 
     class exit_after_loglik_is_nan(tf.keras.callbacks.Callback):
@@ -153,6 +157,20 @@ def fit_model(config):
         def on_train_batch_begin(self, batch, logs = None):
             os.system(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
 
+    class get_the_gradient(tf.keras.callbacks.Callback):
+
+        # def get_weight_grad(model, inputs, outputs):
+        #     """ Gets gradient of model for given inputs and outputs for all weights"""
+        #     grads = model.optimizer.get_gradients(model.total_loss, model.trainable_weights)
+        #     symb_inputs = (model._feed_inputs + model._feed_targets + model._feed_sample_weights)
+        #     f = K.function(symb_inputs, grads)
+        #     x, y, sample_weight = model._standardize_user_data(inputs, outputs)
+        #     output_grad = f(x + y + sample_weight)
+        #     return output_grad
+
+        # also print the gradient on batch begin
+        def on_train_batch_begin(self, batch, logs = None):
+            pass
 
     # checkpoint_path = "training_1/cp.ckpt"
     # cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
@@ -172,11 +190,14 @@ def fit_model(config):
     if "only_keep_verbose_of_last_batch" in config and config["only_keep_verbose_of_last_batch"]:
         callbacks += [remove_verbose_at_batch_begin()]
 
+    callbacks += [get_the_gradient()]
+
 
     if num_gpu > 1:
         mirrored_strategy = tf.distribute.MirroredStrategy()
         with mirrored_strategy.scope():
             model, cgp_hmm_layer = make_model(config)
+            model.summary()
             start = time.perf_counter()
             run_id = randint(0,100)
             append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config["bench_path"])
@@ -190,6 +211,7 @@ def fit_model(config):
             append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
     else:
          model, cgp_hmm_layer = make_model(config)
+         model.summary()
          start = time.perf_counter()
          run_id = randint(0,100)
          append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config["bench_path"])
