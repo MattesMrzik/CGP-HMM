@@ -21,6 +21,7 @@ parser.add_argument('-o', '--only_keep_verbose_of_last_batch', action='store_tru
 parser.add_argument('-l',help = 'lenght of onput seqs when using MSAgen')
 parser.add_argument('--weaken_softmax', action='store_true', help ="weaken_softmax such that after softmax the are no near zero or zero values")
 parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
+parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
 
 args = parser.parse_args()
 
@@ -45,6 +46,7 @@ config["only_keep_verbose_of_last_batch"] = args.only_keep_verbose_of_last_batch
 config["weaken_softmax"] = args.weaken_softmax
 if args.clip_gradient_by_value:
     config["clip_gradient_by_value"] = args.clip_gradient_by_value
+
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
@@ -127,8 +129,8 @@ if num_physical_gpus and args.split_gpu:
         print(i, x.name)
 
 
-
-run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} {'-l' + args.l if args.l else ''}")
+if not args.dont_generate_new_seqs:
+    run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} {'-l' + args.l if args.l else ''}")
 
 model, history = fit_model(config)
 print("done fit_model()")

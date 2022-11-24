@@ -227,5 +227,16 @@ def fit_model(config):
          append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
 
 
+        # use this instead to get easy access to gradients
+        # but then i have to manually do data management ie splitting into batches
+         
+        # optimizer = tf.optimizers.Adam()
+        # def optimize(x, y):
+        #     with tf.GradientTape() as tape:
+        #         predictions = network(x, is_training=True)
+        #         loss = cross_entropy_loss(predictions, y)
+        #     gradients = tape.gradient(loss, model.trainable_variables)
+        #     gradients = [(tf.clip_by_value(grad, clip_value_min=-1.0, clip_value_max=1.0)) for grad in gradients]
+        #     optimizer.apply_gradients(zip(gradients,     model.trainable_variables))
 
     return model, history
