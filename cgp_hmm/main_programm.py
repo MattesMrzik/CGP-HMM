@@ -20,6 +20,7 @@ parser.add_argument('--use_weights_for_consts', action='store_true', help ="use 
 parser.add_argument('-o', '--only_keep_verbose_of_last_batch', action='store_true', help ="only_keep_verbose_of_last_batch")
 parser.add_argument('-l',help = 'lenght of onput seqs when using MSAgen')
 parser.add_argument('--weaken_softmax', action='store_true', help ="weaken_softmax such that after softmax the are no near zero or zero values")
+parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
 
 args = parser.parse_args()
 
@@ -42,6 +43,8 @@ config["dtype"] = "tf.float64" if args.dytpe64 else "tf.float32"
 config["use_weights_for_consts"] = args.use_weights_for_consts
 config["only_keep_verbose_of_last_batch"] = args.only_keep_verbose_of_last_batch
 config["weaken_softmax"] = args.weaken_softmax
+if args.clip_gradient_by_value:
+    config["clip_gradient_by_value"] = args.clip_gradient_by_value
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])

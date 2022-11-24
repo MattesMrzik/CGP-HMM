@@ -346,7 +346,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def A_sparse(self):
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.transition_kernel)), [self.transition_kernel], name = "self.transition_kernel_when_at_property_A_sparse", summarize = -1)
+        # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.transition_kernel)), [self.transition_kernel], name = "self.transition_kernel_when_at_property_A_sparse", summarize = -1)
         if self.config["use_weights_for_consts"]:
             transition_matrix = tf.sparse.SparseTensor(indices = self.indices_for_A, \
                                                        values = self.transition_kernel, dense_shape = [self.number_of_states] * 2)
@@ -602,7 +602,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def B_sparse(self):
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.emission_kernel)), [self.emission_kernel], name = "self.emission_kernel_when_at_property_B_sparse", summarize = -1)
+        # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.emission_kernel)), [self.emission_kernel], name = "self.emission_kernel_when_at_property_B_sparse", summarize = -1)
 
         if self.config["use_weights_for_consts"]:
             emission_matrix = tf.sparse.SparseTensor(indices = self.indices_for_B, \
@@ -650,7 +650,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 ############################################################################
     @property
     def I_sparse(self): # todo this is not yet used in call()
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.init_kernel)), [self.init_kernel], name = "self.init_kernel_when_at_property_I_sparse", summarize = -1)
+        # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.init_kernel)), [self.init_kernel], name = "self.init_kernel_when_at_property_I_sparse", summarize = -1)
 
         # indices, values = self.get_indices_and_values_from_initial_kernel(self.init_kernel, self.nCodons)
         initial_matrix = tf.sparse.SparseTensor(indices = self.indices_for_I, values = self.init_kernel, dense_shape = [self.number_of_states,1])

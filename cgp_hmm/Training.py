@@ -95,8 +95,10 @@ def fit_model(config):
 
     learning_rate = .1
 
-    optimizer = tf.optimizers.Adam(learning_rate, clipvalue = 0.5)
-
+    if "clip_gradient_by_value" in config:
+        optimizer = tf.optimizers.Adam(learning_rate, clipvalue = config["clip_gradient_by_value"])
+    else:
+        optimizer = tf.optimizers.Adam(learning_rate)
      # manual call to forward algo
 
     # _, seqs = make_dataset()# first return value is data_set
