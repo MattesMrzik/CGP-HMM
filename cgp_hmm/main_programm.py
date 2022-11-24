@@ -51,8 +51,15 @@ from Utility import get_indices_for_constants_from_transition_kernel_higher_orde
 from Utility import get_indices_for_weights_from_emission_kernel_higher_order
 from Utility import get_indices_for_constants_from_emission_kernel_higher_order
 from Utility import get_indices_from_initial_kernel
+from Utility import run
 
+nCodons = config["nCodons"]
 
+run(f"mkdir -p {config['src_path']}/output/{nCodons}codons/")
+run(f"mkdir -p {config['src_path']}/verbose")
+run(f"mkdir -p {'/'.join(config['bench_path'].split('/')[:-1])}")
+run(f"rm {config['src_path']}/{config['bench_path']}")
+run(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
 
 config["indices_for_weights_A"] = get_indices_for_weights_from_transition_kernel_higher_order(config)
 config["indices_for_constants_A"] = get_indices_for_constants_from_transition_kernel_higher_order(config)
@@ -78,7 +85,6 @@ from Training import make_dataset
 import Utility
 import numpy as np
 from Bio import SeqIO
-from Utility import run
 import WriteData
 from tensorflow.python.client import device_lib
 
@@ -117,13 +123,7 @@ if num_physical_gpus and args.split_gpu:
     for i, x in  enumerate(device_lib.list_local_devices()):
         print(i, x.name)
 
-nCodons = config["nCodons"]
 
-run(f"mkdir -p {config['src_path']}/output/{nCodons}codons/")
-run(f"mkdir -p {config['src_path']}/verbose")
-run(f"mkdir -p {'/'.join(config['bench_path'].split('/')[:-1])}")
-run(f"rm {config['src_path']}/{config['bench_path']}")
-run(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
 
 run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} {'-l' + args.l if args.l else ''}")
 

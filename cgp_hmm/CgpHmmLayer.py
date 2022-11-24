@@ -4,6 +4,7 @@ import numpy as np
 import time
 import tracemalloc
 from random import randint
+import traceback
 
 # from memory_profiler import profile
 # WARNING:tensorflow:AutoGraph could not transform <bound method LineProfiler.wrap_function of <memory_profiler.LineProfiler object at 0x7fd8c4032af0>> and will run it as-is.
@@ -162,6 +163,12 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             # tf.print("loglik_mean = ", loglik_mean)
             # tf.print("reg_mean = ", reg_mean)
 
+
+        # tf.print(f"LAYER -- tf.executing_eagerly() {tf.executing_eagerly()}")
+        # AttributeError: Tensor.op is meaningless when eager execution is enabled.
+        # grads = tf.gradients(my_loss(loglik_state), [self.C.init_kernel], stop_gradients = [self.C.init_kernel])
+        # tfprint(grads)
+
         # if not inputs.op.type == "Placeholder":
         #     with tf.GradientTape() as tape:
         #         tape.watch(self.C.init_kernel)
@@ -172,11 +179,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #         tfprint("after result[4]")
         #         y = my_loss(result)
         #         tfprint("myloss =", y)
-            # dy_dx = tape.gradient(y, inputs)
-            # print("inputs =", inputs)
-            # print("dy_dx =", dy_dx)
-            # print("dy_dx.numpy() =", dy_dx.numpy())
-            # tf.print("tf.print dy_dx.numpy() =", dy_dx.numpy())
+        #     dy_dx = tape.gradient(y, inputs)
+        #     print("inputs =", inputs)
+        #     print("dy_dx =", dy_dx)
+        #     print("dy_dx.numpy() =", dy_dx.numpy())
+        #     tf.print("tf.print dy_dx.numpy() =", dy_dx.numpy())
+
+
 
         append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config["bench_path"])
         return loglik_state

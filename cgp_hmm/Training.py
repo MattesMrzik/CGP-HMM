@@ -95,7 +95,7 @@ def fit_model(config):
 
     learning_rate = .1
 
-    optimizer = tf.optimizers.Adam(learning_rate)
+    optimizer = tf.optimizers.Adam(learning_rate, clipvalue = 0.5)
 
      # manual call to forward algo
 
