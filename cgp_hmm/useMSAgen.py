@@ -18,17 +18,26 @@ parser.add_argument('-c', '--nCodons', required=True,
                     help='number of codons')
 parser.add_argument('-l', '--length_factor',
                     help='length os seq is length of coding times this factor')
+parser.add_argument('-n', '--num_seqs', type = int,
+                    help='length os seq is length of coding times this factor')
+
 
 
 args = parser.parse_args()
-
+print("args.length_factor =", args.length_factor)
 nCodons = int(args.nCodons)
+num_seqs = 100 if not args.num_seqs else args.num_seqs
 
-seqlen = int(nCodons * 3 * 2 + 6) if not args.length_factor else int(nCodons * 3 * float(args.length_factor) + 6)
+genlen = 3 * nCodons # ATG and STOP are not on gene
+seqlen = genlen * (2 if not args.length_factor else float(args.length_factor))
+seqlen += 6 # start and stop codon
+seqlen += 2 # ig states
+print("seqlen =", seqlen)
 
-sequences, posDict = MSAgen.generate_sequences(num_sequences = 100, # the number of sequences to generate
-                                               seqlen = seqlen, # length of each sequence (in bp)
-                                               genelen = int(nCodons * 3), # length of the gene in each sequence (in bp, can be 0)
+
+sequences, posDict = MSAgen.generate_sequences(num_sequences = int(num_seqs), # the number of sequences to generate
+                                               seqlen = int(seqlen), # length of each sequence (in bp)
+                                               genelen = int(genlen), # length of the gene in each sequence (in bp, can be 0)
                                                coding_dist = 0.2, # branch length of the underlying tree for simulated gene evolution
                                                noncoding_dist = 0.4) # branch length for flanking regions
 
@@ -43,13 +52,40 @@ if strip_flanks:
     for seq in sequences:
         # strips seq somewhere in first half of 5flank
         # and somewhere in second half of 3flank
-        strip_left_length = random.randint(0, int(posDict["5flank_len"]/2))
-        strip_right_length = random.randint(int(posDict['3flank_start'] \
-                             + (seqlen - posDict['3flank_start'])/2) \
-                             , int(seqlen))
-        seq.seq = seq.seq[strip_left_length : strip_right_length]
-        seq.startATGPos = posDict["start_codon"] - strip_left_length
-        seq.stopPos = posDict["stop_codon"] - strip_left_length
+
+        new_5_flank_len = random.randint(1, int(posDict["5flank_len"]))
+        new_3_flank_len = random.randint(1, int(posDict["3flank_len"]))
+
+        assert new_5_flank_len >= 1, "new_5_flank_len is not >= 1"
+        assert new_3_flank_len >= 1, "new_3_flank_len is not >= 1"
+        assert (posDict["5flank_len"] - new_5_flank_len) >= 0, f"smaller 0: {(posDict['5flank_len'] - new_5_flank_len)}"
+        assert posDict["3flank_start"] + new_3_flank_len <= len(seq.seq), f"larger than seqlen {posDict['3flank_start'] + new_3_flank_len} <= {len(seq.seq)}"
+
+        print_seq = False
+        if print_seq:
+            print(seq.seq)
+
+        seq.seq = seq.seq[(posDict["5flank_len"] - new_5_flank_len) : posDict["3flank_start"] + new_3_flank_len]
+        if print_seq:
+            print("-" * (posDict["5flank_len"] - new_5_flank_len), end = "")
+            print(seq.seq, end = "")
+            print("-" * (posDict["3flank_len"] - new_3_flank_len))
+
+            print("-" * (posDict["5flank_len"] - new_5_flank_len), end = "")
+            print("5" * new_5_flank_len, end = "")
+            print("ATG", end = "")
+            print("*" * genlen, end = "")
+            print("STO", end = "")
+            print("3" * new_3_flank_len, end = "")
+            print("-" * (posDict["3flank_len"] - new_3_flank_len))
+
+
+        seq.startATGPos = new_5_flank_len
+        seq.stopPos = genlen + new_5_flank_len + 3
+        if print_seq:
+            print(seq.seq)
+            print("".join(["+" if i in [seq.startATGPos, seq.stopPos] else " " for i in range(len(seq.seq))]))
+            print()
         # print("".join([str(i) for i in range(10)]*10))
         # print(seq.seq)
         # print("start codon =", seq.startATGPos)

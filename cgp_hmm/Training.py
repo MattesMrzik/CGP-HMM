@@ -229,7 +229,7 @@ def fit_model(config):
 
         # use this instead to get easy access to gradients
         # but then i have to manually do data management ie splitting into batches
-         
+
         # optimizer = tf.optimizers.Adam()
         # def optimize(x, y):
         #     with tf.GradientTape() as tape:
