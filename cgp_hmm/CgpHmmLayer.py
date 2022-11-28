@@ -5,7 +5,6 @@ import time
 import tracemalloc
 from random import randint
 import traceback
-
 # from memory_profiler import profile
 # WARNING:tensorflow:AutoGraph could not transform <bound method LineProfiler.wrap_function of <memory_profiler.LineProfiler object at 0x7fd8c4032af0>> and will run it as-is.
 # Cause: generators are not supported
@@ -45,6 +44,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(start, f"Layer.build() start {run_id}", self.config["bench_path"])
         # print("in build of layer")
         self.C = CgpHmmCell(self.config) # init
+
         # self.C.build(input_shape) # build
         # this isnt needed for training but when calling the layer, then i need to build C manually, but it is then called
         # a second time when calling F
@@ -169,21 +169,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # grads = tf.gradients(my_loss(loglik_state), [self.C.init_kernel], stop_gradients = [self.C.init_kernel])
         # tfprint(grads)
 
-        # if not inputs.op.type == "Placeholder":
-        #     with tf.GradientTape() as tape:
-        #         tape.watch(self.C.init_kernel)
-        #         tfprint("after tape watch")
-        #         result = self.F(inputs)
-        #         tfprint("after call to F")
-        #         result = result[4]
-        #         tfprint("after result[4]")
-        #         y = my_loss(result)
-        #         tfprint("myloss =", y)
-        #     dy_dx = tape.gradient(y, inputs)
-        #     print("inputs =", inputs)
-        #     print("dy_dx =", dy_dx)
-        #     print("dy_dx.numpy() =", dy_dx.numpy())
-        #     tf.print("tf.print dy_dx.numpy() =", dy_dx.numpy())
+        
 
 
 

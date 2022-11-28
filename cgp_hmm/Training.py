@@ -93,18 +93,16 @@ def fit_model(config):
     num_gpu = len(tf.config.experimental.list_logical_devices('GPU'))
     print("Using", num_gpu, "GPUs.tf.config.experimental.list_logical_devices('GPU')")
 
-    learning_rate = .1
-
     if "clip_gradient_by_value" in config:
-        optimizer = tf.optimizers.Adam(learning_rate, clipvalue = config["clip_gradient_by_value"])
+        optimizer = tf.optimizers.Adam(config["learning_rate"], clipvalue = config["clip_gradient_by_value"])
     else:
-        optimizer = tf.optimizers.Adam(learning_rate)
+        optimizer = tf.optimizers.Adam(config["learning_rate"])
      # manual call to forward algo
 
     # _, seqs = make_dataset()# first return value is data_set
     # model(seqs)
 
-    data_set = make_dataset(config)[0] # [1] is data tensor
+    data_set, seqs = make_dataset(config)
 
     output_path = f"bench/{nCodons}codons"
 
@@ -195,48 +193,89 @@ def fit_model(config):
     callbacks += [get_the_gradient()]
 
 
-    if num_gpu > 1:
-        mirrored_strategy = tf.distribute.MirroredStrategy()
-        with mirrored_strategy.scope():
-            model, cgp_hmm_layer = make_model(config)
-            model.summary()
-            start = time.perf_counter()
-            run_id = randint(0,100)
-            append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config["bench_path"])
-            model.compile(optimizer = optimizer)
-            append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config["bench_path"])
+    if config["get_gradient_of_first_batch"]:
+        layer = CgpHmmLayer(config)
+        layer.build(None)
+        layer.C.build(None)
+        first_batch = seqs[:32] # not one hot, not padded
+        # pad seqs:
+        max_len_seq_in_batch = max([len(seq) for seq in first_batch])
+        # print("max_len_seq_in_batch =", max_len_seq_in_batch)
+        # for seq in first_batch:
+        #     print((max_len_seq_in_batch - len(seq)))
+        #     print(seq + [126] * (max_len_seq_in_batch - len(seq)))
+        first_batch = [seq + [125] * (max_len_seq_in_batch - len(seq)) for seq in first_batch]
 
-            start = time.perf_counter()
-            run_id = randint(0,100)
-            append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
-            history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
-            append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
+        # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
+
+        # one_hot:
+        first_batch = tf.one_hot(first_batch, 126)
+
+        # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
+
+
+        with tf.GradientTape() as tape:
+            tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+            print("after tape watch")
+            result = layer.F(first_batch)
+            print("after call to F")
+            result = result[4]
+            print("after result[4]")
+            y = layer(first_batch)
+            print("layer call =", y)
+            dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+            if not dy_dx:
+                print("list dy_dx =", round(dy_dx,3))
+            print("::::::::::::::::::::::::::::::::::::::::::::::")
+            for g in dy_dx:
+                print("dy_dx =", g)
+                # print("dy_dx.numpy() =", g.numpy())
+                print()
+        exit()
+
     else:
-         model, cgp_hmm_layer = make_model(config)
-         model.summary()
-         start = time.perf_counter()
-         run_id = randint(0,100)
-         append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config["bench_path"])
-         model.compile(optimizer = optimizer)
-         append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config["bench_path"])
+        if num_gpu > 1:
+            mirrored_strategy = tf.distribute.MirroredStrategy()
+            with mirrored_strategy.scope():
+                model, cgp_hmm_layer = make_model(config)
+                model.summary()
+                start = time.perf_counter()
+                run_id = randint(0,100)
+                append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config["bench_path"])
+                model.compile(optimizer = optimizer)
+                append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config["bench_path"])
 
-         start = time.perf_counter()
-         run_id = randint(0,100)
-         append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
-         history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
-         append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
+                start = time.perf_counter()
+                run_id = randint(0,100)
+                append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
+                history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
+                append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
+        else:
+             model, cgp_hmm_layer = make_model(config)
+             model.summary()
+             start = time.perf_counter()
+             run_id = randint(0,100)
+             append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config["bench_path"])
+             model.compile(optimizer = optimizer)
+             append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config["bench_path"])
+
+             start = time.perf_counter()
+             run_id = randint(0,100)
+             append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
+             history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
+             append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
 
 
-        # use this instead to get easy access to gradients
-        # but then i have to manually do data management ie splitting into batches
+            # use this instead to get easy access to gradients
+            # but then i have to manually do data management ie splitting into batches
 
-        # optimizer = tf.optimizers.Adam()
-        # def optimize(x, y):
-        #     with tf.GradientTape() as tape:
-        #         predictions = network(x, is_training=True)
-        #         loss = cross_entropy_loss(predictions, y)
-        #     gradients = tape.gradient(loss, model.trainable_variables)
-        #     gradients = [(tf.clip_by_value(grad, clip_value_min=-1.0, clip_value_max=1.0)) for grad in gradients]
-        #     optimizer.apply_gradients(zip(gradients,     model.trainable_variables))
+            # optimizer = tf.optimizers.Adam()
+            # def optimize(x, y):
+            #     with tf.GradientTape() as tape:
+            #         predictions = network(x, is_training=True)
+            #         loss = cross_entropy_loss(predictions, y)
+            #     gradients = tape.gradient(loss, model.trainable_variables)
+            #     gradients = [(tf.clip_by_value(grad, clip_value_min=-1.0, clip_value_max=1.0)) for grad in gradients]
+            #     optimizer.apply_gradients(zip(gradients,     model.trainable_variables))
 
     return model, history

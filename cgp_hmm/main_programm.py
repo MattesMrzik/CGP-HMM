@@ -21,7 +21,10 @@ parser.add_argument('-o', '--only_keep_verbose_of_last_batch', action='store_tru
 parser.add_argument('-l',help = 'lenght of onput seqs when using MSAgen')
 parser.add_argument('--weaken_softmax', action='store_true', help ="weaken_softmax such that after softmax the are no near zero or zero values")
 parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
+parser.add_argument('--learning_rate', help ="learning_rate", type = float)
+parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true', )
 parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
+parser.add_argument('--get_gradient_of_first_batch', action='store_true', help ="get_gradient_of_first_batch")
 
 args = parser.parse_args()
 
@@ -44,9 +47,12 @@ config["dtype"] = "tf.float64" if args.dytpe64 else "tf.float32"
 config["use_weights_for_consts"] = args.use_weights_for_consts
 config["only_keep_verbose_of_last_batch"] = args.only_keep_verbose_of_last_batch
 config["weaken_softmax"] = args.weaken_softmax
+config["get_gradient_of_first_batch"] = args.get_gradient_of_first_batch
 if args.clip_gradient_by_value:
     config["clip_gradient_by_value"] = args.clip_gradient_by_value
-
+config["learning_rate"] = args.learning_rate if args.learning_rate else 0.1
+if args.no_learning:
+    config["learning_rate"] = 0
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
@@ -79,8 +85,10 @@ config["indices_for_I"] = get_indices_from_initial_kernel(config)
 
 print("=====> config <========================================================")
 # print("config =", config)
+
+maxlen_key = max([len(key) for key in config.keys()])
 for key,value in config.items():
-    print(f"{key}: {str(value)[:50]}{' ...' if len(str(value)) > 50 else ''}")
+    print(f"{' '*(maxlen_key-len(key))}{key}: {str(value)[:50]}{' ...' if len(str(value)) > 50 else ''}")
 print("=====> config <========================================================")
 
 import tensorflow as tf

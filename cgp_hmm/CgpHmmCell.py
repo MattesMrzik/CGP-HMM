@@ -157,8 +157,17 @@ class CgpHmmCell(tf.keras.layers.Layer):
                                                       initializer="random_normal",
                                                       dtype = self.config["dtype"],
                                                       trainable=True, name = "emission_kernel")
+        visualize_after_build = False
+        if visualize_after_build:
+            import WriteData
+            import os
+            WriteData.write_to_file(self.A_dense, f"{self.config['src_path']}/output/{self.nCodons}codons/A.{self.nCodons}codons.txt")
+            WriteData.write_to_file(tf.transpose(self.B_dense), f"{self.config['src_path']}/output/{self.nCodons}codons/B.{self.nCodons}codons.txt")
+            WriteData.write_to_file(self.I_dense, f"{self.config['src_path']}/output/{self.nCodons}codons/I.{self.nCodons}codons.txt")
+            WriteData.write_order_transformed_B_to_csv(self.B_dense, f"{self.config['src_path']}/output/{self.nCodons}codons/B.{self.nCodons}codons.csv", self.config["order"], self.nCodons)
 
-
+            os.system(f"./Visualize.py -c {self.config['nCodons']} -o {self.config['order']} -t")
+            exit(1)
         append_time_ram_stamp_to_file(start, f"Cell.build() end   {run_id}", self.config["bench_path"])
 
 
@@ -561,9 +570,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # ig 5'
         self.get_indices_for_emission_higher_order_for_a_state(indices,0,"N",0)
         # start a
-        self.get_indices_for_emission_higher_order_for_a_state(indices,1,"A",0)
+        self.get_indices_for_emission_higher_order_for_a_state(indices,1,"A",1)
         # start t
-        self.get_indices_for_emission_higher_order_for_a_state(indices,2,"AT",0)
+        self.get_indices_for_emission_higher_order_for_a_state(indices,2,"AT",2)
 
         # codon_11
         self.get_indices_for_emission_higher_order_for_a_state(indices,4,"ATGN",2)
