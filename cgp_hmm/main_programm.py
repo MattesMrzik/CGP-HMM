@@ -1,30 +1,38 @@
 #!/usr/bin/env python3
 import argparse
 
-parser = argparse.ArgumentParser(
-    description='description')
-parser.add_argument('-c', '--nCodons',
-                    help='number of codons')
-parser.add_argument('-t', '--type',
-                    help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
-parser.add_argument('-p', '--path',
-                    help='path to src')
-parser.add_argument('-d', '--dytpe64', action='store_true', help='using dytpe tf.float64')
-parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
-parser.add_argument('-n', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
-parser.add_argument('-v', '--verbose', nargs = "?", const = "2", help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")
-parser.add_argument('-s', '--verbose_to_stdout', action='store_true', help ="verbose to stdout instead of to file")
-parser.add_argument('--cpu_gpu', action='store_true', help ="print whether gpu or cpu is used")
-parser.add_argument('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
+parser = argparse.ArgumentParser(description='description')
+
+# base algo
+parser.add_argument('-c', '--nCodons', help='number of codons')
+parser.add_argument('-t', '--type', help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
+parser.add_argument('-p', '--path', help='path to src')
+
+# fine tune algo
 parser.add_argument('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
-parser.add_argument('-o', '--only_keep_verbose_of_last_batch', action='store_true', help ="only_keep_verbose_of_last_batch")
-parser.add_argument('-l',help = 'lenght of onput seqs when using MSAgen')
 parser.add_argument('--weaken_softmax', action='store_true', help ="weaken_softmax such that after softmax the are no near zero or zero values")
+parser.add_argument('-d', '--dytpe64', action='store_true', help='using dytpe tf.float64')
 parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
 parser.add_argument('--learning_rate', help ="learning_rate", type = float)
 parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true', )
-parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
+parser.add_argument('-l',help = 'lenght of onput seqs when using MSAgen')
+
+# hardware
+parser.add_argument('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
+
+# verbose
+parser.add_argument('-v', '--verbose', nargs = "?", const = "2", help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")
+parser.add_argument('-o', '--only_keep_verbose_of_last_batch', action='store_true', help ="only_keep_verbose_of_last_batch")
+parser.add_argument('-s', '--verbose_to_stdout', action='store_true', help ="verbose to stdout instead of to file")
+parser.add_argument('--cpu_gpu', action='store_true', help ="print whether gpu or cpu is used")
 parser.add_argument('--get_gradient_of_first_batch', action='store_true', help ="get_gradient_of_first_batch")
+parser.add_argument('--get_gradient_for_current_txt', action='store_true', help ="get_gradient_for_current_txt, previous run wrote IAB and inputbath to file -> get respective gradient")
+parser.add_argument('--most_recent_weights_and_inputs_to_file', action='store_true', help ="most_recent_weights_and_inputs_to_file")
+
+# debugging
+parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
+parser.add_argument('-n', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
+parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
 
 args = parser.parse_args()
 
@@ -53,6 +61,9 @@ if args.clip_gradient_by_value:
 config["learning_rate"] = args.learning_rate if args.learning_rate else 0.1
 if args.no_learning:
     config["learning_rate"] = 0
+config["dont_generate_new_seqs"] = args.dont_generate_new_seqs
+config["most_recent_weights_and_inputs_to_file"] = args.most_recent_weights_and_inputs_to_file
+config["get_gradient_for_current_txt"] = args.get_gradient_for_current_txt
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])

@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import time
 from random import randint
 import os
+import json
+import re
 
 from Utility import run
 from Utility import append_time_ram_stamp_to_file
@@ -157,6 +159,32 @@ def fit_model(config):
         def on_train_batch_begin(self, batch, logs = None):
             os.system(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
 
+    class write_weights_to_file_and_exit_when_nan(tf.keras.callbacks.Callback):
+        def on_train_batch_begin(self, batch, logs = None):
+            ik, ak, bk = model.get_weights()
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ak], name = "I_is_nan", summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ak], name = "A_is_nan", summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ak], name = "B_is_nan", summarize = -1)
+
+            os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/current_I.json")
+            os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/current_A.json")
+            os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/current_B.json")
+
+            # in layer, inputs is written to file
+            os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/current_inputs.txt")
+
+            ik = [float(x) for x in ik]
+            ak = [float(x) for x in ak]
+            bk = [float(x) for x in bk]
+
+            with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_I.json", "w") as file:
+                json.dump(ik, file)
+            with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_A.json", "w") as file:
+                json.dump(ak, file)
+            with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_B.json", "w") as file:
+                json.dump(bk, file)
+
+
     class get_the_gradient(tf.keras.callbacks.Callback):
 
         # def get_weight_grad(model, inputs, outputs):
@@ -189,14 +217,60 @@ def fit_model(config):
         callbacks += [exit_after_loglik_is_nan()]
     if "only_keep_verbose_of_last_batch" in config and config["only_keep_verbose_of_last_batch"]:
         callbacks += [remove_verbose_at_batch_begin()]
+    if "most_recent_weights_and_inputs_to_file" in config and config["most_recent_weights_and_inputs_to_file"]:
+        callbacks += [write_weights_to_file_and_exit_when_nan()]
 
     callbacks += [get_the_gradient()]
 
-
-    if config["get_gradient_of_first_batch"]:
+    if config["get_gradient_for_current_txt"]:
         layer = CgpHmmLayer(config)
         layer.build(None)
         layer.C.build(None)
+        # or do i have to add_weight and
+        with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_I.json") as file:
+            weights_I = np.array(json.load(file))
+        with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_A.json") as file:
+            weights_A = np.array(json.load(file))
+        with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_B.json") as file:
+            weights_B = np.array(json.load(file))
+        weights = [weights_I, weights_A, weights_B]
+        layer.C.set_weights(weights)
+        # assuming that inputs are formatted in shape batch, seq_len, one_hot_dim = 32, l, 126
+        input = []
+        with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_inputs.txt", "r") as file:
+            seq = []
+            for line in file:
+                line = line.strip()
+                if len(line) == 0:
+                    input.append(seq)
+                    seq = []
+                else:
+                    line = re.sub("[\[\]]","", line)
+                    line = line.split(" ")
+                    line = [float(x) for x in line]
+                    seq.append(line)
+            if len(seq) != 0:
+                input.append(seq)
+        print("tf.shape(input) =",tf.shape(input))
+        input = tf.constant(input, dtype = tf.float32)
+        with tf.GradientTape() as tape:
+            tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+            y = layer(input) # heir wird viel geprintet
+            dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+            if not dy_dx:
+                print("not dy_dx")
+                print("list dy_dx =", round(dy_dx,3))
+            print("::::::::::::::::::::::::::::::::::::::::::::::")
+            for g in dy_dx:
+                print("dy_dx =", g)
+                print()
+        exit()
+    elif config["get_gradient_of_first_batch"]:
+        layer = CgpHmmLayer(config)
+        layer.build(None)
+        layer.C.build(None)
+
+
         first_batch = seqs[:32] # not one hot, not padded
         # pad seqs:
         max_len_seq_in_batch = max([len(seq) for seq in first_batch])
@@ -216,13 +290,7 @@ def fit_model(config):
 
         with tf.GradientTape() as tape:
             tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-            print("after tape watch")
-            result = layer.F(first_batch)
-            print("after call to F")
-            result = result[4]
-            print("after result[4]")
             y = layer(first_batch)
-            print("layer call =", y)
             dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
             if not dy_dx:
                 print("list dy_dx =", round(dy_dx,3))

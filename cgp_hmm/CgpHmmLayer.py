@@ -5,6 +5,7 @@ import time
 import tracemalloc
 from random import randint
 import traceback
+import json
 # from memory_profiler import profile
 # WARNING:tensorflow:AutoGraph could not transform <bound method LineProfiler.wrap_function of <memory_profiler.LineProfiler object at 0x7fd8c4032af0>> and will run it as-is.
 # Cause: generators are not supported
@@ -82,6 +83,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         count_state = result[5]
         # if self.C.order > 0 and not self.C.order_transformed_input : # or True to checksquare
         #     old_state = result[6]
+        if "most_recent_weights_and_inputs_to_file" in self.config and self.config["most_recent_weights_and_inputs_to_file"]:
+            outstream = f"file://{self.config['src_path']}/output/{self.config['nCodons']}codons/current_inputs.txt"
+            # also remove the file at beginning of batch
+            # out_inputs = tf.argmax(inputs, axis = 2)
+            # out_inputs = [[int(base) for base in seq]for seq in out_inputs]
+            # tf.print(json.dumps(out_inputs, outstream))
+            tf.print(inputs, summarize = -1, output_stream = outstream)
 
         if "write_return_sequnces" in self.config and self.config["write_return_sequnces"]:
             outstream = f"file://./output/for_unit_tests/return_sequnces.txt"
@@ -108,8 +116,6 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         def my_loss(loglik_state):
             probs_to_be_punished = []
             loglik_mean = tf.reduce_mean(loglik_state)
-
-
 
             if training:
                 # prRed("training is true")
@@ -163,15 +169,10 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             # tf.print("loglik_mean = ", loglik_mean)
             # tf.print("reg_mean = ", reg_mean)
 
-
         # tf.print(f"LAYER -- tf.executing_eagerly() {tf.executing_eagerly()}")
         # AttributeError: Tensor.op is meaningless when eager execution is enabled.
         # grads = tf.gradients(my_loss(loglik_state), [self.C.init_kernel], stop_gradients = [self.C.init_kernel])
         # tfprint(grads)
-
-        
-
-
 
         append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config["bench_path"])
         return loglik_state
