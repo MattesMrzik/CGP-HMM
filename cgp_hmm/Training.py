@@ -226,7 +226,8 @@ def fit_model(config):
         layer = CgpHmmLayer(config)
         layer.build(None)
         layer.C.build(None)
-        # or do i have to add_weight and
+
+        # getting weights from files, which where written the last time the main_programm was run
         with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_I.json") as file:
             weights_I = np.array(json.load(file))
         with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_A.json") as file:
@@ -235,6 +236,7 @@ def fit_model(config):
             weights_B = np.array(json.load(file))
         weights = [weights_I, weights_A, weights_B]
         layer.C.set_weights(weights)
+
         # assuming that inputs are formatted in shape batch, seq_len, one_hot_dim = 32, l, 126
         input = []
         with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_inputs.txt", "r") as file:
@@ -251,8 +253,8 @@ def fit_model(config):
                     seq.append(line)
             if len(seq) != 0:
                 input.append(seq)
-        print("tf.shape(input) =",tf.shape(input))
         input = tf.constant(input, dtype = tf.float32)
+
         with tf.GradientTape() as tape:
             tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
             y = layer(input) # heir wird viel geprintet
@@ -261,10 +263,11 @@ def fit_model(config):
                 print("not dy_dx")
                 print("list dy_dx =", round(dy_dx,3))
             print("::::::::::::::::::::::::::::::::::::::::::::::")
-            for g in dy_dx:
-                print("dy_dx =", g)
-                print()
+            for g, name in zip(dy_dx, "IAB"):
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = -1)
+
         exit()
+
     elif config["get_gradient_of_first_batch"]:
         layer = CgpHmmLayer(config)
         layer.build(None)
