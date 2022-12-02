@@ -62,7 +62,7 @@ def get_call_backs(config, model):
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ak], name = "A_is_nan", summarize = -1)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ak], name = "B_is_nan", summarize = -1)
 
-            os.system(f"mkdir -p {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/")
+            Utility.run(f"mkdir -p {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/")
             os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/*")
 
             ik = [float(x) for x in ik]
