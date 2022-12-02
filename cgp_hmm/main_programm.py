@@ -25,9 +25,13 @@ parser.add_argument('-v', '--verbose', nargs = "?", const = "2", help ="verbose 
 parser.add_argument('-o', '--only_keep_verbose_of_last_batch', action='store_true', help ="only_keep_verbose_of_last_batch")
 parser.add_argument('-s', '--verbose_to_stdout', action='store_true', help ="verbose to stdout instead of to file")
 parser.add_argument('--cpu_gpu', action='store_true', help ="print whether gpu or cpu is used")
+parser.add_argument('--batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs', action='store_true', help ="batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs")
 parser.add_argument('--get_gradient_of_first_batch', action='store_true', help ="get_gradient_of_first_batch")
 parser.add_argument('--get_gradient_for_current_txt', action='store_true', help ="get_gradient_for_current_txt, previous run wrote IAB and inputbath to file -> get respective gradient")
-parser.add_argument('--most_recent_weights_and_inputs_to_file', action='store_true', help ="most_recent_weights_and_inputs_to_file")
+parser.add_argument('--get_gradient_in_layer', action='store_true', help ="get_gradient_for current values directly in the call of layer, but 'Gradient for SparseDenseCwiseAdd is not implemented.'")
+parser.add_argument('--get_gradient_from_saved_model_weights', action='store_true', help ="get_gradient_from_saved_model_weights, they are saved when passing --most_recent_weights_and_inputs_to_file")
+
+
 
 # debugging
 parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
@@ -62,8 +66,10 @@ config["learning_rate"] = args.learning_rate if args.learning_rate else 0.1
 if args.no_learning:
     config["learning_rate"] = 0
 config["dont_generate_new_seqs"] = args.dont_generate_new_seqs
-config["most_recent_weights_and_inputs_to_file"] = args.most_recent_weights_and_inputs_to_file
+config["batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs"] = args.batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs
 config["get_gradient_for_current_txt"] = args.get_gradient_for_current_txt
+config["get_gradient_in_layer"] = args.get_gradient_in_layer
+config["get_gradient_from_saved_model_weights"] = args.get_gradient_from_saved_model_weights
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])

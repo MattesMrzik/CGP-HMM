@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-import tensorflow as tf
-import numpy as np
 
 from Utility import higher_order_emission_to_id
 from Utility import append_time_ram_stamp_to_file
@@ -17,13 +15,16 @@ from Utility import get_indices_for_constants_from_emission_kernel_higher_order
 import time
 from random import randint
 from itertools import product
+import tensorflow as tf
+import numpy as np
+import json
 
 
 class CgpHmmCell(tf.keras.layers.Layer):
 # class CgpHmmCell(tf.keras.layers.Layer):
     def __init__(self, config):
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell init")
-        tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell init: tf")
+        # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell init")
+        # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell init: tf")
 
         start = time.perf_counter()
         run_id = randint(0,100)
@@ -110,53 +111,75 @@ class CgpHmmCell(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(start, f"Cell.build() start {run_id}", self.config["bench_path"])
 
 
-        self.init_kernel = self.add_weight(shape = (len(self.indices_for_I),),
-                                           initializer = "random_normal",
-                                           dtype = self.config["dtype"],
-                                           trainable=True, name = "init_kernel")
+        if self.config["get_gradient_for_current_txt"]:
+            with open(f"{self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_I.json") as file:
+                weights_I = np.array(json.load(file))
+                I_initializer = tf.constant_initializer(weights_I)
+            with open(f"{self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_A.json") as file:
+                weights_A = np.array(json.load(file))
+                A_initializer = tf.constant_initializer(weights_A)
+            with open(f"{self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_B.json") as file:
+                weights_B = np.array(json.load(file))
+                B_initializer = tf.constant_initializer(weights_B)
+        elif self.config["get_gradient_from_saved_model_weights"] and "model" in self.config:
+            weights = self.config["model"].get_weights()
+            # this causes error,
+            # try if txt is sufficient to get nan as gradient
+            I_initializer = tf.constant_initializer(weights[0])
+            A_initializer = tf.constant_initializer(weights[1])
+            B_initializer = tf.constant_initializer(weights[2])
+        else:
+            I_initializer="random_normal"
+            A_initializer="random_normal"
+            B_initializer="random_normal"
 
+        self.init_kernel = self.add_weight(shape = (len(self.indices_for_I),),
+                                           initializer = I_initializer,
+                                           dtype = self.config["dtype"],
+                                           trainable = True, name = "init_kernel")
 
         # full model
         if self.config["call_type"] == 4 and self.config["order_transformed_input"]:
             self.transition_kernel = self.add_weight(shape = (self.number_of_states,self.number_of_states),
-                                                     initializer="random_normal",
+                                                     initializer = A_initializer,
                                                      dtype = self.config["dtype"],
-                                                     trainable=True, name = "transition_kernel")
+                                                     trainable = True, name = "transition_kernel")
             how_many_emissions = (self.config["alphabet_size"] + 1) ** (self.config["order"] + 1 ) + 1
             self.emission_kernel = self.add_weight(shape = (how_many_emissions, self.number_of_states),
-                                                  initializer="random_normal",
+                                                  initializer = B_initializer,
                                                   dtype = self.config["dtype"],
-                                                  trainable=True, name = "emission_kernel")
+                                                  trainable = True, name = "emission_kernel")
         else:
             if self.config["use_weights_for_consts"]:
                 self.transition_kernel = self.add_weight(shape = (len(self.config["indices_for_A"]),),
-                                                         initializer="random_normal",
+                                                         initializer = A_initializer,
                                                          dtype = self.config["dtype"],
-                                                         trainable=True, name = "transition_kernel")
+                                                         trainable = True, name = "transition_kernel")
                 how_many_emissions = len(self.config["indices_for_B"])
                 if not self.config["order_transformed_input"]:
                     how_many_emissions = self.number_of_states * (self.alphabet_size + 2)**(self.order + 1)
 
                 self.emission_kernel = self.add_weight(shape = (how_many_emissions, ),
-                                                      initializer="random_normal",
+                                                      initializer = B_initializer,
                                                       dtype = self.config["dtype"],
-                                                      trainable=True, name = "emission_kernel")
+                                                      trainable = True, name = "emission_kernel")
 
                 # i need more weights for the indices that where for consts before
             else:
                 self.transition_kernel = self.add_weight(shape = (len(self.indices_for_weights_A),),
-                                                         initializer="random_normal",
+                                                         initializer = A_initializer,
                                                          dtype = self.config["dtype"],
-                                                         trainable=True, name = "transition_kernel")
+                                                         trainable = True, name = "transition_kernel")
 
                 how_many_emissions = len(self.indices_for_weights_B)
                 if not self.config["order_transformed_input"]:
                     how_many_emissions = self.number_of_states * (self.alphabet_size + 2)**(self.order + 1)
 
                 self.emission_kernel = self.add_weight(shape = (how_many_emissions, ),
-                                                      initializer="random_normal",
+                                                      initializer = B_initializer,
                                                       dtype = self.config["dtype"],
-                                                      trainable=True, name = "emission_kernel")
+                                                      trainable = True, name = "emission_kernel")
+
         visualize_after_build = False
         if visualize_after_build:
             import WriteData
@@ -612,7 +635,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
     @property
     def B_sparse(self):
         # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.emission_kernel)), [self.emission_kernel], name = "self.emission_kernel_when_at_property_B_sparse", summarize = -1)
-
+#
         if self.config["use_weights_for_consts"]:
             emission_matrix = tf.sparse.SparseTensor(indices = self.indices_for_B, \
                                                      values = self.emission_kernel, \

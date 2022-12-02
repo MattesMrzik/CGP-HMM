@@ -9,8 +9,10 @@ import json
 import re
 
 from Utility import run
-from Utility import append_time_ram_stamp_to_file
+from CallBacks import get_call_backs
 from Utility import transform_verbose_txt_to_csv
+from Utility import append_time_ram_stamp_to_file
+
 
 from CgpHmmLayer import CgpHmmLayer
 from ReadData import read_data_one_hot
@@ -109,137 +111,13 @@ def fit_model(config):
     output_path = f"bench/{nCodons}codons"
 
 
-    # class my_callback(tf.keras.callbacks.Callback):
-    #     def on_epoch_begin(self, epoch, logs = None):
-    #         print("model.weights")
-    #         print("A =", tf.nn.softmax(model.get_weights()[0]))
 
 
-    class write_time_epoch_start_callback(tf.keras.callbacks.Callback):
-        def on_epoch_begin(self, epoch, logs = None):
-            with open(f"{output_path}/callbackoutput_time_start.txt", "a") as file:
-                file.write(f"{time.time()}\n")
-    class write_time_epoch_end_callback(tf.keras.callbacks.Callback):
-        def on_epoch_end(self, epoch, logs = None):
-            with open(f"{output_path}/callbackoutput_time_end.txt", "a") as file:
-                file.write(f"{time.time()}\n")
 
-    # import os, psutil
-    # process = psutil.Process(os.getpid())
-
-    # todo: oder nicht epoch sondern batch
-    # on_train_batch_begin
-    class write_time_ram_epoch_start_callback(tf.keras.callbacks.Callback):
-        def on_epoch_begin(self, epoch, logs = None):
-            # with open(f"{output_path}/callbackoutput_ram_start.txt", "a") as file:
-            #     file.write(f"{process.memory_info().rss}\n")
-            append_time_ram_stamp_to_file(0, "epoch_begin", config["bench_path"])
-
-    class write_time_ram_epoch_end_callback(tf.keras.callbacks.Callback):
-        def on_epoch_end(self, epoch, logs = None):
-            # with open(f"{output_path}/callbackoutput_ram_end.txt", "a") as file:
-            #     file.write(f"{process.memory_info().rss}\n")
-                #                              oder vms     Virtual Memory Size
-            append_time_ram_stamp_to_file(0, "epoch_end", config["bench_path"])
-
-    class exit_after_first_batch(tf.keras.callbacks.Callback):
-        def on_train_batch_end(self, batch, logs = None):
-            # das vielleicht rein ins callback, da ja exit und der code hier dann ja gar nicht mehr erreicht wird
-            if config["verbose"] and config["exit_after_first_batch"]:
-                transform_verbose_txt_to_csv(f"{config['src_path']}/verbose/{nCodons}codons.txt", nCodons)
-            exit(1)
-
-    class exit_after_loglik_is_nan(tf.keras.callbacks.Callback):
-        def on_train_batch_end(self, batch, logs = None):
-            if tf.math.reduce_any(tf.math.is_nan(logs["loglik"])):
-                print("loglik_mean contained nan")
-                exit(1)
-
-    class remove_verbose_at_batch_begin(tf.keras.callbacks.Callback):
-        def on_train_batch_begin(self, batch, logs = None):
-            os.system(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
-
-    class write_weights_to_file_and_exit_when_nan(tf.keras.callbacks.Callback):
-        def on_train_batch_begin(self, batch, logs = None):
-            ik, ak, bk = model.get_weights()
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ak], name = "I_is_nan", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ak], name = "A_is_nan", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ak], name = "B_is_nan", summarize = -1)
-
-            os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/current_I.json")
-            os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/current_A.json")
-            os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/current_B.json")
-
-            # in layer, inputs is written to file
-            os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/current_inputs.txt")
-
-            ik = [float(x) for x in ik]
-            ak = [float(x) for x in ak]
-            bk = [float(x) for x in bk]
-
-            with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_I.json", "w") as file:
-                json.dump(ik, file)
-            with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_A.json", "w") as file:
-                json.dump(ak, file)
-            with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_B.json", "w") as file:
-                json.dump(bk, file)
-
-
-    class get_the_gradient(tf.keras.callbacks.Callback):
-
-        # def get_weight_grad(model, inputs, outputs):
-        #     """ Gets gradient of model for given inputs and outputs for all weights"""
-        #     grads = model.optimizer.get_gradients(model.total_loss, model.trainable_weights)
-        #     symb_inputs = (model._feed_inputs + model._feed_targets + model._feed_sample_weights)
-        #     f = K.function(symb_inputs, grads)
-        #     x, y, sample_weight = model._standardize_user_data(inputs, outputs)
-        #     output_grad = f(x + y + sample_weight)
-        #     return output_grad
-
-        # also print the gradient on batch begin
-        def on_train_batch_begin(self, batch, logs = None):
-            pass
-
-    # checkpoint_path = "training_1/cp.ckpt"
-    # cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
-    #                                                  save_weights_only=True,
-    #                                                  verbose=1)
-
-
-    # callbacks = [tf.keras.callbacks.LambdaCallback(on_epoch_end = lambda epoch, logs: print("A =", tf.nn.softmax(model.get_weights()[0])))]
-    callbacks = []
-    callbacks = [write_time_ram_epoch_start_callback(),
-                 write_time_ram_epoch_end_callback()]
-
-    if "exit_after_first_batch" in config and config["exit_after_first_batch"]:
-        callbacks += [exit_after_first_batch()]
-    if "exit_after_loglik_is_nan" in config and config["exit_after_loglik_is_nan"]:
-        callbacks += [exit_after_loglik_is_nan()]
-    if "only_keep_verbose_of_last_batch" in config and config["only_keep_verbose_of_last_batch"]:
-        callbacks += [remove_verbose_at_batch_begin()]
-    if "most_recent_weights_and_inputs_to_file" in config and config["most_recent_weights_and_inputs_to_file"]:
-        callbacks += [write_weights_to_file_and_exit_when_nan()]
-
-    callbacks += [get_the_gradient()]
-
-    if config["get_gradient_for_current_txt"]:
-        layer = CgpHmmLayer(config)
-        layer.build(None)
-        layer.C.build(None)
-
-        # getting weights from files, which where written the last time the main_programm was run
-        with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_I.json") as file:
-            weights_I = np.array(json.load(file))
-        with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_A.json") as file:
-            weights_A = np.array(json.load(file))
-        with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_B.json") as file:
-            weights_B = np.array(json.load(file))
-        weights = [weights_I, weights_A, weights_B]
-        layer.C.set_weights(weights)
-
-        # assuming that inputs are formatted in shape batch, seq_len, one_hot_dim = 32, l, 126
+################################################################################
+    def get_batch_input_from_file():
         input = []
-        with open(f"{config['src_path']}/output/{config['nCodons']}codons/current_inputs.txt", "r") as file:
+        with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt", "r") as file:
             seq = []
             for line in file:
                 line = line.strip()
@@ -253,26 +131,48 @@ def fit_model(config):
                     seq.append(line)
             if len(seq) != 0:
                 input.append(seq)
-        input = tf.constant(input, dtype = tf.float32)
+        return tf.constant(input, dtype = tf.float32)
 
-        with tf.GradientTape() as tape:
-            tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-            y = layer(input) # heir wird viel geprintet
-            dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-            if not dy_dx:
-                print("not dy_dx")
-                print("list dy_dx =", round(dy_dx,3))
-            print("::::::::::::::::::::::::::::::::::::::::::::::")
-            for g, name in zip(dy_dx, "IAB"):
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = -1)
+                    # use this instead to get easy access to gradients
+                    # but then i have to manually do data management ie splitting into batches
 
-        exit()
+                    # optimizer = tf.optimizers.Adam()
+                    # def optimize(x, y):
+                    #     with tf.GradientTape() as tape:
+                    #         predictions = network(x, is_training=True)
+                    #         loss = cross_entropy_loss(predictions, y)
+                    #     gradients = tape.gradient(loss, model.trainable_variables)
+                    #     gradients = [(tf.clip_by_value(grad, clip_value_min=-1.0, clip_value_max=1.0)) for grad in gradients]
+                    #     optimizer.apply_gradients(zip(gradients,     model.trainable_variables))
 
-    elif config["get_gradient_of_first_batch"]:
+################################################################################
+    if config["get_gradient_for_current_txt"] or config["get_gradient_from_saved_model_weights"]:
+
+        if config["get_gradient_from_saved_model_weights"]:
+            model, cgp_hmm_layer = make_model(config)
+            model.load_weights(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_weights")
+            config["model"] = model
+            print('config["model"]', config["model"])
+
         layer = CgpHmmLayer(config)
         layer.build(None)
         layer.C.build(None)
 
+        # assuming that inputs are formatted in shape batch, seq_len, one_hot_dim = 32, l, 126
+        input = get_batch_input_from_file()
+        with tf.GradientTape() as tape:
+            y = layer(input) # eventuell wird hier die cell nochmal gebaut und das weight setzen davor bringt nichts
+            dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+            for g, name in zip(dy_dx, "IAB"):
+                tf.print(f"gradient for {name}", g)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = -1)
+
+        exit()
+################################################################################
+    elif config["get_gradient_of_first_batch"]:
+        layer = CgpHmmLayer(config)
+        layer.build(None)
+        layer.C.build(None)
 
         first_batch = seqs[:32] # not one hot, not padded
         # pad seqs:
@@ -303,7 +203,7 @@ def fit_model(config):
                 # print("dy_dx.numpy() =", g.numpy())
                 print()
         exit()
-
+################################################################################
     else:
         if num_gpu > 1:
             mirrored_strategy = tf.distribute.MirroredStrategy()
@@ -319,7 +219,7 @@ def fit_model(config):
                 start = time.perf_counter()
                 run_id = randint(0,100)
                 append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
-                history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
+                history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
                 append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
         else:
              model, cgp_hmm_layer = make_model(config)
@@ -333,20 +233,8 @@ def fit_model(config):
              start = time.perf_counter()
              run_id = randint(0,100)
              append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
-             history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = callbacks) # with callbacks it is way slower
+             history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
              append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
 
-
-            # use this instead to get easy access to gradients
-            # but then i have to manually do data management ie splitting into batches
-
-            # optimizer = tf.optimizers.Adam()
-            # def optimize(x, y):
-            #     with tf.GradientTape() as tape:
-            #         predictions = network(x, is_training=True)
-            #         loss = cross_entropy_loss(predictions, y)
-            #     gradients = tape.gradient(loss, model.trainable_variables)
-            #     gradients = [(tf.clip_by_value(grad, clip_value_min=-1.0, clip_value_max=1.0)) for grad in gradients]
-            #     optimizer.apply_gradients(zip(gradients,     model.trainable_variables))
 
     return model, history

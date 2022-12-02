@@ -6,6 +6,7 @@ import tracemalloc
 from random import randint
 import traceback
 import json
+import os
 # from memory_profiler import profile
 # WARNING:tensorflow:AutoGraph could not transform <bound method LineProfiler.wrap_function of <memory_profiler.LineProfiler object at 0x7fd8c4032af0>> and will run it as-is.
 # Cause: generators are not supported
@@ -14,6 +15,8 @@ import json
 from Utility import description_to_state_id
 from Utility import append_time_stamp_to_file
 from Utility import append_time_ram_stamp_to_file
+
+from CgpHmmLayer_non_recursive import CgpHmmLayer_non_recursive
 
 from Utility import tfprint
 
@@ -24,8 +27,8 @@ def prRed(skk): print("Layer\033[96m {}\033[00m" .format(skk))
 
 class CgpHmmLayer(tf.keras.layers.Layer):
     def __init__(self, config):
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init")
-        tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init: tf")
+        # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init")
+        # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init: tf")
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Layer.init() start {run_id}", config["bench_path"])
@@ -37,8 +40,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(start, f"Layer.init() end  {run_id}", self.config["bench_path"])
 
     def build(self, inputs):
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer build")
-        tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer build: tf")
+        # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer build")
+        # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer build: tf")
 
         start = time.perf_counter()
         run_id = randint(0,100)
@@ -58,6 +61,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
     def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call: tf")
+
+
 
         start = time.perf_counter()
         run_id = randint(0,100)
@@ -81,10 +86,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         alpha_state = result[3]
         loglik_state = result[4]
         count_state = result[5]
+
         # if self.C.order > 0 and not self.C.order_transformed_input : # or True to checksquare
         #     old_state = result[6]
-        if "most_recent_weights_and_inputs_to_file" in self.config and self.config["most_recent_weights_and_inputs_to_file"]:
-            outstream = f"file://{self.config['src_path']}/output/{self.config['nCodons']}codons/current_inputs.txt"
+
+        if "batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs" in self.config and self.config["batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs"]:
+            os.system(f"rm {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
+            outstream = f"file://{self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt"
             # also remove the file at beginning of batch
             # out_inputs = tf.argmax(inputs, axis = 2)
             # out_inputs = [[int(base) for base in seq]for seq in out_inputs]
@@ -173,6 +181,38 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # AttributeError: Tensor.op is meaningless when eager execution is enabled.
         # grads = tf.gradients(my_loss(loglik_state), [self.C.init_kernel], stop_gradients = [self.C.init_kernel])
         # tfprint(grads)
+
+        # do not change this line
+        # --->
+
+        # Gradient for SparseDenseCwiseAdd is not implemented.
+
+        # use the option create_layer_without_recursive_call of Utility.py
+        # to create a CgpHmmLayer_non_recursive.py file the same as this one, except this new call to the layer
+        # this file will be used when calculating the gradient with tape
+        if self.config["get_gradient_in_layer"]:
+            layer = CgpHmmLayer_non_recursive(self.config)
+            layer.build(None)
+            layer.C.build(None)
+            # maybe this works?
+            layer.C.init_kernel = self.C.init_kernel
+            layer.C.transition_kernel = self.C.transition_kernel
+            layer.C.emission_kernel = self.C.emission_kernel
+            # init_kernel = self.C.init_kernel
+            # transition_kernel = self.C.transition_kernel
+            # emission_kernel = self.C.emission_kernel
+            # layer.set_weights([init_kernel, transition_kernel, emission_kernel])
+
+            with tf.GradientTape() as tape:
+                y = layer(inputs)
+                dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+
+                for g, name in zip(dy_dx, "IAB"):
+                    tf.print(name, g)
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = -1)
+
+            # <---
+        # do not change this line
 
         append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config["bench_path"])
         return loglik_state

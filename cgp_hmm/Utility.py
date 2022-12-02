@@ -1028,20 +1028,34 @@ def brute_force_viterbi_log_version(a,b,y,a0 = []):
 ################################################################################
 ################################################################################
 ################################################################################
+def create_layer_without_recursive_call():
+    with open("CgpHmmLayer.py", "r") as layer:
+        with open("CgpHmmLayer_non_recursive.py", "w") as copy:
+            in_recursive_call = False
+            for line in layer:
+                if re.search("# do not change this line", line):
+                    in_recursive_call = not in_recursive_call
+                elif not in_recursive_call and not re.search("CgpHmmLayer_non_recursive", line):
+                    line = re.sub("CgpHmmLayer","CgpHmmLayer_non_recursive",line)
+                    copy.write(line)
+################################################################################
+################################################################################
+################################################################################
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(
         description='pass "-f filename" to transfrom verbose output of E,R,alpha to csv\nand "-c [int]" for nCodons\nmust have -b option when running main_programm')
-    parser.add_argument('-f', '--filename',
-                        help='pass "-f filename" to transfrom verbose output of E,R,alpha to csv', required = True)
-    parser.add_argument('-c', '--nCodons',
-                        help ='nCodons', required = True)
+    parser.add_argument('-f', '--filename',help='pass "-f filename" to transfrom verbose output of E,R,alpha to csv')
+    parser.add_argument('-c', '--nCodons',help ='nCodons')
     parser.add_argument('-p', action='store_true', help ="plot bench folder")
+    parser.add_argument('--create_layer_without_recursive_call', action='store_true', help = 'create_layer_without_recursive_call, create a copy of CgpHmmLayer but without the recursive call which is used for calculating the gradient')
 
     args = parser.parse_args()
     if args.p:
         plot_time_and_ram("bench", extrapolate = 1, degree = 2)
-    else:
+    elif args.nCodons and args.filename:
         if args.filename and args.nCodons:
             transform_verbose_txt_to_csv(args.filename, int(args.nCodons))
+    elif args.create_layer_without_recursive_call:
+        create_layer_without_recursive_call()
