@@ -80,6 +80,7 @@ from Utility import get_indices_for_weights_from_emission_kernel_higher_order
 from Utility import get_indices_for_constants_from_emission_kernel_higher_order
 from Utility import get_indices_from_initial_kernel
 from Utility import run
+import Utility
 
 nCodons = config["nCodons"]
 
@@ -89,24 +90,9 @@ run(f"mkdir -p {'/'.join(config['bench_path'].split('/')[:-1])}")
 run(f"rm {config['src_path']}/{config['bench_path']}")
 run(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
 
-config["indices_for_weights_A"] = get_indices_for_weights_from_transition_kernel_higher_order(config)
-config["indices_for_constants_A"] = get_indices_for_constants_from_transition_kernel_higher_order(config)
-config["indices_for_A"] = config["indices_for_weights_A"] + config["indices_for_constants_A"]
+Utility.get_indices_for_config(config)
 
-config["indices_for_weights_B"] = get_indices_for_weights_from_emission_kernel_higher_order(config)
-config["indices_for_constants_B"] = get_indices_for_constants_from_emission_kernel_higher_order(config)
-config["indices_for_B"] = config["indices_for_weights_B"] + config["indices_for_constants_B"]
-
-config["indices_for_I"] = get_indices_from_initial_kernel(config)
-
-
-print("=====> config <========================================================")
-# print("config =", config)
-
-maxlen_key = max([len(key) for key in config.keys()])
-for key,value in config.items():
-    print(f"{' '*(maxlen_key-len(key))}{key}: {str(value)[:50]}{' ...' if len(str(value)) > 50 else ''}")
-print("=====> config <========================================================")
+print_config(config)
 
 import tensorflow as tf
 import matplotlib.pyplot as plt

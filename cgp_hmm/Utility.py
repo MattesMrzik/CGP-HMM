@@ -187,6 +187,28 @@ def get_indices_and_values_from_transition_kernel_higher_order(config, w):
 
     return indices, values
 ################################################################################
+def get_indices_for_config(config):
+    config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
+    config["indices_for_weights_A"] = get_indices_for_weights_from_transition_kernel_higher_order(config)
+    config["indices_for_constants_A"] = get_indices_for_constants_from_transition_kernel_higher_order(config)
+    config["indices_for_A"] = config["indices_for_weights_A"] + config["indices_for_constants_A"]
+
+    config["indices_for_weights_B"] = get_indices_for_weights_from_emission_kernel_higher_order(config)
+    config["indices_for_constants_B"] = get_indices_for_constants_from_emission_kernel_higher_order(config)
+    config["indices_for_B"] = config["indices_for_weights_B"] + config["indices_for_constants_B"]
+
+    config["indices_for_I"] = get_indices_from_initial_kernel(config)
+################################################################################
+def print_config(config):
+    # print("config =", config)
+    s = "=====> config <====================================================\n"
+    maxlen_key = max([len(key) for key in config.keys()])
+    for key,value in config.items():
+        s += (f"{' '*(maxlen_key-len(key))}{key}: {str(value)[:50]}{(' ..., shape: ' + str(tf.shape(value).numpy())) if len(str(value)) > 50 else ''}")
+        s += "\n"
+    s += "=====> config <===================================================="
+    print(s)
+################################################################################
 def nucleotide_ambiguity_code_to_array(emission):
     # todo: somehow having this dict as self.code made it slower, why???
     code = {
@@ -629,7 +651,6 @@ def transform_verbose_txt_to_csv(path, nCodons):
     #             for data in log[count][id][description]:
     #                 print(count,id,description,data, sep = "\t")
 
-
     with open(path + ".csv","w") as file:
         import numpy as np
         sep = ";"
@@ -664,7 +685,7 @@ def transform_verbose_txt_to_csv(path, nCodons):
                 file.write("\n")
             break
 
-        for i in sorted(list(log)):
+        for i in sorted(list(log)): # sort by count
             for id in log[i]:
                 file.write(str(id)+"_")
                 max_len = max([len(v) for k,v in log[i][id].items() if k not in ["A","B"]])

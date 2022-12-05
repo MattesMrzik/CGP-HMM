@@ -39,7 +39,7 @@ def get_call_backs(config, model):
         def on_train_batch_end(self, batch, logs = None):
             # das vielleicht rein ins callback, da ja exit und der code hier dann ja gar nicht mehr erreicht wird
             if config["verbose"] and config["exit_after_first_batch"]:
-                transform_verbose_txt_to_csv(f"{config['src_path']}/verbose/{nCodons}codons.txt", nCodons)
+                Utility.transform_verbose_txt_to_csv(f"{config['src_path']}/verbose/{config['nCodons']}codons.txt", config['nCodons'])
             exit(1)
 
     class exit_after_loglik_is_nan(tf.keras.callbacks.Callback):
@@ -53,14 +53,14 @@ def get_call_backs(config, model):
 
     class remove_verbose_at_batch_begin(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
-            os.system(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
+            os.system(f"rm {config['src_path']}/verbose/{config['nCodons']}codons.txt")
 
     class batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
             ik, ak, bk = model.get_weights()
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ak], name = "I_is_nan", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ak], name = "A_is_nan", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ak], name = "B_is_nan", summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ik,ak,bk], name = "I_kernel_is_nan", summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ik,ak,bk], name = "A_kernel_is_nan", summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ik,ak,bk], name = "B_kernel_is_nan", summarize = -1)
 
             Utility.run(f"mkdir -p {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/")
             os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/*")

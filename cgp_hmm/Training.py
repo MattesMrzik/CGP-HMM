@@ -112,54 +112,23 @@ def fit_model(config):
 
 
 
-
-
-################################################################################
-    def get_batch_input_from_file():
-        input = []
-        with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt", "r") as file:
-            seq = []
-            for line in file:
-                line = line.strip()
-                if len(line) == 0:
-                    input.append(seq)
-                    seq = []
-                else:
-                    line = re.sub("[\[\]]","", line)
-                    line = line.split(" ")
-                    line = [float(x) for x in line]
-                    seq.append(line)
-            if len(seq) != 0:
-                input.append(seq)
-        return tf.constant(input, dtype = tf.float32)
-
-                    # use this instead to get easy access to gradients
-                    # but then i have to manually do data management ie splitting into batches
-
-                    # optimizer = tf.optimizers.Adam()
-                    # def optimize(x, y):
-                    #     with tf.GradientTape() as tape:
-                    #         predictions = network(x, is_training=True)
-                    #         loss = cross_entropy_loss(predictions, y)
-                    #     gradients = tape.gradient(loss, model.trainable_variables)
-                    #     gradients = [(tf.clip_by_value(grad, clip_value_min=-1.0, clip_value_max=1.0)) for grad in gradients]
-                    #     optimizer.apply_gradients(zip(gradients,     model.trainable_variables))
-
 ################################################################################
     if config["get_gradient_for_current_txt"] or config["get_gradient_from_saved_model_weights"]:
 
+        # when accessing config["model"] in cell.call -> recursion error
         if config["get_gradient_from_saved_model_weights"]:
             model, cgp_hmm_layer = make_model(config)
             model.load_weights(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_weights")
             config["model"] = model
+            config["weights"] = model.get_weights()
             print('config["model"]', config["model"])
 
         layer = CgpHmmLayer(config)
         layer.build(None)
         layer.C.build(None)
-
+        import ReadData
         # assuming that inputs are formatted in shape batch, seq_len, one_hot_dim = 32, l, 126
-        input = get_batch_input_from_file()
+        input = ReadData.get_batch_input_from_tf_printed_file(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
         with tf.GradientTape() as tape:
             y = layer(input) # eventuell wird hier die cell nochmal gebaut und das weight setzen davor bringt nichts
             dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])

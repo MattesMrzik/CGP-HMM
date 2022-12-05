@@ -102,7 +102,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         #
         # return(s)
 
-    def build(self, input_shape):
+    def build(self, s):
         print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build")
         tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build: tf")
 
@@ -121,10 +121,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
             with open(f"{self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_B.json") as file:
                 weights_B = np.array(json.load(file))
                 B_initializer = tf.constant_initializer(weights_B)
-        elif self.config["get_gradient_from_saved_model_weights"] and "model" in self.config:
-            weights = self.config["model"].get_weights()
+        # elif self.config["get_gradient_from_saved_model_weights"] and "model" in self.config:
+        elif self.config["get_gradient_from_saved_model_weights"] and "weights" in self.config:
+            # weights = self.config["model"].get_weights()
             # this causes error,
             # try if txt is sufficient to get nan as gradient
+
+            weights = config["weights"]
             I_initializer = tf.constant_initializer(weights[0])
             A_initializer = tf.constant_initializer(weights[1])
             B_initializer = tf.constant_initializer(weights[2])
@@ -827,6 +830,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
             Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
             R /= Z_i_minus_1
+            verbose_print("Z_i_minus_1", Z_i_minus_1)
             if check_assert:
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",      summarize = -1)
                 tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero",      summarize = -1)

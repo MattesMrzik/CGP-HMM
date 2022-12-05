@@ -5,6 +5,7 @@ import numpy as np
 from Bio import SeqIO
 from Utility import run
 from Utility import higher_order_emission_to_id
+import re
 
 def read_data_one_hot(path, alphabet = ["A","C","G","T"]):
     seqs = []
@@ -51,3 +52,21 @@ def read_data_with_order(path, order, alphabet = ["A","C","G","T"], verbose = Fa
             seqs.append(seq_of_tuple_ids)
     log(f"read {len(seqs)} sequnces")
     return seqs
+
+def get_batch_input_from_tf_printed_file(path):
+    input = []
+    with open(path, "r") as file:
+        seq = []
+        for line in file:
+            line = line.strip()
+            if len(line) == 0:
+                input.append(seq)
+                seq = []
+            else:
+                line = re.sub("[\[\]]","", line)
+                line = line.split(" ")
+                line = [float(x) for x in line]
+                seq.append(line)
+        if len(seq) != 0:
+            input.append(seq)
+    return tf.constant(input, dtype = tf.float32)

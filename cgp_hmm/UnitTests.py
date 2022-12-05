@@ -11,6 +11,7 @@ from Utility import id_to_higher_order_emission
 import Utility
 from itertools import product
 import os
+import re
 
 config = {}
 config["nCodons"] = 1
@@ -20,6 +21,16 @@ config["call_type"] = 3 # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:ful
 
 config["alphabet_size"] = 4
 config["bench_path"] = f"./bench/unittest"
+config["src_path"] = "."
+config["dtype"] = tf.float32
+config["get_gradient_for_current_txt"] = False
+config["get_gradient_from_saved_model_weights"] = False
+config["use_weights_for_consts"] = False
+config["verbose"] = False
+config["weaken_softmax"] = False
+config["get_gradient_in_layer"] = False
+Utility.get_indices_for_config(config)
+
 
 import argparse
 
@@ -70,7 +81,7 @@ class TestUtiliy(unittest.TestCase):
 
 class TestCgpHmmCell(unittest.TestCase):
 
-    def test_get_indices_for_weights_from_transition_kernel_higher_order(self):
+    def off_test_get_indices_for_weights_from_transition_kernel_higher_order(self):
         local_config = config.copy()
         local_config["nCodons"] = 100
         cell = CgpHmmCell(local_config)
@@ -82,6 +93,7 @@ class TestCgpHmmCell(unittest.TestCase):
 
         local_config = config.copy()
         local_config["nCodons"] = 2
+        Utility.get_indices_for_config(local_config)
         cell = CgpHmmCell(local_config) # for 2 codons
 
         for i in range(cell.number_of_states):
@@ -331,23 +343,45 @@ class TestForward(unittest.TestCase):
             import ReadData
             import WriteData
             from Utility import run
+            import json
 
             local_config = config.copy()
             local_config["nCodons"] = 2
-            local_config["write_return_sequnces"] = True
-            # >seq1
-            # ACATGCAAGGTTAATTG
-            # >seq2
-            # CACATGCAAGGTTAAT
-            # >seq3
-            # ACATGCAAGGTTA
+            # see layer.py
+            local_config["write_return_sequnces"] = True # doesnt write A, B, E, R, alpha, ..., but only the return_seqs if rnn
+            Utility.get_indices_for_config(local_config)
 
-            input_seqs = ["ACATGCAAGGTTAATTG", "CACATGCAAGGTTAAT", "ACATGCAAGGTTA"]
-            input_seqs = ["ACATGCAAGGTTAATTG", "CCCATGGTACGCTAAG", "AGATGCCCTGGTAGA"]
+            use_batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs = True
+            if not use_batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs:
+                # >seq1
+                # ACATGCAAGGTTAATTG
+                # >seq2
+                # CACATGCAAGGTTAAT
+                # >seq3
+                # ACATGCAAGGTTA
+                input_seqs = ["ACATGCAAGGTTAATTG", "CACATGCAAGGTTAAT", "ACATGCAAGGTTA"]
+                input_seqs = ["ACATGCAAGGTTAATTG", "CCCATGGTACGCTAAG", "AGATGCCCTGGTAGA"]
+            if use_batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs:
+
+
+                # or get seqs from batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs
+                input_seqs = ReadData.get_batch_input_from_tf_printed_file(f"{local_config['src_path']}/output/{local_config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
+                input_seqs = [[Utility.id_to_higher_order_emission(np.argmax(one_hot_emission), local_config["alphabet_size"], local_config["order"]) [-1] \
+                              for one_hot_emission in seq] for seq in input_seqs]
+                input_seqs = ["".join(["ACGT"[base] if base != 5 else "" for base in seq]) for seq in input_seqs]
+
+                # TODO: set weights of cell from current files
+                # TODO: not only compare the manual run to the fit + return seqs in unit test, but also to
+                # the alphas that can be obtained from verbose from the main_programm run which created also the current.txt files
+            # print(input_seqs)
             max_len = max([len(seq) for seq in input_seqs])
 
             os.system("mkdir -p output/for_unit_tests")
 
+            Utility.print_config(local_config)
+
+            # bc i only use the first seq in manual forward,
+            # i have to shuffle the data seq, such that every seq is at the first position at some point
             for i in range(len(input_seqs)):
                 local_config["fasta_path"] = f"output/for_unit_tests/{i}_out.seqs.2codons.fa"
                 # if i != 1:
@@ -363,7 +397,6 @@ class TestForward(unittest.TestCase):
 
                 # run(f"cat {local_config['fasta_path']}")
 
-                os.system("rm ./output/for_unit_tests/manual_forward.txt")
                 os.system("rm ./output/for_unit_tests/return_sequnces.txt")
 
                 model, cgp_hmm_layer = Training.make_model(local_config)
@@ -374,25 +407,24 @@ class TestForward(unittest.TestCase):
                 model.compile(optimizer = optimizer)
 
                 data_set, seqs = Training.make_dataset(local_config)
-                # for seq in seqs:
-                #     print(seq)
 
 
                 cell = CgpHmmCell(local_config)
-                cell.transition_kernel = model.get_weights()[0]
-                cell.emission_kernel = model.get_weights()[1]
-                cell.init_kernel = model.get_weights()[2]
+                cell.init_kernel = model.get_weights()[0]
+                cell.transition_kernel = model.get_weights()[1]
+                cell.emission_kernel = model.get_weights()[2]
 
-                history = model.fit(data_set, epochs=1, steps_per_epoch=1)
+                print_shapes = False
+                if print_shapes:
+                    print("cell.init_kernel       =", tf.shape(cell.init_kernel))
+                    print("cell.transition_kernel =", tf.shape(cell.transition_kernel))
+                    print("cell.emission_kernel   =", tf.shape(cell.emission_kernel))
+                    print("indices_for_I          =", tf.shape(local_config["indices_for_I"]))
+                    print("indices_for_weights_A  =", tf.shape(local_config["indices_for_weights_A"]))
+                    print("indices_for_weights_B  =",tf.shape(local_config["indices_for_weights_B"]))
 
-                WriteData.write_order_transformed_B_to_csv(cell.B_dense, f"output/for_unit_tests/B.csv", local_config["order"], local_config["nCodons"])
-                WriteData.write_to_file(cell.A_dense, f"output/for_unit_tests/A.txt")
-                WriteData.write_to_file(tf.transpose(cell.B_dense), f"output/for_unit_tests/B.txt")
-                WriteData.write_to_file(cell.I_dense, f"output/for_unit_tests/I.txt")
-
-                with open("./output/for_unit_tests/seq.txt","w") as file:
-                    file.write(','.join([str(id) for id in seqs[0]]))
-                    file.write("\n")
+                # get weights must be before this here, since in fit the weights are change in the end
+                history = model.fit(data_set, epochs=1, steps_per_epoch = 1)
 
                 alpha, z = Utility.forward_felix_version(cell.A_dense, \
                                                          cell.B_dense, \
@@ -401,63 +433,38 @@ class TestForward(unittest.TestCase):
                                                          * (max_len - len(seqs[0])), \
                                                          a0 = cell.I_dense)
 
-                outstream = f"file://./output/for_unit_tests/manual_forward.txt"
-                tf.print(alpha, summarize = -1, output_stream = outstream)
 
+                def write_info():
+                    os.system("rm ./output/for_unit_tests/manual_forward.txt")
+                    outstream = f"file://./output/for_unit_tests/manual_forward.txt"
+                    tf.print(alpha, summarize = -1, output_stream = outstream)
+
+                    WriteData.write_order_transformed_B_to_csv(cell.B_dense, f"output/for_unit_tests/B.csv", local_config["order"], local_config["nCodons"])
+                    WriteData.write_to_file(cell.A_dense, f"output/for_unit_tests/A.txt")
+                    WriteData.write_to_file(tf.transpose(cell.B_dense), f"output/for_unit_tests/B.txt")
+                    WriteData.write_to_file(cell.I_dense, f"output/for_unit_tests/I.txt")
+
+                    with open("./output/for_unit_tests/seq.txt","w") as file:
+                        file.write(','.join([str(id) for id in seqs[0]]))
+                        file.write("\n")
+
+                # this file is written in layer when "write_return_sequnces" is True in config
                 with open("output/for_unit_tests/return_sequnces.txt", "r") as file:
                     for j, line in enumerate(file):
                         line = line.split(";")[2]
                         line = line[1:-2].split(" ")
                         line = list(map(float, line))
                         for k, entry in enumerate(line):
-                            if abs(entry - alpha[k,j]) > 0.000000001:
-                                print("i =", j, "state =", k)
+                            places = 6
+                            epsilon = float(f"1e-{places}")
+                            if abs(entry - alpha[k,j]) > epsilon:
+                                print("i =", j, ", state =", k)
                                 print(f"tf = {entry} != {alpha[k,j]} hand")
                             #                      tf     hand
-                            self.assertAlmostEqual(entry, alpha[k,j], places = 6)
+                            self.assertAlmostEqual(entry, alpha[k,j], places = places)
 
                 print("-----------------------------------------------------------")
 
-            # cgp_hmm_layer = CgpHmmLayer(local_config)
-            #   alphabet_size + 1) ** (order + 1) + 1
-            # emissions_size = 126
-            #
-            # batch_size = 32
-            #
-            # inputs = ReadData.read_data_with_order("output/for_unit_tests/out.seqs.2codons.fa", config["order"], verbose = False)
-            # # pad some seqs
-            # inputs = [seq + [emissions_size-1] * (i%5) for i, seq in enumerate(inputs) if i < batch_size]
-            # max_seq_len = max([len(seq) for seq in inputs])
-            # inputs = [seq + [emissions_size-1] * (max_seq_len-len(seq)) for seq in inputs]
-            # def to_one_hot(seq):
-            #     return tf.cast(tf.one_hot(seq, emissions_size), dtype=tf.float32)
-            # inputs = list(map(to_one_hot, inputs))
-            # for seq in inputs:
-            #     print(seq)
-            #
-            # if batch_size == 1:
-            #     inputs = tf.expand_dims(inputs, axis = 0)
-            #
-            # #  this didnt work, trying now with calling F()
-            # # model, cgp_hmm_layer = Training.make_model(config)
-            # # model(inputs)
-            #
-            # #                             is this batch_size or rather seq_len?
-            # cgp_hmm_layer.build("inputs usnt used in buid")
-            #
-            # result = cgp_hmm_layer.F(inputs) #  build and call of CgpHmmCell are called
-            # # tf.print("after result = self.F(inputs)")
-            #
-            # alpha_seq = result[0]
-            # inputs_seq = result[1]
-            # count_seq = result[2]
-            # alpha_state = result[3]
-            # loglik_state = result[4]
-            # count_state = result[5]
-            #
-            # a = cgp_hmm_layer.C.A_dense()
-            # b = cgp_hmm_layer.C.B_dense()
-            # i = cgp_hmm_layer.C.I_dense()
 
     # manual forward <-- using the z of manual --> manual scaled forward
     def test_manual_scaled_forward_to_manual_true_forward(self):
