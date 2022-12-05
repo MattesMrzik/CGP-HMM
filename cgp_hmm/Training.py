@@ -97,10 +97,19 @@ def fit_model(config):
     num_gpu = len(tf.config.experimental.list_logical_devices('GPU'))
     print("Using", num_gpu, "GPUs.tf.config.experimental.list_logical_devices('GPU')")
 
-    if "clip_gradient_by_value" in config:
-        optimizer = tf.optimizers.Adam(config["learning_rate"], clipvalue = config["clip_gradient_by_value"])
+    if config["optimizer"] == "Adam":
+        if "clip_gradient_by_value" in config:
+            # optimizer = tf.optimizers.Adam(config["learning_rate"], clipvalue = config["clip_gradient_by_value"])
+            optimizer = tf.optimizers.Adam(config["learning_rate"], clipvalue = config["clip_gradient_by_value"])
+        else:
+            # optimizer = tf.optimizers.Adam(config["learning_rate"])
+            optimizer = tf.optimizers.Adam(config["learning_rate"])
+    elif config["optimizer"] == "SGD":
+        optimizer = tf.optimizers.SGD(config["learning_rate"])
     else:
-        optimizer = tf.optimizers.Adam(config["learning_rate"])
+        print("setting optimizer didnt work")
+        exit(1)
+
      # manual call to forward algo
 
     # _, seqs = make_dataset()# first return value is data_set
@@ -116,8 +125,9 @@ def fit_model(config):
     if config["get_gradient_for_current_txt"] or config["get_gradient_from_saved_model_weights"]:
 
         # when accessing config["model"] in cell.call -> recursion error
+        model, cgp_hmm_layer = make_model(config)
+        model.compile(optimizer = optimizer)
         if config["get_gradient_from_saved_model_weights"]:
-            model, cgp_hmm_layer = make_model(config)
             model.load_weights(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_weights")
             # config["model"] = model
             # print('config["model"]', config["model"])
@@ -132,9 +142,16 @@ def fit_model(config):
         with tf.GradientTape() as tape:
             y = layer(input) # eventuell wird hier die cell nochmal gebaut und das weight setzen davor bringt nichts
             dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+
             for g, name in zip(dy_dx, "IAB"):
                 tf.print(f"gradient for {name}", g)
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = -1)
+
+            # TODO: this doesnt work
+            # gradient_of_optimizer = optimizer.compute_gradients(y, [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], tape) # todo: this might not have "meta" parameters that change over time, but i dont even know if any exist
+            # for g, name in zip(gradient_of_optimizer, ["i_grad_optimizer", "a_grad_optimizer", "b_grad_optimizer"]):
+            #     tf.print(f"gradient for {name}", g)
+            #     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = -1)
 
         exit()
 ################################################################################
@@ -188,7 +205,7 @@ def fit_model(config):
                 start = time.perf_counter()
                 run_id = randint(0,100)
                 append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
-                history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
+                history = model.fit(data_set, epochs=config["epochs"], steps_per_epoch=config["steps_per_epoch"], callbacks = get_call_backs(config, model)) # with callbacks it is way slower
                 append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
         else:
              model, cgp_hmm_layer = make_model(config)
@@ -202,7 +219,9 @@ def fit_model(config):
              start = time.perf_counter()
              run_id = randint(0,100)
              append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config["bench_path"])
-             history = model.fit(data_set, epochs=5, steps_per_epoch=15, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
+             print("optimizer.iterations should be 0:", optimizer.iterations)
+             history = model.fit(data_set, epochs=config["epochs"], steps_per_epoch=config["steps_per_epoch"], callbacks = get_call_backs(config, model)) # with callbacks it is way slower
+             print("optimizer.iterations should be larger 0:", optimizer.iterations)
              append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config["bench_path"])
 
 

@@ -7,6 +7,10 @@ parser = argparse.ArgumentParser(description='description')
 parser.add_argument('-c', '--nCodons', help='number of codons')
 parser.add_argument('-t', '--type', help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
 parser.add_argument('-p', '--path', help='path to src')
+parser.add_argument('--optimizer', help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [Adam]')
+parser.add_argument('--epochs', default = 2, type = int, help = 'how many epochs [2]')
+parser.add_argument('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
+
 
 # fine tune algo
 parser.add_argument('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
@@ -30,8 +34,6 @@ parser.add_argument('--get_gradient_of_first_batch', action='store_true', help =
 parser.add_argument('--get_gradient_for_current_txt', action='store_true', help ="get_gradient_for_current_txt, previous run wrote IAB and inputbath to file -> get respective gradient")
 parser.add_argument('--get_gradient_in_layer', action='store_true', help ="get_gradient_for current values directly in the call of layer, but 'Gradient for SparseDenseCwiseAdd is not implemented.'")
 parser.add_argument('--get_gradient_from_saved_model_weights', action='store_true', help ="get_gradient_from_saved_model_weights, they are saved when passing --most_recent_weights_and_inputs_to_file")
-
-
 
 # debugging
 parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
@@ -70,6 +72,9 @@ config["batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs"] =
 config["get_gradient_for_current_txt"] = args.get_gradient_for_current_txt
 config["get_gradient_in_layer"] = args.get_gradient_in_layer
 config["get_gradient_from_saved_model_weights"] = args.get_gradient_from_saved_model_weights
+config["optimizer"] = args.optimizer if args.optimizer else "Adam"
+config["epochs"] = args.epochs
+config["steps_per_epoch"] = args.steps_per_epoch
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
