@@ -59,7 +59,7 @@ def get_call_backs(config, model):
         def on_train_batch_begin(self, batch, logs = None):
             ik, ak, bk = model.get_weights()
 
-            if config["type"] != 4:
+            if config["call_type"] != 4:
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ik,ak,bk], name = "I_kernel_is_nan", summarize = -1)
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ik,ak,bk], name = "A_kernel_is_nan", summarize = -1)
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ik,ak,bk], name = "B_kernel_is_nan", summarize = -1)
@@ -87,7 +87,7 @@ def get_call_backs(config, model):
 
                 model.save_weights(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_weights", overwrite=True, save_format="h5") #todo also try tf as save format
 
-            if config["tpye"] == 4:
+            if config["call_type"] == 4:
                 pass
 
 
