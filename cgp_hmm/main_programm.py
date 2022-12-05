@@ -92,7 +92,7 @@ run(f"rm {config['src_path']}/verbose/{nCodons}codons.txt")
 
 Utility.get_indices_for_config(config)
 
-print_config(config)
+Utility.print_config(config)
 
 import tensorflow as tf
 import matplotlib.pyplot as plt

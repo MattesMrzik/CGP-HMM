@@ -127,7 +127,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
             # this causes error,
             # try if txt is sufficient to get nan as gradient
 
-            weights = config["weights"]
+            # they seem to get the same results as current.txt
+            weights = self.config["weights"]
             I_initializer = tf.constant_initializer(weights[0])
             A_initializer = tf.constant_initializer(weights[1])
             B_initializer = tf.constant_initializer(weights[2])

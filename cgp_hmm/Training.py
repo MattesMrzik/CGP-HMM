@@ -119,9 +119,9 @@ def fit_model(config):
         if config["get_gradient_from_saved_model_weights"]:
             model, cgp_hmm_layer = make_model(config)
             model.load_weights(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_weights")
-            config["model"] = model
+            # config["model"] = model
+            # print('config["model"]', config["model"])
             config["weights"] = model.get_weights()
-            print('config["model"]', config["model"])
 
         layer = CgpHmmLayer(config)
         layer.build(None)
