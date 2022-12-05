@@ -58,32 +58,37 @@ def get_call_backs(config, model):
     class batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
             ik, ak, bk = model.get_weights()
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ik,ak,bk], name = "I_kernel_is_nan", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ik,ak,bk], name = "A_kernel_is_nan", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ik,ak,bk], name = "B_kernel_is_nan", summarize = -1)
 
-            Utility.run(f"mkdir -p {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/")
-            os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/*")
+            if config["type"] != 4:
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ik,ak,bk], name = "I_kernel_is_nan", summarize = -1)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ik,ak,bk], name = "A_kernel_is_nan", summarize = -1)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ik,ak,bk], name = "B_kernel_is_nan", summarize = -1)
 
-            ik = [float(x) for x in ik]
-            ak = [float(x) for x in ak]
-            bk = [float(x) for x in bk]
+                Utility.run(f"mkdir -p {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/")
+                os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/*")
 
-            with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_I.json", "w") as file:
-                json.dump(ik, file)
-            with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_A.json", "w") as file:
-                json.dump(ak, file)
-            with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_B.json", "w") as file:
-                json.dump(bk, file)
+                ik = [float(x) for x in ik]
+                ak = [float(x) for x in ak]
+                bk = [float(x) for x in bk]
 
-            with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_I_dense.json", "w") as file:
-                json.dump(model.get_layer("cgp_hmm_layer").C.I_dense.numpy().tolist(), file)
-            with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_A_dense.json", "w") as file:
-                json.dump(model.get_layer("cgp_hmm_layer").C.A_dense.numpy().tolist(), file)
-            with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_B_dense.json", "w") as file:
-                json.dump(model.get_layer("cgp_hmm_layer").C.B_dense.numpy().tolist(), file)
+                with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_I.json", "w") as file:
+                    json.dump(ik, file)
+                with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_A.json", "w") as file:
+                    json.dump(ak, file)
+                with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_B.json", "w") as file:
+                    json.dump(bk, file)
 
-            model.save_weights(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_weights", overwrite=True, save_format="h5") #todo also try tf as save format
+                with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_I_dense.json", "w") as file:
+                    json.dump(model.get_layer("cgp_hmm_layer").C.I_dense.numpy().tolist(), file)
+                with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_A_dense.json", "w") as file:
+                    json.dump(model.get_layer("cgp_hmm_layer").C.A_dense.numpy().tolist(), file)
+                with open(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_B_dense.json", "w") as file:
+                    json.dump(model.get_layer("cgp_hmm_layer").C.B_dense.numpy().tolist(), file)
+
+                model.save_weights(f"{config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_weights", overwrite=True, save_format="h5") #todo also try tf as save format
+
+            if config["tpye"] == 4:
+                pass
 
 
     class get_the_gradient(tf.keras.callbacks.Callback):
