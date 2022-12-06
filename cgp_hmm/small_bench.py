@@ -5,14 +5,12 @@ import os
 
 parser = argparse.ArgumentParser(
     description=' # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
-parser.add_argument('-r', '--range_codon', nargs='+',
-                    help='usage: < -r 1 10 > to run 1 2 3 4 5 6 7 8 9 10 codons')
-parser.add_argument('-t', '--types', nargs="+",
-                    help='types of cell.call() that should be used')
-parser.add_argument('-c', '--nCodons', nargs="+",
-                    help ='usage: < -c 10 20 50 > to run 10 20 50 codons')
-
+parser.add_argument('-r', '--range_codon', nargs='+', help='usage: < -r 1 10 > to run 1 2 3 4 5 6 7 8 9 10 codons')
+parser.add_argument('-t', '--types', nargs="+", help='types of cell.call() that should be used')
+parser.add_argument('-c', '--nCodons', nargs="+", help ='usage: < -c 10 20 50 > to run 10 20 50 codons')
 parser.add_argument('--repeat', type = int, default = 1, help ='repeat everthing [r] times')
+parser.add_argument('--exit_on_nan', action='store_true', help ="exit_on_nan")
+
 
 
 args = parser.parse_args()
@@ -43,17 +41,29 @@ if len(types) == 0:
     print("pls specify types")
     exit(1)
 
+from datetime import datetime
+
 for c in codons:
     for t in types:
         for _ in range(args.repeat):
-            with open ("run.log", "a") as file:
+            if os.path.exists("stop"):
+                os.system("rm stop")
+                exit()
+            with open ("small_bench_run_log.txt", "a") as file:
                 command = f"./main_programm.py -c {c} -t {t} --opti SGD --batch_begin_exit_when_nan_and_write_weights__layer_call_write_input --epochs 1 --steps 4"
                 status = os.system(command)
                 status = os.WEXITSTATUS(status)
+                now = datetime.now()
+                dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+                file.write(dt_string)
+                file.write("\n")
                 file.write(command)
                 file.write("\n")
-                file.write(str(status))
+                file.write("exit status " + str(status))
                 file.write("\n")
+                
+                if args.exit_on_nan and status != 0:
+                    exit()
 
 
     # for nCodons in range(11,26):
