@@ -34,6 +34,8 @@ parser.add_argument('--get_gradient_of_first_batch', action='store_true', help =
 parser.add_argument('--get_gradient_for_current_txt', action='store_true', help ="get_gradient_for_current_txt, previous run wrote IAB and inputbath to file -> get respective gradient")
 parser.add_argument('--get_gradient_in_layer', action='store_true', help ="get_gradient_for current values directly in the call of layer, but 'Gradient for SparseDenseCwiseAdd is not implemented.'")
 parser.add_argument('--get_gradient_from_saved_model_weights', action='store_true', help ="get_gradient_from_saved_model_weights, they are saved when passing --most_recent_weights_and_inputs_to_file")
+parser.add_argument('--assert_summarize', type = int, default = -1, help = 'assert_summarize [-1]')
+
 
 # debugging
 parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
@@ -78,6 +80,7 @@ config["optimizer"] = args.optimizer if args.optimizer else "Adam"
 config["epochs"] = args.epochs
 config["steps_per_epoch"] = args.steps_per_epoch
 config["manual_traning_loop"] = args.manual_traning_loop
+config["assert_summarize"] = args.assert_summarize
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])

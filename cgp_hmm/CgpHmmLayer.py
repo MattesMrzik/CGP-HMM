@@ -209,7 +209,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
                 for g, name in zip(dy_dx, "IAB"):
                     tf.print(name, g)
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = -1)
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = self.config["assert_summarize"])
 
             # <---
         # do not change this line

@@ -45,11 +45,11 @@ def get_call_backs(config, model):
     class exit_after_loglik_is_nan(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
             try:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(logs["loglik"])), [logs["loglik"]], name = "logs['loglik']_batch_begin", summarize = -1)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(logs["loglik"])), [logs["loglik"]], name = "logs['loglik']_batch_begin", summarize = config["assert_summarize"])
             except:
                 print("key error in callback: exit_after_loglik_is_nan")
         def on_train_batch_end(self, batch, logs = None):
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(logs["loglik"])), [logs["loglik"]], name = "logs['loglik']_batch_end", summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(logs["loglik"])), [logs["loglik"]], name = "logs['loglik']_batch_end", summarize = config["assert_summarize"])
 
     class remove_verbose_at_batch_begin(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
@@ -59,10 +59,11 @@ def get_call_backs(config, model):
         def on_train_batch_begin(self, batch, logs = None):
             ik, ak, bk = model.get_weights()
 
+            # TODO: why can i access condif here?
             if config["call_type"] != 4:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ik,ak,bk], name = "I_kernel_is_nan", summarize = -1)
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ik,ak,bk], name = "A_kernel_is_nan", summarize = -1)
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ik,ak,bk], name = "B_kernel_is_nan", summarize = -1)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ik,ak,bk], name = "I_kernel_is_nan", summarize = config["assert_summarize"])
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ik,ak,bk], name = "A_kernel_is_nan", summarize = config["assert_summarize"])
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ik,ak,bk], name = "B_kernel_is_nan", summarize = config["assert_summarize"])
 
                 Utility.run(f"mkdir -p {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/")
                 os.system(f"rm {config['src_path']}/output/{config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/*")

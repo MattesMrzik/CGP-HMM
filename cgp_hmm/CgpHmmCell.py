@@ -785,13 +785,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # print("optype", self.A_dense.op.type)
 
         check_assert = True
+        summarize = 100
 
         if check_assert:
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, old_loglik, old_forward, count[0,0]], name = "A_dense_beginning_of_call", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.I_dense)), [self.I_dense, count[0,0]], name = "I_dense_beginning_of_call", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),  [old_forward, count[0,0]],  name = "old_forward",               summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),   [old_loglik, count[0,0]],   name = "old_loglik",                summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, old_loglik, old_forward, count[0,0]], name = "A_dense_beginning_of_call", summarize = self.config["assert_summarize"])
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = self.config["assert_summarize"])
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.I_dense)), [self.I_dense, count[0,0]], name = "I_dense_beginning_of_call", summarize = self.config["assert_summarize"])
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),  [old_forward, count[0,0]],  name = "old_forward",               summarize = self.config["assert_summarize"])
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),   [old_loglik, count[0,0]],   name = "old_loglik",                summarize = self.config["assert_summarize"])
 
         count = tf.math.add(count, 1)
 
@@ -833,8 +834,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
             R /= Z_i_minus_1
             verbose_print("Z_i_minus_1", Z_i_minus_1)
             if check_assert:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",      summarize = -1)
-                tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero",      summarize = -1)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",      summarize = self.config["assert_summarize"])
+                tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero",      summarize = self.config["assert_summarize"])
         alpha = E * R # batch * state_size
 
         # keepsdims is true such that shape of result is (32,1) rather than (32,)
@@ -842,10 +843,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
         loglik = tf.math.add(old_loglik, tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True)), name = "loglik")
 
         if check_assert:
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, count[0,0]], name = "A_dense_beginning_of_call", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),        [alpha, count[0,0]],        name = "alpha",                     summarize = -1)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)),       [loglik, count[0,0]],       name = "loglik_finite",             summarize = -1)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, count[0,0]], name = "A_dense_beginning_of_call", summarize = self.config["assert_summarize"])
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = self.config["assert_summarize"])
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),        [alpha, count[0,0]],        name = "alpha",                     summarize = self.config["assert_summarize"])
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)),       [loglik, count[0,0]],       name = "loglik_finite",             summarize = self.config["assert_summarize"])
             # i think this should be allowed since sum across alpha can be 1, then log is 0, which is fine
             # tf.debugging.Assert(tf.math.reduce_all(loglik != 0),                     [loglik, count[0,0]],       name = "loglik_nonzero",            summarize = -1)
 
