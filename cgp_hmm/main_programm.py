@@ -39,6 +39,8 @@ parser.add_argument('--get_gradient_from_saved_model_weights', action='store_tru
 parser.add_argument('-b', action='store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
 parser.add_argument('-n', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
 parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
+parser.add_argument('--manual_traning_loop', action='store_true', help ="manual_traning_loop")
+
 
 args = parser.parse_args()
 
@@ -75,6 +77,7 @@ config["get_gradient_from_saved_model_weights"] = args.get_gradient_from_saved_m
 config["optimizer"] = args.optimizer if args.optimizer else "Adam"
 config["epochs"] = args.epochs
 config["steps_per_epoch"] = args.steps_per_epoch
+config["manual_traning_loop"] = args.manual_traning_loop
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])

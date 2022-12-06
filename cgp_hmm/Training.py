@@ -78,6 +78,7 @@ def make_dataset(config):
             return tf.cast(tf.one_hot(seq, 4 + 1 + 1), dtype=config["dtype"])
 
     ds = ds.map(to_one_hot)
+    # TODO: shuffle dataset?
     ds = ds.repeat()
 
     append_time_ram_stamp_to_file(start, f"Training.make_dataset() end   {run_id}", config["bench_path"])
@@ -85,6 +86,10 @@ def make_dataset(config):
 
 # from memory_profiler import profile
 # @profile
+
+################################################################################
+################################################################################
+################################################################################
 def fit_model(config):
     nCodons = config["nCodons"]
 
@@ -189,6 +194,36 @@ def fit_model(config):
                 # print("dy_dx.numpy() =", g.numpy())
                 print()
         exit()
+
+################################################################################
+    elif config["manual_traning_loop"]:
+        #  get the very first init weights of a run that resulted in nan
+        # maybe this is not necessary, since i can run with --dont_generate_new_seqs flag, and even though the kernels are always initialized differently nan always occur
+
+        layer = CgpHmmLayer(config)
+        layer.build(None)
+        layer.C.build(None)
+
+
+        for epoch in range(config["epochs"]):
+            for step in range(4):
+                minimum = step*32
+                maximum = min((step+1)*32, 100)
+                batch = seqs[minimum : maximum]
+                max_len_seq_in_batch = max([len(seq) for seq in batch])
+                batch = [seq + [125] * (max_len_seq_in_batch - len(seq)) for seq in batch]
+                batch = tf.one_hot(batch, 126)
+
+                with tf.GradientTape() as tape:
+                    tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                    y = layer(batch)
+
+                    print(f"epoch({epoch}), step({step}) the loss is:\n{tf.math.reduce_mean(y)}")
+                    gradient = tape.gradient(-1*y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                    optimizer.apply_gradients(zip(gradient, [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel]))
+        exit()
+
+
 ################################################################################
     else:
         if num_gpu > 1:
