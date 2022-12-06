@@ -215,12 +215,19 @@ def fit_model(config):
                 batch = tf.one_hot(batch, 126)
 
                 with tf.GradientTape() as tape:
+
                     tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
                     y = layer(batch)
 
                     print(f"epoch({epoch}), step({step}) the loss is:\n{tf.math.reduce_mean(y)}")
                     gradient = tape.gradient(-1*y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+
+                    tf.debuggin.Assert(tf.math_reduce_all(tf.math.is_finite(gradient, [gradient], name = "gradient", summarize = config["assert_summarize"])))
                     optimizer.apply_gradients(zip(gradient, [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel]))
+
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.init_kernel)),       [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "I_kernel_after_apply_grads", summarize = config["assert_summarize"])
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.transition_kernel)), [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "A_kernel_after_apply_grads", summarize = config["assert_summarize"])
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.emission_kernel)),   [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "B_kernel_after_apply_grads", summarize = config["assert_summarize"])
         exit()
 
 
