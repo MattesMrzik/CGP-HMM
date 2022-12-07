@@ -61,7 +61,7 @@ if strip_flanks:
         assert (posDict["5flank_len"] - new_5_flank_len) >= 0, f"smaller 0: {(posDict['5flank_len'] - new_5_flank_len)}"
         assert posDict["3flank_start"] + new_3_flank_len <= len(seq.seq), f"larger than seqlen {posDict['3flank_start'] + new_3_flank_len} <= {len(seq.seq)}"
 
-        print_seq = False
+        print_seq = True
         if print_seq:
             print(seq.seq)
 

@@ -10,6 +10,8 @@ parser.add_argument('-t', '--types', nargs="+", help='types of cell.call() that 
 parser.add_argument('-c', '--nCodons', nargs="+", help ='usage: < -c 10 20 50 > to run 10 20 50 codons')
 parser.add_argument('--repeat', type = int, default = 1, help ='repeat everthing [r] times')
 parser.add_argument('--exit_on_nan', action='store_true', help ="exit_on_nan")
+parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs")
+
 
 
 
@@ -50,7 +52,7 @@ for c in codons:
                 os.system("rm stop")
                 exit()
             with open ("small_bench_run_log.txt", "a") as file:
-                command = f"./main_programm.py -c {c} -t {t} --opti SGD --batch_begin_exit_when_nan_and_write_weights__layer_call_write_input --epochs 1 --steps 4"
+                command = f"./main_programm.py -c {c} -t {t} --opti SGD --batch_begin_exit_when_nan_and_write_weights__layer_call_write_input --epochs 1 --steps 4 {'--dont_generate_new_seqs' if args.dont_generate_seqs else ''}"
                 status = os.system(command)
                 status = os.WEXITSTATUS(status)
                 now = datetime.now()
@@ -61,7 +63,7 @@ for c in codons:
                 file.write("\n")
                 file.write("exit status " + str(status))
                 file.write("\n")
-                
+
                 if args.exit_on_nan and status != 0:
                     exit()
 

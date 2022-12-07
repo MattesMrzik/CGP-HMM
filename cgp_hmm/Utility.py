@@ -602,10 +602,13 @@ def higher_order_emission_to_id(emission, alphabet_size, order):
     #                                 initial symbol
     return sum([base*(alphabet_size + 1)**(len(emission) - i -1) for i, base in enumerate(emission)])
 
-def id_to_higher_order_emission(id, alphabet_size, order):
+def id_to_higher_order_emission(id, alphabet_size, order, as_string = False):
     emission = []
     if id == (alphabet_size + 1)**(order + 1):
-        return [alphabet_size +1]
+        if as_string:
+            return "X"
+        else:
+            return [alphabet_size +1]
     for i in range(order,0,-1):
         fits = int(id/((alphabet_size+1)**i))
         if fits < 1:
@@ -614,9 +617,57 @@ def id_to_higher_order_emission(id, alphabet_size, order):
             id -= fits*((alphabet_size+1)**i)
             emission += [int(fits)]
     emission += [int(id)]
+    if as_string:
+        emission = "".join(["ACGTI"[base] for base in emission])
     return emission
 ################################################################################
+
 ################################################################################
+################################################################################
+################################################################################
+# type is either I, A, B
+def transform_json_to_csv(path, type, nCodons):
+    import json
+    with open(path, "r") as file:
+        data = json.load(file)
+    print("data =", data)
+    if type == "I":
+        data = data[0]
+        with open(path + ".csv", "w") as file:
+            for id, value in enumerate(data):
+                file.write(state_id_to_description(id, nCodons))
+                file.write(";")
+                file.write(str(value))
+                file.write("\n")
+    elif type == "A":
+        with open(path + ".csv", "w") as file:
+            file.write(";")
+            for state in range(len(data)):
+                file.write(state_id_to_description(state, nCodons))
+                file.write(";")
+            file.write("\n")
+            for id, row in enumerate(data):
+                file.write(state_id_to_description(id, nCodons))
+                file.write(";")
+                for value in row:
+                    file.write(str(value))
+                    file.write(";")
+                file.write("\n")
+    elif type == "B":
+        with open(path + ".csv", "w") as file:
+            file.write(";")
+            for state in range(len(data[0])):
+                file.write(state_id_to_description(state, nCodons))
+                file.write(";")
+            file.write("\n")
+            for id, row in enumerate(data):
+                file.write(id_to_higher_order_emission(id, 4, 2, as_string = True))
+                file.write(";")
+                for value in row:
+                    file.write(str(value))
+                    file.write(";")
+                file.write("\n")
+
 ################################################################################
 def transform_verbose_txt_to_csv(path, nCodons):
     log = {}
