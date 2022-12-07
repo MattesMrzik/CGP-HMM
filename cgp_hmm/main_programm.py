@@ -82,6 +82,7 @@ config["epochs"] = args.epochs
 config["steps_per_epoch"] = args.steps_per_epoch
 config["manual_traning_loop"] = args.manual_traning_loop
 config["assert_summarize"] = args.assert_summarize
+config["use_simple_seq_gen"] = args.use_simple_seq_gen
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
@@ -157,7 +158,7 @@ if not args.dont_generate_new_seqs:
         num_seqs = 100
         with open(f"{config['src_path']}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa", "w") as file:
             for seq_id in range(num_seqs):
-                file.write(f">seq{seq_id}\n")
+                file.write(f">my_generated_seq{seq_id}\n")
 
                 ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(1,30))) # TODO: also check if low = 2
                 atg = "ATG"
