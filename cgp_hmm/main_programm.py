@@ -20,6 +20,7 @@ parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values",
 parser.add_argument('--learning_rate', help ="learning_rate", type = float)
 parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true', )
 parser.add_argument('-l',help = 'lenght of onput seqs when using MSAgen')
+parser.add_argument('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen and not MSAgen")
 
 # hardware
 parser.add_argument('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
@@ -152,7 +153,24 @@ if num_physical_gpus and args.split_gpu:
 
 
 if not args.dont_generate_new_seqs:
-    run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} {'-l' + args.l if args.l else ''}")
+    if args.use_simple_seq_gen:
+        num_seqs = 100
+        with open(f"{config['src_path']}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa", "w") as file:
+            for seq_id in range(num_seqs):
+                file.write(f">seq{seq_id}\n")
+
+                ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(1,30))) # TODO: also check if low = 2
+                atg = "ATG"
+                coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
+                stop = np.random.choice(["TAA","TGA","TAG"])
+                ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(1,30)))
+
+                # print(ig5, atg, coding, stop, ig3)
+                file.write(ig5 + atg + coding + stop + ig3 + "\n")
+
+    else:
+        run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} {'-l' + args.l if args.l else ''}")
+
 
 model, history = fit_model(config)
 print("done fit_model()")

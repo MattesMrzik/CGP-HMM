@@ -621,6 +621,19 @@ def id_to_higher_order_emission(id, alphabet_size, order, as_string = False):
         emission = "".join(["ACGTI"[base] for base in emission])
     return emission
 ################################################################################
+def print_color_coded_fasta(fasta_path, start_stop_path):
+    from ReadData import read_data
+    seqs = read_data(fasta_path)
+    with open(start_stop_path, "r") as file:
+        for i, line in enumerate(file):
+            if x := re.search("(\d+);(\d+)", line):
+                current_seq = seqs[int(i - 1 / 3)]
+                print("".join(["ACGT"[base] for base in current_seq]))
+                z = np.zeros(len(current_seq))
+                z[int(x.group(1))] = 1
+                z[int(x.group(2))] = 2
+                print("".join([str(int(k)) for k in z]))
+
 
 ################################################################################
 ################################################################################

@@ -117,7 +117,7 @@ with open(f"output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt","w") 
     for seq in sequences:
         file.write(seq.id)
         file.write("\n")
-        file.write(str(seq.startATGPos) + ";" + str(seq.stopPos))
+        file.write(str(seq.startATGPos) + ";" + str(seq.stopPos) + ";" + str(len(seq.seq)))
         file.write("\n")
         file.write("\n")
 
