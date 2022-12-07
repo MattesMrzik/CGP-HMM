@@ -152,6 +152,12 @@ if num_physical_gpus and args.split_gpu:
     for i, x in  enumerate(device_lib.list_local_devices()):
         print(i, x.name)
 
+from itertools import product
+codons = []
+for codon in product("ACGT", repeat = 3):
+    codon = "".join(codon)
+    if codon not in ["TAA", "TGA", "TAG"]:
+        codons += [codon]
 
 if not args.dont_generate_new_seqs:
     if args.use_simple_seq_gen:
@@ -162,7 +168,8 @@ if not args.dont_generate_new_seqs:
 
                 ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(1,30))) # TODO: also check if low = 2
                 atg = "ATG"
-                coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
+                # coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
+                coding = "".join(np.random.choice(codons, config["nCodons"]))
                 stop = np.random.choice(["TAA","TGA","TAG"])
                 ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(1,30)))
 
