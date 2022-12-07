@@ -52,7 +52,7 @@ for c in codons:
                 os.system("rm stop")
                 exit()
             with open ("small_bench_run_log.txt", "a") as file:
-                command = f"./main_programm.py -c {c} -t {t} --opti SGD --batch_begin_exit_when_nan_and_write_weights__layer_call_write_input --epochs 1 --steps 4 {'--dont_generate_new_seqs' if args.dont_generate_seqs else ''}"
+                command = f"./main_programm.py -c {c} -t {t} --opti SGD --batch_begin_exit_when_nan_and_write_weights__layer_call_write_input --epochs 1 --steps 4 {'--dont_generate_new_seqs' if args.dont_generate_new_seqs else ''}"
                 status = os.system(command)
                 status = os.WEXITSTATUS(status)
                 now = datetime.now()
