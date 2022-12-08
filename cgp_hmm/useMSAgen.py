@@ -7,6 +7,7 @@ import MSAgen
 from Bio import SeqIO
 import subprocess
 import random
+import numpy as np
 
 from Utility import run
 
