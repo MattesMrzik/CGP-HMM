@@ -53,39 +53,47 @@ if strip_flanks:
         # strips seq somewhere in first half of 5flank
         # and somewhere in second half of 3flank
 
-        new_5_flank_len = random.randint(1, int(posDict["5flank_len"]))
-        new_3_flank_len = random.randint(1, int(posDict["3flank_len"]))
+        strip_5flank_len = np.random.randint(0,posDict["5flank_len"])
+        strip_3flank_len = np.random.randint(0,posDict["3flank_len"])
 
-        assert new_5_flank_len >= 1, "new_5_flank_len is not >= 1"
-        assert new_3_flank_len >= 1, "new_3_flank_len is not >= 1"
-        assert (posDict["5flank_len"] - new_5_flank_len) >= 0, f"smaller 0: {(posDict['5flank_len'] - new_5_flank_len)}"
-        assert posDict["3flank_start"] + new_3_flank_len <= len(seq.seq), f"larger than seqlen {posDict['3flank_start'] + new_3_flank_len} <= {len(seq.seq)}"
+        seq.seq = seq.seq[strip_5flank_len : -strip_3flank_len]
 
-        print_seq = True
-        if print_seq:
-            print(seq.seq)
+        seq.startATGPos = posDict["start_codon"] - strip_5flank_len
+        seq.stopPos     = posDict["stop_codon"] - strip_5flank_len
 
-        seq.seq = seq.seq[(posDict["5flank_len"] - new_5_flank_len) : posDict["3flank_start"] + new_3_flank_len]
-        if print_seq:
-            print("-" * (posDict["5flank_len"] - new_5_flank_len), end = "")
-            print(seq.seq, end = "")
-            print("-" * (posDict["3flank_len"] - new_3_flank_len))
-
-            print("-" * (posDict["5flank_len"] - new_5_flank_len), end = "")
-            print("5" * new_5_flank_len, end = "")
-            print("ATG", end = "")
-            print("*" * genlen, end = "")
-            print("STO", end = "")
-            print("3" * new_3_flank_len, end = "")
-            print("-" * (posDict["3flank_len"] - new_3_flank_len))
-
-
-        seq.startATGPos = new_5_flank_len
-        seq.stopPos = genlen + new_5_flank_len + 3
-        if print_seq:
-            print(seq.seq)
-            print("".join(["+" if i in [seq.startATGPos, seq.stopPos] else " " for i in range(len(seq.seq))]))
-            print()
+        # new_5_flank_len = random.randint(1, int(posDict["5flank_len"]))
+        # new_3_flank_len = random.randint(1, int(posDict["3flank_len"]))
+        #
+        # assert new_5_flank_len >= 1, "new_5_flank_len is not >= 1"
+        # assert new_3_flank_len >= 1, "new_3_flank_len is not >= 1"
+        # assert (posDict["5flank_len"] - new_5_flank_len) >= 0, f"smaller 0: {(posDict['5flank_len'] - new_5_flank_len)}"
+        # assert posDict["3flank_start"] + new_3_flank_len <= len(seq.seq), f"larger than seqlen {posDict['3flank_start'] + new_3_flank_len} <= {len(seq.seq)}"
+        #
+        # print_seq = True
+        # if print_seq:
+        #     print(seq.seq)
+        #
+        # seq.seq = seq.seq[(posDict["5flank_len"] - new_5_flank_len) : posDict["3flank_start"] + new_3_flank_len]
+        # if print_seq:
+        #     print("-" * (posDict["5flank_len"] - new_5_flank_len), end = "")
+        #     print(seq.seq, end = "")
+        #     print("-" * (posDict["3flank_len"] - new_3_flank_len))
+        #
+        #     print("-" * (posDict["5flank_len"] - new_5_flank_len), end = "")
+        #     print("5" * new_5_flank_len, end = "")
+        #     print("ATG", end = "")
+        #     print("*" * genlen, end = "")
+        #     print("STO", end = "")
+        #     print("3" * new_3_flank_len, end = "")
+        #     print("-" * (posDict["3flank_len"] - new_3_flank_len))
+        #
+        #
+        # seq.startATGPos = new_5_flank_len
+        # seq.stopPos = genlen + new_5_flank_len + 3
+        # if print_seq:
+        #     print(seq.seq)
+        #     print("".join(["+" if i in [seq.startATGPos, seq.stopPos] else " " for i in range(len(seq.seq))]))
+        #     print()
         # print("".join([str(i) for i in range(10)]*10))
         # print(seq.seq)
         # print("start codon =", seq.startATGPos)
