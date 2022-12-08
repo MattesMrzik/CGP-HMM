@@ -15,12 +15,12 @@ import argparse
 
 parser = argparse.ArgumentParser(
     description='description')
-parser.add_argument('-c', '--nCodons', required=True,
-                    help='number of codons')
-parser.add_argument('-l', '--length_factor',
-                    help='length os seq is length of coding times this factor')
-parser.add_argument('-n', '--num_seqs', type = int,
-                    help='length os seq is length of coding times this factor')
+parser.add_argument('-c', '--nCodons', required=True, help='number of codons')
+parser.add_argument('-l', '--length_factor', help='length os seq is length of coding times this factor')
+parser.add_argument('-n', '--num_seqs', type = int, help='length os seq is length of coding times this factor')
+parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist')
+parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist')
+
 
 
 
@@ -39,8 +39,8 @@ print("seqlen =", seqlen)
 sequences, posDict = MSAgen.generate_sequences(num_sequences = int(num_seqs), # the number of sequences to generate
                                                seqlen = int(seqlen), # length of each sequence (in bp)
                                                genelen = int(genlen), # length of the gene in each sequence (in bp, can be 0)
-                                               coding_dist = 0.2, # branch length of the underlying tree for simulated gene evolution
-                                               noncoding_dist = 0.4) # branch length for flanking regions
+                                               coding_dist = args.coding_dist, # branch length of the underlying tree for simulated gene evolution
+                                               noncoding_dist = args.noncoding_dist) # branch length for flanking regions
 
 coding_seqs = []
 for seq in sequences:

@@ -13,7 +13,8 @@ parser.add_argument('--exit_on_nan', action='store_true', help ="exit_on_nan")
 parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs")
 parser.add_argument('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen and not MSAgen")
 
-
+parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist')
+parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist')
 
 args = parser.parse_args()
 
@@ -52,7 +53,13 @@ for c in codons:
                 os.system("rm stop")
                 exit()
             with open ("small_bench_run_log.txt", "a") as file:
-                command = f"./main_programm.py -c {c} -t {t} --opti SGD --batch_begin_exit_when_nan_and_write_weights__layer_call_write_input --epochs 1 --steps 4 {'--dont_generate_new_seqs' if args.dont_generate_new_seqs else ''} {'--use_simple_seq_gen' if args.use_simple_seq_gen else ''}"
+                command = f"./main_programm.py -c {c} -t {t} \
+                             --opti SGD --batch_begin_exit_when_nan_and_write_weights__layer_call_write_input \
+                             --epochs 1 --steps 4 \
+                             {'--dont_generate_new_seqs' if args.dont_generate_new_seqs else ''} \
+                             {'--use_simple_seq_gen' if args.use_simple_seq_gen else ''} \
+                             {'--coding_dist ' + str(args.coding_dist) if args.coding_dist else ''} \
+                             {'--noncoding_dist ' + str(args.noncoding_dist) if args.noncoding_dist else ''}"
                 status = os.system(command)
                 status = os.WEXITSTATUS(status)
                 now = datetime.now()
