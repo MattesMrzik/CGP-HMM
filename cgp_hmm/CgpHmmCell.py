@@ -783,6 +783,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         old_forward, old_loglik, count = states
         # print("optype", self.A_dense.op.type)
+        count = tf.math.add(count, 1)
 
         check_assert = True
         summarize = 100
@@ -793,8 +794,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.I_dense)), [self.I_dense, count[0,0]], name = "I_dense_beginning_of_call", summarize = self.config["assert_summarize"])
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),  [old_forward, count[0,0]],  name = "old_forward",               summarize = self.config["assert_summarize"])
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),   [old_loglik, count[0,0]],   name = "old_loglik",                summarize = self.config["assert_summarize"])
-
-        count = tf.math.add(count, 1)
 
         run_id = randint(0,100)
 

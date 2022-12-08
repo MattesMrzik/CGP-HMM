@@ -45,6 +45,11 @@ sequences, posDict = MSAgen.generate_sequences(num_sequences = int(num_seqs), # 
 coding_seqs = []
 for seq in sequences:
     coding_seqs += [seq.seq[posDict["5flank_len"] : posDict["3flank_start"]]]
+    # seq.name = ">" + seq.name
+    # seq.description = ">" + seq.description
+    # seq.id = ">" + seq.id
+
+    print(seq)
 
 
 # stripping seqs to have unequal lengths
@@ -54,10 +59,17 @@ if strip_flanks:
         # strips seq somewhere in first half of 5flank
         # and somewhere in second half of 3flank
 
-        strip_5flank_len = np.random.randint(0,posDict["5flank_len"])
-        strip_3flank_len = np.random.randint(0,posDict["3flank_len"])
+        assert posDict["5flank_len"] >= 2, "posDict[5flank_len] >= 2"
+        assert posDict["3flank_len"] >= 2, "posDict[3flank_len] >= 2"
 
+        strip_5flank_len = np.random.randint(1,posDict["5flank_len"])
+        strip_3flank_len = np.random.randint(1,posDict["3flank_len"])
+
+        print("seq.seq =", seq.seq)
+        print(strip_5flank_len, strip_3flank_len)
         seq.seq = seq.seq[strip_5flank_len : -strip_3flank_len]
+        print("seq.seq =", seq.seq)
+        print()
 
         seq.startATGPos = posDict["start_codon"] - strip_5flank_len
         seq.stopPos     = posDict["stop_codon"] - strip_5flank_len
@@ -120,11 +132,18 @@ with open(f"output/{nCodons}codons/profile.{nCodons}codons.txt", "w") as file:
         file.write("\n")
 
 with open(f"output/{nCodons}codons/out.seqs.{nCodons}codons.fa","w") as file:
-    SeqIO.write(sequences, file, "fasta")
+
+    # SeqIO.write(sequences, file, "fasta")
+
+    for seq in sequences:
+        file.write(">" + seq.id + "\n")
+        file.write(str(seq.seq) + "\n")
+import os
+os.system(f"cat output/{nCodons}codons/out.seqs.{nCodons}codons.fa")
 
 with open(f"output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt","w") as file:
     for seq in sequences:
-        file.write(seq.id)
+        file.write(">" + seq.id)
         file.write("\n")
         file.write(str(seq.startATGPos) + ";" + str(seq.stopPos) + ";" + str(len(seq.seq)))
         file.write("\n")

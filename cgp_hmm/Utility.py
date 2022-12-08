@@ -622,19 +622,41 @@ def id_to_higher_order_emission(id, alphabet_size, order, as_string = False):
     return emission
 ################################################################################
 def print_color_coded_fasta(fasta_path, start_stop_path):
-    from ReadData import read_data
-    seqs = read_data(fasta_path)
+    seq_dict = {}
+    with open(fasta_path,"r") as file:
+    #     for record in SeqIO.parse(file,"fasta"):
+    #         id = int(re.search("(\d+)", record.id).group(1))
+    #         print(id)
+    #         seq_dict[id] = record.seq
+        id = -1
+        for line in file:
+            if idm := re.search(">.*?(\d+)", line):
+                id = int(idm.group(1))
+                print("found id =", id)
+            if seqm := re.search("([A|C|G|T]+)", line):
+                seq_dict[id] = seqm.group(1)
+
+    print(seq_dict)
+    start_stop_dict = {}
     with open(start_stop_path, "r") as file:
-        for i, line in enumerate(file):
-            if x := re.search("(\d+);(\d+)", line):
-                current_seq = seqs[int(i - 1 / 3)]
-                print("".join(["ACGT"[base] for base in current_seq]))
-                z = np.zeros(len(current_seq))
-                z[int(x.group(1))] = 1
-                z[int(x.group(2))] = 2
-                print("".join([str(int(k)) for k in z]))
+        id = -1
+        for line in file:
+            if idm := re.search(">.*?(\d+)", line):
+                id = int(idm.group(1))
+            if xx := re.search("(\d+);(\d+);", line):
+                if id == -1:
 
-
+                    print("something went wrong in print_color_coded_fasta()")
+                    exit(1)
+                start_stop_dict[id] = (int(xx.group(1)), int(xx.group(2)))
+    print(start_stop_dict)
+    for id in sorted(list(seq_dict.keys())):
+        print(id)
+        print(seq_dict[id])
+        z = np.zeros(len(seq_dict[id]))
+        z[int(start_stop_dict[id][0])] = 1
+        z[int(start_stop_dict[id][1])] = 2
+        print("".join([" " if k == 0 else str(int(k)) for k in z]))
 ################################################################################
 ################################################################################
 ################################################################################
