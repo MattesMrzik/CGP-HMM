@@ -10,6 +10,7 @@ parser.add_argument('-p', '--path', help='path to src')
 parser.add_argument('--optimizer', help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [Adam]')
 parser.add_argument('--epochs', default = 2, type = int, help = 'how many epochs [2]')
 parser.add_argument('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
+parser.add_argument('--run_viterbi', action='store_true', help ="run_viterbi")
 
 
 # fine tune algo
@@ -87,6 +88,7 @@ config["assert_summarize"] = args.assert_summarize
 config["use_simple_seq_gen"] = args.use_simple_seq_gen
 config["coding_dist"] = args.coding_dist
 config["noncoding_dist"] = args.noncoding_dist
+config["run_viterbi"] = args.run_viterbi
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
@@ -179,8 +181,8 @@ if not args.dont_generate_new_seqs:
 
                 seqs[f">my_generated_seq{seq_id}"] = ig5 + atg + coding + stop + ig3
             for key, value in seqs.items():
-                file.write(key)
-                file.write(value)
+                file.write(key + "\n")
+                file.write(value + "\n")
     else:
         run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} {'-l' + args.l if args.l else ''} {'-cd ' + str(args.coding_dist) if args.coding_dist else ''} {'-ncd ' + str(args.noncoding_dist) if args.noncoding_dist else ''}" )
 
@@ -231,7 +233,7 @@ def printI():
 # printI()
 
 #  bc with call type 4 A_dense fails
-if not config["call_type"] == 4:
+if not config["call_type"] == 4 and config["run_viterbi"]:
     WriteData.write_to_file(cell.A_dense, f"{config['src_path']}/output/{nCodons}codons/A.{nCodons}codons.txt")
     WriteData.write_to_file(tf.transpose(cell.B_dense), f"{config['src_path']}/output/{nCodons}codons/B.{nCodons}codons.txt")
     WriteData.write_order_transformed_B_to_csv(cell.B_dense, f"{config['src_path']}/output/{nCodons}codons/B.{nCodons}codons.csv", config["order"], nCodons)
