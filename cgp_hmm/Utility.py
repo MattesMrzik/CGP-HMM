@@ -658,6 +658,19 @@ def print_color_coded_fasta(fasta_path, start_stop_path):
         z[int(start_stop_dict[id][1])] = 2
         print("".join([" " if k == 0 else str(int(k)) for k in z]))
 ################################################################################
+def view_current_inputs_txt(path):
+    with open(path, "r") as file:
+        for line in file:
+            if len(line) > 1:
+                data = list(map(int,re.sub("[\[\]]","", line).strip().split(" ")))
+                data = np.argmax(data)
+                data = id_to_higher_order_emission(data, 4 ,2)
+                print("ACGTIX"[data[-1]], end = "")
+            else:
+                print()
+        print()
+
+################################################################################
 ################################################################################
 ################################################################################
 # type is either I, A, B
