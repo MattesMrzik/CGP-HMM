@@ -188,7 +188,7 @@ if not args.dont_generate_new_seqs:
                 file.write(key + "\n")
                 file.write(value + "\n")
     else:
-        run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} {'-l' + args.l if args.l else ''} {'-cd ' + str(args.coding_dist) if args.coding_dist else ''} {'-ncd ' + str(args.noncoding_dist) if args.noncoding_dist else ''}" )
+        run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} {'-n 4'} {'-l' + args.l if args.l else ''} {'-cd ' + str(args.coding_dist) if args.coding_dist else ''} {'-ncd ' + str(args.noncoding_dist) if args.noncoding_dist else ''}" )
 
 
 model, history = fit_model(config)

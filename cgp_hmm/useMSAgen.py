@@ -140,8 +140,9 @@ with open(f"output/{nCodons}codons/out.seqs.{nCodons}codons.fa","w") as file:
     # SeqIO.write(sequences, file, "fasta")
 
     for seq in sequences:
-        file.write(">" + seq.id + "\n")
-        file.write(str(seq.seq) + "\n")
+        for i in range(32):
+            file.write(">" + seq.id + "000" + str(i) + "\n")
+            file.write(str(seq.seq) + "\n")
 import os
 os.system(f"cat output/{nCodons}codons/out.seqs.{nCodons}codons.fa")
 
