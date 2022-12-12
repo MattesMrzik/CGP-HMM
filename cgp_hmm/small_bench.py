@@ -2,6 +2,7 @@
 
 import argparse
 import os
+from Config import Config
 
 parser = argparse.ArgumentParser(
     description=' # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
@@ -12,6 +13,8 @@ parser.add_argument('--repeat', type = int, default = 1, help ='repeat everthing
 parser.add_argument('--exit_on_nan', action='store_true', help ="exit_on_nan")
 parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs")
 parser.add_argument('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen and not MSAgen")
+parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true')
+
 
 parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist')
 parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist')
@@ -59,7 +62,8 @@ for c in codons:
                              {'--dont_generate_new_seqs' if args.dont_generate_new_seqs else ''} \
                              {'--use_simple_seq_gen' if args.use_simple_seq_gen else ''} \
                              {'--coding_dist ' + str(args.coding_dist) if args.coding_dist else ''} \
-                             {'--noncoding_dist ' + str(args.noncoding_dist) if args.noncoding_dist else ''}"
+                             {'--noncoding_dist ' + str(args.noncoding_dist) if args.noncoding_dist else ''} \
+                             {'--no_learning' if args.no_learning else ''}"
                 status = os.system(command)
                 status = os.WEXITSTATUS(status)
                 now = datetime.now()
