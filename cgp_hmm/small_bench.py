@@ -14,6 +14,8 @@ parser.add_argument('--exit_on_nan', action='store_true', help ="exit_on_nan")
 parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs")
 parser.add_argument('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen and not MSAgen")
 parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true')
+parser.add_argument('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
+
 
 
 parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist')
@@ -58,12 +60,13 @@ for c in codons:
             with open ("small_bench_run_log.txt", "a") as file:
                 command = f"./main_programm.py -c {c} -t {t} \
                              --opti SGD --batch_begin_exit_when_nan_and_write_weights__layer_call_write_input \
-                             --epochs 1 --steps 4 \
+                             --epochs 1 \
                              {'--dont_generate_new_seqs' if args.dont_generate_new_seqs else ''} \
                              {'--use_simple_seq_gen' if args.use_simple_seq_gen else ''} \
-                             {'--coding_dist ' + str(args.coding_dist) if args.coding_dist else ''} \
-                             {'--noncoding_dist ' + str(args.noncoding_dist) if args.noncoding_dist else ''} \
-                             {'--no_learning' if args.no_learning else ''}"
+                             {'--coding_dist ' + str(args.coding_dist)} \
+                             {'--noncoding_dist ' + str(args.noncoding_dist)} \
+                             {'--no_learning' if args.no_learning else ''} \
+                             {'--steps ' + str(args.steps_per_epoch)}"
                 status = os.system(command)
                 status = os.WEXITSTATUS(status)
                 now = datetime.now()

@@ -42,6 +42,10 @@ sequences, posDict = MSAgen.generate_sequences(num_sequences = int(num_seqs), # 
                                                coding_dist = args.coding_dist, # branch length of the underlying tree for simulated gene evolution
                                                noncoding_dist = args.noncoding_dist) # branch length for flanking regions
 
+with open(f"output/{nCodons}codons/MSAgen_untrancated_seqs.{nCodons}codons.fa","w") as file:
+    for seq in sequences:
+        file.write(">" + seq.id + "\n")
+        file.write(str(seq.seq) + "\n")
 coding_seqs = []
 for seq in sequences:
     coding_seqs += [seq.seq[posDict["5flank_len"] : posDict["3flank_start"]]]
