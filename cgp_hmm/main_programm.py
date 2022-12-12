@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
 import argparse
+# from Config import Config
+
+
+# def main(external_config):
 
 parser = argparse.ArgumentParser(description='description')
 
@@ -19,7 +23,7 @@ parser.add_argument('--weaken_softmax', action='store_true', help ="weaken_softm
 parser.add_argument('-d', '--dytpe64', action='store_true', help='using dytpe tf.float64')
 parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
 parser.add_argument('--learning_rate', help ="learning_rate", type = float)
-parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true', )
+parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true')
 parser.add_argument('-l',help = 'lenght of onput seqs when using MSAgen')
 parser.add_argument('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen and not MSAgen")
 parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist for MSAgen')
@@ -304,3 +308,7 @@ if not config["call_type"] == 4 and config["run_viterbi"]:
 
 if config["nCodons"] < 10:
     run(f"python3 {config['src_path']}/Visualize.py -c {nCodons} -o {config['order']} {'-t' if config['order_transformed_input'] else ''}")
+
+# if __name__ == '__main__':
+#     config = Config("main_programm")
+#     main(config)
