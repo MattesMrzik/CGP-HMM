@@ -202,7 +202,8 @@ if not args.dont_generate_new_seqs:
                       {'-l' + str(args.l)} \
                       {'-cd ' + str(args.coding_dist) if args.coding_dist else ''} \
                       {'-ncd ' + str(args.noncoding_dist) if args.noncoding_dist else ''}\
-                      {'--dont_strip_flanks' if args.dont_strip_flanks else ''} " )
+                      {'--dont_strip_flanks' if args.dont_strip_flanks else ''} \
+                      {'-p ' + args.path if args.path else ''}" )
 
 
 model, history = fit_model(config)
