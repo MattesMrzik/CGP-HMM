@@ -16,21 +16,22 @@ import argparse
 parser = argparse.ArgumentParser(
     description='description')
 parser.add_argument('-c', '--nCodons', required=True, help='number of codons')
-parser.add_argument('-l', '--length_factor', help='length os seq is length of coding times this factor')
+parser.add_argument('-l', '--length_factor', default = 2.0, type = float, help='length os seq is length of coding times this factor')
 parser.add_argument('-n', '--num_seqs', type = int, help='length os seq is length of coding times this factor')
 parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist')
 parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist')
-
-
+parser.add_argument('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks")
 
 
 args = parser.parse_args()
+
 print("args.length_factor =", args.length_factor)
+
 nCodons = int(args.nCodons)
 num_seqs = 100 if not args.num_seqs else args.num_seqs
 
-genlen = 3 * nCodons # ATG and STOP are not on gene
-seqlen = genlen * (2 if not args.length_factor else float(args.length_factor))
+genlen = 3 * nCodons
+seqlen = genlen * args.length_factor
 seqlen += 6 # start and stop codon
 seqlen += 2 # ig states
 print("seqlen =", seqlen)
@@ -57,7 +58,8 @@ for seq in sequences:
 
 
 # stripping seqs to have unequal lengths
-strip_flanks = True
+
+strip_flanks = not args.dont_strip_flanks
 if strip_flanks:
     for seq in sequences:
         # strips seq somewhere in first half of 5flank
@@ -78,43 +80,6 @@ if strip_flanks:
         seq.startATGPos = posDict["start_codon"] - strip_5flank_len
         seq.stopPos     = posDict["stop_codon"] - strip_5flank_len
 
-        # new_5_flank_len = random.randint(1, int(posDict["5flank_len"]))
-        # new_3_flank_len = random.randint(1, int(posDict["3flank_len"]))
-        #
-        # assert new_5_flank_len >= 1, "new_5_flank_len is not >= 1"
-        # assert new_3_flank_len >= 1, "new_3_flank_len is not >= 1"
-        # assert (posDict["5flank_len"] - new_5_flank_len) >= 0, f"smaller 0: {(posDict['5flank_len'] - new_5_flank_len)}"
-        # assert posDict["3flank_start"] + new_3_flank_len <= len(seq.seq), f"larger than seqlen {posDict['3flank_start'] + new_3_flank_len} <= {len(seq.seq)}"
-        #
-        # print_seq = True
-        # if print_seq:
-        #     print(seq.seq)
-        #
-        # seq.seq = seq.seq[(posDict["5flank_len"] - new_5_flank_len) : posDict["3flank_start"] + new_3_flank_len]
-        # if print_seq:
-        #     print("-" * (posDict["5flank_len"] - new_5_flank_len), end = "")
-        #     print(seq.seq, end = "")
-        #     print("-" * (posDict["3flank_len"] - new_3_flank_len))
-        #
-        #     print("-" * (posDict["5flank_len"] - new_5_flank_len), end = "")
-        #     print("5" * new_5_flank_len, end = "")
-        #     print("ATG", end = "")
-        #     print("*" * genlen, end = "")
-        #     print("STO", end = "")
-        #     print("3" * new_3_flank_len, end = "")
-        #     print("-" * (posDict["3flank_len"] - new_3_flank_len))
-        #
-        #
-        # seq.startATGPos = new_5_flank_len
-        # seq.stopPos = genlen + new_5_flank_len + 3
-        # if print_seq:
-        #     print(seq.seq)
-        #     print("".join(["+" if i in [seq.startATGPos, seq.stopPos] else " " for i in range(len(seq.seq))]))
-        #     print()
-        # print("".join([str(i) for i in range(10)]*10))
-        # print(seq.seq)
-        # print("start codon =", seq.startATGPos)
-        # print("stop codon =", seq.stopPos)
 
 run(f"mkdir -p output/{nCodons}codons/")
 
@@ -150,7 +115,10 @@ with open(f"output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt","w") 
     for seq in sequences:
         file.write(">" + seq.id)
         file.write("\n")
-        file.write(str(seq.startATGPos) + ";" + str(seq.stopPos) + ";" + str(len(seq.seq)))
+        if args.dont_strip_flanks:
+            file.write(str(posDict['start_codon']) + ";" + str(posDict['stop_codon']) + ";" + str(len(seq.seq)))
+        else:
+            file.write(str(seq.startATGPos) + ";" + str(seq.stopPos) + ";" + str(len(seq.seq)))
         file.write("\n")
         file.write("\n")
 

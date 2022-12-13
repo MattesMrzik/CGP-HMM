@@ -24,10 +24,11 @@ parser.add_argument('-d', '--dytpe64', action='store_true', help='using dytpe tf
 parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
 parser.add_argument('--learning_rate', help ="learning_rate", type = float)
 parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true')
-parser.add_argument('-l',help = 'lenght of onput seqs when using MSAgen')
+parser.add_argument('-l', default = 2.0, type = float, help = 'lenght factor of output seqs')
 parser.add_argument('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen and not MSAgen")
 parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist for MSAgen')
 parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist for MSAgen')
+parser.add_argument('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks")
 
 # hardware
 parser.add_argument('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
@@ -93,6 +94,7 @@ config["use_simple_seq_gen"] = args.use_simple_seq_gen
 config["coding_dist"] = args.coding_dist
 config["noncoding_dist"] = args.noncoding_dist
 config["run_viterbi"] = args.run_viterbi
+config["dont_strip_flanks"] = args.dont_strip_flanks
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
@@ -174,21 +176,33 @@ if not args.dont_generate_new_seqs:
         num_seqs = 100
         seqs = {}
         with open(f"{config['src_path']}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa", "w") as file:
+            genlen = 3 * nCodons # ATG and STOP are not on gene
+            seqlen = genlen * args.l
+            seqlen += 6 # start and stop codon
+            seqlen += 2 # ig states
+            max_flanklen = (seqlen - genlen )//2
+            low = max_flanklen -1 if args.dont_strip_flanks else 1
+
             for seq_id in range(num_seqs):
 
-                ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(10,11))) # TODO: also check if low = 2
+                ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(low, max_flanklen))) # TODO: also check if low = 2
                 atg = "ATG"
                 # coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
                 coding = "".join(np.random.choice(codons, config["nCodons"]))
                 stop = np.random.choice(["TAA","TGA","TAG"])
-                ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(10,11)))
+                ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(low, max_flanklen)))
 
                 seqs[f">my_generated_seq{seq_id}"] = ig5 + atg + coding + stop + ig3
             for key, value in seqs.items():
                 file.write(key + "\n")
                 file.write(value + "\n")
     else:
-        run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} {'-n 4'} {'-l' + args.l if args.l else ''} {'-cd ' + str(args.coding_dist) if args.coding_dist else ''} {'-ncd ' + str(args.noncoding_dist) if args.noncoding_dist else ''}" )
+        run(f"python3 {config['src_path']}/useMSAgen.py -c {nCodons} \
+                      {'-n 4'} \
+                      {'-l' + str(args.l)} \
+                      {'-cd ' + str(args.coding_dist) if args.coding_dist else ''} \
+                      {'-ncd ' + str(args.noncoding_dist) if args.noncoding_dist else ''}\
+                      {'--dont_strip_flanks' if args.dont_strip_flanks else ''} " )
 
 
 model, history = fit_model(config)
