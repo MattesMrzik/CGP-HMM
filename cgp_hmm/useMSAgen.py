@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
 
-sys.path.insert(0, "../MSAgen")
 import MSAgen
 
 from Bio import SeqIO
@@ -21,9 +20,13 @@ parser.add_argument('-n', '--num_seqs', type = int, help='length os seq is lengt
 parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist')
 parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist')
 parser.add_argument('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks")
+parser.add_argument('-p', '--path', help='path to src')
+
 
 
 args = parser.parse_args()
+
+sys.path.insert(0, f"{'..' if not args.p else args.p}/MSAgen")
 
 print("args.length_factor =", args.length_factor)
 
