@@ -716,6 +716,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 ################################################################################
     def call_old_inputs(self, inputs, states, training = None):
         pass
+
         # for i in range(self.order):
         #     old_inputs_i_expanded = tf.expand_dims(old_inputs[:,i,:], axis = -1)
         #     for j in range(i + 1, self.order):
@@ -795,6 +796,20 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),  [old_forward, count[0,0]],  name = "old_forward",               summarize = self.config["assert_summarize"])
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),   [old_loglik, count[0,0]],   name = "old_loglik",                summarize = self.config["assert_summarize"])
 
+
+        # span_init_kernel = tf.math.reduce_max(self.init_kernel) - tf.math.reduce_min(self.init_kernel)
+        # tf.print("span_init_kernel =", span_init_kernel)
+        # tf.print("init_kernel_max =", tf.math.reduce_max(self.init_kernel))
+        #
+        # span_transition_kernel = tf.math.reduce_max(self.transition_kernel) - tf.math.reduce_min(self.transition_kernel)
+        # tf.print("span_transition_kernel =", span_transition_kernel)
+        # tf.print("transition_kernel_max =", tf.math.reduce_max(self.transition_kernel))
+        #
+        # span_emission_kernel = tf.math.reduce_max(self.emission_kernel) - tf.math.reduce_min(self.emission_kernel)
+        # tf.print("span_emission_kernel =", span_emission_kernel)
+        # tf.print("emission_kernel_max =", tf.math.reduce_max(self.emission_kernel))
+
+
         run_id = randint(0,100)
 
         verbose = self.config["verbose"]
@@ -830,11 +845,11 @@ class CgpHmmCell(tf.keras.layers.Layer):
         else:
             R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
             Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
-            R /= Z_i_minus_1
-            verbose_print("Z_i_minus_1", Z_i_minus_1)
             if check_assert:
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",      summarize = self.config["assert_summarize"])
                 tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero",      summarize = self.config["assert_summarize"])
+            R /= Z_i_minus_1
+            verbose_print("Z_i_minus_1", Z_i_minus_1)
         alpha = E * R # batch * state_size
 
         # keepsdims is true such that shape of result is (32,1) rather than (32,)

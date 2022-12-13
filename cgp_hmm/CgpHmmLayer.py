@@ -91,13 +91,14 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #     old_state = result[6]
 
         if "batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs" in self.config and self.config["batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs"]:
-            os.system(f"rm {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
-            outstream = f"file://{self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt"
+            # os.system(f"rm {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
+            outstream = f"file://{self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt.temp"
             # also remove the file at beginning of batch
             # out_inputs = tf.argmax(inputs, axis = 2)
             # out_inputs = [[int(base) for base in seq]for seq in out_inputs]
             # tf.print(json.dumps(out_inputs, outstream))
             tf.print(inputs, summarize = -1, output_stream = outstream)
+            os.system(f"mv {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt.temp {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
 
         if "write_return_sequnces" in self.config and self.config["write_return_sequnces"]:
             outstream = f"file://./output/for_unit_tests/return_sequnces.txt"

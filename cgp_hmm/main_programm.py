@@ -176,12 +176,12 @@ if not args.dont_generate_new_seqs:
         with open(f"{config['src_path']}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa", "w") as file:
             for seq_id in range(num_seqs):
 
-                ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(1,30))) # TODO: also check if low = 2
+                ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(10,11))) # TODO: also check if low = 2
                 atg = "ATG"
                 # coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
                 coding = "".join(np.random.choice(codons, config["nCodons"]))
                 stop = np.random.choice(["TAA","TGA","TAG"])
-                ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(1,30)))
+                ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(10,11)))
 
                 seqs[f">my_generated_seq{seq_id}"] = ig5 + atg + coding + stop + ig3
             for key, value in seqs.items():
