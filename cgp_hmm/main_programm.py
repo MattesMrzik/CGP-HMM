@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(description='description')
 
 # base algo
 parser.add_argument('-c', '--nCodons', help='number of codons')
-parser.add_argument('-t', '--type', help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
+parser.add_argument('-t', '--type', type = int, default = 3, help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
 parser.add_argument('-p', '--path', help='path to src')
 parser.add_argument('--optimizer', help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [Adam]')
 parser.add_argument('--epochs', default = 2, type = int, help = 'how many epochs [2]')
@@ -51,6 +51,7 @@ parser.add_argument('-b', action='store_true', help ="exit after first batch, yo
 parser.add_argument('-n', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
 parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
 parser.add_argument('--manual_traning_loop', action='store_true', help ="manual_traning_loop")
+parser.add_argument('--dont_check_assert', action='store_true', help ="dont_check_assert")
 
 
 args = parser.parse_args()
@@ -60,7 +61,7 @@ config = {}
 config["nCodons"] = int(args.nCodons) if args.nCodons else 1
 config["order"] = 2
 config["order_transformed_input"] = True
-config["call_type"] = int(args.type) if args.type else 3 # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel
+config["call_type"] = args.type # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel
 
 config["alphabet_size"] = 4
 config["src_path"] = "." if not args.path else args.path
@@ -95,6 +96,7 @@ config["coding_dist"] = args.coding_dist
 config["noncoding_dist"] = args.noncoding_dist
 config["run_viterbi"] = args.run_viterbi
 config["dont_strip_flanks"] = args.dont_strip_flanks
+config["check_assert"] = not args.dont_check_assert
 
 from Utility import get_state_id_description_list
 config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])

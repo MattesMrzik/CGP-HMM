@@ -682,8 +682,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
             emission_matrix = tf.nn.softmax(emission_matrix, name = "B_full_model")
             return emission_matrix
 ############################################################################
-############################################################################
-############################################################################
     @property
     def I_sparse(self): # todo this is not yet used in call()
         # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.init_kernel)), [self.init_kernel], name = "self.init_kernel_when_at_property_I_sparse", summarize = -1)
@@ -714,82 +712,38 @@ class CgpHmmCell(tf.keras.layers.Layer):
 ################################################################################
 ################################################################################
 ################################################################################
-    def call_old_inputs(self, inputs, states, training = None):
-        pass
+    def get_E(self, inputs):
+        if self.config["call_type"] in [2, 3]: # B is sparse
+            return tf.matmul(inputs, self.B_dense)
+        if self.config["call_type"] == 4:
+            return tf.matmul(inputs, self.B_full_model)
+        return tf.sparse.sparse_dense_matmul(inputs, self.B_sparse)
 
-        # for i in range(self.order):
-        #     old_inputs_i_expanded = tf.expand_dims(old_inputs[:,i,:], axis = -1)
-        #     for j in range(i + 1, self.order):
-        #         old_inputs_i_expanded = tf.expand_dims(old_inputs_i_expanded, axis = -1)
-        #     E = tf.multiply(old_inputs_i_expanded, E)
-        #     E = tf.reduce_sum(E, axis = 1) # axis 0 is batch, so this has to be 1
+    def get_R(self, old_forward, init = False):
+        if init:
+            return self.I, 1.0 # bc return must be same in main and off branch, must be != 0 bc assert check z != 0
 
-################################################################################
-    def call_full_model(self, inputs, states, training = None):
-        old_forward, old_loglik, count = states
-        count = count + 1
-
-        run_id = randint(0,100)
-
-        verbose = self.config["verbose"]
-
-        if verbose:
-            if self.config["print_to_file"]:
-                outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
-            else:
-                import sys
-                outstream = sys.stdout
-
-        E = tf.matmul(inputs, self.B_full_model)
-
-        def verbose_print(string, data):
-            if verbose:
-                tf.print(count[0,0], run_id, string, tf.shape(data), output_stream = outstream, sep = ";")
-                if verbose == 2:
-                    tf.print(count[0,0], run_id, ">" + string, data, output_stream = outstream, sep = ";", summarize=-1)
-
-        if verbose:
-            verbose_print("count", count[0,0])
-            verbose_print("inputs", inputs)
-            verbose_print("old_forward", old_forward)
-            verbose_print("old_loglik", old_loglik)
-            verbose_print("E", E)
-
-        if count[0,0] == 1:
-            R = self.I_dense
-            verbose_print("A", self.A_full_model)
-            verbose_print("B", self.B_full_model)
-        else:
+        if self.config["call_type"] in [0,2]: # A is sparse
+            R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
+        elif self.config["call_type"] == 4:
             R = tf.matmul(old_forward, self.A_full_model)
-            Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
-            R /= Z_i_minus_1
+        else:
+            R = tf.matmul(old_forward, self.A_dense)
 
-        alpha = E * R
+        Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
+        R /= Z_i_minus_1
+        return R, Z_i_minus_1
 
-        loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik")) # todo keepdims = True?
-        if verbose:
-            verbose_print("R", R)
-            verbose_print("forward", alpha)
-            verbose_print("loglik", loglik)
-
-        return [alpha, inputs, count], [alpha, loglik, count]
 ################################################################################
-    def call_sparse(self, inputs, states, training = None): # call_sparse
+    def call(self, inputs, states, training = None): # call_sparse
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse: tf")
-
-        # print values of A B loglik alpha to see whether nan appear bc of nan loglik
-        # bc some underflow in model (=A or B) and therefor the model ie liklihood breaks
-        # or the gradient gets infinite or sth like this
 
         old_forward, old_loglik, count = states
         # print("optype", self.A_dense.op.type)
         count = tf.math.add(count, 1)
 
-        check_assert = True
-        summarize = 100
-
-        if check_assert:
+        if self.config["check_assert"]:
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, old_loglik, old_forward, count[0,0]], name = "A_dense_beginning_of_call", summarize = self.config["assert_summarize"])
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = self.config["assert_summarize"])
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.I_dense)), [self.I_dense, count[0,0]], name = "I_dense_beginning_of_call", summarize = self.config["assert_summarize"])
@@ -820,43 +774,40 @@ class CgpHmmCell(tf.keras.layers.Layer):
             else:
                 import sys
                 outstream = sys.stdout
-
-        # inputs is shape batch * 126 (= (4+1)^3+1)
-
-        E = tf.sparse.sparse_dense_matmul(inputs, self.B_sparse) # returns dense
-
         def verbose_print(string, data):
             if verbose:
                 tf.print(count[0,0], run_id, string, tf.shape(data), output_stream = outstream, sep = ";")
                 if verbose == 2:
                     tf.print(count[0,0], run_id, ">" + string, data, output_stream = outstream, sep = ";", summarize=-1)
 
+        # inputs is shape batch * 126 (= (4+1)^3+1)
+
+        E = self.get_E(inputs)
+
+
         if verbose:
             verbose_print("count", count[0,0])
+            if count[0,0] == 1:
+                verbose_print("A", self.A_dense)
+                verbose_print("B", self.B_dense)
             verbose_print("inputs", inputs)
             verbose_print("old_forward", old_forward)
             verbose_print("old_loglik", old_loglik)
             verbose_print("E", E)
 
-        if count[0,0] == 1:
-            R = self.I # this might have to be dense, bc TypeError: 'R' must have the same nested structure in the main and else branches: and in the else branch it is dense
-            verbose_print("A", self.A_dense)
-            verbose_print("B", self.B_dense)
-        else:
-            R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
-            Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
-            if check_assert:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",      summarize = self.config["assert_summarize"])
-                tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero",      summarize = self.config["assert_summarize"])
-            R /= Z_i_minus_1
-            verbose_print("Z_i_minus_1", Z_i_minus_1)
+        R, Z_i_minus_1 = self.get_R(old_forward, init = count[0,0] == 1)
+
+        if self.config["check_assert"]:
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",      summarize = self.config["assert_summarize"])
+            tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero",      summarize = self.config["assert_summarize"])
+
         alpha = E * R # batch * state_size
 
         # keepsdims is true such that shape of result is (32,1) rather than (32,)
         # loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik"))
         loglik = tf.math.add(old_loglik, tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True)), name = "loglik")
 
-        if check_assert:
+        if self.config["check_assert"]:
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, count[0,0]], name = "A_dense_end_of_call", summarize = self.config["assert_summarize"])
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_end_of_call", summarize = self.config["assert_summarize"])
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),        [alpha, count[0,0]],        name = "alpha",                     summarize = self.config["assert_summarize"])
@@ -872,180 +823,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
             verbose_print("loglik", loglik)
 
         return [alpha, inputs, count], [alpha, loglik, count]
-################################################################################
-    def call_A_sparse(self, inputs, states, training = None): # call_A_sparse
-        old_forward, old_loglik, count = states
-        count = count + 1
-
-        run_id = randint(0,100)
-
-        verbose = self.config["verbose"]
-
-        if verbose:
-            if self.config["print_to_file"]:
-                outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
-            else:
-                import sys
-                outstream = sys.stdout
-
-        # inputs is shape batch * 126 (= (4+1)^3+1)
-
-        E = tf.matmul(inputs, self.B_dense)
-
-        def verbose_print(string, data):
-            if verbose:
-                tf.print(count[0,0], run_id, string, tf.shape(data), output_stream = outstream, sep = ";")
-                if verbose == 2:
-                    tf.print(count[0,0], run_id, ">" + string, data, output_stream = outstream, sep = ";", summarize=-1)
-
-        if verbose:
-            verbose_print("count", count[0,0])
-            verbose_print("inputs", inputs)
-            verbose_print("old_forward", old_forward)
-            verbose_print("old_loglik", old_loglik)
-            verbose_print("E", E)
-
-        if self.inita:
-            # tf.print(count[0,0], run_id, " ", "self.init = ", self.init)
-            self.inita = False
-
-        if count[0,0] == 1:
-            R = self.I # this might have to be dense, bc TypeError: 'R' must have the same nested structure in the main and else branches: and in the else branch it is dense
-            verbose_print("A", self.A_dense)
-            verbose_print("B", self.B_dense)
-        else:
-            R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
-            Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
-            R /= Z_i_minus_1
-        alpha = E * R # batch * state_size
-
-        # keepsdims is true such that shape of result is (32,1) rather than (32,)
-        loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik"))
-
-        if verbose:
-            verbose_print("R", R)
-            verbose_print("forward", alpha)
-            verbose_print("loglik", loglik)
-
-        return [alpha, inputs, count], [alpha, loglik, count]
-
-################################################################################
-    def call_B_sparse(self, inputs, states, training = None): # call_B_sparse
-        old_forward, old_loglik, count = states
-        count = count + 1
-
-        run_id = randint(0,100)
-
-        verbose = self.config["verbose"]
-
-        if verbose:
-            if self.config["print_to_file"]:
-                outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
-            else:
-                import sys
-                outstream = sys.stdout
-
-        # inputs is shape batch * 126 (= (4+1)^3+1)
-
-        E = tf.sparse.sparse_dense_matmul(inputs, self.B_sparse) # returns dense
-
-        def verbose_print(string, data):
-            if verbose:
-                tf.print(count[0,0], run_id, string, tf.shape(data), output_stream = outstream, sep = ";")
-                if verbose == 2:
-                    tf.print(count[0,0], run_id, ">" + string, data, output_stream = outstream, sep = ";", summarize=-1)
-
-        if verbose:
-            verbose_print("count", count[0,0])
-            verbose_print("inputs", inputs)
-            verbose_print("old_forward", old_forward)
-            verbose_print("old_loglik", old_loglik)
-            verbose_print("E", E)
-
-        if self.inita:
-            # tf.print(count[0,0], run_id, " ", "self.init = ", self.init)
-            self.inita = False
-
-        if count[0,0] == 1:
-            R = self.I # this might have to be dense, bc TypeError: 'R' must have the same nested structure in the main and else branches: and in the else branch it is dense
-            verbose_print("A", self.A_dense)
-            verbose_print("B", self.B_dense)
-        else:
-            R = tf.matmul(old_forward, self.A_dense)
-            Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
-            R /= Z_i_minus_1
-        alpha = E * R # batch * state_size
-
-        # keepsdims is true such that shape of result is (32,1) rather than (32,)
-        loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik"))
-        if verbose:
-            verbose_print("R", R)
-            verbose_print("forward", alpha)
-            verbose_print("loglik", loglik)
-
-        return [alpha, inputs, count], [alpha, loglik, count]
-################################################################################
-    def call_dense(self, inputs, states, training = None): # call_dense
-        old_forward, old_loglik, count = states
-        count = count + 1
-
-        run_id = randint(0,100)
-
-        verbose = self.config["verbose"]
-
-        if verbose:
-            if self.config["print_to_file"]:
-                outstream = f"file://{self.config['src_path']}/verbose/{self.nCodons}codons.txt"
-            else:
-                import sys
-                outstream = sys.stdout
-
-        E = tf.matmul(inputs, self.B_dense)
-
-        def verbose_print(string, data):
-            if verbose:
-                tf.print(count[0,0], run_id, string, tf.shape(data), output_stream = outstream, sep = ";")
-                if verbose == 2:
-                    tf.print(count[0,0], run_id, ">" + string, data, output_stream = outstream, sep = ";", summarize=-1)
-
-        if verbose:
-            verbose_print("count", count[0,0])
-            verbose_print("inputs", inputs)
-            verbose_print("old_forward", old_forward)
-            verbose_print("old_loglik", old_loglik)
-            verbose_print("E", E)
-
-        if count[0,0] == 1:
-            R = self.I_dense
-            verbose_print("A", self.A_dense)
-            verbose_print("B", self.B_dense)
-        else:
-            R = tf.matmul(old_forward, self.A_dense)
-            Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
-            R /= Z_i_minus_1
-
-        alpha = E * R
-
-        loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik")) # todo keepdims = True?
-        if verbose:
-            verbose_print("R", R)
-            verbose_print("forward", alpha)
-            verbose_print("loglik", loglik)
-
-        return [alpha, inputs, count], [alpha, loglik, count]
-################################################################################
-
-    def call(self, inputs, states, training = None):
-        if self.config["call_type"] == 0:
-            return self.call_sparse(inputs, states, training)
-        elif self.config["call_type"] == 1:
-            return self.call_B_sparse(inputs, states, training)
-        elif self.config["call_type"] == 2:
-            return self.call_A_sparse(inputs, states, training)
-        elif self.config["call_type"] == 3:
-            return self.call_dense(inputs, states, training)
-        elif self.config["call_type"] == 4:
-            return self.call_full_model(inputs, states, training)
 
 ################################################################################
 
