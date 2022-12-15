@@ -32,7 +32,7 @@ class Config():
         # virtual gpus
         self.num_physical_gpus = len(tf.config.list_physical_devices('GPU'))
         assert self.num_physical_gpus == len(tf.config.experimental.list_physical_devices("GPU")), "different number of GPUs determined"
-        if self.num_physical_gpus and args.split_gpu:
+        if self.num_physical_gpus and config.split_gpu:
             tf.config.experimental.set_virtual_device_configuration(
                 tf.config.experimental.list_physical_devices("GPU")[0],
                 [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=512),
