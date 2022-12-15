@@ -29,9 +29,7 @@ if not args.path:
     args.path = "."
 
 sys.path.insert(0, f"{args.path}/../MSAgen")
-print(f"{args.path}/../MSAgen")
 
-print("args.length_factor =", args.length_factor)
 import MSAgen
 
 nCodons = int(args.nCodons)
@@ -41,8 +39,6 @@ genlen = 3 * nCodons
 seqlen = genlen * args.length_factor
 seqlen += 6 # start and stop codon
 seqlen += 2 # ig states
-print("seqlen =", seqlen)
-
 
 sequences, posDict = MSAgen.generate_sequences(num_sequences = int(num_seqs), # the number of sequences to generate
                                                seqlen = int(seqlen), # length of each sequence (in bp)
@@ -115,8 +111,8 @@ with open(f"{args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa","w")
         for i in range(32):
             file.write(">" + seq.id + "000" + str(i) + "\n")
             file.write(str(seq.seq) + "\n")
-import os
-os.system(f"cat {args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa")
+            
+run(f"cat {args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa")
 
 with open(f"{args.path}/output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt","w") as file:
     for seq in sequences:

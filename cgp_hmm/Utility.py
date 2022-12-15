@@ -8,13 +8,15 @@ import tensorflow as tf
 from resource import getrusage
 from resource import RUSAGE_SELF
 from itertools import product
+import os
+
 
 np.set_printoptions(linewidth=200)
 ################################################################################
 ################################################################################
 ################################################################################
 def get_indices_for_constants_from_transition_kernel_higher_order(config):
-    nCodons = config["nCodons"]
+    nCodons = config.nCodons
     # from start a
     indices = [[1,2]]
     # from start t
@@ -52,7 +54,7 @@ def get_indices_for_constants_from_transition_kernel_higher_order(config):
     return indices
 ################################################################################
 def get_indices_for_weights_from_transition_kernel_higher_order(config): # no shared parameters
-    nCodons = config["nCodons"]
+    nCodons = config.nCodons
     # from ig 5'
     indices = [[0,0], [0,1]]
 
@@ -83,7 +85,7 @@ def get_indices_for_weights_from_transition_kernel_higher_order(config): # no sh
     return indices
 ################################################################################
 def get_indices_and_values_from_transition_kernel_higher_order(config, w):
-    nCodons = config["nCodons"]
+    nCodons = config.nCodons
     k = 0
     # ig 5'
     indices = [[0,0], [0,1]]
@@ -188,16 +190,16 @@ def get_indices_and_values_from_transition_kernel_higher_order(config, w):
     return indices, values
 ################################################################################
 def get_indices_for_config(config):
-    config["state_id_description_list"] = get_state_id_description_list(config["nCodons"])
-    config["indices_for_weights_A"] = get_indices_for_weights_from_transition_kernel_higher_order(config)
-    config["indices_for_constants_A"] = get_indices_for_constants_from_transition_kernel_higher_order(config)
-    config["indices_for_A"] = config["indices_for_weights_A"] + config["indices_for_constants_A"]
+    config.state_id_description_list = get_state_id_description_list(config.nCodons)
+    config.indices_for_weights_A = get_indices_for_weights_from_transition_kernel_higher_order(config)
+    config.indices_for_constants_A = get_indices_for_constants_from_transition_kernel_higher_order(config)
+    config.indices_for_A = config.indices_for_weights_A + config.indices_for_constants_A
 
-    config["indices_for_weights_B"] = get_indices_for_weights_from_emission_kernel_higher_order(config)
-    config["indices_for_constants_B"] = get_indices_for_constants_from_emission_kernel_higher_order(config)
-    config["indices_for_B"] = config["indices_for_weights_B"] + config["indices_for_constants_B"]
+    config.indices_for_weights_B = get_indices_for_weights_from_emission_kernel_higher_order(config)
+    config.indices_for_constants_B = get_indices_for_constants_from_emission_kernel_higher_order(config)
+    config.indices_for_B = config.indices_for_weights_B + config.indices_for_constants_B
 
-    config["indices_for_I"] = get_indices_from_initial_kernel(config)
+    config.indices_for_I = get_indices_from_initial_kernel(config)
 ################################################################################
 def print_config(config):
     # print("config =", config)
@@ -232,17 +234,17 @@ def nucleotide_ambiguity_code_to_array(emission):
     return code[emission]
 ################################################################################
 def strip_or_pad_emission_with_n(config, ho_emission):
-    return ["N"] * (config["order"] - len(ho_emission) + 1) + list(ho_emission)[-config["order"]-1:]
+    return ["N"] * (config.order - len(ho_emission) + 1) + list(ho_emission)[- config.order - 1:]
 ################################################################################
 def has_I_emission_after_base(config, emission):
     found_emission = False
     invalid_emission = False
-    for i in range(config["order"] +1):
-        if found_emission and emission[i] == config["alphabet_size"]:
+    for i in range(config.order +1):
+        if found_emission and emission[i] == config.alphabet_size:
             # print("not adding ", x)
             invalid_emission = True
             break
-        if emission[i] != config["alphabet_size"]:
+        if emission[i] != config.alphabet_size:
             found_emission = True
     return invalid_emission
 ################################################################################
@@ -262,7 +264,7 @@ def emission_is_stop_codon(ho_emission):
     return False
 ################################################################################
 def state_is_third_pos_in_frame(config, state):
-    des = state_id_to_description(state, config["nCodons"], config["state_id_description_list"])
+    des = state_id_to_description(state, config.nCodons, config.state_id_description_list)
     if des [-1] == "2" and des != "stop2" and des != "ter2":
         return True
     return False
@@ -271,10 +273,10 @@ def get_emissions_that_fit_ambiguity_mask(config, ho_mask, x_bases_must_preceed,
 
     # getting the allowd base emissions in each slot
     # ie "NNA" and x_bases_must_preceed = 2 -> [][0,1,2,3], [0,1,2,3], [0]]
-    allowed_bases = [0] * (config["order"] + 1)
+    allowed_bases = [0] * (config.order + 1)
     for i, emission in enumerate(strip_or_pad_emission_with_n(config, ho_mask)):
         allowed_bases[i] = nucleotide_ambiguity_code_to_array(emission)
-        if i < config["order"] - x_bases_must_preceed:
+        if i < config.order - x_bases_must_preceed:
             allowed_bases[i] += [4] # initial emission symbol
 
     allowed_ho_emissions = []
@@ -295,14 +297,14 @@ def get_indices_and_values_for_emission_higher_order_for_a_state(config, weights
                                                                  trainable = True):
     # if self.order_transformed_input and emissions[-1] == "X":
     if mask[-1] == "X":
-        indices += [[state, (config["alphabet_size"] + 1) ** (config["order"] +1)]]
+        indices += [[state, (config.alphabet_size + 1) ** (config.order +1)]]
         values[0] = tf.concat([values[0], [1]], axis = 0)
         return
 
     count_weights = 0
     for ho_emission in get_emissions_that_fit_ambiguity_mask(config, mask, x_bases_must_preceed, state):
 
-        indices += [[state, higher_order_emission_to_id(ho_emission, config["alphabet_size"], config["order"])]]
+        indices += [[state, higher_order_emission_to_id(ho_emission, config.alphabet_size, config.order)]]
         count_weights += 1
 
     if trainable:
@@ -360,18 +362,18 @@ def get_indices_for_emission_higher_order_for_a_state(config, \
                                                       x_bases_must_preceed):
     # if self.order_transformed_input and emissions[-1] == "X":
     if mask[-1] == "X":
-        indices += [[state, (config["alphabet_size"] + 1) ** (config["order"] +1)]]
+        indices += [[state, (config.alphabet_size + 1) ** (config.order +1)]]
         return
 
     count_weights = 0
     for ho_emission in get_emissions_that_fit_ambiguity_mask(config, mask, x_bases_must_preceed, state):
-        indices += [[state, higher_order_emission_to_id(ho_emission, config["alphabet_size"], config["order"])]]
+        indices += [[state, higher_order_emission_to_id(ho_emission, config.alphabet_size, config.order)]]
 
 def get_indices_for_weights_from_emission_kernel_higher_order(config):
     start = time.perf_counter()
     run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() start   {run_id}", config["bench_path"])
-    nCodons = config["nCodons"]
+    append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() start   {run_id}", config.bench_path)
+    nCodons = config.nCodons
     indices = []
 
     # ig 5'
@@ -389,35 +391,35 @@ def get_indices_for_weights_from_emission_kernel_higher_order(config):
     for state in range(6, 6 + nCodons*3 -2):
         get_indices_for_emission_higher_order_for_a_state(config, indices,state,"N",2)
     # stop
-    get_indices_for_emission_higher_order_for_a_state(config, indices,4 + nCodons*3,"T", config["order"])
-    get_indices_for_emission_higher_order_for_a_state(config, indices,5 + nCodons*3,"TA", config["order"])
-    get_indices_for_emission_higher_order_for_a_state(config, indices,5 + nCodons*3,"TG", config["order"])
+    get_indices_for_emission_higher_order_for_a_state(config, indices,4 + nCodons*3,"T", config.order)
+    get_indices_for_emission_higher_order_for_a_state(config, indices,5 + nCodons*3,"TA", config.order)
+    get_indices_for_emission_higher_order_for_a_state(config, indices,5 + nCodons*3,"TG", config.order)
     # ig 3'
-    get_indices_for_emission_higher_order_for_a_state(config, indices,7 + nCodons*3,"N", config["order"])
+    get_indices_for_emission_higher_order_for_a_state(config, indices,7 + nCodons*3,"N", config.order)
     # inserts
     for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
-        get_indices_for_emission_higher_order_for_a_state(config, indices,state,"N", config["order"])
+        get_indices_for_emission_higher_order_for_a_state(config, indices,state,"N", config.order)
 
     get_indices_for_emission_higher_order_for_a_state(\
-                          config, indices,8 + nCodons*3 + (nCodons+1)*3,"X", config["order"])
+                          config, indices,8 + nCodons*3 + (nCodons+1)*3,"X", config.order)
 
-    append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() end   {run_id}", config["bench_path"])
+    append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() end   {run_id}", config.bench_path)
 
     return indices
 
 def get_indices_for_constants_from_emission_kernel_higher_order(config):
-    nCodons = config["nCodons"]
+    nCodons = config.nCodons
     indices = []
 
     get_indices_for_emission_higher_order_for_a_state(config, indices,3,"ATG",2)
-    get_indices_for_emission_higher_order_for_a_state(config, indices,6 + nCodons*3,"TAA", config["order"])
-    get_indices_for_emission_higher_order_for_a_state(config, indices,6 + nCodons*3,"TAG", config["order"])
-    get_indices_for_emission_higher_order_for_a_state(config, indices,6 + nCodons*3,"TGA", config["order"])
+    get_indices_for_emission_higher_order_for_a_state(config, indices,6 + nCodons*3,"TAA", config.order)
+    get_indices_for_emission_higher_order_for_a_state(config, indices,6 + nCodons*3,"TAG", config.order)
+    get_indices_for_emission_higher_order_for_a_state(config, indices,6 + nCodons*3,"TGA", config.order)
 
     return indices
 ################################################################################
 def get_indices_from_initial_kernel(config):
-    nCodons = config["nCodons"]
+    nCodons = config.nCodons
     # start and codons
     indices = [[i,0] for i in range(3 + nCodons*3)]
     # inserts
@@ -876,8 +878,9 @@ def tfprint(s):
 ################################################################################
 ################################################################################
 def run(command):
-    import os
-    os.system(f"echo '\033[96mrunning -> {command} \033[00m'")
+    # os.system(f"echo '\033[96mrunning -> {command} \033[00m'")
+    print(f"running -> {command}")
+    os.system(f"echo running -> {command}")
     os.system(command)
     # import subprocess
     # import random

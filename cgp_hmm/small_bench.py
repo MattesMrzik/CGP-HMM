@@ -4,36 +4,19 @@ import argparse
 import os
 from Config import Config
 
-parser = argparse.ArgumentParser(
-    description=' # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
-parser.add_argument('-r', '--range_codon', nargs='+', help='usage: < -r 1 10 > to run 1 2 3 4 5 6 7 8 9 10 codons')
-parser.add_argument('-t', '--types', nargs="+", help='types of cell.call() that should be used')
-parser.add_argument('-c', '--nCodons', nargs="+", help ='usage: < -c 10 20 50 > to run 10 20 50 codons')
-parser.add_argument('--repeat', type = int, default = 1, help ='repeat everthing [r] times')
-parser.add_argument('--exit_on_nan', action='store_true', help ="exit_on_nan")
-parser.add_argument('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs")
-parser.add_argument('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen and not MSAgen")
-parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true')
-parser.add_argument('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
-
-
-
-parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist')
-parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist')
-
-args = parser.parse_args()
+config = Config("small_bench")
 
 codons = []
-if args.range_codon:
-    if len(args.range_codon) == 2:
-        codons += list(range(int(args.range_codon[0]), int(args.range_codon[1])+1))
-    elif len(args.range_codon) == 3:
-        codons += list(range(int(args.range_codon[0]), int(args.range_codon[1])+1), int(args.range_codon[2]))
+if config.range_codon:
+    if len(config.range_codon) == 2:
+        codons += list(range(int(config.range_codon[0]), int(config.range_codon[1])+1))
+    elif len(config.range_codon) == 3:
+        codons += list(range(int(config.range_codon[0]), int(config.range_codon[1])+1), int(config.range_codon[2]))
     else:
         print("pass 2 integers a,b > 0 with a < b, or 3 integers a,b,c > 0 with a < b and c stepsize")
         exit(1)
-if args.nCodons:
-    for c in args.nCodons:
+if config.nCodonsList:
+    for c in config.nCodonsList:
         codons.append(int(c))
 codons = sorted(list(set(codons)))
 if len(codons) == 0:
@@ -41,8 +24,8 @@ if len(codons) == 0:
     exit(1)
 
 types = []
-if args.types:
-    for t in args.types:
+if config.typesList:
+    for t in config.typesList:
         types.append(int(t))
 types = sorted(list(set(types)))
 if len(types) == 0:
@@ -53,7 +36,7 @@ from datetime import datetime
 
 for c in codons:
     for t in types:
-        for _ in range(args.repeat):
+        for _ in range(config.repeat):
             if os.path.exists("stop"):
                 os.system("rm stop")
                 exit()
@@ -61,12 +44,12 @@ for c in codons:
                 command = f"./main_programm.py -c {c} -t {t} \
                              --opti SGD --batch_begin_exit_when_nan_and_write_weights__layer_call_write_input \
                              --epochs 1 \
-                             {'--dont_generate_new_seqs' if args.dont_generate_new_seqs else ''} \
-                             {'--use_simple_seq_gen' if args.use_simple_seq_gen else ''} \
-                             {'--coding_dist ' + str(args.coding_dist)} \
-                             {'--noncoding_dist ' + str(args.noncoding_dist)} \
-                             {'--no_learning' if args.no_learning else ''} \
-                             {'--steps ' + str(args.steps_per_epoch)}"
+                             {'--dont_generate_new_seqs' if config.dont_generate_new_seqs else ''} \
+                             {'--use_simple_seq_gen' if config.use_simple_seq_gen else ''} \
+                             {'--coding_dist ' + str(config.coding_dist)} \
+                             {'--noncoding_dist ' + str(config.noncoding_dist)} \
+                             {'--no_learning' if config.no_learning else ''} \
+                             {'--steps ' + str(config.steps_per_epoch)}"
                 status = os.system(command)
                 status = os.WEXITSTATUS(status)
                 now = datetime.now()
@@ -78,7 +61,7 @@ for c in codons:
                 file.write("exit status " + str(status))
                 file.write("\n")
 
-                if args.exit_on_nan and status != 0:
+                if config.exit_on_nan and status != 0:
                     exit()
 
 

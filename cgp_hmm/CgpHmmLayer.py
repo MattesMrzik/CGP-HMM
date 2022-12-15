@@ -31,13 +31,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init: tf")
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.init() start {run_id}", config["bench_path"])
+        append_time_ram_stamp_to_file(start, f"Layer.init() start {run_id}", config.bench_path)
         super(CgpHmmLayer, self).__init__()
-        self.nCodons = config['nCodons']
+        self.nCodons = config.nCodons
         self.config = config
-        self.order_transformed_input = config['order_transformed_input']
+        self.order_transformed_input = config.order_transformed_input
 
-        append_time_ram_stamp_to_file(start, f"Layer.init() end  {run_id}", self.config["bench_path"])
+        append_time_ram_stamp_to_file(start, f"Layer.init() end  {run_id}", self.config.bench_path)
 
     def build(self, inputs):
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer build")
@@ -45,7 +45,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.build() start {run_id}", self.config["bench_path"])
+        append_time_ram_stamp_to_file(start, f"Layer.build() start {run_id}", self.config.bench_path)
         # print("in build of layer")
         self.C = CgpHmmCell(self.config) # init
 
@@ -56,7 +56,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C
         # tf.print("after RNN")
 
-        append_time_ram_stamp_to_file(start, f"Layer.build() end   {run_id}", self.config["bench_path"])
+        append_time_ram_stamp_to_file(start, f"Layer.build() end   {run_id}", self.config.bench_path)
 
     def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
@@ -66,7 +66,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", self.config["bench_path"])
+        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", self.config.bench_path)
         # todo do i need to reset statse?
         # cell is build again
 
@@ -90,17 +90,17 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # if self.C.order > 0 and not self.C.order_transformed_input : # or True to checksquare
         #     old_state = result[6]
 
-        if "batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs" in self.config and self.config["batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs"]:
+        if self.config.batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs:
             # os.system(f"rm {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
-            outstream = f"file://{self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt.temp"
+            outstream = f"file://{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt.temp"
             # also remove the file at beginning of batch
             # out_inputs = tf.argmax(inputs, axis = 2)
             # out_inputs = [[int(base) for base in seq]for seq in out_inputs]
             # tf.print(json.dumps(out_inputs, outstream))
             tf.print(inputs, summarize = -1, output_stream = outstream)
-            os.system(f"mv {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt.temp {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
+            os.system(f"mv {self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt.temp {self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
 
-        if "write_return_sequnces" in self.config and self.config["write_return_sequnces"]:
+        if self.config.write_return_sequnces:
             outstream = f"file://./output/for_unit_tests/return_sequnces.txt"
 
             # tf.print("alpha_seq, inputs_seq, count_seq", output_stream = outstream)
@@ -140,7 +140,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
                 # siehe Treffen_04
                 alpha = 4 # todo: scale punishment for inserts with different factor?
                 def add_reg(f, to):
-                    if not self.config["call_type"] == 4:
+                    if not self.config.call_type == 4:
                         probs_to_be_punished.append(tf.math.log(1 - \
                                                     self.C.A_dense[description_to_state_id(f, self.nCodons), \
                                                              description_to_state_id(to, self.nCodons)]))
@@ -191,29 +191,29 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # use the option create_layer_without_recursive_call of Utility.py
         # to create a CgpHmmLayer_non_recursive.py file the same as this one, except this new call to the layer
         # this file will be used when calculating the gradient with tape
-        if self.config["get_gradient_in_layer"]:
-            layer = CgpHmmLayer_non_recursive(self.config)
-            layer.build(None)
-            layer.C.build(None)
-            # maybe this works?
-            layer.C.init_kernel = self.C.init_kernel
-            layer.C.transition_kernel = self.C.transition_kernel
-            layer.C.emission_kernel = self.C.emission_kernel
-            # init_kernel = self.C.init_kernel
-            # transition_kernel = self.C.transition_kernel
-            # emission_kernel = self.C.emission_kernel
-            # layer.set_weights([init_kernel, transition_kernel, emission_kernel])
-
-            with tf.GradientTape() as tape:
-                y = layer(inputs)
-                dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-
-                for g, name in zip(dy_dx, "IAB"):
-                    tf.print(name, g)
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = self.config["assert_summarize"])
+        # if self.config.get_gradient_in_layer:
+        #     layer = CgpHmmLayer_non_recursive(self.config)
+        #     layer.build(None)
+        #     layer.C.build(None)
+        #     # maybe this works?
+        #     layer.C.init_kernel = self.C.init_kernel
+        #     layer.C.transition_kernel = self.C.transition_kernel
+        #     layer.C.emission_kernel = self.C.emission_kernel
+        #     # init_kernel = self.C.init_kernel
+        #     # transition_kernel = self.C.transition_kernel
+        #     # emission_kernel = self.C.emission_kernel
+        #     # layer.set_weights([init_kernel, transition_kernel, emission_kernel])
+        #
+        #     with tf.GradientTape() as tape:
+        #         y = layer(inputs)
+        #         dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+        #
+        #         for g, name in zip(dy_dx, "IAB"):
+        #             tf.print(name, g)
+        #             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = self.config["assert_summarize"])
 
             # <---
         # do not change this line
 
-        append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config["bench_path"])
+        append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config.bench_path)
         return loglik_state
