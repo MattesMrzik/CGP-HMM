@@ -236,7 +236,7 @@ def fit_model(config):
 
 ################################################################################
     else:
-        if num_gpu > 1:
+        if num_gpu > 1 and not config.dont_use_gpu:
             mirrored_strategy = tf.distribute.MirroredStrategy()
             with mirrored_strategy.scope():
                 model, cgp_hmm_layer = make_model(config)

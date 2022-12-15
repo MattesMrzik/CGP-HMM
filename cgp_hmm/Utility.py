@@ -879,8 +879,7 @@ def tfprint(s):
 ################################################################################
 def run(command):
     # os.system(f"echo '\033[96mrunning -> {command} \033[00m'")
-    print(f"running -> {command}")
-    os.system(f"echo running -> {command}")
+    os.system(f"echo running: {command}")
     os.system(command)
     # import subprocess
     # import random

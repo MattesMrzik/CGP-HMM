@@ -150,6 +150,7 @@ class Config():
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
+        self.add_arg_main('--dont_use_gpu', action='store_true', help ="dont_use_gpu")
 
         # verbose
         self.add_arg_main('-v', '--verbose', default = 0, type = int, help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")

@@ -111,8 +111,8 @@ with open(f"{args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa","w")
         for i in range(32):
             file.write(">" + seq.id + "000" + str(i) + "\n")
             file.write(str(seq.seq) + "\n")
-            
-run(f"cat {args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa")
+
+run(f"head {args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa")
 
 with open(f"{args.path}/output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt","w") as file:
     for seq in sequences:
