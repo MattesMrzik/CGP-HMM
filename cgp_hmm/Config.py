@@ -104,7 +104,7 @@ class Config():
             s += " " * (max_len - len(key[0]))
             s += key[0]
             s += " = "
-            s += str(self.parsed_args.__dict__[key[0]]) + "\n"
+            s += str(self.__dict__[key[0]] if key[0] in self.__dict__ else self.parsed_args.__dict__[key[0]]) + "\n"
         s += "==========> config <==========\n"
         for key, value in self.__dict__.items():
             s += f"{key} = {str(value)[:50]}"
@@ -174,7 +174,10 @@ class Config():
     def get_args_as_str(self, for_what):
         s = ""
         for key in self.manuall_arg_lists[for_what]:
-            value = self.parsed_args.__dict__[key[0]]
+            value = self.__dict__[key[0]] if key[0] in self.__dict__ else self.parsed_args.__dict__[key[0]]
+            print(key)
+            if key[0] == "call_type":
+                print("value =", value, type(value))
             if type(value) == bool:
                 s += key[1] + key[0] + " " if value else ""
             else:

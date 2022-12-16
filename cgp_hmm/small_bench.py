@@ -3,6 +3,7 @@
 import argparse
 import os
 from Config import Config
+import re
 
 config = Config("small_bench")
 
@@ -35,21 +36,16 @@ if len(types) == 0:
 from datetime import datetime
 
 for c in codons:
+    config.nCodons = c
     for t in types:
+        config.call_type = t
+        print("config.call_type =",  config.call_type)
         for _ in range(config.repeat):
             if os.path.exists("stop"):
                 os.system("rm stop")
                 exit()
             with open ("small_bench_run_log.txt", "a") as file:
-                command = f"./main_programm.py -c {c} -t {t} \
-                             --opti SGD --batch_begin_exit_when_nan_and_write_weights__layer_call_write_input \
-                             --epochs 1 \
-                             {'--dont_generate_new_seqs' if config.dont_generate_new_seqs else ''} \
-                             {'--use_simple_seq_gen' if config.use_simple_seq_gen else ''} \
-                             {'--coding_dist ' + str(config.coding_dist)} \
-                             {'--noncoding_dist ' + str(config.noncoding_dist)} \
-                             {'--no_learning' if config.no_learning else ''} \
-                             {'--steps ' + str(config.steps_per_epoch)}"
+                command = f"./main_programm.py {config.get_args_as_str('main_programm')}"
                 status = os.system(command)
                 status = os.WEXITSTATUS(status)
                 now = datetime.now()
