@@ -59,7 +59,7 @@ def make_dataset(config):
     append_time_ram_stamp_to_file(start, f"Training.make_dataset() start {run_id}", config.bench_path)
 
     if config.order_transformed_input:
-        seqs = read_data_with_order(config.fasta_path, config.order)
+        seqs = read_data_with_order(config.fasta_path, config.order, add_one_terminal_symbol = True)
     else:
         seqs = read_data(config.fasta_path)
 

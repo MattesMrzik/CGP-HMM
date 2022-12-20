@@ -72,7 +72,7 @@ class Config():
         run(f"rm       {self.src_path}/verbose/{self.nCodons}codons.txt")
 
         run(f"rm {self.src_path}/{self.bench_path}")
-        
+
     def determine_attributes(self):
         from Utility import get_state_id_description_list
         self.state_id_description_list = get_state_id_description_list(self.nCodons)
@@ -130,7 +130,7 @@ class Config():
         self.add_arg_main('-c', '--nCodons', type = int, default = 1, help='number of codons')
         self.add_arg_main('-t', '--call_type', type = int, default = 3, help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
         self.add_arg_main('-p', '--src_path', default = ".", help='path to src')
-        self.add_arg_main('--optimizer', default = "Adam", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [Adam]')
+        self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [Adam]')
         self.add_arg_main('--epochs', default = 2, type = int, help = 'how many epochs [2]')
         self.add_arg_main('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
         self.add_arg_main('--run_viterbi', action='store_true', help ="run_viterbi")

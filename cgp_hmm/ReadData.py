@@ -32,7 +32,7 @@ def read_data(path, alphabet = ["A","C","G","T"]):
 # let order = 1, seq = AG
 # then seqs = (IA = 4*(alphabet_size (=4) + 1)^1 + 0*5^0) = 20
 #             (AG = 0*(alphabet_size (=4) + 1)^1 + 2*5^0) = 2
-def read_data_with_order(path, order, alphabet = ["A","C","G","T"], verbose = False):
+def read_data_with_order(path, order, alphabet = ["A","C","G","T"], add_one_terminal_symbol = False, verbose = False):
     seqs = []
     def log(s):
         if verbose:
@@ -49,6 +49,8 @@ def read_data_with_order(path, order, alphabet = ["A","C","G","T"], verbose = Fa
                 t = (last_bases + [AA_to_id[base]])
                 seq_of_tuple_ids.append(higher_order_emission_to_id(t, len(alphabet), order))
                 last_bases = last_bases[1:] + [AA_to_id[base]]
+            if add_one_terminal_symbol:
+                seq_of_tuple_ids.append(higher_order_emission_to_id("X", len(alphabet), order))
             seqs.append(seq_of_tuple_ids)
     log(f"read {len(seqs)} sequnces")
     return seqs
