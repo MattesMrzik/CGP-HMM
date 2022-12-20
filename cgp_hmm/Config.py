@@ -176,7 +176,6 @@ class Config():
         s = ""
         for key in self.manuall_arg_lists[for_what]:
             value = self.__dict__[key[0]] if key[0] in self.__dict__ else self.parsed_args.__dict__[key[0]]
-            print(key)
             if key[0] == "call_type":
                 print("value =", value, type(value))
             if type(value) == bool:

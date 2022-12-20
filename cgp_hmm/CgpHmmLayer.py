@@ -126,8 +126,9 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             probs_to_be_punished = []
             loglik_mean = tf.reduce_mean(loglik_state)
             if self.config.check_assert:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_state)), [loglik_state], "loglik_state is finite", summarize = self.config.assert_summarize)
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_mean)), [loglik_mean, loglik_state], "loglik_mean is finite", summarize = self.config.assert_summarize)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_state)), [loglik_state],              name = "loglik_state_is_finite", summarize = self.config.assert_summarize)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_mean)),  [loglik_mean, loglik_state], name = "loglik_mean_is_finite",  summarize = self.config.assert_summarize)
+
 
             if training:
                 # prRed("training is true")
