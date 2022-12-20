@@ -16,6 +16,9 @@ class Config():
         self.parsed_args = self.parser.parse_args()
 
         self.add_attribtes()
+        self.prepare_before_main_programm()
+        self.determine_attributes()
+
         self.apply_args()
 
     def apply_args(self):
@@ -53,47 +56,45 @@ class Config():
         self.order_transformed_input = True
         self.order = 2
         self.alphabet_size = 4
-        self.check_assert = not self.dont_check_assert
         self.write_return_sequnces = False
+
         self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.call_type}_{self.order_transformed_input}orderTransformedInput.log"
         self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
+
+        self.check_assert = not self.dont_check_assert
         self.dtype = tf.float64 if self.dytpe64 else tf.float32
-
         self.learning_rate = self.learning_rate if not self.no_learning else 0
-        from Utility import get_state_id_description_list
-        self.state_id_description_list = get_state_id_description_list(self.nCodons)
-
-        from Utility import get_indices_for_weights_from_transition_kernel_higher_order
-        from Utility import get_indices_for_constants_from_transition_kernel_higher_order
-        from Utility import get_indices_for_weights_from_emission_kernel_higher_order
-        from Utility import get_indices_for_constants_from_emission_kernel_higher_order
-        from Utility import get_indices_from_initial_kernel
-        from Utility import get_indices_for_config
-
-        Utility.get_indices_for_config(self)
-
 
     def prepare_before_main_programm(self):
         run(f"mkdir -p {self.src_path}/output/{self.nCodons}codons/")
+
         run(f"mkdir -p {self.src_path}/verbose")
-        run(f"mkdir -p {'/'.join(self.bench_path.split('/')[:-1])}")
+        run(f"rm       {self.src_path}/verbose/{self.nCodons}codons.txt")
+
         run(f"rm {self.src_path}/{self.bench_path}")
-        run(f"rm {self.src_path}/verbose/{self.nCodons}codons.txt")
+        
+    def determine_attributes(self):
+        from Utility import get_state_id_description_list
+        self.state_id_description_list = get_state_id_description_list(self.nCodons)
+
+        from Utility import get_indices_for_config
+        Utility.get_indices_for_config(self)
+
 
     def add_arg_small_bench(self, *kwargs, type = None, help ="help", default = None, action = None, nargs = None):
         arg_name = kwargs[-1].strip("-")
-        if action == None:
-            self.parser.add_argument(*kwargs, type = type, default = default, help = help, nargs = nargs)
-        else:
+        if action:
             self.parser.add_argument(*kwargs, action = action, help = help)
+        else:
+            self.parser.add_argument(*kwargs, type = type, default = default, help = help, nargs = nargs)
         self.manuall_arg_lists["small_bench"].append(arg_name)
 
     def add_arg_main(self, *kwargs, type = None, help ="help", default = None, action = None):
         arg_name = kwargs[-1].strip("-") , re.match("(-*)", kwargs[-1]).group(1)
-        if action == None:
-            self.parser.add_argument(*kwargs, type = type, default = default, help = help)
-        else:
+        if action:
             self.parser.add_argument(*kwargs, action = action, help = help)
+        else:
+            self.parser.add_argument(*kwargs, type = type, default = default, help = help)
         self.manuall_arg_lists["main_programm"].append(arg_name)
 
 

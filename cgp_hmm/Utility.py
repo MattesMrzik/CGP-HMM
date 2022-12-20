@@ -838,6 +838,8 @@ def append_time_stamp_to_file(time, description, path):
     with open(path, "a") as file:
         file.write(f"{time}\t{description}\n")
 def append_time_ram_stamp_to_file(start, description, path):
+    if not os.path.exists('/'.join(path.split('/')[:-1])):
+        run(f"mkdir -p {'/'.join(path.split('/')[:-1])}")
     with open(path, "a") as file:
         s = [time.perf_counter(),
              time.perf_counter() - start,
