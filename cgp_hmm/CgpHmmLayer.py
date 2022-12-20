@@ -92,13 +92,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         if self.config.batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs:
             # os.system(f"rm {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
-            outstream = f"file://{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt.temp"
             # also remove the file at beginning of batch
             # out_inputs = tf.argmax(inputs, axis = 2)
             # out_inputs = [[int(base) for base in seq]for seq in out_inputs]
             # tf.print(json.dumps(out_inputs, outstream))
+            os.system(f"mv       {self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt.temp {self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
+            outstream = f"file://{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt.temp"
             tf.print(inputs, summarize = -1, output_stream = outstream)
-            os.system(f"mv {self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt.temp {self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
 
         if self.config.write_return_sequnces:
             outstream = f"file://./output/for_unit_tests/return_sequnces.txt"
@@ -125,6 +125,9 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         def my_loss(loglik_state):
             probs_to_be_punished = []
             loglik_mean = tf.reduce_mean(loglik_state)
+            if self.config.check_assert:
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_state)), [loglik_state], "loglik_state is finite", summarize = self.config.assert_summarize)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_mean)), [loglik_mean, loglik_state], "loglik_mean is finite", summarize = self.config.assert_summarize)
 
             if training:
                 # prRed("training is true")
@@ -171,49 +174,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
                 return tf.squeeze(-loglik_mean - alpha * reg_mean)
             else:
                 return tf.squeeze(-loglik_mean)
-
+        # end myloss()
         self.add_loss(my_loss(loglik_state))
-
-        # if training:
-            # tf.print("loglik_mean = ", loglik_mean)
-            # tf.print("reg_mean = ", reg_mean)
-
-        # tf.print(f"LAYER -- tf.executing_eagerly() {tf.executing_eagerly()}")
-        # AttributeError: Tensor.op is meaningless when eager execution is enabled.
-        # grads = tf.gradients(my_loss(loglik_state), [self.C.init_kernel], stop_gradients = [self.C.init_kernel])
-        # tfprint(grads)
-
-        # do not change this line
-        # --->
-
-        # Gradient for SparseDenseCwiseAdd is not implemented.
-
-        # use the option create_layer_without_recursive_call of Utility.py
-        # to create a CgpHmmLayer_non_recursive.py file the same as this one, except this new call to the layer
-        # this file will be used when calculating the gradient with tape
-        # if self.config.get_gradient_in_layer:
-        #     layer = CgpHmmLayer_non_recursive(self.config)
-        #     layer.build(None)
-        #     layer.C.build(None)
-        #     # maybe this works?
-        #     layer.C.init_kernel = self.C.init_kernel
-        #     layer.C.transition_kernel = self.C.transition_kernel
-        #     layer.C.emission_kernel = self.C.emission_kernel
-        #     # init_kernel = self.C.init_kernel
-        #     # transition_kernel = self.C.transition_kernel
-        #     # emission_kernel = self.C.emission_kernel
-        #     # layer.set_weights([init_kernel, transition_kernel, emission_kernel])
-        #
-        #     with tf.GradientTape() as tape:
-        #         y = layer(inputs)
-        #         dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-        #
-        #         for g, name in zip(dy_dx, "IAB"):
-        #             tf.print(name, g)
-        #             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = self.config["assert_summarize"])
-
-            # <---
-        # do not change this line
 
         append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config.bench_path)
         return loglik_state

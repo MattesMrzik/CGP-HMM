@@ -798,8 +798,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
         R, Z_i_minus_1 = self.get_R(old_forward, init = count[0,0] == 1)
 
         if self.config.check_assert:
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",      summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero",      summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",  summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.(R)),                     [R, count[0,0]],            name = "R_finite",  summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.(E)),                     [E, count[0,0]],            name = "E_finite",  summarize = self.config.assert_summarize)
 
         alpha = E * R # batch * state_size
 
@@ -808,10 +810,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         loglik = tf.math.add(old_loglik, tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True)), name = "loglik")
 
         if self.config.check_assert:
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, count[0,0]], name = "A_dense_end_of_call", summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_end_of_call", summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),        [alpha, count[0,0]],        name = "alpha",                     summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)),       [loglik, count[0,0]],       name = "loglik_finite",             summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),  [alpha, count[0,0]],  name = "alpha",         summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)), [loglik, count[0,0]], name = "loglik_finite", summarize = self.config.assert_summarize)
             # i think this should be allowed since sum across alpha can be 1, then log is 0, which is fine
             # tf.debugging.Assert(tf.math.reduce_all(loglik != 0),                     [loglik, count[0,0]],       name = "loglik_nonzero",            summarize = -1)
 

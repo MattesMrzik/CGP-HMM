@@ -55,16 +55,19 @@ def get_call_backs(config, model):
         def on_train_batch_begin(self, batch, logs = None):
             os.system(f"rm {config.src_path}/verbose/{config.nCodons}codons.txt")
 
+    class assert_kernels_at_batch_begin(tf.keras.callbacks.Callback):
+        ik, ak, bk = model.get_weights()
+
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ik,ak,bk], name = "I_kernel_is_nan", summarize = config.assert_summarize)
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ik,ak,bk], name = "A_kernel_is_nan", summarize = config.assert_summarize)
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ik,ak,bk], name = "B_kernel_is_nan", summarize = config.assert_summarize)
+
     class batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
             ik, ak, bk = model.get_weights()
 
             # TODO: why can i access condif here?
             if config.call_type != 4:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ik,ak,bk], name = "I_kernel_is_nan", summarize = config.assert_summarize)
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ik,ak,bk], name = "A_kernel_is_nan", summarize = config.assert_summarize)
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ik,ak,bk], name = "B_kernel_is_nan", summarize = config.assert_summarize)
-
                 Utility.run(f"mkdir -p {config.src_path}/output/{config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/")
                 os.system(f"rm {config.src_path}/output/{config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/*")
 
@@ -124,6 +127,8 @@ def get_call_backs(config, model):
         callbacks += [remove_verbose_at_batch_begin()]
     if config.batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs:
         callbacks += [batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs()]
+    if config.check_assert:
+        callbacks += [assert_kernels_at_batch_begin()]
 
     callbacks += [get_the_gradient()]
 
