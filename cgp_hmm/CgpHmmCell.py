@@ -112,13 +112,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
 
         if self.config.get_gradient_for_current_txt:
-            with open(f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_I.json") as file:
+            with open(f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_I.json") as file:
                 weights_I = np.array(json.load(file))
                 I_initializer = tf.constant_initializer(weights_I)
-            with open(f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_A.json") as file:
+            with open(f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_A.json") as file:
                 weights_A = np.array(json.load(file))
                 A_initializer = tf.constant_initializer(weights_A)
-            with open(f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_B.json") as file:
+            with open(f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_B.json") as file:
                 weights_B = np.array(json.load(file))
                 B_initializer = tf.constant_initializer(weights_B)
         # elif self.config["get_gradient_from_saved_model_weights"] and "model" in self.config:
@@ -744,6 +744,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         count = tf.math.add(count, 1)
 
         if self.config.check_assert:
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.init_kernel)),       [self.init_kernel, self.transition_kernel, self.emission_kernel, count[0,0]], name = "init_kernel_beginning_of_cell", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.transition_kernel)), [self.transition_kernel], name = "transition_kernel_beginning_of_cell", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.emission_kernel)),   [self.emission_kernel],   name = "emission_kernel_beginning_of_cell", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, old_loglik, old_forward, count[0,0]], name = "A_dense_beginning_of_call", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.I_dense)), [self.I_dense, count[0,0]], name = "I_dense_beginning_of_call", summarize = self.config.assert_summarize)

@@ -62,6 +62,7 @@ class Config():
         self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
 
         self.check_assert = not self.dont_check_assert
+        self.generate_new_seqs = not self.dont_generate_new_seqs
         self.dtype = tf.float64 if self.dytpe64 else tf.float32
         self.learning_rate = self.learning_rate if not self.no_learning else 0
 
@@ -101,9 +102,14 @@ class Config():
     def print(self):
         s = "==========> config <==========\n"
         max_len = max([len(k[0]) for l in self.manuall_arg_lists.values() for k in l ])
-        for key in [k for l in self.manuall_arg_lists.values() for k in l ]:
-            s += " " * (max_len - len(key[0]))
+        keys = [k for l in self.manuall_arg_lists.values() for k in l ]
+        keys = sorted(keys)
+        for i, key in enumerate(keys):
             s += key[0]
+            if i % 5 == 0:
+                s += "-" * (max_len - len(key[0]))
+            else:
+                s += " " * (max_len - len(key[0]))
             s += " = "
             s += str(self.__dict__[key[0]] if key[0] in self.__dict__ else self.parsed_args.__dict__[key[0]]) + "\n"
         s += "==========> config <==========\n"
@@ -158,7 +164,7 @@ class Config():
         self.add_arg_main('-o', '--remove_verbose_at_batch_begin', action='store_true', help ="only_keep_verbose_of_last_batch")
         self.add_arg_main('-s', '--verbose_to_stdout', action='store_true', help ="verbose to stdout instead of to file")
         self.add_arg_main('--cpu_gpu', action='store_true', help ="print whether gpu or cpu is used")
-        self.add_arg_main('--batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs', action='store_true', help ="batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs")
+        self.add_arg_main('--batch_begin_write_weights__layer_call_write_inputs', action='store_true', help ="batch_begin_write_weights__layer_call_write_inputs")
         self.add_arg_main('--get_gradient_of_first_batch', action='store_true', help ="get_gradient_of_first_batch")
         self.add_arg_main('--get_gradient_for_current_txt', action='store_true', help ="get_gradient_for_current_txt, previous run wrote IAB and inputbath to file -> get respective gradient")
         self.add_arg_main('--get_gradient_in_layer', action='store_true', help ="get_gradient_for current values directly in the call of layer, but 'Gradient for SparseDenseCwiseAdd is not implemented.'")

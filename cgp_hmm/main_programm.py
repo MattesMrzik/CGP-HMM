@@ -8,63 +8,12 @@ def main(config):
     import tensorflow as tf
     import matplotlib.pyplot as plt
     from Training import fit_model
-    from Training import make_dataset
     import Utility
     import numpy as np
     from Bio import SeqIO
     import WriteData
     import re
-    from tensorflow.python.client import device_lib
-
-    from Utility import remove_old_bench_files
-    from Utility import remove_old_verbose_files
-
-    from CgpHmmCell import CgpHmmCell
-
-    from itertools import product
-    codons = []
-    for codon in product("ACGT", repeat = 3):
-        codon = "".join(codon)
-        if codon not in ["TAA", "TGA", "TAG"]:
-            codons += [codon]
-
-    if not config.dont_generate_new_seqs:
-        if config.use_simple_seq_gen:
-            num_seqs = 100
-            seqs = {}
-            with open(config.fasta_path, "w") as file:
-                genlen = 3 * config.nCodons # ATG and STOP are not on gene
-                seqlen = genlen * config.l
-                seqlen += 6 # start and stop codon
-                seqlen += 2 # ig states
-                max_flanklen = (seqlen - genlen )//2
-                low = max_flanklen - 1 if config.dont_strip_flanks else 1
-
-                for seq_id in range(num_seqs):
-
-                    ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(low, max_flanklen))) # TODO: also check if low = 2
-                    atg = "ATG"
-                    # coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
-                    coding = "".join(np.random.choice(codons, config.nCodons))
-                    stop = np.random.choice(["TAA","TGA","TAG"])
-                    ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(low, max_flanklen)))
-
-                    seqs[f">use_simple_seq_gen_{seq_id}"] = ig5 + atg + coding + stop + ig3
-                for key, value in seqs.items():
-                    file.write(key + "\n")
-                    file.write(value + "\n")
-        else:
-            from Utility import run
-            command = f"python3 {config.src_path}/useMSAgen.py -c {config.nCodons} \
-                          {'-n 4'} \
-                          {'-l' + str(config.l)} \
-                          {'-cd ' + str(config.coding_dist) if config.coding_dist else ''} \
-                          {'-ncd ' + str(config.noncoding_dist) if config.noncoding_dist else ''}\
-                          {'--dont_strip_flanks' if config.dont_strip_flanks else ''} \
-                          {'-p ' + config.src_path if config.src_path else ''}"
-            command = re.sub("\s+", " ", command)
-            run(command)
-
+    from Utility import run
 
     model, history = fit_model(config)
     print("done fit_model()")
@@ -78,6 +27,7 @@ def main(config):
     plt.plot(history.history['loss'])
     plt.savefig(f"{config.src_path}/progress.png")
 
+    from CgpHmmCell import CgpHmmCell
     cell = CgpHmmCell(config)
     cell.init_kernel = model.get_weights()[0]
     cell.transition_kernel = model.get_weights()[1]

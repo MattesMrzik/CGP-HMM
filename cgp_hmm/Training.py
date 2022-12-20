@@ -58,6 +58,50 @@ def make_dataset(config):
     run_id = randint(0,100)
     append_time_ram_stamp_to_file(start, f"Training.make_dataset() start {run_id}", config.bench_path)
 
+    from itertools import product
+    codons = []
+    for codon in product("ACGT", repeat = 3):
+        codon = "".join(codon)
+        if codon not in ["TAA", "TGA", "TAG"]:
+            codons += [codon]
+
+    if config.generate_new_seqs:
+        if config.use_simple_seq_gen:
+            num_seqs = 100
+            seqs = {}
+            with open(config.fasta_path, "w") as file:
+                genlen = 3 * config.nCodons # ATG and STOP are not on gene
+                seqlen = genlen * config.l
+                seqlen += 6 # start and stop codon
+                seqlen += 2 # ig states
+                max_flanklen = (seqlen - genlen )//2
+                low = max_flanklen - 1 if config.dont_strip_flanks else 1
+
+                for seq_id in range(num_seqs):
+
+                    ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(low, max_flanklen))) # TODO: also check if low = 2
+                    atg = "ATG"
+                    # coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
+                    coding = "".join(np.random.choice(codons, config.nCodons))
+                    stop = np.random.choice(["TAA","TGA","TAG"])
+                    ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(low, max_flanklen)))
+
+                    seqs[f">use_simple_seq_gen_{seq_id}"] = ig5 + atg + coding + stop + ig3
+                for key, value in seqs.items():
+                    file.write(key + "\n")
+                    file.write(value + "\n")
+        else:
+            command = f"python3 {config.src_path}/useMSAgen.py -c {config.nCodons} \
+                          {'-n 4'} \
+                          {'-l' + str(config.l)} \
+                          {'-cd ' + str(config.coding_dist) if config.coding_dist else ''} \
+                          {'-ncd ' + str(config.noncoding_dist) if config.noncoding_dist else ''}\
+                          {'--dont_strip_flanks' if config.dont_strip_flanks else ''} \
+                          {'-p ' + config.src_path if config.src_path else ''}"
+            command = re.sub("\s+", " ", command)
+            run(command)
+
+
     if config.order_transformed_input:
         seqs = read_data_with_order(config.fasta_path, config.order, add_one_terminal_symbol = True)
     else:
@@ -120,7 +164,6 @@ def fit_model(config):
 
     # _, seqs = make_dataset()# first return value is data_set
     # model(seqs)
-
     data_set, seqs = make_dataset(config)
 
     output_path = f"bench/{config.nCodons}codons"
@@ -134,7 +177,7 @@ def fit_model(config):
         model, cgp_hmm_layer = make_model(config)
         model.compile(optimizer = optimizer)
         if config.get_gradient_from_saved_model_weights:
-            model.load_weights(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_weights")
+            model.load_weights(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_weights")
             # config["model"] = model
             # print('config["model"]', config["model"])
             config.weights = model.get_weights()
@@ -144,7 +187,7 @@ def fit_model(config):
         layer.C.build(None)
         import ReadData
         # assuming that inputs are formatted in shape batch, seq_len, one_hot_dim = 32, l, 126
-        input = ReadData.get_batch_input_from_tf_printed_file(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
+        input = ReadData.get_batch_input_from_tf_printed_file(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
         with tf.GradientTape() as tape:
             y = layer(input) # eventuell wird hier die cell nochmal gebaut und das weight setzen davor bringt nichts
             dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])

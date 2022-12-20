@@ -50,6 +50,7 @@ with open(f"{args.path}/output/{nCodons}codons/MSAgen_untrancated_seqs.{nCodons}
     for seq in sequences:
         file.write(">" + seq.id + "\n")
         file.write(str(seq.seq) + "\n")
+
 coding_seqs = []
 for seq in sequences:
     coding_seqs += [seq.seq[posDict["5flank_len"] : posDict["3flank_start"]]]
@@ -109,6 +110,7 @@ with open(f"{args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa","w")
 
     for seq in sequences:
         for i in range(32):
+            #                                 index of seq in batch
             file.write(">" + seq.id + "000" + str(i) + "\n")
             file.write(str(seq.seq) + "\n")
 

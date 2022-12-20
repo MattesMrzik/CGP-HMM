@@ -351,8 +351,8 @@ class TestForward(unittest.TestCase):
             local_config["write_return_sequnces"] = True # doesnt write A, B, E, R, alpha, ..., but only the return_seqs if rnn
             Utility.get_indices_for_config(local_config)
 
-            use_batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs = True
-            if not use_batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs:
+            use_batch_begin_write_weights__layer_call_write_inputs = True
+            if not use_batch_begin_write_weights__layer_call_write_inputs:
                 # >seq1
                 # ACATGCAAGGTTAATTG
                 # >seq2
@@ -361,11 +361,11 @@ class TestForward(unittest.TestCase):
                 # ACATGCAAGGTTA
                 input_seqs = ["ACATGCAAGGTTAATTG", "CACATGCAAGGTTAAT", "ACATGCAAGGTTA"]
                 input_seqs = ["ACATGCAAGGTTAATTG", "CCCATGGTACGCTAAG", "AGATGCCCTGGTAGA"]
-            if use_batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs:
+            if use_batch_begin_write_weights__layer_call_write_inputs:
 
 
-                # or get seqs from batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs
-                input_seqs = ReadData.get_batch_input_from_tf_printed_file(f"{local_config['src_path']}/output/{local_config['nCodons']}codons/batch_begin_exit_when_nan_and_write_weights__layer_call_write_inputs/current_inputs.txt")
+                # or get seqs from batch_begin_write_weights__layer_call_write_inputs
+                input_seqs = ReadData.get_batch_input_from_tf_printed_file(f"{local_config['src_path']}/output/{local_config['nCodons']}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
                 input_seqs = [[Utility.id_to_higher_order_emission(np.argmax(one_hot_emission), local_config["alphabet_size"], local_config["order"]) [-1] \
                               for one_hot_emission in seq] for seq in input_seqs]
                 input_seqs = ["".join(["ACGT"[base] if base != 5 else "" for base in seq]) for seq in input_seqs]
