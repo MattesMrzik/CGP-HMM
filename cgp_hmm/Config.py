@@ -80,6 +80,7 @@ class Config():
 
         from Utility import get_indices_for_config
         Utility.get_indices_for_config(self)
+        print("self.indices_for_B =", self.indices_for_B)
 
 
     def add_arg_small_bench(self, *kwargs, type = None, help ="help", default = None, action = None, nargs = None):
@@ -177,6 +178,7 @@ class Config():
         self.add_arg_main('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
         self.add_arg_main('--manual_traning_loop', action='store_true', help ="manual_traning_loop")
         self.add_arg_main('--dont_check_assert', action='store_true', help ="dont_check_assert")
+        self.add_arg_main('--run_eagerly', action='store_true', help ='run model.fit in eager execution')
 
     def get_args_as_str(self, for_what):
         s = ""

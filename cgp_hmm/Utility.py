@@ -200,16 +200,7 @@ def get_indices_for_config(config):
     config.indices_for_B = config.indices_for_weights_B + config.indices_for_constants_B
 
     config.indices_for_I = get_indices_from_initial_kernel(config)
-################################################################################
-def print_config(config):
-    # print("config =", config)
-    s = "=====> config <====================================================\n"
-    maxlen_key = max([len(key) for key in config.keys()])
-    for key,value in config.items():
-        s += (f"{' '*(maxlen_key-len(key))}{key}: {str(value)[:50]}{(' ..., shape: ' + str(tf.shape(value).numpy())) if len(str(value)) > 50 else ''}")
-        s += "\n"
-    s += "=====> config <===================================================="
-    print(s)
+
 ################################################################################
 def nucleotide_ambiguity_code_to_array(emission):
     # todo: somehow having this dict as self.code made it slower, why???
@@ -236,16 +227,25 @@ def nucleotide_ambiguity_code_to_array(emission):
 def strip_or_pad_emission_with_n(config, ho_emission):
     return ["N"] * (config.order - len(ho_emission) + 1) + list(ho_emission)[- config.order - 1:]
 ################################################################################
-def has_I_emission_after_base(config, emission):
+def has_I_emission_after_base(emission, config = None, alphabet_size = None, order = None):
+    if config == None:
+        assert alphabet_size != None, "has_I_emission_after_base must be provided with config or (alphabet_size and order)"
+        assert order != None, "has_I_emission_after_base must be provided with config or (alphabet_size and order)"
+    if alphabet_size == None:
+        alphabet_size = config.alphabet_size
+    if order == None:
+        order = config.order
+
     found_emission = False
     invalid_emission = False
-    for i in range(config.order +1):
-        if found_emission and emission[i] == config.alphabet_size:
+    for i in range(order +1):
+        if found_emission and emission[i] == alphabet_size:
             # print("not adding ", x)
             invalid_emission = True
             break
-        if emission[i] != config.alphabet_size:
+        if emission[i] != alphabet_size:
             found_emission = True
+    invalid_emission = invalid_emission if found_emission else True
     return invalid_emission
 ################################################################################
 def emission_is_stop_codon(ho_emission):
@@ -282,7 +282,7 @@ def get_emissions_that_fit_ambiguity_mask(config, ho_mask, x_bases_must_preceed,
     allowed_ho_emissions = []
     state_is_third_pos_in_frame_bool = state_is_third_pos_in_frame(config, state)
     for ho_emission in product(*allowed_bases):
-        if not has_I_emission_after_base(config, ho_emission) \
+        if not has_I_emission_after_base(ho_emission, config = config) \
         and not (state_is_third_pos_in_frame_bool and emission_is_stop_codon(ho_emission)):
             allowed_ho_emissions += [ho_emission]
 
@@ -297,7 +297,7 @@ def get_indices_and_values_for_emission_higher_order_for_a_state(config, weights
                                                                  trainable = True):
     # if self.order_transformed_input and emissions[-1] == "X":
     if mask[-1] == "X":
-        indices += [[state, (config.alphabet_size + 1) ** (config.order +1)]]
+        indices += [[state, higher_order_emission_to_id("X", config.alphabet_size, config.order)]]
         values[0] = tf.concat([values[0], [1]], axis = 0)
         return
 
@@ -312,9 +312,6 @@ def get_indices_and_values_for_emission_higher_order_for_a_state(config, weights
         k[0] += count_weights
     else:
         values[0] = tf.concat([values[0], [1] * count_weights], axis = 0)
-
-def get_indices_and_values_for_emission_higher_order_for_a_state_old_inputs(config, w, nCodons, alphabet_size):
-    pass
 
 def get_indices_and_values_from_emission_kernel_higher_order(config, w, nCodons, alphabet_size):
     indices = []
@@ -362,10 +359,9 @@ def get_indices_for_emission_higher_order_for_a_state(config, \
                                                       x_bases_must_preceed):
     # if self.order_transformed_input and emissions[-1] == "X":
     if mask[-1] == "X":
-        indices += [[state, (config.alphabet_size + 1) ** (config.order +1)]]
+        indices += [[state, higher_order_emission_to_id("X", config.alphabet_size, config.order)]]
         return
 
-    count_weights = 0
     for ho_emission in get_emissions_that_fit_ambiguity_mask(config, mask, x_bases_must_preceed, state):
         indices += [[state, higher_order_emission_to_id(ho_emission, config.alphabet_size, config.order)]]
 
@@ -379,9 +375,9 @@ def get_indices_for_weights_from_emission_kernel_higher_order(config):
     # ig 5'
     get_indices_for_emission_higher_order_for_a_state(config, indices,0,"N",0)
     # start a
-    get_indices_for_emission_higher_order_for_a_state(config, indices,1,"A",0)
+    get_indices_for_emission_higher_order_for_a_state(config, indices,1,"A",1)
     # start t
-    get_indices_for_emission_higher_order_for_a_state(config, indices,2,"AT",0)
+    get_indices_for_emission_higher_order_for_a_state(config, indices,2,"AT",2)
 
     # codon_11
     get_indices_for_emission_higher_order_for_a_state(config, indices,4,"ATGN",2)
@@ -400,8 +396,10 @@ def get_indices_for_weights_from_emission_kernel_higher_order(config):
     for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
         get_indices_for_emission_higher_order_for_a_state(config, indices,state,"N", config.order)
 
-    get_indices_for_emission_higher_order_for_a_state(\
-                          config, indices,8 + nCodons*3 + (nCodons+1)*3,"X", config.order)
+    softmax_over_4_nuc = True
+    if not softmax_over_4_nuc:
+        get_indices_for_emission_higher_order_for_a_state(\
+                              config, indices,8 + nCodons*3 + (nCodons+1)*3,"X", config.order)
 
     append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() end   {run_id}", config.bench_path)
 
@@ -596,33 +594,92 @@ def description_to_state_id(des, nCodons, state_id_description_list = None):
     except:
         return -1
 
-def higher_order_emission_to_id(emission, alphabet_size, order):
-    # todo: emission 4,4,4 = I,I,I is not used, i might give this id to X
-    # also 4,1,4 is not used
-    if emission == "X" or emission ==  alphabet_size + 1 or emission == [alphabet_size+1]:
-        return (alphabet_size + 1)**(order + 1)
-    #                                 initial symbol
-    return sum([base*(alphabet_size + 1)**(len(emission) - i -1) for i, base in enumerate(emission)])
+def emissions_state_size(alphabet_size, order):# with out terminal symbol
+    if order == 0:
+        return alphabet_size
+    return (alphabet_size + 1) * 4 ** (order) + sum([alphabet_size ** i for i in range(1, order)])
+
+def get_dicts_for_emission_tuple_and_id_conversion(config = None, alphabet_size = None, order = None):
+    if config == None:
+        assert alphabet_size != None, "get_dicts_for_emission_tuple_and_id_conversion must be provided with config or (alphabet_size and order)"
+        assert order != None, "get_dicts_for_emission_tuple_and_id_conversion must be provided with config or (alphabet_size and order)"
+    if alphabet_size == None:
+        alphabet_size = config.alphabet_size
+    if order == None:
+        order = config.order
+
+    emi_to_id = {}
+    id_to_emi = {}
+    if order == 0:
+        emi_to_id = dict([(base, id) for id, base in enumerate(range(alphabet_size + 1))])
+        id_to_emi = dict([(id, base) for id, base in enumerate(range(alphabet_size + 1))])
+    else:
+        import Utility
+        from itertools import product
+        id = 0
+        for emission_tuple in product(list(range(alphabet_size + 1)), repeat = order + 1):
+            if not Utility.has_I_emission_after_base(emission_tuple, alphabet_size = alphabet_size, order = order):
+                id_to_emi[id] = emission_tuple
+                emi_to_id[emission_tuple] = id
+                id += 1
+        id_to_emi[id] = tuple("X")
+        emi_to_id[tuple("X")] = id
+
+    if config != None:
+        config.id_to_emi = id_to_emi
+        config.emi_to_id = emi_to_id
+    else:
+        return emi_to_id, id_to_emi
+
+# emission is either a tuple like [2,1,3] or "X"
+def higher_order_emission_to_id(emission_tuple, alphabet_size, order):
+    return get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = alphabet_size, order = order)[0][tuple(emission_tuple)]
+#     if order > 0 and type(emission_tuple) == int:
+#         print("wrong call to higher_order_emission_to_id")
+#         exit(1)
+#
+#     use_five_to_the_power_of_order = False
+#     if use_five_to_the_power_of_order:
+#         # todo: emission 4,4,4 = I,I,I is not used, i might give this id to X
+#         # also 4,1,4 is not used
+#         if emission_tuple == "X" or emission_tuple ==  alphabet_size + 1 or emission_tuple == [alphabet_size+1]:
+#             return (alphabet_size + 1)**(order + 1)
+#         #                                 initial symbol
+#         return sum([base*(alphabet_size + 1)**(len(emission_tuple) - i -1) for i, base in enumerate(emission)])
+#     else:
+#         if emission_tuple == "X" or emission_tuple ==  alphabet_size + 1 or emission_tuple == [alphabet_size+1]:
+#             return emissions_state_size(alphabet_size, order)
+#         offset = 0
+#         for i in range(order):
+#             if emission_tuple[i] == 2:
+#                 pass
+
 
 def id_to_higher_order_emission(id, alphabet_size, order, as_string = False):
-    emission = []
-    if id == (alphabet_size + 1)**(order + 1):
-        if as_string:
-            return "X"
-        else:
-            return [alphabet_size +1]
-    for i in range(order,0,-1):
-        fits = int(id/((alphabet_size+1)**i))
-        if fits < 1:
-            emission += [0]
-        else:
-            id -= fits*((alphabet_size+1)**i)
-            emission += [int(fits)]
-    emission += [int(id)]
-    if as_string:
-        emission = "".join(["ACGTI"[base] for base in emission])
-    return emission
-################################################################################
+    return get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = alphabet_size, order = order)[1][id]
+#     emission = []
+#     if id == (alphabet_size + 1)**(order + 1):
+#         if as_string:
+#             return "X"
+#         else:
+#             return [alphabet_size +1]
+#     for i in range(order,0,-1):
+#         fits = int(id/((alphabet_size+1)**i))
+#         if fits < 1:
+#             emission += [0]
+#         else:
+#             id -= fits*((alphabet_size+1)**i)
+#             emission += [int(fits)]
+#     emission += [int(id)]
+#     if as_string:
+#         emission = "".join(["ACGTI"[base] for base in emission])
+#     return emission
+
+def emi_tuple_to_str(emi_tuple):
+    if emi_tuple[0] == "X":
+        return "X"
+    return "".join(list(map(lambda x: "ACGTI"[x], emi_tuple)))
+ ################################################################################
 def print_color_coded_fasta(fasta_path, start_stop_path):
     seq_dict = {}
     with open(fasta_path,"r") as file:
@@ -676,12 +733,13 @@ def view_current_inputs_txt(path):
 ################################################################################
 ################################################################################
 # type is either I, A, B
-def transform_json_to_csv(path, type, nCodons):
+def transform_json_to_csv(path, I_or_A_or_B, nCodons):
     import json
+    print("I_or_A_or_B =", I_or_A_or_B)
     with open(path, "r") as file:
         data = json.load(file)
-    print("data =", data)
-    if type == "I":
+    print("data shape =", tf.shape(data))
+    if I_or_A_or_B == "I":
         data = data[0]
         with open(path + ".csv", "w") as file:
             for id, value in enumerate(data):
@@ -689,7 +747,7 @@ def transform_json_to_csv(path, type, nCodons):
                 file.write(";")
                 file.write(str(value))
                 file.write("\n")
-    elif type == "A":
+    elif I_or_A_or_B == "A":
         with open(path + ".csv", "w") as file:
             file.write(";")
             for state in range(len(data)):
@@ -703,15 +761,19 @@ def transform_json_to_csv(path, type, nCodons):
                     file.write(str(value))
                     file.write(";")
                 file.write("\n")
-    elif type == "B":
+    elif I_or_A_or_B == "B":
+        print("B")
+        id_to_emi = get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = 4, order = 2)[1]
         with open(path + ".csv", "w") as file:
             file.write(";")
             for state in range(len(data[0])):
                 file.write(state_id_to_description(state, nCodons))
                 file.write(";")
             file.write("\n")
+            print("data =", str(data)[:50])
             for id, row in enumerate(data):
-                file.write(id_to_higher_order_emission(id, 4, 2, as_string = True))
+                print("id_to_emi[id] =", id_to_emi[id])
+                file.write(emi_tuple_to_str(id_to_emi[id]))
                 file.write(";")
                 for value in row:
                     file.write(str(value))

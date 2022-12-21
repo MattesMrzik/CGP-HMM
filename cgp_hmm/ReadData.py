@@ -5,6 +5,7 @@ import numpy as np
 from Bio import SeqIO
 from Utility import run
 from Utility import higher_order_emission_to_id
+from Utility import get_dicts_for_emission_tuple_and_id_conversion
 import re
 
 def read_data_one_hot(path, alphabet = ["A","C","G","T"]):
@@ -37,7 +38,8 @@ def read_data_with_order(path, order, alphabet = ["A","C","G","T"], add_one_term
     def log(s):
         if verbose:
             print(s)
-    AA_to_id = dict([(aa, id) for id, aa in enumerate(alphabet)])
+    emi_to_id = get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = len(alphabet), order = order)[0]
+    base_to_id = dict([(base, id) for id, base in enumerate(alphabet)])
     with open(path,"r") as handle:
         log(f"opened: {path}")
         for record in SeqIO.parse(handle,"fasta"):
@@ -46,11 +48,11 @@ def read_data_with_order(path, order, alphabet = ["A","C","G","T"], add_one_term
             seq_of_tuple_ids = [] # 21, 124
             last_bases = [4] * order # 4 is padded left flank
             for base in seq:
-                t = (last_bases + [AA_to_id[base]])
-                seq_of_tuple_ids.append(higher_order_emission_to_id(t, len(alphabet), order))
-                last_bases = last_bases[1:] + [AA_to_id[base]]
+                t = (last_bases + [base_to_id[base]])
+                seq_of_tuple_ids.append(emi_to_id[tuple(t)])
+                last_bases = last_bases[1:] + [base_to_id[base]]
             if add_one_terminal_symbol:
-                seq_of_tuple_ids.append(higher_order_emission_to_id("X", len(alphabet), order))
+                seq_of_tuple_ids.append(emi_to_id[tuple("X")])
             seqs.append(seq_of_tuple_ids)
     log(f"read {len(seqs)} sequnces")
     return seqs

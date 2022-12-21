@@ -12,6 +12,7 @@ from Utility import run
 from CallBacks import get_call_backs
 from Utility import transform_verbose_txt_to_csv
 from Utility import append_time_ram_stamp_to_file
+from Utility import emissions_state_size
 
 
 from CgpHmmLayer import CgpHmmLayer
@@ -31,13 +32,11 @@ def make_model(config):
     run_id = randint(0,100)
     append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", config.bench_path)
 
-    alphabet_size = 4
-
     if config.order_transformed_input:
-        #                                                                                        terminal
-        sequences = tf.keras.Input(shape = (None, (alphabet_size + 1) ** (config.order + 1) + 1), name = "sequences", dtype = config.dtype)
+        #                                                                                                     terminal
+        sequences = tf.keras.Input(shape = (None, emissions_state_size(config.alphabet_size, config.order) + 1), name = "sequences", dtype = config.dtype)
     else:
-        sequences = tf.keras.Input(shape = (None, alphabet_size + 2), name = "sequences", dtype = config.dtype)
+        sequences = tf.keras.Input(shape = (None, config.alphabet_size + 2), name = "sequences", dtype = config.dtype)
 
     # another None added automatically for yet unkown batch_size
 
@@ -114,7 +113,7 @@ def make_dataset(config):
         ds = ds.padded_batch(32, padding_values = (4 + 1)**(config.order + 1))
 
         def to_one_hot(seq):
-            return tf.cast(tf.one_hot(seq, (4 + 1)**(config.order + 1) + 1), dtype=config.dtype)
+            return tf.cast(tf.one_hot(seq, emissions_state_size(config.alphabet_size, config. order) + 1), dtype=config.dtype)
     else:
         ds = ds.padded_batch(32, padding_values = 5) # 5 is terminal symbol, 4 is "padded left flank"
 
@@ -216,12 +215,14 @@ def fit_model(config):
             # for seq in first_batch:
             #     print((max_len_seq_in_batch - len(seq)))
             #     print(seq + [126] * (max_len_seq_in_batch - len(seq)))
-            first_batch = [seq + [125] * (max_len_seq_in_batch - len(seq)) for seq in first_batch]
+            emissions_state_size = Utility.emissions_state_size(config.alphabet_size, config.order)
+            #                                                                              every seq has at least one terminal symbol
+            first_batch = [seq + [emissions_state_size] * (max_len_seq_in_batch - len(seq) + 1) for seq in first_batch]
 
             # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
 
             # one_hot:
-            first_batch = tf.one_hot(first_batch, 126)
+            first_batch = tf.one_hot(first_batch, emissions_state_size + 1) # bc terminal symbol is not counted in emissions_state_size
 
             # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
 
@@ -247,15 +248,16 @@ def fit_model(config):
         layer.build(None)
         layer.C.build(None)
 
-
+        emissions_state_size = Utility.emissions_state_size(config.alphabet_size, config.order)
         for epoch in range(config.epochs):
             for step in range(4):
                 minimum = step*32
                 maximum = min((step+1)*32, 100)
                 batch = seqs[minimum : maximum]
                 max_len_seq_in_batch = max([len(seq) for seq in batch])
-                batch = [seq + [125] * (max_len_seq_in_batch - len(seq)) for seq in batch]
-                batch = tf.one_hot(batch, 126)
+                #                                                                        +1 bc every seq should habe at least one terminal symbol
+                batch = [seq + [emissions_state_size] * (max_len_seq_in_batch - len(seq) +1) for seq in batch]
+                batch = tf.one_hot(batch, emissions_state_size +1)
 
                 with tf.GradientTape() as tape:
 
@@ -287,7 +289,7 @@ def fit_model(config):
                 start = time.perf_counter()
                 run_id = randint(0,100)
                 append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config.bench_path)
-                model.compile(optimizer = optimizer)
+                model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
                 append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config.bench_path)
 
                 start = time.perf_counter()
@@ -301,7 +303,7 @@ def fit_model(config):
              start = time.perf_counter()
              run_id = randint(0,100)
              append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config.bench_path)
-             model.compile(optimizer = optimizer)
+             model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
              append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config.bench_path)
 
              start = time.perf_counter()

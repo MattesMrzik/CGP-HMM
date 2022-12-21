@@ -25,10 +25,11 @@ from Utility import run
 import numpy as np
 import re
 from Utility import state_id_to_description
-from Utility import id_to_higher_order_emission
+from Utility import get_dicts_for_emission_tuple_and_id_conversion
 n_most_likely_emissions = 3
 
 id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
+id_to_emi = get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = len(id_to_base)-2, order = args.order)[1]
 with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
 
     most_likely = {}
@@ -39,8 +40,8 @@ with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
             state = state_id_to_description(int(line[0]), nCodons)
             prob = float(line[-1])
             if args.t:
-                emissions_tuple = id_to_higher_order_emission(int(line[1]), len(id_to_base)-2, args.order)
-                emissions_tuple = ("".join(list(map(lambda x: id_to_base[int(x)], emissions_tuple))), np.round(prob,4))
+                emissions_tuple = id_to_emi[int(line[1])]
+                emissions_tuple = ("".join(list(map(lambda x: x if x == "X" else id_to_base[int(x)], emissions_tuple))), np.round(prob,4))
             else:
                 emissions_tuple = ("".join(list(map(lambda x: id_to_base[int(x)], line[1:-1]))), np.round(prob,4))
             if not state in most_likely:

@@ -62,74 +62,75 @@ def main(config):
     # printI()
 
     #  bc with call type 4 A_dense fails
-    if not config.call_type == 4 and config.run_viterbi:
+    if not config.call_type == 4:
         WriteData.write_to_file(cell.A_dense, f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt")
         WriteData.write_to_file(tf.transpose(cell.B_dense), f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt")
         WriteData.write_order_transformed_B_to_csv(cell.B_dense, f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.csv", config.order, config.nCodons)
 
         WriteData.write_to_file(cell.I_dense, f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.txt")
 
-        # running Viterbi
-        run(f"{config.src_path}/Viterbi " + config.fasta_path + " " + str(config.nCodons))
+        if config.run_viterbi:
+            # running Viterbi
+            run(f"{config.src_path}/Viterbi " + config.fasta_path + " " + str(config.nCodons))
 
-        stats = {"start_not_found" : 0,\
-                 "start_too_early" : 0,\
-                 "start_correct" : 0,\
-                 "start_too_late" : 0,\
-                 "stop_not_found" : 0,\
-                 "stop_too_early" : 0,\
-                 "stop_correct" : 0,\
-                 "stop_too_late" : 0}
+            stats = {"start_not_found" : 0,\
+                     "start_too_early" : 0,\
+                     "start_correct" : 0,\
+                     "start_too_late" : 0,\
+                     "stop_not_found" : 0,\
+                     "stop_too_early" : 0,\
+                     "stop_correct" : 0,\
+                     "stop_too_late" : 0}
 
-        with open(f"{config.src_path}/output/{config.nCodons}codons/viterbi.{config.nCodons}codons.csv", "r") as viterbi_file:
-            with open(f"{config.src_path}/output/{config.nCodons}codons/out.start_stop_pos.{config.nCodons}codons.txt", "r") as start_stop_file:
-                for v_line in viterbi_file:
-                    try:
-                        ss_line = start_stop_file.readline()
-                    except:
-                        print("ran out of line in :" + f"out.start_stop_pos.{config.nCodons}codons.txt")
-                        quit(1)
-                    if ss_line[:4] == ">seq" or len(ss_line) <= 1:
-                        continue
-                    true_start = int(ss_line.split(";")[0])
-                    true_stop = int(ss_line.split(";")[1].strip())
-                    try:
-                        viterbi_start = v_line.split("\t").index("stA")
-                    except:
-                        viterbi_start = -1
-                    try:
-                        viterbi_stop = v_line.split("\t").index("st1")
-                    except:
-                        viterbi_stop = -1
-                    # print(f"true_start = {true_start} vs viterbi_start = {viterbi_start}")
-                    # print(f"true_stop = {true_stop} vs viterbi_stop = {viterbi_stop}")
-
-                    if viterbi_start == -1:
-                        stats["start_not_found"] += 1
-                        if viterbi_stop != -1:
-                            print("found stop but not start")
+            with open(f"{config.src_path}/output/{config.nCodons}codons/viterbi.{config.nCodons}codons.csv", "r") as viterbi_file:
+                with open(f"{config.src_path}/output/{config.nCodons}codons/out.start_stop_pos.{config.nCodons}codons.txt", "r") as start_stop_file:
+                    for v_line in viterbi_file:
+                        try:
+                            ss_line = start_stop_file.readline()
+                        except:
+                            print("ran out of line in :" + f"out.start_stop_pos.{config.nCodons}codons.txt")
                             quit(1)
-                    elif viterbi_start < true_start:
-                        stats["start_too_early"] += 1
-                    elif viterbi_start == true_start:
-                        stats["start_correct"] += 1
-                    else:
-                        stats["start_too_late"] += 1
+                        if ss_line[:4] == ">seq" or len(ss_line) <= 1:
+                            continue
+                        true_start = int(ss_line.split(";")[0])
+                        true_stop = int(ss_line.split(";")[1].strip())
+                        try:
+                            viterbi_start = v_line.split("\t").index("stA")
+                        except:
+                            viterbi_start = -1
+                        try:
+                            viterbi_stop = v_line.split("\t").index("st1")
+                        except:
+                            viterbi_stop = -1
+                        # print(f"true_start = {true_start} vs viterbi_start = {viterbi_start}")
+                        # print(f"true_stop = {true_stop} vs viterbi_stop = {viterbi_stop}")
 
-                    if viterbi_stop == -1:
-                        stats["stop_not_found"] += 1
-                    elif viterbi_stop < true_stop:
-                        stats["stop_too_early"] += 1
-                    elif viterbi_stop == true_stop:
-                        stats["stop_correct"] += 1
-                    else:
-                        stats["stop_too_late"] += 1
+                        if viterbi_start == -1:
+                            stats["start_not_found"] += 1
+                            if viterbi_stop != -1:
+                                print("found stop but not start")
+                                quit(1)
+                        elif viterbi_start < true_start:
+                            stats["start_too_early"] += 1
+                        elif viterbi_start == true_start:
+                            stats["start_correct"] += 1
+                        else:
+                            stats["start_too_late"] += 1
 
-        nSeqs = sum([v for v in stats.values()])/2 # div by 2 bc every seq appears twice in stats (in start and stop)
+                        if viterbi_stop == -1:
+                            stats["stop_not_found"] += 1
+                        elif viterbi_stop < true_stop:
+                            stats["stop_too_early"] += 1
+                        elif viterbi_stop == true_stop:
+                            stats["stop_correct"] += 1
+                        else:
+                            stats["stop_too_late"] += 1
 
-        with open(f"{config.src_path}/output/{cinfig.nCodons}codons/statistics.txt", "w") as file:
-            for key, value in stats.items():
-                file.write(key + "\t" + str(value/nSeqs) + "\n")
+            nSeqs = sum([v for v in stats.values()])/2 # div by 2 bc every seq appears twice in stats (in start and stop)
+
+            with open(f"{config.src_path}/output/{cinfig.nCodons}codons/statistics.txt", "w") as file:
+                for key, value in stats.items():
+                    file.write(key + "\t" + str(value/nSeqs) + "\n")
 
     if config.nCodons < 10:
         run(f"python3 {config.src_path}/Visualize.py -c {config.nCodons} -o {config.order} {'-t' if config.order_transformed_input else ''}")
