@@ -53,8 +53,7 @@ class Config():
     def add_attribtes(self):
         import tensorflow as tf
 
-        self.order_transformed_input = True
-        self.order = 2
+        self.order_transformed_input = True #  if this is set to false, enable comments in cell
         self.alphabet_size = 4
         self.write_return_sequnces = False
 
@@ -80,7 +79,7 @@ class Config():
 
         from Utility import get_indices_for_config
         Utility.get_indices_for_config(self)
-        print("self.indices_for_B =", self.indices_for_B)
+        print("self.indices_for_B in determine_attributes in config =", self.indices_for_B)
 
 
     def add_arg_small_bench(self, *kwargs, type = None, help ="help", default = None, action = None, nargs = None):
@@ -136,6 +135,7 @@ class Config():
     def add_main_programm(self):
         self.add_arg_main('-c', '--nCodons', type = int, default = 1, help='number of codons')
         self.add_arg_main('-t', '--call_type', type = int, default = 3, help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
+        self.add_arg_main('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
         self.add_arg_main('-p', '--src_path', default = ".", help='path to src')
         self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [Adam]')
         self.add_arg_main('--epochs', default = 2, type = int, help = 'how many epochs [2]')

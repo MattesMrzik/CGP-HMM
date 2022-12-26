@@ -68,7 +68,8 @@ def get_call_backs(config, model):
 
             # TODO: why can i access condif here?
             if config.call_type != 4:
-                Utility.run(f"mkdir -p {config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/")
+                if not os.path.exists(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"):
+                    Utility.run(f"mkdir -p {config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/")
                 os.system(f"rm {config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/*")
 
                 ik = [float(x) for x in ik]

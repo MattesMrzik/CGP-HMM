@@ -8,11 +8,13 @@ import os
 import json
 import re
 
+import Utility
 from Utility import run
 from CallBacks import get_call_backs
 from Utility import transform_verbose_txt_to_csv
 from Utility import append_time_ram_stamp_to_file
 from Utility import emissions_state_size
+from Utility import n_emission_columns_in_B
 
 
 from CgpHmmLayer import CgpHmmLayer
@@ -33,8 +35,7 @@ def make_model(config):
     append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", config.bench_path)
 
     if config.order_transformed_input:
-        #                                                                                                     terminal
-        sequences = tf.keras.Input(shape = (None, emissions_state_size(config.alphabet_size, config.order) + 1), name = "sequences", dtype = config.dtype)
+        sequences = tf.keras.Input(shape = (None, n_emission_columns_in_B(config.alphabet_size, config.order)), name = "sequences", dtype = config.dtype)
     else:
         sequences = tf.keras.Input(shape = (None, config.alphabet_size + 2), name = "sequences", dtype = config.dtype)
 
@@ -91,7 +92,7 @@ def make_dataset(config):
                     file.write(value + "\n")
         else:
             command = f"python3 {config.src_path}/useMSAgen.py -c {config.nCodons} \
-                          {'-n 4'} \
+                          {'-n 100'} \
                           {'-l' + str(config.l)} \
                           {'-cd ' + str(config.coding_dist) if config.coding_dist else ''} \
                           {'-ncd ' + str(config.noncoding_dist) if config.noncoding_dist else ''}\
@@ -109,11 +110,13 @@ def make_dataset(config):
     ds = tf.data.Dataset.from_generator(lambda: seqs,
                                          tf.as_dtype(tf.int32), # has to be int, bc one_hot doesnt work for floats
                                          tf.TensorShape([None]))
+
+    index_of_terminal = Utility.higher_order_emission_to_id("X", config.alphabet_size, config.order)
     if config.order_transformed_input:
-        ds = ds.padded_batch(32, padding_values = (4 + 1)**(config.order + 1))
+        ds = ds.padded_batch(32, padding_values = index_of_terminal)
 
         def to_one_hot(seq):
-            return tf.cast(tf.one_hot(seq, emissions_state_size(config.alphabet_size, config. order) + 1), dtype=config.dtype)
+            return tf.cast(tf.one_hot(seq, n_emission_columns_in_B(config.alphabet_size, config. order)), dtype=config.dtype)
     else:
         ds = ds.padded_batch(32, padding_values = 5) # 5 is terminal symbol, 4 is "padded left flank"
 
@@ -167,6 +170,7 @@ def fit_model(config):
 
     output_path = f"bench/{config.nCodons}codons"
 
+    index_of_terminal = Utility.higher_order_emission_to_id("X", config.alphabet_size, config.order)
 
 
 ################################################################################
@@ -215,14 +219,13 @@ def fit_model(config):
             # for seq in first_batch:
             #     print((max_len_seq_in_batch - len(seq)))
             #     print(seq + [126] * (max_len_seq_in_batch - len(seq)))
-            emissions_state_size = Utility.emissions_state_size(config.alphabet_size, config.order)
             #                                                                              every seq has at least one terminal symbol
-            first_batch = [seq + [emissions_state_size] * (max_len_seq_in_batch - len(seq) + 1) for seq in first_batch]
+            first_batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq) + 1) for seq in first_batch]
 
             # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
 
             # one_hot:
-            first_batch = tf.one_hot(first_batch, emissions_state_size + 1) # bc terminal symbol is not counted in emissions_state_size
+            first_batch = tf.one_hot(first_batch, n_emission_columns_in_B(config.alphabet_size, config.order)) # bc terminal symbol is not counted in emissions_state_size
 
             # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
 
@@ -247,17 +250,18 @@ def fit_model(config):
         layer = CgpHmmLayer(config)
         layer.build(None)
         layer.C.build(None)
-
-        emissions_state_size = Utility.emissions_state_size(config.alphabet_size, config.order)
+        if config.steps_per_epoch != 4:
+            print(f"not using steps_per_epoch = {config.steps_per_epoch} but hard coded 4")
         for epoch in range(config.epochs):
             for step in range(4):
                 minimum = step*32
                 maximum = min((step+1)*32, 100)
                 batch = seqs[minimum : maximum]
                 max_len_seq_in_batch = max([len(seq) for seq in batch])
-                #                                                                        +1 bc every seq should habe at least one terminal symbol
-                batch = [seq + [emissions_state_size] * (max_len_seq_in_batch - len(seq) +1) for seq in batch]
-                batch = tf.one_hot(batch, emissions_state_size +1)
+                # print("max_len_seq_in_batch =", max_len_seq_in_batch)
+                batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq)) for seq in batch]
+                batch = tf.one_hot(batch, n_emission_columns_in_B(config.alphabet_size, config.order))
+                # tf.print("batch = ", batch, summarize = -1)
 
                 with tf.GradientTape() as tape:
 
@@ -266,7 +270,7 @@ def fit_model(config):
 
                     print(f"epoch({epoch}), step({step}) the loss is:\n{tf.math.reduce_mean(y)}")
                     gradient = tape.gradient(-1*y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-                    # print("gradient =", gradient)
+                    tf.print("gradient =", gradient, summarize = 5)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_B", summarize = config.assert_summarize)

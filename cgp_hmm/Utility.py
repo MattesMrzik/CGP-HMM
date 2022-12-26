@@ -396,10 +396,8 @@ def get_indices_for_weights_from_emission_kernel_higher_order(config):
     for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
         get_indices_for_emission_higher_order_for_a_state(config, indices,state,"N", config.order)
 
-    softmax_over_4_nuc = True
-    if not softmax_over_4_nuc:
-        get_indices_for_emission_higher_order_for_a_state(\
-                              config, indices,8 + nCodons*3 + (nCodons+1)*3,"X", config.order)
+    get_indices_for_emission_higher_order_for_a_state(\
+                          config, indices,8 + nCodons*3 + (nCodons+1)*3,"X", config.order)
 
     append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() end   {run_id}", config.bench_path)
 
@@ -412,7 +410,9 @@ def get_indices_for_constants_from_emission_kernel_higher_order(config):
     get_indices_for_emission_higher_order_for_a_state(config, indices,3,"ATG",2)
     get_indices_for_emission_higher_order_for_a_state(config, indices,6 + nCodons*3,"TAA", config.order)
     get_indices_for_emission_higher_order_for_a_state(config, indices,6 + nCodons*3,"TAG", config.order)
-    get_indices_for_emission_higher_order_for_a_state(config, indices,6 + nCodons*3,"TGA", config.order)
+    if config.order > 0:
+        # bc then only the third pos is codon is of importance, and then "A" would be added twice
+        get_indices_for_emission_higher_order_for_a_state(config, indices,6 + nCodons*3,"TGA", config.order)
 
     return indices
 ################################################################################
@@ -599,6 +599,9 @@ def emissions_state_size(alphabet_size, order):# with out terminal symbol
         return alphabet_size
     return (alphabet_size + 1) * 4 ** (order) + sum([alphabet_size ** i for i in range(1, order)])
 
+def n_emission_columns_in_B(alphabet_size, order):
+    return emissions_state_size(alphabet_size, order) + 4
+
 def get_dicts_for_emission_tuple_and_id_conversion(config = None, alphabet_size = None, order = None):
     if config == None:
         assert alphabet_size != None, "get_dicts_for_emission_tuple_and_id_conversion must be provided with config or (alphabet_size and order)"
@@ -611,8 +614,8 @@ def get_dicts_for_emission_tuple_and_id_conversion(config = None, alphabet_size 
     emi_to_id = {}
     id_to_emi = {}
     if order == 0:
-        emi_to_id = dict([(base, id) for id, base in enumerate(range(alphabet_size + 1))])
-        id_to_emi = dict([(id, base) for id, base in enumerate(range(alphabet_size + 1))])
+        emi_to_id = dict([(tuple([base]), id) for id, base in enumerate(list(range(alphabet_size)) + ["X"])])
+        id_to_emi = dict([(id, tuple([base])) for id, base in enumerate(list(range(alphabet_size)) + ["X"])])
     else:
         import Utility
         from itertools import product
@@ -625,6 +628,8 @@ def get_dicts_for_emission_tuple_and_id_conversion(config = None, alphabet_size 
         id_to_emi[id] = tuple("X")
         emi_to_id[tuple("X")] = id
 
+    # print("emi_to_id =", emi_to_id)
+    # print("id_to_emi =", id_to_emi)
     if config != None:
         config.id_to_emi = id_to_emi
         config.emi_to_id = emi_to_id
@@ -772,6 +777,8 @@ def transform_json_to_csv(path, I_or_A_or_B, nCodons):
             file.write("\n")
             print("data =", str(data)[:50])
             for id, row in enumerate(data):
+                if not id in id_to_emi:
+                    break
                 print("id_to_emi[id] =", id_to_emi[id])
                 file.write(emi_tuple_to_str(id_to_emi[id]))
                 file.write(";")

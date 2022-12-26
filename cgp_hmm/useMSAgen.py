@@ -108,11 +108,10 @@ with open(f"{args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa","w")
 
     # SeqIO.write(sequences, file, "fasta")
 
-    for seq in sequences:
-        for i in range(32):
-            #                                 index of seq in batch
-            file.write(">" + seq.id + "000" + str(i) + "\n")
-            file.write(str(seq.seq) + "\n")
+    for i, seq in enumerate(sequences):
+        #                                 index of seq in batch
+        file.write(">" + seq.id + "000" + str(i%32) + "\n")
+        file.write(str(seq.seq) + "\n")
 
 run(f"head {args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa")
 

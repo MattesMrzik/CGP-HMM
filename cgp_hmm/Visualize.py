@@ -40,12 +40,14 @@ with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
             state = state_id_to_description(int(line[0]), nCodons)
             prob = float(line[-1])
             if args.t:
+                if int(line[1]) not in id_to_emi:
+                    continue
                 emissions_tuple = id_to_emi[int(line[1])]
                 emissions_tuple = ("".join(list(map(lambda x: x if x == "X" else id_to_base[int(x)], emissions_tuple))), np.round(prob,4))
             else:
                 emissions_tuple = ("".join(list(map(lambda x: id_to_base[int(x)], line[1:-1]))), np.round(prob,4))
             if not state in most_likely:
-                most_likely[state] = [emissions_tuple]
+                most_likely[state] = [emissions_tuple]# = emission, prob
             else:
                 most_likely[state].append(emissions_tuple)
 

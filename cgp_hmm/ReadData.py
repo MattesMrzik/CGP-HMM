@@ -50,7 +50,7 @@ def read_data_with_order(path, order, alphabet = ["A","C","G","T"], add_one_term
             for base in seq:
                 t = (last_bases + [base_to_id[base]])
                 seq_of_tuple_ids.append(emi_to_id[tuple(t)])
-                last_bases = last_bases[1:] + [base_to_id[base]]
+                last_bases = last_bases[1:] + [base_to_id[base]] if order > 0 else []
             if add_one_terminal_symbol:
                 seq_of_tuple_ids.append(emi_to_id[tuple("X")])
             seqs.append(seq_of_tuple_ids)
