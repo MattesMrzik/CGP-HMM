@@ -16,14 +16,9 @@ from Utility import description_to_state_id
 from Utility import append_time_stamp_to_file
 from Utility import append_time_ram_stamp_to_file
 
-from CgpHmmLayer_non_recursive import CgpHmmLayer_non_recursive
-
-from Utility import tfprint
-
 from CgpHmmCell import CgpHmmCell
 
-def prRed(skk): print("Layer\033[96m {}\033[00m" .format(skk))
-# def prRed(s): pass
+
 
 class CgpHmmLayer(tf.keras.layers.Layer):
     def __init__(self, config):
@@ -35,7 +30,6 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         super(CgpHmmLayer, self).__init__()
         self.nCodons = config.nCodons
         self.config = config
-        self.order_transformed_input = config.order_transformed_input
 
         append_time_ram_stamp_to_file(start, f"Layer.init() end  {run_id}", self.config.bench_path)
 
@@ -46,15 +40,12 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Layer.build() start {run_id}", self.config.bench_path)
-        # print("in build of layer")
         self.C = CgpHmmCell(self.config) # init
 
         # self.C.build(input_shape) # build
         # this isnt needed for training but when calling the layer, then i need to build C manually, but it is then called
         # a second time when calling F
-        # tf.print("before RNN")
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C
-        # tf.print("after RNN")
 
         append_time_ram_stamp_to_file(start, f"Layer.build() end   {run_id}", self.config.bench_path)
 
@@ -62,23 +53,14 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call: tf")
 
-
-
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", self.config.bench_path)
-        # todo do i need to reset statse?
-        # cell is build again
-
-        # tf.print("in call of layer")
 
         # todo: felix macht auch nochmal a und b
         self.C.init_cell()
-        # tf.print("in call of layer: self.C.init =", self.C.init)
 
-        # tf.print("before result = self.F(inputs)")
         result = self.F(inputs) #  build and call of CgpHmmCell are called
-        # tf.print("after result = self.F(inputs)")
 
         alpha_seq = result[0]
         inputs_seq = result[1]
@@ -86,9 +68,6 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         alpha_state = result[3]
         loglik_state = result[4]
         count_state = result[5]
-
-        # if self.C.order > 0 and not self.C.order_transformed_input : # or True to checksquare
-        #     old_state = result[6]
 
         if self.config.batch_begin_write_weights__layer_call_write_inputs:
             # os.system(f"rm {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
@@ -111,15 +90,6 @@ class CgpHmmLayer(tf.keras.layers.Layer):
                 for j in range(tf.shape(alpha_seq)[1]): # = seq length
                     tf.print(count_seq[i,j], tf.argmax(inputs_seq[i,j]), alpha_seq[i,j], sep = ";", summarize = -1, output_stream = outstream)
 
-        # prRed("alpha_seq, inputs_seq, count_seq")
-        # print(tf.shape(count_seq),tf.shape(inputs_seq),tf.shape(alpha_seq))
-        # for i in range(tf.shape(alpha_seq)[0]): # = batch_size
-        #     prRed(i)
-        #     if i != 3:
-        #         continue
-        #     for j in range(tf.shape(alpha_seq)[1]): # = seq length
-        #         tf.print(count_seq[i,j], inputs_seq[i,j], tf.math.round(alpha_seq[i,j]*10000)/10000, summarize = -1)
-
         # squeeze removes dimensions of size 1, ie shape (1,3,2,1) -> (3,2)
 
         def my_loss(loglik_state):
@@ -131,12 +101,15 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
 
             if training:
-                # prRed("training is true")
-                self.add_metric(loglik_mean, "loglik")
-                # self.add_metric(reg_mean, f"reg_mean, not yet multiplied by alpha({alpha})")
-            else:
-                # prRed("training is false")
-                pass
+                # self.add_metric(loglik_mean, "loglik")
+                self.add_metric(tf.math.reduce_max(self.C.init_kernel),"init_kernel_max")
+                self.add_metric(tf.math.reduce_min(self.C.init_kernel),"init_kernel_min")
+
+                self.add_metric(tf.math.reduce_max(self.C.transition_kernel),"transition_kernel_max")
+                self.add_metric(tf.math.reduce_min(self.C.transition_kernel),"transition_kernel_min")
+
+                self.add_metric(tf.math.reduce_max(self.C.emission_kernel),"emission_kernel_max")
+                self.add_metric(tf.math.reduce_min(self.C.emission_kernel),"emission_kernel_min")
 
             use_reg = False
             if use_reg:

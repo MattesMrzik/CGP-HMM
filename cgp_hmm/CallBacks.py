@@ -17,15 +17,8 @@ def get_call_backs(config, model):
             with open(f"{output_path}/callbackoutput_time_end.txt", "a") as file:
                 file.write(f"{time.time()}\n")
 
-    # import os, psutil
-    # process = psutil.Process(os.getpid())
-
-    # todo: oder nicht epoch sondern batch
-    # on_train_batch_begin
     class write_time_ram_epoch_start_callback(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):
-            # with open(f"{output_path}/callbackoutput_ram_start.txt", "a") as file:
-            #     file.write(f"{process.memory_info().rss}\n")
             Utility.append_time_ram_stamp_to_file(0, "epoch_begin", config.bench_path)
 
     class write_time_ram_epoch_end_callback(tf.keras.callbacks.Callback):
@@ -63,10 +56,12 @@ def get_call_backs(config, model):
         tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ik,ak,bk], name = "B_kernel_is_nan", summarize = config.assert_summarize)
 
     class batch_begin_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):
+        # layer call write inputs -> the code is located in layer.py
+        # and is activated by same flag as this callback
         def on_train_batch_begin(self, batch, logs = None):
             ik, ak, bk = model.get_weights()
 
-            # TODO: why can i access condif here?
+            # TODO: why can i access condig here?
             if config.call_type != 4:
                 if not os.path.exists(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"):
                     Utility.run(f"mkdir -p {config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/")
@@ -97,6 +92,8 @@ def get_call_backs(config, model):
 
 
     class get_the_gradient(tf.keras.callbacks.Callback):
+
+        # coulndt get this to work
 
         # def get_weight_grad(model, inputs, outputs):
         #     """ Gets gradient of model for given inputs and outputs for all weights"""
@@ -133,11 +130,4 @@ def get_call_backs(config, model):
 
     callbacks += [get_the_gradient()]
 
-        # class my_callback(tf.keras.callbacks.Callback):
-        #     def on_epoch_begin(self, epoch, logs = None):
-        #         print("model.weights")
-        #         print("A =", tf.nn.softmax(model.get_weights()[0]))
-
-
-        # callbacks = [tf.keras.callbacks.LambdaCallback(on_epoch_end = lambda epoch, logs: print("A =", tf.nn.softmax(model.get_weights()[0])))]
     return callbacks

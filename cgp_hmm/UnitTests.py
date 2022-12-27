@@ -81,11 +81,11 @@ class TestUtiliy(unittest.TestCase):
 
 class TestCgpHmmCell(unittest.TestCase):
 
-    def off_test_get_indices_for_weights_from_transition_kernel_higher_order(self):
+    def off_test_get_indices_for_weights_for_transition(self):
         local_config = config.copy()
         local_config["nCodons"] = 100
         cell = CgpHmmCell(local_config)
-        indices_for_weights_A = cell.get_indices_for_weights_from_transition_kernel_higher_order()
+        indices_for_weights_A = cell.get_indices_for_weights_for_transition()
         print(indices_for_weights_A)
 
 
@@ -193,10 +193,10 @@ class TestCgpHmmCell(unittest.TestCase):
 
     # these test just print stuff
 
-    def off_test_get_indices_and_values_from_transition_kernel(self):
+    def off_test_get_indices_and_values_for_transition_kernel(self):
         cell = CgpHmmCell(2)
         #                                                                                        weights, 2 codons
-        indices, values = cell.get_indices_and_values_from_transition_kernel(np.array(list(range(10,100))),cell.nCodons)
+        indices, values = cell.get_indices_and_values_for_transition_kernel(np.array(list(range(10,100))),cell.nCodons)
         print("indices =", indices)
         print("values =", values)
         transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0]] * 2)
@@ -213,10 +213,10 @@ class TestCgpHmmCell(unittest.TestCase):
         emission_matrix = tf.sparse.reorder(emission_matrix)
         print(tf.sparse.to_dense(emission_matrix))
 
-    def off_test_get_indices_and_values_from_transition_kernel_higher_order(self):
+    def off_test_get_indices_and_values_for_transition_kernel_higher_order(self):
         cell = CgpHmmCell(4)# todo add arguments
         #                                                                                        weights, 2 codons
-        indices, values = cell.get_indices_and_values_from_transition_kernel_higher_order(np.array(list(range(10,100))),cell.nCodons)
+        indices, values = cell.get_indices_and_values_for_transition_kernel_higher_order(np.array(list(range(10,100))),cell.nCodons)
         transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0]] * 2)
         transition_matrix = tf.sparse.reorder(transition_matrix)
         transition_matrix = tf.sparse.to_dense(transition_matrix)
@@ -234,10 +234,10 @@ class TestCgpHmmCell(unittest.TestCase):
                     print(transition_matrix[i,j].numpy(), end = "\t")
             print()
 
-    def off_test_get_indices_and_values_from_emission_kernel_higher_order(self):
+    def off_test_get_indices_and_values_from_emission_kernel(self):
         cell = CgpHmmCell(2)
         #                                                                                  100 weights,     2 codons, 4 = alphabet_size
-        indices, values = cell.get_indices_and_values_from_emission_kernel_higher_order(np.array(list(range(10,10000))),cell.nCodons,4)
+        indices, values = cell.get_indices_and_values_from_emission_kernel(np.array(list(range(10,10000))),cell.nCodons,4)
         print("indices =", len(indices))
         print("values =", len(values))
         emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],6,6,6])
@@ -248,25 +248,25 @@ class TestCgpHmmCell(unittest.TestCase):
             tf.print(emission_matrix[state], summarize = -1)
             tf.print("---------------------------------------------")
 
-    def off_test_get_indices_and_values_for_emission_higher_order_for_a_state(self):
+    def off_test_get_indices_and_values_for_emission_and_state(self):
         cell = CgpHmmCell(2)
         indices = []
         values = [[]]
         weights = list(range(100))
         k = [0]
-        # cell.get_indices_and_values_for_emission_higher_order_for_a_state(0,1,indices,3,4,"ACX",0)
-        cell.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,0,"AAAT",1)
-        cell.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,1,"AATG",1, trainable = False)
-        cell.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,2,"AAAT",2)
-        cell.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,3,"AATG",1, trainable = False)
-        cell.get_indices_and_values_for_emission_higher_order_for_a_state(weights,k,indices,values,4,"N",0)
+        # cell.get_indices_and_values_for_emission_and_state(0,1,indices,3,4,"ACX",0)
+        cell.get_indices_and_values_for_emission_and_state(weights,k,indices,values,0,"AAAT",1)
+        cell.get_indices_and_values_for_emission_and_state(weights,k,indices,values,1,"AATG",1, trainable = False)
+        cell.get_indices_and_values_for_emission_and_state(weights,k,indices,values,2,"AAAT",2)
+        cell.get_indices_and_values_for_emission_and_state(weights,k,indices,values,3,"AATG",1, trainable = False)
+        cell.get_indices_and_values_for_emission_and_state(weights,k,indices,values,4,"N",0)
         for i, (index,value) in enumerate(zip(indices, values[0])):
             print("i = ", i, index, value)
 
-    def off_test_get_indices_and_values_from_emission_kernel_higher_order_v02(self):
+    def off_test_get_indices_and_values_from_emission_kernel_v02(self):
         cell = CgpHmmCell(2)
         #                                                                                  100 weights,     2 codons, 4 = alphabet_size
-        indices, values = cell.get_indices_and_values_from_emission_kernel_higher_order_v02(np.array(list(range(10,10000)),dtype = tf.float32),cell.nCodons,4)
+        indices, values = cell.get_indices_and_values_from_emission_kernel_v02(np.array(list(range(10,10000)),dtype = tf.float32),cell.nCodons,4)
         print("indices =", len(indices))
         print("values =", len(values))
         emission_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [cell.state_size[0],6,6,6])

@@ -16,7 +16,6 @@ from Utility import append_time_ram_stamp_to_file
 from Utility import emissions_state_size
 from Utility import n_emission_columns_in_B
 
-
 from CgpHmmLayer import CgpHmmLayer
 from ReadData import read_data_one_hot
 from ReadData import read_data
@@ -25,26 +24,17 @@ from tensorflow.python.client import device_lib
 
 import time
 
-def prRed(skk): print(f"Training\033[96m {skk}\033[00m")
-
-np.set_printoptions(linewidth=400)
-
 def make_model(config):
     start = time.perf_counter()
     run_id = randint(0,100)
     append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", config.bench_path)
 
-    if config.order_transformed_input:
-        sequences = tf.keras.Input(shape = (None, n_emission_columns_in_B(config.alphabet_size, config.order)), name = "sequences", dtype = config.dtype)
-    else:
-        sequences = tf.keras.Input(shape = (None, config.alphabet_size + 2), name = "sequences", dtype = config.dtype)
-
     # another None added automatically for yet unkown batch_size
+    sequences = tf.keras.Input(shape = (None, n_emission_columns_in_B(config.alphabet_size, config.order)), name = "sequences", dtype = config.dtype)
 
     cgp_hmm_layer = CgpHmmLayer(config) # init of layer
 
     loglik = cgp_hmm_layer(sequences) # layer is build, then called. it seems i cant call build before to avoid building it here again
-    # "[tf.keras.layers.Lambda(lambda x:x, name = \"loglik\")(loglik)] =", [
     print(tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik))
 
     model = tf.keras.Model(inputs = sequences, outputs = [tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik)]) #  the output of the model is the value that is computed by a final layer that picks the loglike of the [alpha, loglik, count]
@@ -70,21 +60,20 @@ def make_dataset(config):
             num_seqs = 100
             seqs = {}
             with open(config.fasta_path, "w") as file:
-                genlen = 3 * config.nCodons # ATG and STOP are not on gene
-                seqlen = genlen * config.l
-                seqlen += 6 # start and stop codon
-                seqlen += 2 # ig states
-                max_flanklen = (seqlen - genlen )//2
-                low = max_flanklen - 1 if config.dont_strip_flanks else 1
+                max_left_flank_len = (config.seq_len - config.gen_len -6)//2
+                max_right_flank_len = config.seq_len - config.gen_len - 6 - max_left_flank_len
+
+                min_left_flank_len = max_left_flank_len if config.dont_strip_flanks else 1
+                min_right_flank_len = max_right_flank_len if config.dont_strip_flanks else 1
 
                 for seq_id in range(num_seqs):
 
-                    ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(low, max_flanklen))) # TODO: also check if low = 2
+                    ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(min_left_flank_len, max_left_flank_len +1))) # TODO: also check if low = 2
                     atg = "ATG"
                     # coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
                     coding = "".join(np.random.choice(codons, config.nCodons))
                     stop = np.random.choice(["TAA","TGA","TAG"])
-                    ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(low, max_flanklen)))
+                    ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(min_right_flank_len, max_right_flank_len +1)))
 
                     seqs[f">use_simple_seq_gen_{seq_id}"] = ig5 + atg + coding + stop + ig3
                 for key, value in seqs.items():
@@ -93,7 +82,7 @@ def make_dataset(config):
         else:
             command = f"python3 {config.src_path}/useMSAgen.py -c {config.nCodons} \
                           {'-n 100'} \
-                          {'-l' + str(config.l)} \
+                          {'-l' + str(config.seq_len)} \
                           {'-cd ' + str(config.coding_dist) if config.coding_dist else ''} \
                           {'-ncd ' + str(config.noncoding_dist) if config.noncoding_dist else ''}\
                           {'--dont_strip_flanks' if config.dont_strip_flanks else ''} \
@@ -102,26 +91,18 @@ def make_dataset(config):
             run(command)
 
 
-    if config.order_transformed_input:
-        seqs = read_data_with_order(config.fasta_path, config.order, add_one_terminal_symbol = True)
-    else:
-        seqs = read_data(config.fasta_path)
+    seqs = read_data_with_order(config.fasta_path, config.order, add_one_terminal_symbol = True)
+
 
     ds = tf.data.Dataset.from_generator(lambda: seqs,
                                          tf.as_dtype(tf.int32), # has to be int, bc one_hot doesnt work for floats
                                          tf.TensorShape([None]))
 
     index_of_terminal = Utility.higher_order_emission_to_id("X", config.alphabet_size, config.order)
-    if config.order_transformed_input:
-        ds = ds.padded_batch(32, padding_values = index_of_terminal)
+    ds = ds.padded_batch(32, padding_values = index_of_terminal)
 
-        def to_one_hot(seq):
-            return tf.cast(tf.one_hot(seq, n_emission_columns_in_B(config.alphabet_size, config. order)), dtype=config.dtype)
-    else:
-        ds = ds.padded_batch(32, padding_values = 5) # 5 is terminal symbol, 4 is "padded left flank"
-
-        def to_one_hot(seq):
-            return tf.cast(tf.one_hot(seq, 4 + 1 + 1), dtype=config.dtype)
+    def to_one_hot(seq):
+        return tf.cast(tf.one_hot(seq, n_emission_columns_in_B(config.alphabet_size, config. order)), dtype=config.dtype)
 
     ds = ds.map(to_one_hot)
     # TODO: shuffle dataset?
@@ -132,26 +113,23 @@ def make_dataset(config):
 
 # from memory_profiler import profile
 # @profile
-
 ################################################################################
 ################################################################################
 ################################################################################
 def fit_model(config):
-    # model, cgp_hmm_layer = make_model(config)
 
     num_gpu = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
     print("Using", num_gpu, "GPUs. device_lib.list_local_devices()")
 
-    num_gpu = len(tf.config.experimental.list_logical_devices('GPU'))
-    print("Using", num_gpu, "GPUs.tf.config.experimental.list_logical_devices('GPU')")
+    num_gpu_logical = len(tf.config.experimental.list_logical_devices('GPU'))
+    print("Using", num_gpu_logical, "GPUs.tf.config.experimental.list_logical_devices('GPU')")
 
+    # setting the optimizer
     if config.optimizer == "Adam":
         if config.clip_gradient_by_value:
-            # optimizer = tf.optimizers.Adam(config["learning_rate"], clipvalue = config["clip_gradient_by_value"])
             optimizer = tf.optimizers.Adam(config.learning_rate, clipvalue = config.clip_gradient_by_value)
             config.optimizer = f"Adam with learning_rate {config.learning_rate} and clipvalue {config.clip_gradient_by_value}"
         else:
-            # optimizer = tf.optimizers.Adam(config["learning_rate"])
             optimizer = tf.optimizers.Adam(config.learning_rate)
             config.optimizer = f"Adam with learning_rate {config.learning_rate} and no clipping"
 
@@ -162,16 +140,9 @@ def fit_model(config):
         print("setting optimizer didnt work")
         exit(1)
 
-     # manual call to forward algo
-
-    # _, seqs = make_dataset()# first return value is data_set
-    # model(seqs)
     data_set, seqs = make_dataset(config)
 
-    output_path = f"bench/{config.nCodons}codons"
-
     index_of_terminal = Utility.higher_order_emission_to_id("X", config.alphabet_size, config.order)
-
 
 ################################################################################
     if config.get_gradient_for_current_txt or config.get_gradient_from_saved_model_weights:
@@ -199,53 +170,44 @@ def fit_model(config):
                 tf.print(f"gradient for {name}", g)
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = -1)
 
-            # TODO: this doesnt work
-            # gradient_of_optimizer = optimizer.compute_gradients(y, [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], tape) # todo: this might not have "meta" parameters that change over time, but i dont even know if any exist
-            # for g, name in zip(gradient_of_optimizer, ["i_grad_optimizer", "a_grad_optimizer", "b_grad_optimizer"]):
-            #     tf.print(f"gradient for {name}", g)
-            #     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = -1)
 
         exit()
 ################################################################################
     elif config.get_gradient_of_first_batch:
-            layer = CgpHmmLayer(config)
-            layer.build(None)
-            layer.C.build(None)
+        layer = CgpHmmLayer(config)
+        layer.build(None)
+        layer.C.build(None)
 
-            first_batch = seqs[:32] # not one hot, not padded
-            # pad seqs:
-            max_len_seq_in_batch = max([len(seq) for seq in first_batch])
-            # print("max_len_seq_in_batch =", max_len_seq_in_batch)
-            # for seq in first_batch:
-            #     print((max_len_seq_in_batch - len(seq)))
-            #     print(seq + [126] * (max_len_seq_in_batch - len(seq)))
-            #                                                                              every seq has at least one terminal symbol
-            first_batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq) + 1) for seq in first_batch]
+        first_batch = seqs[:32] # not one hot, not padded
+        # pad seqs:
+        max_len_seq_in_batch = max([len(seq) for seq in first_batch])
+        #                                                                              every seq has at least one terminal symbol
+        first_batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq) + 1) for seq in first_batch]
 
-            # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
+        # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
 
-            # one_hot:
-            first_batch = tf.one_hot(first_batch, n_emission_columns_in_B(config.alphabet_size, config.order)) # bc terminal symbol is not counted in emissions_state_size
+        # one_hot:
+        first_batch = tf.one_hot(first_batch, n_emission_columns_in_B(config.alphabet_size, config.order)) # bc terminal symbol is not counted in emissions_state_size
 
-            # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
-
-            with tf.GradientTape() as tape:
-                tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-                y = layer(first_batch)
-                dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-                if not dy_dx:
-                    print("list dy_dx =", round(dy_dx,3))
-                print("::::::::::::::::::::::::::::::::::::::::::::::")
-                for g in dy_dx:
-                    print("dy_dx =", g)
-                    # print("dy_dx.numpy() =", g.numpy())
-                    print()
-            exit()
+        # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
+        with tf.GradientTape() as tape:
+            tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+            y = layer(first_batch)
+            dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+            if not dy_dx:
+                print("list dy_dx =", round(dy_dx,3))
+            print()
+            for g in dy_dx:
+                print("dy_dx =", g)
+                # print("dy_dx.numpy() =", g.numpy())
+                print()
+        exit()
 
 ################################################################################
     elif config.manual_traning_loop:
         #  get the very first init weights of a run that resulted in nan
-        # maybe this is not necessary, since i can run with --dont_generate_new_seqs flag, and even though the kernels are always initialized differently nan always occur
+        # maybe this is not necessary, since i can run with --dont_generate_new_seqs flag,
+        # and even though the kernels are always initialized differently nan always occur
 
         layer = CgpHmmLayer(config)
         layer.build(None)
@@ -275,7 +237,7 @@ def fit_model(config):
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_B", summarize = config.assert_summarize)
 
-                    optimizer.apply_gradients(zip(gradient, [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel]))
+                    optimizer.apply_gradients(zip(config.learning_rate * gradient, [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel]))
 
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.init_kernel)),       [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "I_kernel_after_apply_grads", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.transition_kernel)), [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "A_kernel_after_apply_grads", summarize = config.assert_summarize)
@@ -290,12 +252,15 @@ def fit_model(config):
             with mirrored_strategy.scope():
                 model, cgp_hmm_layer = make_model(config)
                 model.summary()
+
+                # compile model
                 start = time.perf_counter()
                 run_id = randint(0,100)
                 append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config.bench_path)
                 model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
                 append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config.bench_path)
 
+                # fit model
                 start = time.perf_counter()
                 run_id = randint(0,100)
                 append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config.bench_path)
@@ -304,12 +269,15 @@ def fit_model(config):
         else:
              model, cgp_hmm_layer = make_model(config)
              model.summary()
+
+             # compile model
              start = time.perf_counter()
              run_id = randint(0,100)
              append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config.bench_path)
              model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
              append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config.bench_path)
 
+             # git model
              start = time.perf_counter()
              run_id = randint(0,100)
              append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config.bench_path)
@@ -317,6 +285,5 @@ def fit_model(config):
              history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
              print("optimizer.iterations should be larger 0:", optimizer.iterations)
              append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config.bench_path)
-
 
     return model, history

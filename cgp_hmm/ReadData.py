@@ -30,9 +30,6 @@ def read_data(path, alphabet = ["A","C","G","T"]):
 
     return seqs
 
-# let order = 1, seq = AG
-# then seqs = (IA = 4*(alphabet_size (=4) + 1)^1 + 0*5^0) = 20
-#             (AG = 0*(alphabet_size (=4) + 1)^1 + 2*5^0) = 2
 def read_data_with_order(path, order, alphabet = ["A","C","G","T"], add_one_terminal_symbol = False, verbose = False):
     seqs = []
     def log(s):

@@ -19,6 +19,7 @@ def main(config):
     print("done fit_model()")
     # model.save("my_saved_model")
 
+    # writng the loss history to file
     with open(f"{config.src_path}/output/{config.nCodons}codons/loss.log", "w") as file:
         for loss in history.history['loss']:
             file.write(str(loss))
@@ -27,6 +28,8 @@ def main(config):
     plt.plot(history.history['loss'])
     plt.savefig(f"{config.src_path}/progress.png")
 
+
+    # writing the model parameters to file, to visualize
     from CgpHmmCell import CgpHmmCell
     cell = CgpHmmCell(config)
     cell.init_kernel = model.get_weights()[0]
@@ -62,12 +65,11 @@ def main(config):
     # printI()
 
     #  bc with call type 4 A_dense fails
-    if not config.call_type == 4:
+    if config.call_type != 4:
+        WriteData.write_to_file(cell.I_dense, f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.txt")
         WriteData.write_to_file(cell.A_dense, f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt")
         WriteData.write_to_file(tf.transpose(cell.B_dense), f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt")
         WriteData.write_order_transformed_B_to_csv(cell.B_dense, f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.csv", config.order, config.nCodons)
-
-        WriteData.write_to_file(cell.I_dense, f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.txt")
 
         if config.run_viterbi:
             # running Viterbi
@@ -82,6 +84,7 @@ def main(config):
                      "stop_correct" : 0,\
                      "stop_too_late" : 0}
 
+            # comparing viterbi result with correct state seq
             with open(f"{config.src_path}/output/{config.nCodons}codons/viterbi.{config.nCodons}codons.csv", "r") as viterbi_file:
                 with open(f"{config.src_path}/output/{config.nCodons}codons/out.start_stop_pos.{config.nCodons}codons.txt", "r") as start_stop_file:
                     for v_line in viterbi_file:
@@ -133,7 +136,7 @@ def main(config):
                     file.write(key + "\t" + str(value/nSeqs) + "\n")
 
     if config.nCodons < 10:
-        run(f"python3 {config.src_path}/Visualize.py -c {config.nCodons} -o {config.order} {'-t' if config.order_transformed_input else ''}")
+        run(f"python3 {config.src_path}/Visualize.py -c {config.nCodons} -o {config.order} -t")
 
 if __name__ == '__main__':
     from Config import Config

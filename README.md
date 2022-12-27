@@ -6,4 +6,9 @@ contact mattes@mrzik.de or github: mabl3 to get promoted to collaborator for MSA
 * make
 
 ## Run
-./main_programm
+
+* navigate to cgp_hmm
+* ./main_programm
+
+## Info
+Unit tests are not up to date. 

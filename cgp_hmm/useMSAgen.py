@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
-
-
+import argparse
 from Bio import SeqIO
 import subprocess
 import random
@@ -9,19 +8,16 @@ import numpy as np
 
 from Utility import run
 
-import argparse
 
 parser = argparse.ArgumentParser(
     description='description')
 parser.add_argument('-c', '--nCodons', required=True, help='number of codons')
-parser.add_argument('-l', '--length_factor', default = 2.0, type = float, help='length os seq is length of coding times this factor')
+parser.add_argument('-l', '--seq_len', required=True, type = int, help='seq_len')
 parser.add_argument('-n', '--num_seqs', type = int, help='length os seq is length of coding times this factor')
 parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist')
 parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist')
 parser.add_argument('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks")
 parser.add_argument('-p', '--path', help = 'path to src')
-
-
 
 args = parser.parse_args()
 
@@ -36,9 +32,7 @@ nCodons = int(args.nCodons)
 num_seqs = 100 if not args.num_seqs else args.num_seqs
 
 genlen = 3 * nCodons
-seqlen = genlen * args.length_factor
-seqlen += 6 # start and stop codon
-seqlen += 2 # ig states
+seqlen = args.seq_len
 
 sequences, posDict = MSAgen.generate_sequences(num_sequences = int(num_seqs), # the number of sequences to generate
                                                seqlen = int(seqlen), # length of each sequence (in bp)
@@ -62,22 +56,24 @@ for seq in sequences:
 
 
 # stripping seqs to have unequal lengths
-
 strip_flanks = not args.dont_strip_flanks
 if strip_flanks:
     for seq in sequences:
         # strips seq somewhere in first half of 5flank
         # and somewhere in second half of 3flank
 
-        assert posDict["5flank_len"] >= 2, "posDict[5flank_len] >= 2"
-        assert posDict["3flank_len"] >= 2, "posDict[3flank_len] >= 2"
+        assert posDict["5flank_len"] >= 1, "posDict[5flank_len] >= 2"
+        assert posDict["3flank_len"] >= 1, "posDict[3flank_len] >= 2"
 
-        strip_5flank_len = np.random.randint(1,posDict["5flank_len"])
-        strip_3flank_len = np.random.randint(1,posDict["3flank_len"])
+        strip_5flank_len = np.random.randint(0,posDict["5flank_len"])
+        strip_3flank_len = np.random.randint(0,posDict["3flank_len"])
 
         # print("seq.seq =", seq.seq)
         # print(strip_5flank_len, strip_3flank_len)
-        seq.seq = seq.seq[strip_5flank_len : -strip_3flank_len]
+        if strip_3flank_len != 0:
+            seq.seq = seq.seq[strip_5flank_len : -strip_3flank_len]
+        else:
+            seq.seq = seq.seq[strip_5flank_len :]
         # print("seq.seq =", seq.seq)
         # print()
 
@@ -105,9 +101,7 @@ with open(f"{args.path}/output/{nCodons}codons/profile.{nCodons}codons.txt", "w"
         file.write("\n")
 
 with open(f"{args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa","w") as file:
-
     # SeqIO.write(sequences, file, "fasta")
-
     for i, seq in enumerate(sequences):
         #                                 index of seq in batch
         file.write(">" + seq.id + "000" + str(i%32) + "\n")

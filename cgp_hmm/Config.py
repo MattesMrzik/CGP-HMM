@@ -53,17 +53,23 @@ class Config():
     def add_attribtes(self):
         import tensorflow as tf
 
-        self.order_transformed_input = True #  if this is set to false, enable comments in cell
         self.alphabet_size = 4
         self.write_return_sequnces = False
 
-        self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.call_type}_{self.order_transformed_input}orderTransformedInput.log"
+        self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.call_type}call_type.log"
         self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
 
         self.check_assert = not self.dont_check_assert
         self.generate_new_seqs = not self.dont_generate_new_seqs
         self.dtype = tf.float64 if self.dytpe64 else tf.float32
         self.learning_rate = self.learning_rate if not self.no_learning else 0
+
+        self.gen_len = 3 * self.nCodons
+
+        self.seq_len = self.parsed_args.seq_len if self.parsed_args.seq_len else (self.nCodons * 3 + 6 + 2) * 2
+
+        #                                     start and stop, i want at least one ig 3' and 5'
+        assert self.seq_len >= self.gen_len + 6               + 2, f"self.seq_len ({self.seq_len}) < self.gen_len ({self.gen_len}) + 6 + 2"
 
     def prepare_before_main_programm(self):
         run(f"mkdir -p {self.src_path}/output/{self.nCodons}codons/")
@@ -79,7 +85,7 @@ class Config():
 
         from Utility import get_indices_for_config
         Utility.get_indices_for_config(self)
-        print("self.indices_for_B in determine_attributes in config =", self.indices_for_B)
+        # print("self.indices_for_B in determine_attributes in config =", self.indices_for_B)
 
 
     def add_arg_small_bench(self, *kwargs, type = None, help ="help", default = None, action = None, nargs = None):
@@ -127,7 +133,7 @@ class Config():
         self.add_arg_small_bench('-r', '--range_codon', nargs='+', help='usage: < -r 1 10 > to run 1 2 3 4 5 6 7 8 9 10 codons')
         self.add_arg_small_bench('-tl', '--typesList', nargs="+", help='types of cell.call() that should be used')
         self.add_arg_small_bench('-cl', '--nCodonsList', nargs="+", help ='usage: < -c 10 20 50 > to run 10 20 50 codons')
-        self.add_arg_small_bench('--repeat', type = int, default = 1, help ='repeat everthing [r] times')
+        self.add_arg_small_bench('--repeat', type = int, default = 1, help ='repeat the main programm [repeat] times')
         self.add_arg_small_bench('--exit_on_nan', action='store_true', help ="exit_on_nan")
 
         self.add_main_programm()
@@ -145,16 +151,15 @@ class Config():
 
         # fine tune algo
         self.add_arg_main('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
-        self.add_arg_main('--weaken_softmax', action='store_true', help ="weaken_softmax such that after softmax the are no near zero or zero values")
         self.add_arg_main('-d', '--dytpe64', action='store_true', help='using dytpe tf.float64')
         self.add_arg_main('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
         self.add_arg_main('--learning_rate', help ="learning_rate", type = float, default = 0.01)
         self.add_arg_main('--no_learning', help ="learning_rate is set to 0", action='store_true')
-        self.add_arg_main('-l', default = 2.0, type = float, help = 'lenght factor of output seqs')
-        self.add_arg_main('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen and not MSAgen")
+        self.add_arg_main('--seq_len', type = int, help = 'lenght of output seqs before the optional stripping of flanks')
+        self.add_arg_main('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen (just random seqs) and not MSAgen")
         self.add_arg_main('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist for MSAgen')
         self.add_arg_main('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist for MSAgen')
-        self.add_arg_main('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks")
+        self.add_arg_main('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks ie all seqs have the same length")
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
@@ -167,9 +172,8 @@ class Config():
         self.add_arg_main('--cpu_gpu', action='store_true', help ="print whether gpu or cpu is used")
         self.add_arg_main('--batch_begin_write_weights__layer_call_write_inputs', action='store_true', help ="batch_begin_write_weights__layer_call_write_inputs")
         self.add_arg_main('--get_gradient_of_first_batch', action='store_true', help ="get_gradient_of_first_batch")
-        self.add_arg_main('--get_gradient_for_current_txt', action='store_true', help ="get_gradient_for_current_txt, previous run wrote IAB and inputbath to file -> get respective gradient")
-        self.add_arg_main('--get_gradient_in_layer', action='store_true', help ="get_gradient_for current values directly in the call of layer, but 'Gradient for SparseDenseCwiseAdd is not implemented.'")
-        self.add_arg_main('--get_gradient_from_saved_model_weights', action='store_true', help ="get_gradient_from_saved_model_weights, they are saved when passing --most_recent_weights_and_inputs_to_file")
+        self.add_arg_main('--get_gradient_for_current_txt', action='store_true', help ="get_gradient_for_current_txt, previous run wrote IAB and inputbatch to file (via --batch_begin_write_weights__layer_call_write_inputs flag)-> get respective gradient")
+        self.add_arg_main('--get_gradient_from_saved_model_weights', action='store_true', help ="get_gradient_from_saved_model_weights, previous run saved weights when passing --batch_begin_write_weights__layer_call_write_inputs")
         self.add_arg_main('--assert_summarize', type = int, default = -1, help = 'assert_summarize [-1]')
 
         # debugging
@@ -180,7 +184,7 @@ class Config():
         self.add_arg_main('--dont_check_assert', action='store_true', help ="dont_check_assert")
         self.add_arg_main('--run_eagerly', action='store_true', help ='run model.fit in eager execution')
 
-    def get_args_as_str(self, for_what):
+    def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""
         for key in self.manuall_arg_lists[for_what]:
             value = self.__dict__[key[0]] if key[0] in self.__dict__ else self.parsed_args.__dict__[key[0]]

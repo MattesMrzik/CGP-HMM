@@ -6,10 +6,10 @@ from Utility import state_id_to_description
 
 from Utility import tfprint
 
-from Utility import get_indices_for_weights_from_transition_kernel_higher_order
-from Utility import get_indices_for_constants_from_transition_kernel_higher_order
+from Utility import get_indices_for_weights_for_transition
+from Utility import get_indices_for_constants_for_transition
 from Utility import get_indices_for_weights_from_emission_kernel_higher_order
-from Utility import get_indices_for_constants_from_emission_kernel_higher_order
+from Utility import get_indices_for_constants_for_emission
 from Utility import emissions_state_size
 from Utility import n_emission_columns_in_B
 
@@ -42,31 +42,28 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         self.config = config
 
-        self.state_size = [self.number_of_states, 1,      1]
+        self.state_size = [self.number_of_states, 1, 1]
 
-        if not config.order_transformed_input:
-            self.state_size = [self.number_of_states, 1,         1] + ([tf.TensorShape([self.order, self.alphabet_size + 2])] if self.order > 0 else [])
-
-        self.indices_for_weights_A = config.indices_for_weights_A# if "indices_for_weights_A" in config else get_indices_for_weights_from_transition_kernel_higher_order(config)
+        self.indices_for_weights_A = config.indices_for_weights_A# if "indices_for_weights_A" in config else get_indices_for_weights_for_transition(config)
         # vielleich einfach den consts auch ein weigt geben, welches durch softmax eh dann 1 wird
         # dann hat der gradient zwar mehr einträge, aber es muss ein concat der values und indices gemacht werden,
-        self.indices_for_constants_A = config.indices_for_constants_A #if "indices_for_constants_A" in config else get_indices_for_constants_from_transition_kernel_higher_order(config)
+        self.indices_for_constants_A = config.indices_for_constants_A #if "indices_for_constants_A" in config else get_indices_for_constants_for_transition(config)
         self.indices_for_A = config.indices_for_A
 
 
         self.indices_for_weights_B = config.indices_for_weights_B#if "indices_for_weights_B" in config else get_indices_for_weights_from_emission_kernel_higher_order(config)
-        self.indices_for_constants_B = config.indices_for_constants_B# if "indices_for_constants_B" in config else get_indices_for_constants_from_emission_kernel_higher_order(config)
+        self.indices_for_constants_B = config.indices_for_constants_B# if "indices_for_constants_B" in config else get_indices_for_constants_for_emission(config)
         self.indices_for_B = config.indices_for_B
 
         self.indices_for_I = config.indices_for_I
 
-        # self.indices_for_weights_A = self.get_indices_for_weights_from_transition_kernel_higher_order()
+        # self.indices_for_weights_A = self.get_indices_for_weights_for_transition()
         # # vielleich einfach den consts auch ein weigt geben, welches durch softmax eh dann 1 wird
         # # dann hat der gradient zwar mehr einträge, aber es muss ein concat der values und indices gemacht werden,
-        # self.indices_for_constants_A = self.get_indices_for_constants_from_transition_kernel_higher_order()
+        # self.indices_for_constants_A = self.get_indices_for_constants_for_transition()
         #
         # self.indices_for_weights_B = self.get_indices_for_weights_from_emission_kernel_higher_order()
-        # self.indices_for_constants_B = self.get_indices_for_constants_from_emission_kernel_higher_order()
+        # self.indices_for_constants_B = self.get_indices_for_constants_for_emission()
 
 
         append_time_ram_stamp_to_file(start, f"Cell.__init__() end   {run_id}", self.config.bench_path)
@@ -88,9 +85,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # terminal
         number_of_states += 1
 
-        if not self.config.order_transformed_input:
-            number_of_states += 1
-
         return number_of_states
 
 
@@ -104,8 +98,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # return(s)
 
     def build(self, s):
-        print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build")
-        tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build: tf")
+        # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build")
+        # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build: tf")
 
         start = time.perf_counter()
         run_id = randint(0,100)
@@ -161,33 +155,20 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # ---> standard model <---
         else:
             if self.config.use_weights_for_consts:
-                self.transition_kernel = self.add_weight(shape = (len(self.config.indices_for_A),),
-                                                         initializer = A_initializer,
-                                                         dtype = self.config.dtype,
-                                                         trainable = True, name = "transition_kernel")
-                how_many_emissions = len(self.config.indices_for_B)
-                # if not self.config.order_transformed_input:
-                #     how_many_emissions = self.number_of_states * (self.alphabet_size + 2)**(self.order + 1)
+                transition_kernel_shape = (len(self.config.indices_for_A),)
+                emission_kernel_shape = (len(self.config.indices_for_B), )
+            else:
+                transition_kernel_shape = (len(self.config.indices_for_weights_A),)
+                emission_kernel_shape = (len(self.config.indices_for_weights_B), )
 
-                self.emission_kernel = self.add_weight(shape = (how_many_emissions, ),
-                                                      initializer = B_initializer,
-                                                      dtype = self.config.dtype,
-                                                      trainable = True, name = "emission_kernel")
-
-            else: # if not self.config.use_weights_for_consts
-                self.transition_kernel = self.add_weight(shape = (len(self.indices_for_weights_A),),
-                                                         initializer = A_initializer,
-                                                         dtype = self.config.dtype,
-                                                         trainable = True, name = "transition_kernel")
-
-                how_many_emissions = len(self.indices_for_weights_B)
-                # if not self.config.order_transformed_input:
-                #     how_many_emissions = self.number_of_states * (self.alphabet_size + 2)**(self.order + 1)
-
-                self.emission_kernel = self.add_weight(shape = (how_many_emissions, ),
-                                                      initializer = B_initializer,
-                                                      dtype = self.config.dtype,
-                                                      trainable = True, name = "emission_kernel")
+            self.transition_kernel = self.add_weight(shape = transition_kernel_shape,
+                                                     initializer = A_initializer,
+                                                     dtype = self.config.dtype,
+                                                     trainable = True, name = "transition_kernel")
+            self.emission_kernel = self.add_weight(shape = emission_kernel_shape,
+                                                  initializer = B_initializer,
+                                                  dtype = self.config.dtype,
+                                                  trainable = True, name = "emission_kernel")
 
         visualize_after_build = False
         if visualize_after_build:
@@ -202,56 +183,41 @@ class CgpHmmCell(tf.keras.layers.Layer):
             exit(1)
         append_time_ram_stamp_to_file(start, f"Cell.build() end   {run_id}", self.config.bench_path)
 
-
+################################################################################
+    # this might be a possible alternative for the count variable in cell.call()
+    # currently, count == 0 is checked to determine whether the first symbol
+    # of the seq is processed
+    # but using this bool didnt work, bc it was always set to False
+    # in the first call, before the actual graph is executed
     def init_cell(self):
         self.inita = True
-    # order transformed input, sparse
 
-############################################################################
-
+################################################################################
     @property
     def A_sparse(self):
         # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.transition_kernel)), [self.transition_kernel], name = "self.transition_kernel_when_at_property_A_sparse", summarize = -1)
         if self.config.use_weights_for_consts:
-            transition_matrix = tf.sparse.SparseTensor(indices = self.indices_for_A, \
-                                                       values = self.transition_kernel, \
-                                                       dense_shape = [self.number_of_states] * 2)
+            indices = self.indices_for_A
+            values =  self.transition_kernel
         else:
             consts = tf.cast([1.0] * len(self.indices_for_constants_A), dtype = self.config.dtype)
             values = tf.concat([self.transition_kernel, consts], axis = 0)
-            transition_matrix = tf.sparse.SparseTensor(indices = self.indices_for_weights_A + self.indices_for_constants_A, \
-                                                       values = values, \
-                                                       dense_shape = [self.number_of_states] * 2)
+            indices = self.indices_for_weights_A + self.indices_for_constants_A
+
+        transition_matrix = tf.sparse.SparseTensor(indices = indices, \
+                                                   values = values, \
+                                                   dense_shape = [self.number_of_states] * 2)
+
         transition_matrix = tf.sparse.reorder(transition_matrix)
         transition_matrix = tf.sparse.softmax(transition_matrix, name = "A_sparse")
 
-        if self.config.weaken_softmax:
-            transition_matrix = tf.sparse.map_values(tf.add, transition_matrix, 0.0001)
-            s = tf.sparse.reduce_sum(transition_matrix, axis = 0, name = "A_sparse_weakend_softmax")
-            # tfprint(s)
-            # tfprint(1/s)
-            inverse_s = 1/s
-            transition_matrix = transition_matrix * inverse_s
         return transition_matrix
-
-    # @property
-    # def A_sparse(self):
-    #     indices, values = self.get_indices_and_values_from_transition_kernel_higher_order(self.transition_kernel, self.nCodons)
-    #     transition_matrix = tf.sparse.SparseTensor(indices = indices, values = values, dense_shape = [self.number_of_states] * 2)
-    #     transition_matrix = tf.sparse.reorder(transition_matrix)
-    #     transition_matrix = tf.sparse.softmax(transition_matrix)
-    #     return transition_matrix
 
     @property
     def A_dense(self): # ca 7% != 0
         return tf.sparse.to_dense(self.A_sparse, name = "A_dense")
 
-    # @property
-    # def A(self):
-    #     return self.A_sparse
-    #     # return self.A_dense
     @property
-
     def A_full_model(self):
         transition_matrix = self.transition_kernel
         transition_matrix = tf.nn.softmax(transition_matrix, name = "A_full_model")
@@ -260,55 +226,30 @@ class CgpHmmCell(tf.keras.layers.Layer):
 ############################################################################
 ############################################################################
 
-
     @property
     def B_sparse(self):
         # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.emission_kernel)), [self.emission_kernel], name = "self.emission_kernel_when_at_property_B_sparse", summarize = -1)
 
         # TODO: how often is this called?
-
         if self.config.use_weights_for_consts:
-            emission_matrix = tf.sparse.SparseTensor(indices = self.indices_for_B, \
-                                                     values = self.emission_kernel, \
-                                                     dense_shape = [self.number_of_states, \
-                                                                n_emission_columns_in_B(self.config.alphabet_size, self.config.order)]) # terminal symbol is not yet included here
+            indices = self.indices_for_B
+            values = self.emission_kernel
         else:
+            indices = self.indices_for_weights_B + self.indices_for_constants_B
             consts = tf.cast([1.0] * len(self.indices_for_constants_B), dtype = self.config.dtype)
             values = tf.concat([self.emission_kernel, consts], axis = 0)
-            # indices, values = self.get_indices_and_values_from_emission_kernel_higher_order(self.emission_kernel, self.nCodons, self.alphabet_size)
-            emission_matrix = tf.sparse.SparseTensor(indices = self.indices_for_weights_B + self.indices_for_constants_B, \
-                                                     values = values, \
-                                                     dense_shape = [self.number_of_states, \
-                                                                n_emission_columns_in_B(self.config.alphabet_size, self.config.order)]) # terminal symbol is not yet included here
+
+        dense_shape = [self.number_of_states, \
+                       n_emission_columns_in_B(self.config.alphabet_size, self.config.order)]
+
+        emission_matrix = tf.sparse.SparseTensor(indices = indices, \
+                                                 values = values, \
+                                                 dense_shape = dense_shape)
+
         emission_matrix = tf.sparse.reorder(emission_matrix)
         emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1, self.config.alphabet_size))
         emission_matrix = tf.sparse.softmax(emission_matrix)
         emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1))
-        # value_for_termnal = tf.cast([1], dtype = self.config.dtype)
-        # terminal_row = tf.sparse.SparseTensor(indices = [[0,emissions_state_size(self.config.alphabet_size, self.config.order)]], \
-        #                                       values = value_for_termnal, \
-        #                                       dense_shape = (1, emissions_state_size(self.config.alphabet_size, self.config.order) + 1))
-
-            # print("emission_matrix after second reshape=", tf.sparse.to_dense(emission_matrix))
-            # tf.print("tf emission_matrix after second reshape=", tf.sparse.to_dense(emission_matrix), summarize = 10)
-        # print("terminal_row after second reshape=", tf.sparse.to_dense(terminal_row))
-        # tf.print("terminal_row after second reshape=", tf.sparse.to_dense(terminal_row))
-
-
-        # TODO: oder stattdessen einfach 3 extra useless states einfuegen damit
-        # terminal state gleich mit eingefügt werden kann und reshape gemacht werden kann
-        # emission_matrix = tf.sparse.concat(sp_inputs = [emission_matrix, terminal_row], axis = 0, name = "concated_B", expand_nonconcat_dims=True)
-
-        # print("emission_matrix after concat=", tf.sparse.to_dense(emission_matrix))
-        # tf.print("emission_matrix after concat=", tf.sparse.to_dense(emission_matrix))
-
-        if self.config.weaken_softmax:
-            emission_matrix = tf.sparse.map_values(tf.add, emission_matrix, 0.0001)
-            s = tf.sparse.reduce_sum(emission_matrix, axis = 0, name = "B_sparse_weakend_softmax")
-            # tfprint(s)
-            # tfprint(1/s)
-            inverse_s = 1/s
-            emission_matrix = emission_matrix * inverse_s
 
         emission_matrix = tf.sparse.transpose(emission_matrix, name = "B_sparse")
         return emission_matrix
@@ -317,10 +258,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def B_dense(self): #  this is order transformed if sparse is
         return tf.sparse.to_dense(self.B_sparse, name = "B_dense")
 
-    # @property
-    # def B(self):
-    #     return self.B_sparse
-        # return self.B_dense()
     @property
     def B_full_model(self):
         if self.config.call_type == 4:
@@ -329,7 +266,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             return emission_matrix
 ############################################################################
     @property
-    def I_sparse(self): # todo this is not yet used in call()
+    def I_sparse(self): # i think dense is always used
         # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.init_kernel)), [self.init_kernel], name = "self.init_kernel_when_at_property_I_sparse", summarize = -1)
 
         # indices, values = self.get_indices_and_values_from_initial_kernel(self.init_kernel, self.nCodons)
@@ -337,24 +274,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
         initial_matrix = tf.sparse.reorder(initial_matrix)
         initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.number_of_states))
         initial_matrix = tf.sparse.softmax(initial_matrix, name = "I_sparse")
-        if self.config.weaken_softmax:
-            initial_matrix = tf.sparse.map_values(tf.add, initial_matrix, 0.0001)
-            s = tf.sparse.reduce_sum(initial_matrix, axis = 0, name = "B_sparse_weakend_softmax")
-            # tfprint(s)
-            # tfprint(1/s)
-            inverse_s = 1/s
-            initial_matrix = initial_matrix * inverse_s
-        # initial_matrix = tf.sparse.reshape(initial_matrix, (self.number_of_states,1))
+
         return initial_matrix
 
     @property
     def I_dense(self):
         return tf.sparse.to_dense(self.I_sparse, name = "I_dense")
-
-    @property
-    def I(self):
-        # return self.I_sparse()
-        return self.I_dense
 ################################################################################
 ################################################################################
 ################################################################################
@@ -367,7 +292,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     def get_R(self, old_forward, init = False):
         if init:
-            return self.I, 1.0 # bc return must be same in main and off branch, must be != 0 bc assert check z != 0
+            return self.I_dense, 1.0 # bc return must be same in main and off branch, must be != 0 bc assert check z != 0
 
         if self.config.call_type in [0,2]: # A is sparse
             R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
@@ -399,19 +324,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),  [old_forward, count[0,0]],  name = "old_forward",               summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),   [old_loglik, count[0,0]],   name = "old_loglik",                summarize = self.config.assert_summarize)
 
-
-        # span_init_kernel = tf.math.reduce_max(self.init_kernel) - tf.math.reduce_min(self.init_kernel)
-        # tf.print("span_init_kernel =", span_init_kernel)
-        # tf.print("init_kernel_max =", tf.math.reduce_max(self.init_kernel))
-        #
-        # span_transition_kernel = tf.math.reduce_max(self.transition_kernel) - tf.math.reduce_min(self.transition_kernel)
-        # tf.print("span_transition_kernel =", span_transition_kernel)
-        # tf.print("transition_kernel_max =", tf.math.reduce_max(self.transition_kernel))
-        #
-        # span_emission_kernel = tf.math.reduce_max(self.emission_kernel) - tf.math.reduce_min(self.emission_kernel)
-        # tf.print("span_emission_kernel =", span_emission_kernel)
-        # tf.print("emission_kernel_max =", tf.math.reduce_max(self.emission_kernel))
-
         run_id = randint(0,100)
 
         verbose = self.config.verbose
@@ -427,8 +339,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
                 tf.print(count[0,0], run_id, string, tf.shape(data), output_stream = outstream, sep = ";")
                 if verbose == 2:
                     tf.print(count[0,0], run_id, ">" + string, data, output_stream = outstream, sep = ";", summarize=-1)
-
-        # inputs is shape batch * 126 (= (4+1)^3+1)
 
         E = self.get_E(inputs)
 
@@ -450,15 +360,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(R)),            [R, count[0,0]],            name = "R_finite",  summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(E)),            [E, count[0,0]],            name = "E_finite",  summarize = self.config.assert_summarize)
 
-        alpha = E * R # batch * state_size
+        alpha = E * R # batch_size * state_size
 
         # keepsdims is true such that shape of result is (32,1) rather than (32,)
         # loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik"))
         loglik = tf.math.add(old_loglik, tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True)), name = "loglik")
 
         if self.config.check_assert:
-
-
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),  [alpha, count[0,0], alpha],  name = "alpha",         summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)), [loglik, count[0,0],[123456789], alpha, [123456789], E,[123456789],  R, [123456789], inputs], name = "loglik_finite", summarize = self.config.assert_summarize)
             # i think this should be allowed since sum across alpha can be 1, then log is 0, which is fine
@@ -487,5 +395,5 @@ if __name__ == '__main__':
 
     config["alphabet_size"] = 4
     c = CgpHmmCell(config)
-    print(len(c.get_indices_and_values_from_transition_kernel_higher_order(np.arange(10000))[0]))
-    print(len(c.get_indices_for_weights_from_transition_kernel_higher_order()), len(c.get_indices_for_constants_from_transition_kernel_higher_order()))
+    print(len(c.get_indices_and_values_for_transition_kernel_higher_order(np.arange(10000))[0]))
+    print(len(c.get_indices_for_weights_for_transition()), len(c.get_indices_for_constants_for_transition()))
