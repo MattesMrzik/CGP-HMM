@@ -61,7 +61,7 @@ class Config():
 
         self.check_assert = not self.dont_check_assert
         self.generate_new_seqs = not self.dont_generate_new_seqs
-        self.dtype = tf.float64 if self.dytpe64 else tf.float32
+        self.dtype = tf.float64 if self.dtype64 else tf.float32
         self.learning_rate = self.learning_rate if not self.no_learning else 0
 
         self.gen_len = 3 * self.nCodons
@@ -151,7 +151,7 @@ class Config():
 
         # fine tune algo
         self.add_arg_main('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
-        self.add_arg_main('-d', '--dytpe64', action='store_true', help='using dytpe tf.float64')
+        self.add_arg_main('-d', '--dtype64', action='store_true', help='using dytpe tf.float64')
         self.add_arg_main('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
         self.add_arg_main('--learning_rate', help ="learning_rate", type = float, default = 0.01)
         self.add_arg_main('--no_learning', help ="learning_rate is set to 0", action='store_true')

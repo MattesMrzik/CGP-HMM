@@ -236,8 +236,14 @@ def fit_model(config):
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_B", summarize = config.assert_summarize)
+                    gradient[0] = config.learning_rate * gradient[0]
+                    gradient[1] = config.learning_rate * gradient[1]
+                    gradient[2] = config.learning_rate * gradient[2]
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I_after_learning_rate_scaled", summarize = config.assert_summarize)
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A_after_learning_rate_scaled", summarize = config.assert_summarize)
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_B_after_learning_rate_scaled", summarize = config.assert_summarize)
 
-                    optimizer.apply_gradients(zip(config.learning_rate * gradient, [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel]))
+                    optimizer.apply_gradients(zip(gradient, [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel]))
 
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.init_kernel)),       [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "I_kernel_after_apply_grads", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.transition_kernel)), [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "A_kernel_after_apply_grads", summarize = config.assert_summarize)

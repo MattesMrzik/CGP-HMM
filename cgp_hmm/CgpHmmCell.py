@@ -292,7 +292,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     def get_R(self, old_forward, init = False):
         if init:
-            return self.I_dense, 1.0 # bc return must be same in main and off branch, must be != 0 bc assert check z != 0
+            return self.I_dense, tf.cast(1.0, dtype = self.config.dtype) # bc return must be same in main and off branch, must be != 0 bc assert check z != 0
 
         if self.config.call_type in [0,2]: # A is sparse
             R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
@@ -302,8 +302,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
             R = tf.matmul(old_forward, self.A_dense)
 
         Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
-        if add_epsilon_to_z:
-            Z_i_minus_1 = tf.math.add(Z_i_minus_1, add_epsilon_to_z)
+        # if add_epsilon_to_z:
+        #     Z_i_minus_1 = tf.math.add(Z_i_minus_1, add_epsilon_to_z)
         R /= Z_i_minus_1
         return R, Z_i_minus_1
 
