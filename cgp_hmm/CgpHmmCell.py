@@ -272,7 +272,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # indices, values = self.get_indices_and_values_from_initial_kernel(self.init_kernel, self.nCodons)
         initial_matrix = tf.sparse.SparseTensor(indices = self.indices_for_I, values = self.init_kernel, dense_shape = [self.number_of_states,1])
         initial_matrix = tf.sparse.reorder(initial_matrix)
-        initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.number_of_states))
+        initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.number_of_states), name = "I_sparse")
         initial_matrix = tf.sparse.softmax(initial_matrix, name = "I_sparse")
 
         return initial_matrix

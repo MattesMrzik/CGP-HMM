@@ -99,7 +99,6 @@ class CgpHmmLayer(tf.keras.layers.Layer):
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_state)), [loglik_state],              name = "loglik_state_is_finite", summarize = self.config.assert_summarize)
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_mean)),  [loglik_mean, loglik_state], name = "loglik_mean_is_finite",  summarize = self.config.assert_summarize)
 
-
             if training:
                 # self.add_metric(loglik_mean, "loglik")
                 self.add_metric(tf.math.reduce_max(self.C.init_kernel),"init_kernel_max")
@@ -119,8 +118,6 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
                 self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
                 self.add_metric(tf.math.reduce_min(self.C.B_sparse.values),"B_min")
-
-
 
             use_reg = False
             if use_reg:
