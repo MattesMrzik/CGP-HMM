@@ -143,7 +143,7 @@ class Config():
         self.add_arg_main('-t', '--call_type', type = int, default = 3, help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
         self.add_arg_main('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
         self.add_arg_main('-p', '--src_path', default = ".", help='path to src')
-        self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [Adam]')
+        self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [SDG]')
         self.add_arg_main('--epochs', default = 2, type = int, help = 'how many epochs [2]')
         self.add_arg_main('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
         self.add_arg_main('--run_viterbi', action='store_true', help ="run_viterbi")

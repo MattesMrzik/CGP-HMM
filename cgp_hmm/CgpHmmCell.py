@@ -302,6 +302,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
             R = tf.matmul(old_forward, self.A_dense)
 
         Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
+        if add_epsilon_to_z:
+            Z_i_minus_1 = tf.math.add(Z_i_minus_1, add_epsilon_to_z)
         R /= Z_i_minus_1
         return R, Z_i_minus_1
 
