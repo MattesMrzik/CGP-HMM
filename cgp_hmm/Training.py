@@ -163,7 +163,8 @@ def fit_model(config):
         # assuming that inputs are formatted in shape batch, seq_len, one_hot_dim = 32, l, 126
         input = ReadData.get_batch_input_from_tf_printed_file(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
         with tf.GradientTape() as tape:
-            y = layer(input) # eventuell wird hier die cell nochmal gebaut und das weight setzen davor bringt nichts
+            y, alpha_seq = layer(input) # eventuell wird hier die cell nochmal gebaut und das weight setzen davor bringt nichts
+
             dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
 
             for g, name in zip(dy_dx, "IAB"):
@@ -212,13 +213,22 @@ def fit_model(config):
         layer = CgpHmmLayer(config)
         layer.build(None)
         layer.C.build(None)
-        if config.steps_per_epoch != 4:
-            print(f"not using steps_per_epoch = {config.steps_per_epoch} but hard coded 4")
+
+        batchsize = 32
+        low = 0
+        n = len(seqs)
+        high = min(batchsize, n)
         for epoch in range(config.epochs):
-            for step in range(4):
-                minimum = step*32
-                maximum = min((step+1)*32, 100)
-                batch = seqs[minimum : maximum]
+            for step in range(config.steps_per_epoch):
+                batch = seqs[low : high]
+
+                if high == n:
+                    high = min(batchsize, n)
+                elif high + batchsize > n:
+                    high = n
+                else:
+                    high += batchsize
+
                 max_len_seq_in_batch = max([len(seq) for seq in batch])
                 # print("max_len_seq_in_batch =", max_len_seq_in_batch)
                 batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq)) for seq in batch]
@@ -228,11 +238,37 @@ def fit_model(config):
                 with tf.GradientTape() as tape:
 
                     tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-                    y = layer(batch)
+                    y, alpha_seq = layer(batch)
+                    # alpha_seq [batch, i, q]
+                    print("tf.shape(alpha_seq) =", tf.shape(alpha_seq))
 
+                    loglikes = [tf.math.log(tf.math.reduce_sum(alpha_seq[:,0,:], axis = -1, keepdims = True))]
+                    for i in range(1, tf.shape(alpha_seq)[1]):
+                        loglikes.append(loglikes[-1] + tf.math.log(tf.math.reduce_sum(alpha_seq[:,i,:], axis = -1, keepdims = True)))
+                    print("y =", y) # this has shape batch_size
+                    print("this should be the same as:")
+                    print("loglikes[-1] =", loglikes[-1])
+                    print("and it is indeed")
+
+                    # TODO: now i can differentiate the first loglike wrt the kernels
+                    # lets hope that not the hole graph is backpropagated for this differential
+                    # then for long seqs where the normal backprobs does some nan
+                    # then i can find the last index i for which the gradient exists
+
+                    # TODO: this y is not yet reduced mean
+                    # what criterium is used when y is vector and not scalar?
+                    gradient_summarize = -1
                     print(f"epoch({epoch}), step({step}) the loss is:\n{tf.math.reduce_mean(y)}")
-                    gradient = tape.gradient(-1*y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-                    tf.print("gradient =", gradient, summarize = 5)
+                    print("config.alpha_i_gradient =", config.alpha_i_gradient)
+
+                    if config.alpha_i_gradient == -1: # ie. differentiate y
+                        gradient = tape.gradient(-1*y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                    elif config.alpha_i_gradient == -2: # ie. differentiate alpha(n-1), this should be the same as when y is differentiated
+                        gradient = tape.gradient(-1*loglikes[-1],  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                    else:
+                        gradient =  tape.gradient(-1*loglikes[config.alpha_i_gradient],  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                    tf.print("gradient =", gradient, summarize = gradient_summarize)
+
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_B", summarize = config.assert_summarize)

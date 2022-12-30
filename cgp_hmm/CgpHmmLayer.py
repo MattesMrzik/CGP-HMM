@@ -160,4 +160,4 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         self.add_loss(my_loss(loglik_state))
 
         append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config.bench_path)
-        return loglik_state
+        return loglik_state, alpha_seq

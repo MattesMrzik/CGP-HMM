@@ -106,7 +106,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(start, f"Cell.build() start {run_id}", self.config.bench_path)
 
         # setting the initilizers
-        if self.config.get_gradient_for_current_txt:
+        if self.config.get_gradient_for_current_txt or self.config.init_weights_from_txt:
             with open(f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_I.json") as file:
                 weights_I = np.array(json.load(file))
                 I_initializer = tf.constant_initializer(weights_I)
@@ -294,17 +294,17 @@ class CgpHmmCell(tf.keras.layers.Layer):
         if init:
             return self.I_dense, tf.cast(1.0, dtype = self.config.dtype) # bc return must be same in main and off branch, must be != 0 bc assert check z != 0
 
-        if self.config.call_type in [0,2]: # A is sparse
-            R = tf.sparse.sparse_dense_matmul(old_forward, self.A_sparse)
-        elif self.config.call_type == 4:
-            R = tf.matmul(old_forward, self.A_full_model)
-        else:
-            R = tf.matmul(old_forward, self.A_dense)
-
         Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
+        scaled_forward = old_forward / Z_i_minus_1
         # if add_epsilon_to_z:
         #     Z_i_minus_1 = tf.math.add(Z_i_minus_1, add_epsilon_to_z)
-        R /= Z_i_minus_1
+        if self.config.call_type in [0,2]: # A is sparse
+            R = tf.sparse.sparse_dense_matmul(scaled_forward, self.A_sparse)
+        elif self.config.call_type == 4:
+            R = tf.matmul(scaled_forward, self.A_full_model)
+        else:
+            R = tf.matmul(scaled_forward, self.A_dense)
+
         return R, Z_i_minus_1
 
 ################################################################################

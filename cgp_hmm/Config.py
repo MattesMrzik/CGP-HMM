@@ -182,6 +182,8 @@ class Config():
         self.add_arg_main('--manual_traning_loop', action='store_true', help ="manual_traning_loop")
         self.add_arg_main('--dont_check_assert', action='store_true', help ="dont_check_assert")
         self.add_arg_main('--run_eagerly', action='store_true', help ='run model.fit in eager execution')
+        self.add_arg_main('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_traning_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
+        self.add_arg_main('--init_weights_from_txt', action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --batch_begin_write_weights__layer_call_write_inputs was passed')
 
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""
