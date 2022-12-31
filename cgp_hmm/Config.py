@@ -10,16 +10,17 @@ class Config():
         self.manuall_arg_lists = {"small_bench" : [], "main_programm" : []}
         if for_which_program == "small_bench":
             self.add_small_bench()
+            self.parsed_args = self.parser.parse_args()
+            
         if for_which_program == "main_programm":
             self.add_main_programm()
+            self.parsed_args = self.parser.parse_args()
+            self.add_attribtes()
+            self.prepare_before_main_programm()
+            self.determine_attributes()
+            self.apply_args()
 
-        self.parsed_args = self.parser.parse_args()
 
-        self.add_attribtes()
-        self.prepare_before_main_programm()
-        self.determine_attributes()
-
-        self.apply_args()
 
     def apply_args(self):
         import tensorflow as tf
@@ -66,7 +67,10 @@ class Config():
 
         self.gen_len = 3 * self.nCodons
 
-        self.seq_len = self.parsed_args.seq_len if self.parsed_args.seq_len else (self.nCodons * 3 + 6 + 2) * 2
+        print("self.parsed_args.seq_len =", self.parsed_args.seq_len)
+        print("self.nCodons =", self.nCodons)
+
+        self.seq_len = self.parsed_args.seq_len if self.parsed_args.seq_len else ((self.nCodons * 3 + 6 + 2) * 2)
 
         #                                     start and stop, i want at least one ig 3' and 5'
         assert self.seq_len >= self.gen_len + 6               + 2, f"self.seq_len ({self.seq_len}) < self.gen_len ({self.gen_len}) + 6 + 2"
@@ -133,6 +137,7 @@ class Config():
         self.add_arg_small_bench('-r', '--range_codon', nargs='+', help='usage: < -r 1 10 > to run 1 2 3 4 5 6 7 8 9 10 codons')
         self.add_arg_small_bench('-tl', '--typesList', nargs="+", help='types of cell.call() that should be used')
         self.add_arg_small_bench('-cl', '--nCodonsList', nargs="+", help ='usage: < -c 10 20 50 > to run 10 20 50 codons')
+        self.add_arg_small_bench('-il', '--alpha_i_gradient_list', nargs='+', help ='is only applied when --manual is passed')
         self.add_arg_small_bench('--repeat', type = int, default = 1, help ='repeat the main programm [repeat] times')
         self.add_arg_small_bench('--exit_on_nan', action='store_true', help ="exit_on_nan")
 
@@ -162,7 +167,7 @@ class Config():
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
-        self.add_arg_main('--dont_use_gpu', action='store_true', help ="dont_use_gpu")
+        self.add_arg_main('--dont_use_mirrored_strategy', action='store_true', help ="dont_use_mirrored_strategy")
 
         # verbose
         self.add_arg_main('-v', '--verbose', default = 0, type = int, help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")

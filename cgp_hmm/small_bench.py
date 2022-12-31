@@ -33,12 +33,19 @@ if len(types) == 0:
     print("pls specify types")
     exit(1)
 
+
+if config.alpha_i_gradient_list:
+    alpha_i_gradient_list = sorted(config.alpha_i_gradient_list)
+if not config.manual_traning_loop:
+    print("--manual_traning_loop was not passed, so --alpha_i_gradient_list is not used")
+    alpha_i_gradient_list = []
+
 from datetime import datetime
 
 for c in codons:
     config.nCodons = c
     for t in types:
-        for i in range(1,1500,100): # gradient for alpha_i
+        for i in alpha_i_gradient_list:
             config.call_type = t
             print("config.call_type =",  config.call_type)
             for _ in range(config.repeat):
@@ -46,7 +53,10 @@ for c in codons:
                     os.system("rm stop")
                     exit()
                 with open ("small_bench_run_log.txt", "a") as file:
-                    command = f"./main_programm.py {config.get_args_as_str('main_programm')} --alpha {i} --seq_len 2000"
+                    command = f"./main_programm.py {config.get_args_as_str('main_programm')}"
+                    if len(alpha_i_gradient_list) > 0:
+                        command += f" --alpha {i}"
+                    print("running:", command)
                     status = os.system(command)
                     status = os.WEXITSTATUS(status)
                     now = datetime.now()
@@ -60,6 +70,7 @@ for c in codons:
 
                     if config.exit_on_nan and status != 0:
                         exit()
+
 
 
     # for nCodons in range(11,26):
