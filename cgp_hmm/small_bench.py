@@ -38,27 +38,28 @@ from datetime import datetime
 for c in codons:
     config.nCodons = c
     for t in types:
-        config.call_type = t
-        print("config.call_type =",  config.call_type)
-        for _ in range(config.repeat):
-            if os.path.exists("stop"):
-                os.system("rm stop")
-                exit()
-            with open ("small_bench_run_log.txt", "a") as file:
-                command = f"./main_programm.py {config.get_args_as_str('main_programm')}"
-                status = os.system(command)
-                status = os.WEXITSTATUS(status)
-                now = datetime.now()
-                dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-                file.write(dt_string)
-                file.write("\n")
-                file.write(command)
-                file.write("\n")
-                file.write("exit status " + str(status))
-                file.write("\n")
-
-                if config.exit_on_nan and status != 0:
+        for i in range(1,1500,100): # gradient for alpha_i
+            config.call_type = t
+            print("config.call_type =",  config.call_type)
+            for _ in range(config.repeat):
+                if os.path.exists("stop"):
+                    os.system("rm stop")
                     exit()
+                with open ("small_bench_run_log.txt", "a") as file:
+                    command = f"./main_programm.py {config.get_args_as_str('main_programm')} --alpha {i} --seq_len 2000"
+                    status = os.system(command)
+                    status = os.WEXITSTATUS(status)
+                    now = datetime.now()
+                    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+                    file.write(dt_string)
+                    file.write("\n")
+                    file.write(command)
+                    file.write("\n")
+                    file.write("exit status " + str(status))
+                    file.write("\n")
+
+                    if config.exit_on_nan and status != 0:
+                        exit()
 
 
     # for nCodons in range(11,26):

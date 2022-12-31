@@ -257,7 +257,7 @@ def fit_model(config):
 
                     # TODO: this y is not yet reduced mean
                     # what criterium is used when y is vector and not scalar?
-                    gradient_summarize = -1
+                    gradient_summarize = 10
                     print(f"epoch({epoch}), step({step}) the loss is:\n{tf.math.reduce_mean(y)}")
                     print("config.alpha_i_gradient =", config.alpha_i_gradient)
 
@@ -268,6 +268,18 @@ def fit_model(config):
                     else:
                         gradient =  tape.gradient(-1*loglikes[config.alpha_i_gradient],  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
                     tf.print("gradient =", gradient, summarize = gradient_summarize)
+                    
+                    
+                    ik = [float(x) for x in gradient[0]]
+                    ak = [float(x) for x in gradient[1]]
+                    bk = [float(x) for x in gradient[2]]
+                    
+                    with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_ik_for_alpha{config.alpha_i_gradient}.txt","w") as file:
+                        json.dump(ik, file)
+                    with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_ak_for_alpha{config.alpha_i_gradient}.txt","w") as file:
+                        json.dump(ak, file)
+                    with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_bk_for_alpha{config.alpha_i_gradient}.txt","w") as file:
+                        json.dump(bk, file)
 
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A", summarize = config.assert_summarize)
