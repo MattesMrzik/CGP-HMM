@@ -132,10 +132,12 @@ def fit_model(config):
         else:
             optimizer = tf.optimizers.Adam(config.learning_rate)
             config.optimizer = f"Adam with learning_rate {config.learning_rate} and no clipping"
+        print("config.optimizer =", config.optimizer)
 
     elif config.optimizer == "SGD":
         optimizer = tf.optimizers.SGD(config.learning_rate)
         config.optimizer = f"SGD with learning_rate {config.learning_rate}"
+        print("config.optimizer =", config.optimizer)
     else:
         print("setting optimizer didnt work")
         exit(1)
@@ -209,6 +211,7 @@ def fit_model(config):
         #  get the very first init weights of a run that resulted in nan
         # maybe this is not necessary, since i can run with --dont_generate_new_seqs flag,
         # and even though the kernels are always initialized differently nan always occur
+        print("config.alpha_i_gradient =", config.alpha_i_gradient)
 
         layer = CgpHmmLayer(config)
         layer.build(None)
@@ -220,8 +223,10 @@ def fit_model(config):
         high = min(batchsize, n)
         for epoch in range(config.epochs):
             for step in range(config.steps_per_epoch):
+                # print(f"low = {low}, high = {high}")
                 batch = seqs[low : high]
 
+                low = low + batchsize if low + batchsize < n else 0
                 if high == n:
                     high = min(batchsize, n)
                 elif high + batchsize > n:
@@ -240,15 +245,15 @@ def fit_model(config):
                     tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
                     y, alpha_seq = layer(batch)
                     # alpha_seq [batch, i, q]
-                    print("tf.shape(alpha_seq) =", tf.shape(alpha_seq))
+                    # print("tf.shape(alpha_seq) =", tf.shape(alpha_seq))
 
                     loglikes = [tf.math.log(tf.math.reduce_sum(alpha_seq[:,0,:], axis = -1, keepdims = True))]
                     for i in range(1, tf.shape(alpha_seq)[1]):
                         loglikes.append(loglikes[-1] + tf.math.log(tf.math.reduce_sum(alpha_seq[:,i,:], axis = -1, keepdims = True)))
-                    print("y =", y) # this has shape batch_size
-                    print("this should be the same as:")
-                    print("loglikes[-1] =", loglikes[-1])
-                    print("and it is indeed")
+                    # print("y =", y) # this has shape batch_size
+                    # print("this should be the same as:")
+                    # print("loglikes[-1] =", loglikes[-1])
+                    # print("and it is indeed")
 
                     # TODO: now i can differentiate the first loglike wrt the kernels
                     # lets hope that not the hole graph is backpropagated for this differential
@@ -258,22 +263,21 @@ def fit_model(config):
                     # TODO: this y is not yet reduced mean
                     # what criterium is used when y is vector and not scalar?
                     gradient_summarize = 10
-                    print(f"epoch({epoch}), step({step}) the loss is:\n{tf.math.reduce_mean(y)}")
-                    print("config.alpha_i_gradient =", config.alpha_i_gradient)
+                    print(f"epoch({epoch}), step({step}) the loss is: {tf.math.reduce_mean(y)}")
 
                     if config.alpha_i_gradient == -1: # ie. differentiate y
-                        gradient = tape.gradient(-1*y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                        gradient = tape.gradient(-1*tf.math.reduce_mean(y),  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
                     elif config.alpha_i_gradient == -2: # ie. differentiate alpha(n-1), this should be the same as when y is differentiated
-                        gradient = tape.gradient(-1*loglikes[-1],  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                        gradient = tape.gradient(-1*tf.math.reduce_mean(loglikes[-1]),  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
                     else:
-                        gradient =  tape.gradient(-1*loglikes[config.alpha_i_gradient],  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
-                    tf.print("gradient =", gradient, summarize = gradient_summarize)
-                    
-                    
+                        gradient =  tape.gradient(-1*tf.math.reduce_mean(loglikes[config.alpha_i_gradient]),  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                    # tf.print("gradient =", gradient, summarize = gradient_summarize)
+
+
                     ik = [float(x) for x in gradient[0]]
                     ak = [float(x) for x in gradient[1]]
                     bk = [float(x) for x in gradient[2]]
-                    
+
                     with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_ik_for_alpha{config.alpha_i_gradient}.txt","w") as file:
                         json.dump(ik, file)
                     with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_ak_for_alpha{config.alpha_i_gradient}.txt","w") as file:
@@ -290,8 +294,9 @@ def fit_model(config):
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I_after_learning_rate_scaled", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A_after_learning_rate_scaled", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_B_after_learning_rate_scaled", summarize = config.assert_summarize)
-
+                    # print("layer.C.init_kernel before apply grad=", layer.C.init_kernel)
                     optimizer.apply_gradients(zip(gradient, [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel]))
+                    # print("layer.C.init_kernel after apply grad =", layer.C.init_kernel)
 
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.init_kernel)),       [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "I_kernel_after_apply_grads", summarize = config.assert_summarize)
                     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.transition_kernel)), [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "A_kernel_after_apply_grads", summarize = config.assert_summarize)
