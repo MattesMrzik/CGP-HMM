@@ -366,29 +366,31 @@ def get_indices_for_weights_from_emission_kernel_higher_order(config):
     nCodons = config.nCodons
     indices = []
 
+    N_or_C = "C" if config.only_C else "N"
+
     # ig 5'
-    get_indices_for_emission_and_state(config, indices,0,"N",0)
+    get_indices_for_emission_and_state(config, indices,0,N_or_C,0)
     # start a
     get_indices_for_emission_and_state(config, indices,1,"A",1)
     # start t
     get_indices_for_emission_and_state(config, indices,2,"AT",2)
 
     # codon_11
-    get_indices_for_emission_and_state(config, indices,4,"ATGN",2)
+    get_indices_for_emission_and_state(config, indices,4,"ATG" + N_or_C,2)
     # codon_12
-    get_indices_for_emission_and_state(config, indices,5,"ATGNN",2)
+    get_indices_for_emission_and_state(config, indices,5,"ATG" + N_or_C*2,2)
     # all other codons
     for state in range(6, 6 + nCodons*3 -2):
-        get_indices_for_emission_and_state(config, indices,state,"N",2)
+        get_indices_for_emission_and_state(config, indices,state,N_or_C,2)
     # stop
     get_indices_for_emission_and_state(config, indices,4 + nCodons*3,"T", config.order)
     get_indices_for_emission_and_state(config, indices,5 + nCodons*3,"TA", config.order)
     get_indices_for_emission_and_state(config, indices,5 + nCodons*3,"TG", config.order)
     # ig 3'
-    get_indices_for_emission_and_state(config, indices,7 + nCodons*3,"N", config.order)
+    get_indices_for_emission_and_state(config, indices,7 + nCodons*3,N_or_C, config.order)
     # inserts
     for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
-        get_indices_for_emission_and_state(config, indices,state,"N", config.order)
+        get_indices_for_emission_and_state(config, indices,state,N_or_C, config.order)
 
     get_indices_for_emission_and_state(\
                           config, indices,8 + nCodons*3 + (nCodons+1)*3,"X", config.order)

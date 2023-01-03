@@ -55,8 +55,12 @@ def make_dataset(config):
         if codon not in ["TAA", "TGA", "TAG"]:
             codons += [codon]
 
+    if config.only_C:
+        codons = ["CCC"]
+
     if config.generate_new_seqs:
         if config.use_simple_seq_gen:
+            alphabet = ["A","C","G","T"] if not config.only_C else ["C"]
             num_seqs = 100
             seqs = {}
             with open(config.fasta_path, "w") as file:
@@ -68,12 +72,12 @@ def make_dataset(config):
 
                 for seq_id in range(num_seqs):
 
-                    ig5 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(min_left_flank_len, max_left_flank_len +1))) # TODO: also check if low = 2
+                    ig5 = "".join(np.random.choice(alphabet, np.random.randint(min_left_flank_len, max_left_flank_len +1))) # TODO: also check if low = 2
                     atg = "ATG"
                     # coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
                     coding = "".join(np.random.choice(codons, config.nCodons))
                     stop = np.random.choice(["TAA","TGA","TAG"])
-                    ig3 = "".join(np.random.choice(["A","C","G","T"], np.random.randint(min_right_flank_len, max_right_flank_len +1)))
+                    ig3 = "".join(np.random.choice(alphabet, np.random.randint(min_right_flank_len, max_right_flank_len +1)))
 
                     seqs[f">use_simple_seq_gen_{seq_id}"] = ig5 + atg + coding + stop + ig3
                 for key, value in seqs.items():
