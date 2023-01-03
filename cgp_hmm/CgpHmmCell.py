@@ -251,6 +251,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         emission_matrix = tf.sparse.softmax(emission_matrix)
         emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1))
 
+        if self.config.only_C:
+            emission_matrix = emission_matrix * [.001]
+
         emission_matrix = tf.sparse.transpose(emission_matrix, name = "B_sparse")
         return emission_matrix
 
@@ -286,7 +289,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def get_E(self, inputs):
         if self.config.call_type in [2, 3]: # B is sparse
             return tf.matmul(inputs, self.B_dense)
-        if self.config.call_type == 4:
+        if self.config.call_type == 4: # full_model
             return tf.matmul(inputs, self.B_full_model)
         return tf.sparse.sparse_dense_matmul(inputs, self.B_sparse)
 

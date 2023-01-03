@@ -772,11 +772,11 @@ def transform_json_to_csv(path, I_or_A_or_B, nCodons):
                 file.write(state_id_to_description(state, nCodons))
                 file.write(";")
             file.write("\n")
-            print("data =", str(data)[:50])
+            print("data =", str(data)[:50], "...")
             for id, row in enumerate(data):
                 if not id in id_to_emi:
                     break
-                print("id_to_emi[id] =", id_to_emi[id])
+                # print("id_to_emi[id] =", id_to_emi[id])
                 file.write(emi_tuple_to_str(id_to_emi[id]))
                 file.write(";")
                 for value in row:
