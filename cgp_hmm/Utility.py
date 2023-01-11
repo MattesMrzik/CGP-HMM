@@ -71,21 +71,23 @@ def get_indices_for_weights_for_transition(config): # no shared parameters
     # enter codon
     indices += [[3 + i*3, 4 + i*3] for i in range(nCodons)]
 
-    # begin inserts
-    offset = 8 + 3*nCodons
-    indices += [[3 + i*3, offset + i*3] for i in range(nCodons + 1)]
-    # ending an insert
-    indices += [[offset + 2 + i*3, 4 + i*3] for i in range(nCodons + 1)]
-    # continuing an insert
-    indices += [[offset + 2 + i*3, offset + i*3] for i in range(nCodons +1)]
+    if not config.no_inserts:
+        offset = 8 + 3*nCodons
+        # begin inserts
+        indices += [[3 + i*3, offset + i*3] for i in range(nCodons + 1)]
+        # ending an insert
+        indices += [[offset + 2 + i*3, 4 + i*3] for i in range(nCodons + 1)]
+        # continuing an insert
+        indices += [[offset + 2 + i*3, offset + i*3] for i in range(nCodons +1)]
 
     # exit last codon
     indices += [[3 + nCodons*3, 4 + nCodons*3]]
 
     # deletes
-    i_delete = [3 + i*3 for i in range(nCodons) for j in range(nCodons-i)]
-    j_delete = [4 + j*3 for i in range(1,nCodons+1) for j in range(i,nCodons+1)]
-    indices += [[i,j] for i,j in zip(i_delete, j_delete)]
+    if not config.no_deletes:
+        i_delete = [3 + i*3 for i in range(nCodons) for j in range(nCodons-i)]
+        j_delete = [4 + j*3 for i in range(1,nCodons+1) for j in range(i,nCodons+1)]
+        indices += [[i,j] for i,j in zip(i_delete, j_delete)]
 
     # ig -> ig, terminal_1
     index_of_terminal_1 = 8 + nCodons*3 + (nCodons + 1) *3

@@ -251,9 +251,12 @@ def fit_model(config):
                     # alpha_seq [batch, i, q]
                     # print("tf.shape(alpha_seq) =", tf.shape(alpha_seq))
 
+                    print("start of calculation of loglikes from alpha")
                     loglikes = [tf.math.log(tf.math.reduce_sum(alpha_seq[:,0,:], axis = -1, keepdims = True))]
                     for i in range(1, tf.shape(alpha_seq)[1]):
                         loglikes.append(loglikes[-1] + tf.math.log(tf.math.reduce_sum(alpha_seq[:,i,:], axis = -1, keepdims = True)))
+                    print("end  of calculation of loglikes from alpha")
+
                     # print("y =", y) # this has shape batch_size
                     # print("this should be the same as:")
                     # print("loglikes[-1] =", loglikes[-1])
@@ -310,7 +313,7 @@ def fit_model(config):
 
 ################################################################################
     else:
-        if num_gpu > 1 and not config.dont_use_gpu:
+        if num_gpu > 1 and not config.dont_use_mirrored_strategy:
             mirrored_strategy = tf.distribute.MirroredStrategy()
             with mirrored_strategy.scope():
                 model, cgp_hmm_layer = make_model(config)
