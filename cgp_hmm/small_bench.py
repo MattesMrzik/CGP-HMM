@@ -36,7 +36,7 @@ if len(types) == 0:
 
 if config.alpha_i_gradient_list:
     alpha_i_gradient_list = sorted(config.alpha_i_gradient_list)
-if not config.manual_traning_loop:
+if not config.manual_traning_loop and len(config.alpha_i_gradient_list) > 0:
     print("--manual_traning_loop was not passed, so --alpha_i_gradient_list is not used")
     alpha_i_gradient_list = []
 

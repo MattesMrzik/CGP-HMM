@@ -54,6 +54,8 @@ class Config():
     def add_attribtes(self):
         import tensorflow as tf
 
+        self.tf_version = tf.__version__
+
         self.alphabet_size = 4
         self.write_return_sequnces = False
 
@@ -189,9 +191,9 @@ class Config():
         self.add_arg_main('--run_eagerly', action='store_true', help ='run model.fit in eager execution')
         self.add_arg_main('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_traning_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
         self.add_arg_main('--init_weights_from_txt', action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --batch_begin_write_weights__layer_call_write_inputs was passed')
-        self.add_arg_main('--only_C', action='store_true', help = 'if this is passed along with --use_simple_seq_gen then every base is C except for the start and stop codon. Also, the emission matrix is adjusted to model such seqs')
         self.add_arg_main('--no_deletes', action='store_true', help = 'the delete transitions in A are removed')
         self.add_arg_main('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
+        self.add_arg_main('--forced_gene_structure', action='store_true', help = 'TGs in igs and ACs in coding, ie the state seq is determinded by emission seq')
 
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""
