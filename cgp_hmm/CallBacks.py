@@ -50,7 +50,7 @@ def get_call_backs(config, model):
 
     class assert_kernels_at_batch_begin(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
-            tf.print("assert_check batch id =", batch)
+            # tf.print("assert_check batch id =", batch)
             ik, ak, bk = model.get_weights()
 
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ik,ak,bk], name = "I_kernel_is_nan", summarize = config.assert_summarize)

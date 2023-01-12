@@ -55,12 +55,11 @@ def make_dataset(config):
         if codon not in ["TAA", "TGA", "TAG"]:
             codons += [codon]
 
-    if config.only_C:
-        codons = ["CCC"]
+    if config.forced_gene_structure:
+        codons = ["AAA", "AAC", "ACA", "ACC", "CAA", "CAC", "CCA", "CCC"]
 
     if config.generate_new_seqs:
         if config.use_simple_seq_gen:
-            alphabet = ["A","C","G","T"] if not config.only_C else ["C"]
             num_seqs = 100
             seqs = {}
             with open(config.fasta_path, "w") as file:
@@ -71,7 +70,8 @@ def make_dataset(config):
                 min_right_flank_len = max_right_flank_len if config.dont_strip_flanks else 1
 
                 for seq_id in range(num_seqs):
-
+                    if config.forced_gene_structure:
+                        alphabet = ["T","G"]
                     ig5 = "".join(np.random.choice(alphabet, np.random.randint(min_left_flank_len, max_left_flank_len +1))) # TODO: also check if low = 2
                     atg = "ATG"
                     # coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
@@ -83,6 +83,8 @@ def make_dataset(config):
                 for key, value in seqs.items():
                     file.write(key + "\n")
                     file.write(value + "\n")
+
+
         else:
             command = f"python3 {config.src_path}/useMSAgen.py -c {config.nCodons} \
                           {'-n 100'} \

@@ -39,7 +39,7 @@ if config.alpha_i_gradient_list:
     exit(1) # bc  alpha_i_gradient_list = [0]  needs to be changed
 if not config.manual_traning_loop:
     print("--manual_traning_loop was not passed, so --alpha_i_gradient_list is not used")
-    alpha_i_gradient_list = [0] 
+    alpha_i_gradient_list = [0]
 
 from datetime import datetime
 
