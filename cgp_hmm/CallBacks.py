@@ -81,11 +81,20 @@ def get_call_backs(config, model):
                     json.dump(bk, file)
 
                 with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_I_dense.json", "w") as file:
-                    json.dump(model.get_layer("cgp_hmm_layer").C.I_dense.numpy().tolist(), file)
+                    I_dense = model.get_layer("cgp_hmm_layer").C.I_dense
+                    json.dump(I_dense.numpy().tolist(), file)
                 with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_A_dense.json", "w") as file:
-                    json.dump(model.get_layer("cgp_hmm_layer").C.A_dense.numpy().tolist(), file)
+                    A_dense = model.get_layer("cgp_hmm_layer").C.A_dense
+                    json.dump(A_dense.numpy().tolist(), file)
                 with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_B_dense.json", "w") as file:
-                    json.dump(model.get_layer("cgp_hmm_layer").C.B_dense.numpy().tolist(), file)
+                    B_dense = model.get_layer("cgp_hmm_layer").C.B_dense
+                    json.dump(B_dense.numpy().tolist(), file)
+
+                if config.check_for_zeros:
+                    Utility.find_indices_in_sparse_A_that_are_zero(config = config, \
+                                                                   I_dense = I_dense, \
+                                                                   A_dense = A_dense, \
+                                                                   B_dense = B_dense)
 
                 model.save_weights(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_weights", overwrite=True, save_format="h5") #todo also try tf as save format
 

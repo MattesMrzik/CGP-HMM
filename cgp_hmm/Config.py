@@ -15,12 +15,16 @@ class Config():
         if for_which_program == "main_programm":
             self.add_main_programm()
             self.parsed_args = self.parser.parse_args()
+
+            self.asserts()
             self.add_attribtes()
             self.prepare_before_main_programm()
             self.determine_attributes()
             self.apply_args()
 
-
+    def asserts(self):
+        if self.check_for_zeros:
+            assert self.batch_begin_write_weights__layer_call_write_inputs, "if check_for_zeros also pass --batch"
 
     def apply_args(self):
         import tensorflow as tf
@@ -147,7 +151,7 @@ class Config():
 
     def add_main_programm(self):
         self.add_arg_main('-c', '--nCodons', type = int, default = 1, help='number of codons')
-        self.add_arg_main('-t', '--call_type', type = int, default = 3, help='type of cell.call():  0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
+        self.add_arg_main('-t', '--call_type', type = int, default = 0, help='type of cell.call():  default = 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
         self.add_arg_main('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
         self.add_arg_main('-p', '--src_path', default = ".", help='path to src')
         self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [SDG]')
@@ -180,7 +184,7 @@ class Config():
         self.add_arg_main('--get_gradient_of_first_batch', action='store_true', help ="get_gradient_of_first_batch")
         self.add_arg_main('--get_gradient_for_current_txt', action='store_true', help ="get_gradient_for_current_txt, previous run wrote IAB and inputbatch to file (via --batch_begin_write_weights__layer_call_write_inputs flag)-> get respective gradient")
         self.add_arg_main('--get_gradient_from_saved_model_weights', action='store_true', help ="get_gradient_from_saved_model_weights, previous run saved weights when passing --batch_begin_write_weights__layer_call_write_inputs")
-        self.add_arg_main('--assert_summarize', type = int, default = -1, help = 'assert_summarize [-1]')
+        self.add_arg_main('--assert_summarize', type = int, default = 5, help = 'assert_summarize [5]')
 
         # debugging
         self.add_arg_main('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
@@ -194,6 +198,7 @@ class Config():
         self.add_arg_main('--no_deletes', action='store_true', help = 'the delete transitions in A are removed')
         self.add_arg_main('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
         self.add_arg_main('--forced_gene_structure', action='store_true', help = 'TGs in igs and ACs in coding, ie the state seq is determinded by emission seq')
+        self.add_arg_main('--check_for_zeros', action='store_true', help = 'must be passed together with --batch, checks for zeros in parameters')
 
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""

@@ -6,10 +6,10 @@ from Utility import state_id_to_description
 
 from Utility import tfprint
 
-from Utility import get_indices_for_weights_for_transition
-from Utility import get_indices_for_constants_for_transition
-from Utility import get_indices_for_weights_from_emission_kernel_higher_order
-from Utility import get_indices_for_constants_for_emission
+from Utility import get_indices_for_weights_for_A
+from Utility import get_indices_for_constants_for_A
+from Utility import get_indices_for_weights_for_B
+from Utility import get_indices_for_constants_for_B
 from Utility import emissions_state_size
 from Utility import n_emission_columns_in_B
 
@@ -44,26 +44,26 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         self.state_size = [self.number_of_states, 1, 1]
 
-        self.indices_for_weights_A = config.indices_for_weights_A# if "indices_for_weights_A" in config else get_indices_for_weights_for_transition(config)
+        self.indices_for_weights_A = config.indices_for_weights_A# if "indices_for_weights_A" in config else get_indices_for_weights_for_A(config)
         # vielleich einfach den consts auch ein weigt geben, welches durch softmax eh dann 1 wird
         # dann hat der gradient zwar mehr einträge, aber es muss ein concat der values und indices gemacht werden,
-        self.indices_for_constants_A = config.indices_for_constants_A #if "indices_for_constants_A" in config else get_indices_for_constants_for_transition(config)
+        self.indices_for_constants_A = config.indices_for_constants_A #if "indices_for_constants_A" in config else get_indices_for_constants_for_A(config)
         self.indices_for_A = config.indices_for_A
 
 
-        self.indices_for_weights_B = config.indices_for_weights_B#if "indices_for_weights_B" in config else get_indices_for_weights_from_emission_kernel_higher_order(config)
-        self.indices_for_constants_B = config.indices_for_constants_B# if "indices_for_constants_B" in config else get_indices_for_constants_for_emission(config)
+        self.indices_for_weights_B = config.indices_for_weights_B#if "indices_for_weights_B" in config else get_indices_for_weights_for_B(config)
+        self.indices_for_constants_B = config.indices_for_constants_B# if "indices_for_constants_B" in config else get_indices_for_constants_for_B(config)
         self.indices_for_B = config.indices_for_B
 
         self.indices_for_I = config.indices_for_I
 
-        # self.indices_for_weights_A = self.get_indices_for_weights_for_transition()
+        # self.indices_for_weights_A = self.get_indices_for_weights_for_A()
         # # vielleich einfach den consts auch ein weigt geben, welches durch softmax eh dann 1 wird
         # # dann hat der gradient zwar mehr einträge, aber es muss ein concat der values und indices gemacht werden,
-        # self.indices_for_constants_A = self.get_indices_for_constants_for_transition()
+        # self.indices_for_constants_A = self.get_indices_for_constants_for_A()
         #
-        # self.indices_for_weights_B = self.get_indices_for_weights_from_emission_kernel_higher_order()
-        # self.indices_for_constants_B = self.get_indices_for_constants_for_emission()
+        # self.indices_for_weights_B = self.get_indices_for_weights_for_B()
+        # self.indices_for_constants_B = self.get_indices_for_constants_for_B()
 
 
         append_time_ram_stamp_to_file(start, f"Cell.__init__() end   {run_id}", self.config.bench_path)
@@ -398,4 +398,4 @@ if __name__ == '__main__':
     config["alphabet_size"] = 4
     c = CgpHmmCell(config)
     print(len(c.get_indices_and_values_for_transition_kernel_higher_order(np.arange(10000))[0]))
-    print(len(c.get_indices_for_weights_for_transition()), len(c.get_indices_for_constants_for_transition()))
+    print(len(c.get_indices_for_weights_for_A()), len(c.get_indices_for_constants_for_A()))

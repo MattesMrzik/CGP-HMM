@@ -13,19 +13,19 @@ import os
 
 def get_indices_for_config(config):
     config.state_id_description_list = get_state_id_description_list(config.nCodons)
-    config.indices_for_weights_A = get_indices_for_weights_for_transition(config)
-    config.indices_for_constants_A = get_indices_for_constants_for_transition(config)
+    config.indices_for_weights_A = get_indices_for_weights_for_A(config)
+    config.indices_for_constants_A = get_indices_for_constants_for_A(config)
     config.indices_for_A = config.indices_for_weights_A + config.indices_for_constants_A
 
-    config.indices_for_weights_B = get_indices_for_weights_from_emission_kernel_higher_order(config)
-    config.indices_for_constants_B = get_indices_for_constants_for_emission(config)
+    config.indices_for_weights_B = get_indices_for_weights_for_B(config)
+    config.indices_for_constants_B = get_indices_for_constants_for_B(config)
     config.indices_for_B = config.indices_for_weights_B + config.indices_for_constants_B
 
-    config.indices_for_I = get_indices_for_initial(config)
+    config.indices_for_I = get_indices_for_I(config)
 ################################################################################
 ################################################################################
 ################################################################################
-def get_indices_for_constants_for_transition(config):
+def get_indices_for_constants_for_A(config):
     nCodons = config.nCodons
     # from start a
     indices = [[1,2]]
@@ -63,7 +63,7 @@ def get_indices_for_constants_for_transition(config):
 
     return indices
 ################################################################################
-def get_indices_for_weights_for_transition(config): # no shared parameters
+def get_indices_for_weights_for_A(config): # no shared parameters
     nCodons = config.nCodons
     # from ig 5'
     indices = [[0,0], [0,1]]
@@ -361,10 +361,10 @@ def get_indices_for_emission_and_state(config, indices, state, mask, x_bases_mus
     for ho_emission in get_emissions_that_fit_ambiguity_mask(config, mask, x_bases_must_preceed, state):
         indices += [[state, higher_order_emission_to_id(ho_emission, config.alphabet_size, config.order)]]
 ################################################################################
-def get_indices_for_weights_from_emission_kernel_higher_order(config):
+def get_indices_for_weights_for_B(config):
     start = time.perf_counter()
     run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() start   {run_id}", config.bench_path)
+    append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_for_B() start   {run_id}", config.bench_path)
     nCodons = config.nCodons
     indices = []
 
@@ -399,11 +399,11 @@ def get_indices_for_weights_from_emission_kernel_higher_order(config):
     get_indices_for_emission_and_state(\
                           config, indices,8 + nCodons*3 + (nCodons+1)*3,"X", config.order)
 
-    append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_from_emission_kernel_higher_order() end   {run_id}", config.bench_path)
+    append_time_ram_stamp_to_file(start, f"Cell.get_indices_for_weights_for_B() end   {run_id}", config.bench_path)
 
     return indices
 ################################################################################
-def get_indices_for_constants_for_emission(config):
+def get_indices_for_constants_for_B(config):
     nCodons = config.nCodons
     indices = []
 
@@ -416,7 +416,7 @@ def get_indices_for_constants_for_emission(config):
 
     return indices
 ################################################################################
-def get_indices_for_initial(config):
+def get_indices_for_I(config):
     nCodons = config.nCodons
     # start and codons
     indices = [[i,0] for i in range(3 + nCodons*3)]
@@ -424,6 +424,74 @@ def get_indices_for_initial(config):
     indices += [[i,0] for i in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3)]
 
     return indices
+################################################################################
+################################################################################
+################################################################################
+def find_indices_in_sparse_A_that_are_zero(config = None, \
+                                           path_to_current_dense = None, \
+                                           I_dense = None,
+                                           A_dense = None,
+                                           B_dense = None, \
+                                           nCodons = None, \
+                                           no_deletes = None, \
+                                           no_inserts = None, \
+                                           forced_gene_structure = None):
+    if config == None:
+        assert A_dense == None, "find_indices_in_sparse_A_that_are_zero: if config is None, so should A_dense"
+    if A_dense == None:
+        assert A_dense == None, "find_indices_in_sparse_A_that_are_zero: if A_dese is None, so should config"
+    if config == None:
+        assert path_to_current_dense != None, "if config and A_dense are None, you should specify a path_to_current_dense.json"
+
+    if config != None:
+        assert I_dense != None, "if config != None, then also pass I_dense"
+        assert A_dense != None, "if config != None, then also pass A_dense"
+        assert B_dense != None, "if config != None, then also pass B_dense"
+    if A_dense != None or B_dense != None or I_dense != None:
+        assert config != None, "if A_dense != None, then also pass config"
+
+    if config == None: # if this method is manually called like: python3 -i Utility
+        config = Config("main_programm")
+        if nCodons != None:
+            config.nCodons = nCodons
+        if no_deletes != None:
+            config.no_deletes = no_deletes
+        if no_inserts != None:
+            config.no_inserst = no_inserst
+        if forced_gene_structure != None:
+            config.forced_gene_structure = forced_gene_structure
+        with open(path_to_current_dense, "r") as file:
+            A_dense = np.array(json.load(file))
+        print("finish code here kj345jh2kk23")
+        exit()
+
+
+    A_indices = get_indices_for_weights_for_A(config)
+    A_indices += get_indices_for_constants_for_A(config)
+
+    for index in A_indices:
+        if A_dense[index] == 0:
+            transition_from = state_id_to_description(index[0], config.nCodons)
+            transition_to = state_id_to_description(index[1], config.nCodons)
+            print(f"transition_from {transition_from} to {transition_to} is zero")
+
+    B_indices = get_indices_for_weights_for_B(config)
+    B_indices += get_indices_for_constants_for_B(config)
+
+    for index in B_indices:
+        # bc gets transposed
+        if B_dense[index[1]][index[0]] = 0:
+            state = state_id_to_description(index[0], config.nCodons)
+            emission = id_to_higher_order_emission(index[1], config.alphabet_size, config.order)
+            print(f"state {state} with emission {emission}")
+
+    I_indices = get_indices_for_I(config)
+
+    for index in I_indices:
+        if I_dense[index[1], index[0]] == 0:
+            state = state_id_to_description(index[0], config.nCodons)
+            print(f"init state {state}")
+
 ################################################################################
 ################################################################################
 ################################################################################

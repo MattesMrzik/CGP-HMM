@@ -81,11 +81,11 @@ class TestUtiliy(unittest.TestCase):
 
 class TestCgpHmmCell(unittest.TestCase):
 
-    def off_test_get_indices_for_weights_for_transition(self):
+    def off_test_get_indices_for_weights_for_A(self):
         local_config = config.copy()
         local_config["nCodons"] = 100
         cell = CgpHmmCell(local_config)
-        indices_for_weights_A = cell.get_indices_for_weights_for_transition()
+        indices_for_weights_A = cell.get_indices_for_weights_for_A()
         print(indices_for_weights_A)
 
 
