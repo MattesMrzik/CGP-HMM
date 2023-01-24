@@ -101,23 +101,28 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
             if training:
                 # self.add_metric(loglik_mean, "loglik")
+
+                I = self.C.I_sparse.values if self.config.call_type != 4 else self.C.I_full_model
+                A = self.C.A_sparse.values if self.config.call_type != 4 else self.C.A_full_model
+                B = self.C.B_sparse.values if self.config.call_type != 4 else self.C.B_full_model
+
                 self.add_metric(tf.math.reduce_max(self.C.init_kernel),"init_kernel_max")
                 self.add_metric(tf.math.reduce_min(self.C.init_kernel),"init_kernel_min")
 
-                self.add_metric(tf.math.reduce_max(self.C.I_dense),"I_max")
-                self.add_metric(tf.math.reduce_min(self.C.I_dense),"I_min")
+                self.add_metric(tf.math.reduce_max(I),"I_max")
+                self.add_metric(tf.math.reduce_min(I),"I_min")
 
                 self.add_metric(tf.math.reduce_max(self.C.transition_kernel),"transition_kernel_max")
                 self.add_metric(tf.math.reduce_min(self.C.transition_kernel),"transition_kernel_min")
 
-                self.add_metric(tf.math.reduce_max(self.C.A_dense),"A_max")
-                self.add_metric(tf.math.reduce_min(self.C.A_sparse.values),"A_min")
+                self.add_metric(tf.math.reduce_max(A),"A_max")
+                self.add_metric(tf.math.reduce_min(A),"A_min")
 
                 self.add_metric(tf.math.reduce_max(self.C.emission_kernel),"emission_kernel_max")
                 self.add_metric(tf.math.reduce_min(self.C.emission_kernel),"emission_kernel_min")
 
-                self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
-                self.add_metric(tf.math.reduce_min(self.C.B_sparse.values),"B_min")
+                self.add_metric(tf.math.reduce_max(B),"B_max")
+                self.add_metric(tf.math.reduce_min(B),"B_min")
 
             use_reg = False
             if use_reg:

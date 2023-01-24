@@ -480,7 +480,7 @@ def find_indices_in_sparse_A_that_are_zero(config = None, \
 
     for index in B_indices:
         # bc gets transposed
-        if B_dense[index[1]][index[0]] = 0:
+        if B_dense[index[1]][index[0]] == 0:
             state = state_id_to_description(index[0], config.nCodons)
             emission = id_to_higher_order_emission(index[1], config.alphabet_size, config.order)
             print(f"state {state} with emission {emission}")

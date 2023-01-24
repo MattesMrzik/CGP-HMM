@@ -131,29 +131,32 @@ class CgpHmmCell(tf.keras.layers.Layer):
             I_initializer="random_normal"
             A_initializer="random_normal"
             B_initializer="random_normal"
+
         # setting the initilizers done
-        # ---> init kernel <---
-        self.init_kernel = self.add_weight(shape = (len(self.indices_for_I),),
-                                           initializer = I_initializer,
-                                           dtype = self.config.dtype,
-                                           trainable = True, name = "init_kernel")
-       # ---> init kernel done <---
 
         # ---> full model <---
-        if self.config.call_type == 4 and self.config.order_transformed_input:
+        if self.config.call_type == 4:
+            self.init_kernel = self.add_weight(shape = (self.number_of_states,),
+                                               initializer = I_initializer,
+                                               dtype = self.config.dtype,
+                                               trainable = True, name = "init_kernel")
             self.transition_kernel = self.add_weight(shape = (self.number_of_states,self.number_of_states),
                                                      initializer = A_initializer,
                                                      dtype = self.config.dtype,
                                                      trainable = True, name = "transition_kernel")
 
-            how_many_emissions = emissions_state_size(self.config.alphabet_size, self.config.order)
-            self.emission_kernel = self.add_weight(shape = (how_many_emissions, self.number_of_states),
+            self.emission_kernel = self.add_weight(shape = (n_emission_columns_in_B(self.config.alphabet_size, self.config.order), self.number_of_states),
                                                   initializer = B_initializer,
                                                   dtype = self.config.dtype,
                                                   trainable = True, name = "emission_kernel")
         # ---> full model done <---
         # ---> standard model <---
         else:
+            self.init_kernel = self.add_weight(shape = (len(self.indices_for_I),),
+                                               initializer = I_initializer,
+                                               dtype = self.config.dtype,
+                                               trainable = True, name = "init_kernel")
+
             if self.config.use_weights_for_consts:
                 transition_kernel_shape = (len(self.config.indices_for_A),)
                 emission_kernel_shape = (len(self.config.indices_for_B), )
@@ -169,6 +172,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
                                                   initializer = B_initializer,
                                                   dtype = self.config.dtype,
                                                   trainable = True, name = "emission_kernel")
+        # ---> standard model done <---
 
         visualize_after_build = False
         if visualize_after_build:
@@ -260,10 +264,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def B_full_model(self):
-        if self.config.call_type == 4:
-            emission_matrix = self.emission_kernel
-            emission_matrix = tf.nn.softmax(emission_matrix, name = "B_full_model")
-            return emission_matrix
+        emission_matrix = self.emission_kernel
+        emission_matrix = tf.nn.softmax(emission_matrix, name = "B_full_model")
+        return emission_matrix
 ############################################################################
     @property
     def I_sparse(self): # i think dense is always used
@@ -280,6 +283,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
     @property
     def I_dense(self):
         return tf.sparse.to_dense(self.I_sparse, name = "I_dense")
+
+    @property
+    def I_full_model(self):
+        initial_matrix = self.init_kernel
+        initial_matrix = tf.nn.softmax(initial_matrix)
+        initial_matrix = tf.reshape(initial_matrix, (1,self.number_of_states), name = "I_full_model")
+        return initial_matrix
+
 ################################################################################
 ################################################################################
 ################################################################################
@@ -292,6 +303,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     def get_R(self, old_forward, init = False):
         if init:
+            if self.config.call_type == 4:
+                return self.I_full_model, tf.cast(1.0, dtype = self.config.dtype) # bc return must be same in main and off branch, must be != 0 bc assert check z != 0
             return self.I_dense, tf.cast(1.0, dtype = self.config.dtype) # bc return must be same in main and off branch, must be != 0 bc assert check z != 0
 
         Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
@@ -317,12 +330,16 @@ class CgpHmmCell(tf.keras.layers.Layer):
         count = tf.math.add(count, 1)
 
         if self.config.check_assert:
+            A = self.A_dense if self.config.call_type != 4 else self.A_full_model
+            B = self.B_dense if self.config.call_type != 4 else self.B_full_model
+            I = self.I_dense if self.config.call_type != 4 else self.I_full_model
+
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.init_kernel)),       [self.init_kernel, self.transition_kernel, self.emission_kernel, count[0,0]], name = "init_kernel_beginning_of_cell", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.transition_kernel)), [self.transition_kernel], name = "transition_kernel_beginning_of_cell", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.emission_kernel)),   [self.emission_kernel],   name = "emission_kernel_beginning_of_cell", summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)), [self.A_dense, old_loglik, old_forward, count[0,0]], name = "A_dense_beginning_of_call", summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)), [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.I_dense)), [self.I_dense, count[0,0]], name = "I_dense_beginning_of_call", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(A)),            [A, old_loglik, old_forward, count[0,0]], name = "A_dense_beginning_of_call", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(B)),            [B, count[0,0]],            name = "B_dense_beginning_of_call", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(I)),            [I, count[0,0]], name = "I_dense_beginning_of_call", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),  [old_forward, count[0,0]],  name = "old_forward",               summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),   [old_loglik, count[0,0]],   name = "old_loglik",                summarize = self.config.assert_summarize)
 
