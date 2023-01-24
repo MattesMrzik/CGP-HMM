@@ -50,7 +50,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
         self.indices_for_constants_A = config.indices_for_constants_A #if "indices_for_constants_A" in config else get_indices_for_constants_for_A(config)
         self.indices_for_A = config.indices_for_A
 
-
         self.indices_for_weights_B = config.indices_for_weights_B#if "indices_for_weights_B" in config else get_indices_for_weights_for_B(config)
         self.indices_for_constants_B = config.indices_for_constants_B# if "indices_for_constants_B" in config else get_indices_for_constants_for_B(config)
         self.indices_for_B = config.indices_for_B
@@ -140,12 +139,19 @@ class CgpHmmCell(tf.keras.layers.Layer):
                                                initializer = I_initializer,
                                                dtype = self.config.dtype,
                                                trainable = True, name = "init_kernel")
-            self.transition_kernel = self.add_weight(shape = (self.number_of_states,self.number_of_states),
+            if self.config.use_sparse_full_model:
+                transition_kernel_shape = (self.number_of_states ** 2,)
+                emission_kernel_shape = (n_emission_columns_in_B(self.config.alphabet_size, self.config.order) * self.number_of_states,)
+            else:
+                transition_kernel_shape = (self.number_of_states, self.number_of_states)
+                emission_kernel_shape = (n_emission_columns_in_B(self.config.alphabet_size, self.config.order), self.number_of_states)
+
+            self.transition_kernel = self.add_weight(shape = transition_kernel_shape,
                                                      initializer = A_initializer,
                                                      dtype = self.config.dtype,
                                                      trainable = True, name = "transition_kernel")
 
-            self.emission_kernel = self.add_weight(shape = (n_emission_columns_in_B(self.config.alphabet_size, self.config.order), self.number_of_states),
+            self.emission_kernel = self.add_weight(shape = emission_kernel_shape,
                                                   initializer = B_initializer,
                                                   dtype = self.config.dtype,
                                                   trainable = True, name = "emission_kernel")
@@ -229,7 +235,18 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def A_full_model_sparse(self):
-        return tf.sparse.from_dense(self.A_full_model, name = "A_full_model_sparse")
+        # return tf.sparse.from_dense(self.A_full_model, name = "A_full_model_sparse") # this doesnt seem to have a noticeable effect
+        indices = self.config.indices_for_sparse_full_model_A
+        values =  self.transition_kernel
+        transition_matrix = tf.sparse.SparseTensor(indices = indices, \
+                                                   values = values, \
+                                                   dense_shape = [self.number_of_states] * 2)
+
+        transition_matrix = tf.sparse.reorder(transition_matrix)
+        transition_matrix = tf.sparse.softmax(transition_matrix, name = "A_sparse")
+
+        return transition_matrix
+
 ############################################################################
 ############################################################################
 ############################################################################
@@ -274,7 +291,24 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def B_full_model_sparse(self):
-        return tf.sparse.from_dense(self.B_full_model, name = "B_full_model_sparse")
+        # return tf.sparse.from_dense(self.B_full_model, name = "B_full_model_sparse")  # this doesnt seem to have a noticeable effect
+        indices = self.config.indices_for_sparse_full_model_B
+        values =  self.emission_kernel
+        dense_shape = [self.number_of_states, \
+                       n_emission_columns_in_B(self.config.alphabet_size, self.config.order)]
+
+        emission_matrix = tf.sparse.SparseTensor(indices = indices, \
+                                                 values = values, \
+                                                 dense_shape = dense_shape)
+
+        emission_matrix = tf.sparse.reorder(emission_matrix)
+        emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1, self.config.alphabet_size))
+        emission_matrix = tf.sparse.softmax(emission_matrix)
+        emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1))
+
+        emission_matrix = tf.sparse.transpose(emission_matrix, name = "B_sparse")
+
+        return emission_matrix
 ############################################################################
     @property
     def I_sparse(self): # i think dense is always used
@@ -390,7 +424,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(R)),            [R, count[0,0]],            name = "R_finite",  summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(E)),            [E, count[0,0]],            name = "E_finite",  summarize = self.config.assert_summarize)
-
         alpha = E * R # batch_size * state_size
 
         # keepsdims is true such that shape of result is (32,1) rather than (32,)

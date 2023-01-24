@@ -22,11 +22,50 @@ def get_indices_for_config(config):
     config.indices_for_B = config.indices_for_weights_B + config.indices_for_constants_B
 
     config.indices_for_I = get_indices_for_I(config)
+
+    config.indices_for_sparse_full_model_A = get_indices_for_sparse_A_full_model(config)
+    config.indices_for_sparse_full_model_B = get_indices_for_sparse_B_full_model(config)
 ################################################################################
 ################################################################################
 ################################################################################
-def get_indices_for_sparse_full_model(config):
-    pass
+def get_indices_for_sparse_A_full_model(config):
+    # ig 5'
+    number_of_states = 1
+    # start
+    number_of_states += 3
+    # codons
+    number_of_states += 3 * config.nCodons
+    # codon inserts
+    number_of_states += 3 * (config.nCodons + 1)
+    # stop
+    number_of_states += 3
+    # ig 3'
+    number_of_states += 1
+    # terminal
+    number_of_states += 1
+
+    return [[q1,q2] for q1 in range(number_of_states) for q2 in range(number_of_states)]
+
+def get_indices_for_sparse_B_full_model(config):
+    # ig 5'
+    number_of_states = 1
+    # start
+    number_of_states += 3
+    # codons
+    number_of_states += 3 * config.nCodons
+    # codon inserts
+    number_of_states += 3 * (config.nCodons + 1)
+    # stop
+    number_of_states += 3
+    # ig 3'
+    number_of_states += 1
+    # terminal
+    number_of_states += 1
+
+    return [[q, emission] for q in range(number_of_states) for emission in range(n_emission_columns_in_B(config.alphabet_size, config.order))]
+
+
+
 ################################################################################
 def get_indices_for_constants_for_A(config):
     nCodons = config.nCodons

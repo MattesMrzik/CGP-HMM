@@ -204,7 +204,7 @@ class Config():
         self.add_arg_main('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
         self.add_arg_main('--forced_gene_structure', action='store_true', help = 'TGs in igs and ACs in coding, ie the state seq is determinded by emission seq')
         self.add_arg_main('--check_for_zeros', action='store_true', help = 'must be passed together with --batch, checks for zeros in parameters')
-        self.add_arg_main('--use_sparse_full_model', action='store_true', help = 'converts A and B from the full model to sparse matrices (where all parameters are != 0)')
+        self.add_arg_main('--use_sparse_full_model', action='store_true', help = 'THIS DOENST HAVE A NOTICEABLE EFFECT, converts A and B from the full model to sparse matrices (where all parameters are != 0)')
 
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""

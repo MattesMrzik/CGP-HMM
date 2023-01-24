@@ -65,14 +65,15 @@ def main(config):
     # printI()
 
 
+    I = cell.I_dense if config.call_type != 4 else cell.I_full_model
     A = cell.A_dense if config.call_type != 4 else cell.A_full_model
     B = cell.B_dense if config.call_type != 4 else cell.B_full_model
-    I = cell.I_dense if config.call_type != 4 else cell.I_full_model
 
     WriteData.write_to_file(I, f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.txt")
     WriteData.write_to_file(A, f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt")
     WriteData.write_to_file(tf.transpose(B), f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt")
-    WriteData.write_order_transformed_B_to_csv(B, f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.csv", config.order, config.nCodons)
+    if not config.use_sparse_full_model:
+        WriteData.write_order_transformed_B_to_csv(B, f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.csv", config.order, config.nCodons)
 
     if config.run_viterbi:
         # running Viterbi
