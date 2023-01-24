@@ -57,6 +57,7 @@ def make_dataset(config):
 
     if config.forced_gene_structure:
         codons = ["AAA", "AAC", "ACA", "ACC", "CAA", "CAC", "CCA", "CCC"]
+    alphabet = ["A","C","G","T"]
 
     if config.generate_new_seqs:
         if config.use_simple_seq_gen:

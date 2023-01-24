@@ -59,6 +59,8 @@ class Config():
         import tensorflow as tf
 
         self.tf_version = tf.__version__
+        # added this, so that it gets printed
+        self.manuall_arg_lists["main_programm"].append(("tf_version", self.tf_version))
 
         self.alphabet_size = 4
         self.write_return_sequnces = False
