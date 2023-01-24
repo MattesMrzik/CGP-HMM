@@ -49,28 +49,30 @@ for c in codons:
         for i in alpha_i_gradient_list:
             config.call_type = t
             print("config.call_type =",  config.call_type)
-            for _ in range(config.repeat):
-                if os.path.exists("stop"):
-                    os.system("rm stop")
-                    exit()
-                with open ("small_bench_run_log.txt", "a") as file:
-                    command = f"./main_programm.py {config.get_args_as_str('main_programm')}"
-                    if len(alpha_i_gradient_list) > 0:
-                        command += f" --alpha {i}"
-                    print("running:", command)
-                    status = os.system(command)
-                    status = os.WEXITSTATUS(status)
-                    now = datetime.now()
-                    dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-                    file.write(dt_string)
-                    file.write("\n")
-                    file.write(command)
-                    file.write("\n")
-                    file.write("exit status " + str(status))
-                    file.write("\n")
-
-                    if config.exit_on_nan and status != 0:
+            for seq_len in [(c * 3 + 8) * (1 + factor/5) for factor in range(1,25)]:
+                config.seq_len = int(seq_len)
+                for _ in range(config.repeat):
+                    if os.path.exists("stop"):
+                        os.system("rm stop")
                         exit()
+                    with open ("small_bench_run_log.txt", "a") as file:
+                        command = f"./main_programm.py {config.get_args_as_str('main_programm')}"
+                        if len(alpha_i_gradient_list) > 0:
+                            command += f" --alpha {i}"
+                        print("running:", command)
+                        status = os.system(command)
+                        status = os.WEXITSTATUS(status)
+                        now = datetime.now()
+                        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+                        file.write(dt_string)
+                        file.write("\n")
+                        file.write(command)
+                        file.write("\n")
+                        file.write("exit status " + str(status))
+                        file.write("\n")
+
+                        if config.exit_on_nan and status != 0:
+                            exit()
 
 
 
