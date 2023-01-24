@@ -25,6 +25,9 @@ def get_indices_for_config(config):
 ################################################################################
 ################################################################################
 ################################################################################
+def get_indices_for_sparse_full_model(config):
+    pass
+################################################################################
 def get_indices_for_constants_for_A(config):
     nCodons = config.nCodons
     # from start a
@@ -96,7 +99,7 @@ def get_indices_for_weights_for_A(config): # no shared parameters
 
     return indices
 ################################################################################
-def get_indices_and_values_for_transition(config, w): # not used anymore
+def get_indices_and_values_for_transition(config, w): # deprecated
     nCodons = config.nCodons
     k = 0
     # ig 5'
@@ -313,7 +316,7 @@ def get_indices_and_values_for_emission_and_state(config, weights, \
     else:
         values[0] = tf.concat([values[0], [1] * count_weights], axis = 0)
 ################################################################################
-def get_indices_and_values_from_emission_kernel(config, w, nCodons, alphabet_size):
+def get_indices_and_values_from_emission_kernel(config, w, nCodons, alphabet_size):# deprecated
     indices = []
     values = [[]] # will contain one tensor at index 0, wrapped it in a list such that it can be passed by reference, ie such that it is mutable
     weights = w

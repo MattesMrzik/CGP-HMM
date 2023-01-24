@@ -226,6 +226,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
         transition_matrix = self.transition_kernel
         transition_matrix = tf.nn.softmax(transition_matrix, name = "A_full_model")
         return transition_matrix
+
+    @property
+    def A_full_model_sparse(self):
+        return tf.sparse.from_dense(self.A_full_model, name = "A_full_model_sparse")
 ############################################################################
 ############################################################################
 ############################################################################
@@ -267,6 +271,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
         emission_matrix = self.emission_kernel
         emission_matrix = tf.nn.softmax(emission_matrix, name = "B_full_model")
         return emission_matrix
+
+    @property
+    def B_full_model_sparse(self):
+        return tf.sparse.from_dense(self.B_full_model, name = "B_full_model_sparse")
 ############################################################################
     @property
     def I_sparse(self): # i think dense is always used
@@ -288,7 +296,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def I_full_model(self):
         initial_matrix = self.init_kernel
         initial_matrix = tf.nn.softmax(initial_matrix)
-        initial_matrix = tf.reshape(initial_matrix, (1,self.number_of_states), name = "I_full_model")
         return initial_matrix
 
 ################################################################################
@@ -298,6 +305,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         if self.config.call_type in [2, 3]: # B is sparse
             return tf.matmul(inputs, self.B_dense)
         if self.config.call_type == 4: # full_model
+            if self.config.use_sparse_full_model:
+                return tf.sparse.sparse_dense_matmul(inputs, self.B_full_model_sparse)
             return tf.matmul(inputs, self.B_full_model)
         return tf.sparse.sparse_dense_matmul(inputs, self.B_sparse)
 
@@ -314,7 +323,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
         if self.config.call_type in [0,2]: # A is sparse
             R = tf.sparse.sparse_dense_matmul(scaled_forward, self.A_sparse)
         elif self.config.call_type == 4:
-            R = tf.matmul(scaled_forward, self.A_full_model)
+            if self.config.use_sparse_full_model:
+                R = tf.sparse.sparse_dense_matmul(scaled_forward, self.A_full_model_sparse)
+            else:
+                R = tf.matmul(scaled_forward, self.A_full_model)
         else:
             R = tf.matmul(scaled_forward, self.A_dense)
 

@@ -26,6 +26,9 @@ class Config():
         if self.check_for_zeros:
             assert self.batch_begin_write_weights__layer_call_write_inputs, "if check_for_zeros also pass --batch"
 
+        if self.use_sparse_full_model:
+            assert self.call_type == 4, "if you specify --use_sparse_full_model then you also have to set the call_type (-t) to 4"
+
     def apply_args(self):
         import tensorflow as tf
 
@@ -201,6 +204,7 @@ class Config():
         self.add_arg_main('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
         self.add_arg_main('--forced_gene_structure', action='store_true', help = 'TGs in igs and ACs in coding, ie the state seq is determinded by emission seq')
         self.add_arg_main('--check_for_zeros', action='store_true', help = 'must be passed together with --batch, checks for zeros in parameters')
+        self.add_arg_main('--use_sparse_full_model', action='store_true', help = 'converts A and B from the full model to sparse matrices (where all parameters are != 0)')
 
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""
