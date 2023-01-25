@@ -29,6 +29,10 @@ class Config():
         if self.use_sparse_full_model:
             assert self.call_type == 4, "if you specify --use_sparse_full_model then you also have to set the call_type (-t) to 4"
 
+        if self.get_gradient_of_first_batch:
+            assert self.batch_size == 32, "if you pass get_gradient_of_first_batch, then batch_size must be 32 (=default)"
+        assert self.batch_size > 0, "batch_size must be greater than 0"
+
     def apply_args(self):
         import tensorflow as tf
 
@@ -175,6 +179,7 @@ class Config():
         self.add_arg_main('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist for MSAgen')
         self.add_arg_main('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist for MSAgen')
         self.add_arg_main('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks ie all seqs have the same length")
+        self.add_arg_main('--batch_size', type = int, default = 32, help = 'the batch_size, default si 32')
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
@@ -190,6 +195,7 @@ class Config():
         self.add_arg_main('--get_gradient_for_current_txt', action='store_true', help ="get_gradient_for_current_txt, previous run wrote IAB and inputbatch to file (via --batch_begin_write_weights__layer_call_write_inputs flag)-> get respective gradient")
         self.add_arg_main('--get_gradient_from_saved_model_weights', action='store_true', help ="get_gradient_from_saved_model_weights, previous run saved weights when passing --batch_begin_write_weights__layer_call_write_inputs")
         self.add_arg_main('--assert_summarize', type = int, default = 5, help = 'assert_summarize [5]')
+        self.add_arg_main('--print_batch_id', action='store_true', help = 'prints the batch id via on_train_batch_begin callback')
 
         # debugging
         self.add_arg_main('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")

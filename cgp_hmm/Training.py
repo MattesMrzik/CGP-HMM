@@ -106,7 +106,7 @@ def make_dataset(config):
                                          tf.TensorShape([None]))
 
     index_of_terminal = Utility.higher_order_emission_to_id("X", config.alphabet_size, config.order)
-    ds = ds.padded_batch(32, padding_values = index_of_terminal)
+    ds = ds.padded_batch(config.batch_size, padding_values = index_of_terminal)
 
     def to_one_hot(seq):
         return tf.cast(tf.one_hot(seq, n_emission_columns_in_B(config.alphabet_size, config. order)), dtype=config.dtype)

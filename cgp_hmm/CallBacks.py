@@ -50,12 +50,15 @@ def get_call_backs(config, model):
 
     class assert_kernels_at_batch_begin(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
-            # tf.print("assert_check batch id =", batch)
             ik, ak, bk = model.get_weights()
 
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ik)), [ik,ak,bk], name = "I_kernel_is_nan", summarize = config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ak)), [ik,ak,bk], name = "A_kernel_is_nan", summarize = config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(bk)), [ik,ak,bk], name = "B_kernel_is_nan", summarize = config.assert_summarize)
+
+    class batch_id_at_begin(tf.keras.callbacks.Callback):
+        def on_train_batch_begin(self, batch, logs = None):
+            tf.print("on_train_batch_begin_batch_id (1 based index) =", batch + 1)
 
     class batch_begin_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):
         # layer call write inputs -> the code is located in layer.py
@@ -139,6 +142,8 @@ def get_call_backs(config, model):
         callbacks += [batch_begin_write_weights__layer_call_write_inputs()]
     if config.check_assert:
         callbacks += [assert_kernels_at_batch_begin()]
+    if config.print_batch_id:
+        callbacks += [batch_id_at_begin()]
 
     callbacks += [get_the_gradient()]
 

@@ -62,6 +62,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         result = self.F(inputs) #  build and call of CgpHmmCell are called
 
+        # i think this is an artefact from a previous version, where i would sometimes return an additional value. I think this can be unwrapped right away on the preceeding line
         alpha_seq = result[0]
         inputs_seq = result[1]
         count_seq = result[2]
