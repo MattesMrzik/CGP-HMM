@@ -27,6 +27,12 @@ import time
 def make_model(config):
     start = time.perf_counter()
     run_id = randint(0,100)
+
+    # TODO: https://www.tensorflow.org/guide/keras/masking_and_padding
+
+
+
+    
     append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", config.bench_path)
 
     # another None added automatically for yet unkown batch_size

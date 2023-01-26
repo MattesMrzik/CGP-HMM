@@ -31,6 +31,8 @@ class Config():
 
         if self.get_gradient_of_first_batch:
             assert self.batch_size == 32, "if you pass get_gradient_of_first_batch, then batch_size must be 32 (=default)"
+        if self.manual_traning_loop:
+            assert self.batch_size == 32, "if you pass manual_traning_loop, then batch_size must be 32 (=default)"
         assert self.batch_size > 0, "batch_size must be greater than 0"
 
     def apply_args(self):
@@ -99,9 +101,9 @@ class Config():
         run(f"rm {self.src_path}/{self.bench_path}")
 
     def determine_attributes(self):
-        from Utility import get_state_id_description_list
-        self.state_id_description_list = get_state_id_description_list(self.nCodons)
-
+        from My_Model import My_Model
+        self.state_id_description_list = My_Model.get_state_id_description_list(self.nCodons)
+        print("asdf")
         from Utility import get_indices_for_config
         Utility.get_indices_for_config(self)
         # print("self.indices_for_B in determine_attributes in config =", self.indices_for_B)
