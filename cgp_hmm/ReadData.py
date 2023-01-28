@@ -4,52 +4,50 @@ import tensorflow as tf
 import numpy as np
 from Bio import SeqIO
 from Utility import run
-from Utility import higher_order_emission_to_id
-from Utility import get_dicts_for_emission_tuple_and_id_conversion
 import re
 
-def read_data_one_hot(path, alphabet = ["A","C","G","T"]):
-    seqs = []
-    base_to_id = dict([(base, id) for id, base in enumerate(alphabet)])
-    with open(path,"r") as handle:
-        for record in SeqIO.parse(handle,"fasta"):
-            seq = record.seq
-            seq = list(map(lambda x: base_to_id[x], seq))
-            seqs.append(seq)
+# def read_data_one_hot(path, alphabet = ["A","C","G","T"]):
+#     seqs = []
+#     base_to_id = dict([(base, id) for id, base in enumerate(alphabet)])
+#     with open(path,"r") as handle:
+#         for record in SeqIO.parse(handle,"fasta"):
+#             seq = record.seq
+#             seq = list(map(lambda x: base_to_id[x], seq))
+#             seqs.append(seq)
+#
+#     return tf.one_hot(seqs, len(alphabet))
+#
+# def read_data(path, alphabet = ["A","C","G","T"]):
+#     seqs = []
+#     base_to_id = dict([(base, id) for id, base in enumerate(alphabet)])
+#     with open(path,"r") as handle:
+#         for record in SeqIO.parse(handle,"fasta"):
+#             seq = record.seq
+#             seq = list(map(lambda x: base_to_id[x], seq))
+#             seqs.append(seq)
+#
+#     return seqs
 
-    return tf.one_hot(seqs, len(alphabet))
-
-def read_data(path, alphabet = ["A","C","G","T"]):
-    seqs = []
-    base_to_id = dict([(base, id) for id, base in enumerate(alphabet)])
-    with open(path,"r") as handle:
-        for record in SeqIO.parse(handle,"fasta"):
-            seq = record.seq
-            seq = list(map(lambda x: base_to_id[x], seq))
-            seqs.append(seq)
-
-    return seqs
-
-def read_data_with_order(path, order, alphabet = ["A","C","G","T"], add_one_terminal_symbol = False, verbose = False):
+def read_data_with_order(config, alphabet = ["A","C","G","T"], add_one_terminal_symbol = False, verbose = False):
     seqs = []
     def log(s):
         if verbose:
             print(s)
-    emi_to_id = get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = len(alphabet), order = order)[0]
+
     base_to_id = dict([(base, id) for id, base in enumerate(alphabet)])
-    with open(path,"r") as handle:
-        log(f"opened: {path}")
+    with open(config.fasta_path,"r") as handle:
+        log(f"opened: {config.fasta_path}")
         for record in SeqIO.parse(handle,"fasta"):
             seq = record.seq
             log(f"seq = {seq}")
             seq_of_tuple_ids = [] # 21, 124
-            last_bases = [4] * order # 4 is padded left flank
+            last_bases = [4] * config.order # 4 is padded left flank
             for base in seq:
                 t = (last_bases + [base_to_id[base]])
-                seq_of_tuple_ids.append(emi_to_id[tuple(t)])
-                last_bases = last_bases[1:] + [base_to_id[base]] if order > 0 else []
+                seq_of_tuple_ids.append(config.model.emission_tuple_to_id(t))
+                last_bases = last_bases[1:] + [base_to_id[base]] if config.order > 0 else []
             if add_one_terminal_symbol:
-                seq_of_tuple_ids.append(emi_to_id[tuple("X")])
+                seq_of_tuple_ids.append(config.model.emission_tuple_to_id("X"))
             seqs.append(seq_of_tuple_ids)
     log(f"read {len(seqs)} sequnces")
     return seqs

@@ -1,18 +1,43 @@
 #!/usr/bin/env python3
 from Model import Model
 import re
+from itertools import product
+import tensorflow as tf
 
 class My_Model(Model):
 
     # this overwrites the init from Model. alternatively i can omit it
     def __init__(self, config):
         Model.__init__(self, config)
-        self.use_sparse = True
-        self.use_dense = not self.use_sparse
+        self.A_is_sparse = True
+        self.A_is_dense = not self.A_is_sparse
+        self.B_is_sparse = False
+        self.B_is_dense = not self.B_is_sparse
 
-        # TODO: calculate indices here and save them as attribute
+        # =================> states <============================================
+        self.number_of_states = self.get_number_of_states()
+        self.state_id_description_list = self.get_state_id_description_list()
 
-    def number_of_states(self):
+        # =================> emissions <========================================
+        self.emissions_state_size = self.get_emissions_state_size()
+        self.number_of_emissions = self.get_number_of_emissions()
+
+        self.id_to_emi = self.get_dicts_for_emission_tuple_and_id_conversion()[1] # these are dicts
+        self.emi_to_id = self.get_dicts_for_emission_tuple_and_id_conversion()[0]
+
+
+        self.I_indices = self.I_indices()
+
+        self.A_indices_for_weights = self.A_indices_for_weights()
+        self.A_indices_for_constants = self.A_indices_for_constants()
+        self.A_indices = self.A_indices_for_weights + self.A_indices_for_constants
+
+        self.B_indices_for_weights = self.B_indices_for_weights()
+        self.B_indices_for_constants = self.B_indices_for_constants()
+        self.B_indices = self.B_indices_for_weights + self.B_indices_for_constants
+
+    # =================> states <===============================================
+    def get_number_of_states(self):
         number_of_states = 1
         # start
         number_of_states += 3
@@ -28,69 +53,61 @@ class My_Model(Model):
         number_of_states += 1
         return number_of_states
 
-    @classmethod
-    def get_state_id_description_list(cls, nCodons):
+    def get_state_id_description_list(self):
         # if this is changed, also change state_is_third_pos_in_frame()
         states = re.split(" ", "ig5' stA stT stG")
-        states += ["c_" + str(i) + "," + str(j) for i in range(nCodons) for j in range(3)]
+        states += ["c_" + str(i) + "," + str(j) for i in range(self.config.nCodons) for j in range(3)]
         states += re.split(" ", "stop1 stop2 stop3 ig3'")
-        states += ["i_" + str(i) + "," + str(j) for i in range(nCodons+1) for j in range(3)]
+        states += ["i_" + str(i) + "," + str(j) for i in range(self.config.nCodons+1) for j in range(3)]
         states += ["ter1", "ter2"]
         return states
 
-    def state_id_to_description(id, nCodons, state_id_description_list = None):
-        if not state_id_description_list:
-            state_id_description_list = get_state_id_description_list(nCodons)
-        # print("nCodons =", nCodons)
-        # print("id =", id)
-        # print("state_id_to_descriptcation =", state_id_description_list)
-        return state_id_description_list[id]
+    def state_id_to_str(self, id):
+        return self.state_id_description_list[id]
 
-    def description_to_state_id(des, nCodons, state_id_description_list = None):
-        if not state_id_description_list:
-            state_id_description_list = get_state_id_description_list(nCodons)
+    def str_to_state_id(self, s):
         try:
-            return state_id_description_list.index(des)
+            return state_id_description_list.index(s)
         except:
             return -1
 
-    def emissions_state_size(alphabet_size, order):# with out terminal symbol
+    # =================> emissions <============================================
+    def get_emissions_state_size(self):# with out terminal symbol
+        alphabet_size = self.config.alphabet_size
+        order = self.config.order
         if order == 0:
-            return alphabet_size1
+            return alphabet_size #  hier stand ne 1, weil plus 1 oder ienfach nur ausversehen
 
-        #      [IACGT] x [ACGT]^order                         + IIA IIC IIG IIT (if order == 2)
-        return (alphabet_size + 1) * alphabet_size ** (order) + sum([alphabet_size ** i for i in range(1, order)])
+        #      [IACGT] x [ACGT]^order
+        s = (alphabet_size + 1) * alphabet_size ** (order)
+        # IIA IIC IIG IIT (if order == 2)
+        s += sum([alphabet_size ** i for i in range(1, order)])
+        return s
 
     # added 4, of which the last one corresponds to the terminal symbol
     # the other ones are dummy, they make the columns in B divisable by 4
-    def n_emission_columns_in_B(alphabet_size, order):
-        return emissions_state_size(alphabet_size, order) + 4
+    def get_number_of_emissions(self):
+        return self.emissions_state_size + 4
 
-    def number_of_emissions(self):
-        from Utility import n_emission_columns_in_B #TODO this should rather be emission state size
-        return n_emission_columns_in_B(self.config.alphabet_size, self.config.order)
-
-    @classmethod
-    def get_dicts_for_emission_tuple_and_id_conversion(cls, config = None, alphabet_size = None, order = None):
-        if config == None:
-            assert alphabet_size != None, "get_dicts_for_emission_tuple_and_id_conversion must be provided with config or (alphabet_size and order)"
-            assert order != None, "get_dicts_for_emission_tuple_and_id_conversion must be provided with config or (alphabet_size and order)"
-        if alphabet_size == None:
-            alphabet_size = config.alphabet_size
-        if order == None:
-            order = config.order
-
+    def get_dicts_for_emission_tuple_and_id_conversion(self):
+        # if config == None:
+        #     assert alphabet_size != None, "get_dicts_for_emission_tuple_and_id_conversion must be provided with config or (alphabet_size and order)"
+        #     assert order != None, "get_dicts_for_emission_tuple_and_id_conversion must be provided with config or (alphabet_size and order)"
+        # if alphabet_size == None:
+        #     alphabet_size = config.alphabet_size
+        # if order == None:
+        #     order = config.order
+        alphabet_size = self.config.alphabet_size
+        order = self.config.order
         emi_to_id = {}
         id_to_emi = {}
         if order == 0:
             emi_to_id = dict([(tuple([base]), id) for id, base in enumerate(list(range(alphabet_size)) + ["X"])])
             id_to_emi = dict([(id, tuple([base])) for id, base in enumerate(list(range(alphabet_size)) + ["X"])])
         else:
-            import Utility
-            from itertools import product
             id = 0
             for emission_tuple in product(list(range(alphabet_size + 1)), repeat = order + 1):
-                if not Utility.has_I_emission_after_base(emission_tuple, alphabet_size = alphabet_size, order = order):
+                if not self.has_I_emission_after_base(emission_tuple):
                     id_to_emi[id] = emission_tuple
                     emi_to_id[emission_tuple] = id
                     id += 1
@@ -99,40 +116,45 @@ class My_Model(Model):
 
         # print("emi_to_id =", emi_to_id)
         # print("id_to_emi =", id_to_emi)
-        if config != None:
-            config.id_to_emi = id_to_emi
-            config.emi_to_id = emi_to_id
-        else:
-            return emi_to_id, id_to_emi
+
+        return emi_to_id, id_to_emi
 
     # emission is either a tuple like [2,1,3] or "X"
-    def higher_order_emission_to_id(self, emission_tuple):
-        return get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = self.config.alphabet_size, order = self.config.order)[0][tuple(emission_tuple)]
+    def emission_tuple_to_id(self, emission_tuple):
+        return self.emi_to_id[tuple(emission_tuple)]
 
+    def emission_id_to_tuple(self, id):
+        return self.id_to_emi[id]
 
-    def id_to_higher_order_emission(id, alphabet_size, order, as_string = False):
-        return get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = alphabet_size, order = order)[1][id]
-
-
-    def emi_tuple_to_str(emi_tuple):
+    def emission_tuple_to_str(self, emission_tuple):
         if emi_tuple[0] == "X":
             return "X"
         return "".join(list(map(lambda x: "ACGTI"[x], emi_tuple)))
+
+    def emission_id_to_str(self, id):
+        return self.emi_tuple_to_str(self.emission_id_to_tuple(id))
+
+    def str_to_emission_tuple(self, s):
+        pass
+
+    def str_to_emission_id(self, s):
+        pass
+
 ################################################################################
 ################################################################################
 ################################################################################
     def I_kernel_size(self):
-        return len(self.I_indices())
+        return len(self.I_indices)
 
     def A_kernel_size(self):
         if self.config.use_weights_for_consts:
-            return len(self.A_indices_for_weights()) + len(self.A_indices_for_constants())
-        return len(self.A_indices_for_weights())
+            return len(self.A_indices_for_weights) + len(self.A_indices_for_constants)
+        return len(self.A_indices_for_weights)
 
     def B_kernel_size(self):
         if self.config.use_weights_for_consts:
-            return len(self.B_indices_for_weights()) + len(self.B_indices_for_constants())
-        return len(self.B_indices_for_weights())
+            return len(self.B_indices_for_weights) + len(self.B_indices_for_constants)
+        return len(self.B_indices_for_weights)
 ################################################################################
 ################################################################################
 ################################################################################
@@ -214,12 +236,11 @@ class My_Model(Model):
         return indices
 
     def A_indices(self):
-        return self.A_indices_for_weights() + self.A_indices_for_constants()
+        return self.A_indices_for_weights + self.A_indices_for_constants
 ################################################################################
 ################################################################################
 ################################################################################
-    @classmethod
-    def nucleotide_ambiguity_code_to_array(emission):
+    def nucleotide_ambiguity_code_to_array(self, emission):
         # todo: somehow having this dict as self.code made it slower, why???
         code = {
             "A" : [0],
@@ -240,20 +261,13 @@ class My_Model(Model):
             "X" : [5]
         }
         return code[emission]
-    ################################################################################
-    @classmethod
-    def strip_or_pad_emission_with_n(cls, config, ho_emission):
-        return ["N"] * (config.order - len(ho_emission) + 1) + list(ho_emission)[- config.order - 1:]
-    ################################################################################
-    @classmethod
-    def has_I_emission_after_base(ho_emission, config = None, alphabet_size = None, order = None): # or is only I
-        if config == None:
-            assert alphabet_size != None, "has_I_emission_after_base must be provided with self.config or (alphabet_size and order)"
-            assert order != None, "has_I_emission_after_base must be provided with self.config or (alphabet_size and order)"
-        if alphabet_size == None:
-            alphabet_size = config.alphabet_size
-        if order == None:
-            order = config.order
+################################################################################
+    def strip_or_pad_emission_with_n(self, ho_emission):
+        return ["N"] * (self.config.order - len(ho_emission) + 1) + list(ho_emission)[- self.config.order - 1:]
+################################################################################
+    def has_I_emission_after_base(self, ho_emission): # or is only I
+        alphabet_size = self.config.alphabet_size
+        order = self.config.order
 
         found_emission = False
         invalid_emission = False
@@ -266,9 +280,8 @@ class My_Model(Model):
                 found_emission = True
         invalid_emission = invalid_emission if found_emission else True
         return invalid_emission
-    ################################################################################
-    @classmethod
-    def emission_is_stop_codon(ho_emission):
+################################################################################
+    def emission_is_stop_codon(self, ho_emission):
         stops = [[3,0,0],[3,0,2],[3,2,0]]
         if len(ho_emission) < 3:
             return False
@@ -282,44 +295,41 @@ class My_Model(Model):
             if same(ho_emission, stop):
                 return True
         return False
-    ################################################################################
-    @classmethod
-    def state_is_third_pos_in_frame(config, state):
-        des = state_id_to_description(state, config.nCodons, config.state_id_description_list)
-        if des [-1] == "2" and des != "stop2" and des != "ter2":
+################################################################################
+    def state_is_third_pos_in_frame(self, state):
+        s = self.state_id_to_str(state)
+        if s [-1] == "2" and s != "stop2" and s != "ter2":
             return True
         return False
-    ################################################################################
-    @classmethod
-    def get_emissions_that_fit_ambiguity_mask(cls, config, ho_mask, x_bases_must_preceed, state):
+################################################################################
+    def get_emissions_that_fit_ambiguity_mask(self, ho_mask, x_bases_must_preceed, state):
 
         # getting the allowd base emissions in each slot
         # ie "NNA" and x_bases_must_preceed = 2 -> [][0,1,2,3], [0,1,2,3], [0]]
-        allowed_bases = [0] * (config.order + 1)
-        for i, emission in enumerate(strip_or_pad_emission_with_n(config, ho_mask)):
+        allowed_bases = [0] * (self.config.order + 1)
+        for i, emission in enumerate(self.strip_or_pad_emission_with_n(ho_mask)):
             allowed_bases[i] = self.nucleotide_ambiguity_code_to_array(emission)
-            if i < config.order - x_bases_must_preceed:
+            if i < self.config.order - x_bases_must_preceed:
                 allowed_bases[i] += [4] # initial emission symbol
 
         allowed_ho_emissions = []
-        state_is_third_pos_in_frame_bool = self.state_is_third_pos_in_frame(config, state)
+        state_is_third_pos_in_frame_bool = self.state_is_third_pos_in_frame(state)
         for ho_emission in product(*allowed_bases):
-            if not self.has_I_emission_after_base(ho_emission, config = config) \
-            and not (state_is_third_pos_in_frame_bool and self.semission_is_stop_codon(ho_emission)):
+            if not self.has_I_emission_after_base(ho_emission) \
+            and not (state_is_third_pos_in_frame_bool and self.emission_is_stop_codon(ho_emission)):
                 allowed_ho_emissions += [ho_emission]
 
         return allowed_ho_emissions
-
-    ################################################################################
+################################################################################
     def get_indices_for_emission_and_state(self, indices, state, mask, x_bases_must_preceed):
         # if self.order_transformed_input and emissions[-1] == "X":
         if mask[-1] == "X":
-            indices += [[state, higher_order_emission_to_id("X", self.config.alphabet_size, self.config.order)]]
+            indices += [[state, self.emission_tuple_to_id("X")]]
             return
 
-        for ho_emission in self.get_emissions_that_fit_ambiguity_mask(self.config, mask, x_bases_must_preceed, state):
-            indices += [[state, higher_order_emission_to_id(ho_emission, self.config.alphabet_size, self.config.order)]]
-    ################################################################################
+        for ho_emission in self.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state):
+            indices += [[state, self.emission_tuple_to_id(ho_emission)]]
+################################################################################
     def B_indices_for_weights(self):
         nCodons = self.config.nCodons
         indices = []
@@ -356,76 +366,146 @@ class My_Model(Model):
 
 
         return indices
-    ################################################################################
+################################################################################
     def B_indices_for_constants(self):
         nCodons = self.config.nCodons
         indices = []
 
-        self.get_indices_for_emission_and_state(self.config, indices,3,"ATG",2)
-        self.get_indices_for_emission_and_state(self.config, indices,6 + nCodons*3,"TAA", self.config.order)
-        self.get_indices_for_emission_and_state(self.config, indices,6 + nCodons*3,"TAG", self.config.order)
+        self.get_indices_for_emission_and_state(indices,3,"ATG",2)
+        self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TAA", self.config.order)
+        self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TAG", self.config.order)
         if self.config.order > 0:
             # bc then only the third pos is codon is of importance, and then "A" would be added twice
-            self.get_indices_for_emission_and_state(self.config, indices,6 + nCodons*3,"TGA", self.config.order)
+            self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TGA", self.config.order)
 
         return indices
+################################################################################
     def B_indices(self):
         return self.B_indices_for_weights() + self.B_indices_for_constants()
 ################################################################################
 ################################################################################
 ################################################################################
-    def I(weights):
+    def I(self, weights):
         # always has to to be dense, since R must the same on the main and off branch, and off branch R is dense and main R = I
-        initial_matrix = tf.sparse.SparseTensor(indices = self.I_indices(), values = weights, dense_shape = [self.number_of_states(),1])
+        initial_matrix = tf.sparse.SparseTensor(indices = self.I_indices, values = weights, dense_shape = [self.number_of_states,1])
         initial_matrix = tf.sparse.reorder(initial_matrix)
-        initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.number_of_states()), name = "I_sparse")
+        initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.number_of_states), name = "I_sparse")
         initial_matrix = tf.sparse.softmax(initial_matrix, name = "I_sparse")
         return tf.sparse.to_dense(initial_matrix, name = "I_dense")
 ################################################################################
-    def A(weights):
-        if self.self.config.use_weights_for_consts:
-            values =  self.transition_kernel
-            indices = self.indices_for_A
+    def A(self, weights):
+        if self.config.use_weights_for_consts:
+            values = weights
         else:
-            consts = tf.cast([1.0] * len(self.indices_for_constants_A), dtype = self.self.config.dtype)
-            values = tf.concat([self.transition_kernel, consts], axis = 0)
-            indices = self.indices_for_weights_A + self.indices_for_constants_A
+            consts = tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
+            values = tf.concat([weights, consts], axis = 0)
 
-        transition_matrix = tf.sparse.SparseTensor(indices = indices, \
+        transition_matrix = tf.sparse.SparseTensor(indices = self.A_indices, \
                                                    values = values, \
-                                                   dense_shape = [self.number_of_states()] * 2)
+                                                   dense_shape = [self.number_of_states] * 2)
 
         transition_matrix = tf.sparse.reorder(transition_matrix)
         transition_matrix = tf.sparse.softmax(transition_matrix, name = "A_sparse")
 
-        if self.use_sparse:
+        if self.A_is_sparse:
             return transition_matrix
         return tf.sparse.to_dense(transition_matrix, name = "A_dense")
 ################################################################################
-    def B(weights):
-        dense_shape = [self.number_of_states(), \
-                       self.number_of_emissions()]
-
-        emission_matrix = tf.sparse.SparseTensor(indices = self.B_indices(), \
-                                                 values = weights, \
+    def B(self, weights):
+        if self.config.use_weights_for_consts:
+            values = weights
+        else:
+            consts = tf.cast([1.0] * len(self.B_indices_for_constants), dtype = self.config.dtype)
+            values = tf.concat([weights, consts], axis = 0)
+        dense_shape = [self.number_of_states, \
+                       self.number_of_emissions]
+        # print("weights =", weights)#656
+        # print("B_indices =", self.B_indices)#660
+        emission_matrix = tf.sparse.SparseTensor(indices = self.B_indices, \
+                                                 values = values, \
                                                  dense_shape = dense_shape)
 
         emission_matrix = tf.sparse.reorder(emission_matrix)
-        emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states(), -1, self.self.config.alphabet_size))
+        emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1, self.config.alphabet_size))
         emission_matrix = tf.sparse.softmax(emission_matrix)
-        emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states(), -1))
+        emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1))
 
         emission_matrix = tf.sparse.transpose(emission_matrix, name = "B_sparse")
 
-        if self.use_sparse:
+        if self.B_is_sparse:
             return emission_matrix
         return tf.sparse.to_dense(emission_matrix, name = "B_dense")
 ################################################################################
 ################################################################################
 ################################################################################
+    def export_to_dot_and_png(self, out_path = "this is still hard coded"):
+        import numpy as np
+        n_most_likely_emissions = 3
+        nCodons = self.config.nCodons
+
+        id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
+        with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
+
+            most_likely = {}
+            with open(f"output/{nCodons}codons/B.{nCodons}codons.txt", "r") as b:
+                for line in b:
+                    line = re.sub("[(|)| ]","", line.strip())
+                    line = re.split(",|;", line)
+                    state = self.state_id_to_str(int(line[0]))
+                    prob = float(line[-1])
+                    if int(line[1]) not in self.id_to_emi:
+                        continue
+                    emissions_tuple = self.id_to_emi[int(line[1])]
+                    emissions_tuple = ("".join(list(map(lambda x: x if x == "X" else id_to_base[int(x)], emissions_tuple))), np.round(prob,4))
+                    # else: # this was else to orderTransformedInput
+                    #     emissions_tuple = ("".join(list(map(lambda x: id_to_base[int(x)], line[1:-1]))), np.round(prob,4))
+                    if not state in most_likely:
+                        most_likely[state] = [emissions_tuple]# = emission, prob
+                    else:
+                        most_likely[state].append(emissions_tuple)
+
+            for key in most_likely.keys():
+                most_likely[key] = sorted(most_likely[key], key = lambda x: x[1], reverse = True)
+                # print(most_likely[key])
+            graph.write("DiGraph G{\nrankdir=LR;\n")
+            # graph.write("nodesep=0.5; splines=polyline;")
+
+            with open(f"output/{nCodons}codons/A.{nCodons}codons.txt","r") as a:
+                for line in a:
+                    line = re.sub("[(|)| ]","", line.strip())
+                    line = re.split(",|;", line)
+                    i = self.state_id_to_str(int(line[0]))
+                    j = self.state_id_to_str(int(line[1]))
+                    if i == self.state_id_to_str(0):
+                        # graph.write("\""+ j +"\" [shape=record label=\"{{ " + j + "|" + "|".join([str(most_likely[j][k]) for k in range(n_most_likely_emissions)]) + "}}\"];\n")
+
+                        # or
+
+                        graph.write("\"" + j + "\"\n")
+                        graph.write("[\n")
+                        graph.write("\tshape = none\n")
+                        graph.write("\tlabel = <<table border=\"0\" cellspacing=\"0\"> \n")
+                        try:
+                            color = {"c_":"teal", "i_": "crimson"}[j[0:2]]
+                        except:
+                            color = "white"
+                        graph.write(f"\t\t<tr><td port=\"port1\" border=\"1\" bgcolor=\"{color}\">" + j + "</td></tr>\n")
+                        for k in range(n_most_likely_emissions):
+                            graph.write(f"\t\t<tr><td port=\"port{k+2}\" border=\"1\">{most_likely[j][k]}</td></tr>\n" )
+                        graph.write("\t </table>>\n")
+                        graph.write("]\n")
+
+                    prob = float(line[2])
+                    if prob > 0:
+                        graph.write(f"\"{i}\" -> \"{j}\" [label = {np.round(prob, 4)} fontsize=\"{30*prob + 5}pt\"]\n")
+            graph.write("}")
+        # run(f"cat graph.{nCodons}codons.gv")
+        from Utility import run
+        run(f"dot -Tpng output/{nCodons}codons/graph.{nCodons}codons.gv -o output/{nCodons}codons/graph.{nCodons}codons.png")
 
 if __name__ == '__main__':
     from Config import Config
     config = Config("main_programm")
-    f = Full_Model(config)
-    print(f.A())
+    f = My_Model(config)
+    import numpy as np
+    print(f.A(np.ones(13)))

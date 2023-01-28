@@ -32,9 +32,9 @@ def main(config):
     # writing the model parameters to file, to visualize
     from CgpHmmCell import CgpHmmCell
     cell = CgpHmmCell(config)
-    cell.init_kernel = model.get_weights()[0]
-    cell.transition_kernel = model.get_weights()[1]
-    cell.emission_kernel = model.get_weights()[2]
+    cell.I_kernel = model.get_weights()[0]
+    cell.A_kernel = model.get_weights()[1]
+    cell.B_kernel = model.get_weights()[2]
 
     def printA():
         global cell, model
@@ -64,16 +64,17 @@ def main(config):
             print(tf.math.round(cell.I[state,0]*100).numpy()/100)
     # printI()
 
+    WriteData.write_to_file(cell.I_dense, f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.txt")
+    WriteData.write_to_file(cell.A_dense, f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt")
+    WriteData.write_to_file(tf.transpose(cell.B_dense), f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt")
 
-    I = cell.I_dense if config.call_type != 4 else cell.I_full_model
-    A = cell.A_dense if config.call_type != 4 else cell.A_full_model
-    B = cell.B_dense if config.call_type != 4 else cell.B_full_model
 
-    WriteData.write_to_file(I, f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.txt")
-    WriteData.write_to_file(A, f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt")
-    WriteData.write_to_file(tf.transpose(B), f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt")
-    if not config.use_sparse_full_model:
-        WriteData.write_order_transformed_B_to_csv(B, f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.csv", config.order, config.nCodons)
+    if config.nCodons < 10:
+        # run(f"python3 {config.src_path}/Visualize.py -c {config.nCodons} -o {config.order} -t")
+
+        # TODO: instead of using the exportet IAB use the weights of the cell
+        config.model.export_to_dot_and_png()
+
 
     if config.run_viterbi:
         # running Viterbi
@@ -139,8 +140,7 @@ def main(config):
             for key, value in stats.items():
                 file.write(key + "\t" + str(value/nSeqs) + "\n")
 
-    if config.nCodons < 10:
-        run(f"python3 {config.src_path}/Visualize.py -c {config.nCodons} -o {config.order} -t")
+
 
 if __name__ == '__main__':
     from Config import Config

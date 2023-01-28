@@ -13,12 +13,8 @@ from Utility import run
 from CallBacks import get_call_backs
 from Utility import transform_verbose_txt_to_csv
 from Utility import append_time_ram_stamp_to_file
-from Utility import emissions_state_size
-from Utility import n_emission_columns_in_B
 
 from CgpHmmLayer import CgpHmmLayer
-from ReadData import read_data_one_hot
-from ReadData import read_data
 from ReadData import read_data_with_order
 from tensorflow.python.client import device_lib
 
@@ -30,13 +26,10 @@ def make_model(config):
 
     # TODO: https://www.tensorflow.org/guide/keras/masking_and_padding
 
-
-
-    
     append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", config.bench_path)
 
     # another None added automatically for yet unkown batch_size
-    sequences = tf.keras.Input(shape = (None, n_emission_columns_in_B(config.alphabet_size, config.order)), name = "sequences", dtype = config.dtype)
+    sequences = tf.keras.Input(shape = (None, config.model.number_of_emissions), name = "sequences", dtype = config.dtype)
 
     cgp_hmm_layer = CgpHmmLayer(config) # init of layer
 
@@ -104,18 +97,18 @@ def make_dataset(config):
             run(command)
 
 
-    seqs = read_data_with_order(config.fasta_path, config.order, add_one_terminal_symbol = True)
+    seqs = read_data_with_order(config, add_one_terminal_symbol = True)
 
 
     ds = tf.data.Dataset.from_generator(lambda: seqs,
                                          tf.as_dtype(tf.int32), # has to be int, bc one_hot doesnt work for floats
                                          tf.TensorShape([None]))
 
-    index_of_terminal = Utility.higher_order_emission_to_id("X", config.alphabet_size, config.order)
+    index_of_terminal = config.model.emission_tuple_to_id("X")
     ds = ds.padded_batch(config.batch_size, padding_values = index_of_terminal)
 
     def to_one_hot(seq):
-        return tf.cast(tf.one_hot(seq, n_emission_columns_in_B(config.alphabet_size, config. order)), dtype=config.dtype)
+        return tf.cast(tf.one_hot(seq, config.model.number_of_emissions), dtype=config.dtype)
 
     ds = ds.map(to_one_hot)
     # TODO: shuffle dataset?
@@ -157,7 +150,7 @@ def fit_model(config):
 
     data_set, seqs = make_dataset(config)
 
-    index_of_terminal = Utility.higher_order_emission_to_id("X", config.alphabet_size, config.order)
+    index_of_terminal = config.model.emission_tuple_to_id("X")
 
 ################################################################################
     if config.get_gradient_for_current_txt or config.get_gradient_from_saved_model_weights:

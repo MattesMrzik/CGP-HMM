@@ -12,25 +12,7 @@ import os
 
 from My_Model import My_Model
 
-
-def get_indices_for_config(config):
-    model = My_Model(config)
-    config.state_id_description_list = My_Model.get_state_id_description_list(config.nCodons)
-    config.indices_for_weights_A = model.A_indices_for_weights()
-    config.indices_for_constants_A = model.A_indices_for_constants()
-    config.indices_for_A = config.indices_for_weights_A + config.indices_for_constants_A
-
-    config.indices_for_weights_B = model.B_indices_for_weights()
-    config.indices_for_constants_B = model.B_indices_for_constants()
-    config.indices_for_B = config.indices_for_weights_B + config.indices_for_constants_B
-
-    config.indices_for_I = model.I_indices(config)
-
-    # config.indices_for_sparse_full_model_A = get_indices_for_sparse_A_full_model(config)
-    # config.indices_for_sparse_full_model_B = get_indices_for_sparse_B_full_model(config)
-    config.indices_for_sparse_full_model_A = 0
-    config.indices_for_sparse_full_model_B = 0
-################################################################################
+##############################################################################
 ################################################################################
 ################################################################################
 

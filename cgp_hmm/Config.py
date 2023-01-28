@@ -102,10 +102,10 @@ class Config():
 
     def determine_attributes(self):
         from My_Model import My_Model
-        self.state_id_description_list = My_Model.get_state_id_description_list(self.nCodons)
-        print("asdf")
-        from Utility import get_indices_for_config
-        Utility.get_indices_for_config(self)
+        my_model = My_Model(self)
+        self.model = my_model
+        my_model.config.print()
+        self.state_id_description_list = my_model.get_state_id_description_list()
         # print("self.indices_for_B in determine_attributes in config =", self.indices_for_B)
 
 

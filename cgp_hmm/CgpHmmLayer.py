@@ -12,7 +12,6 @@ import os
 # Cause: generators are not supported
 
 
-from Utility import description_to_state_id
 from Utility import append_time_stamp_to_file
 from Utility import append_time_ram_stamp_to_file
 
@@ -103,27 +102,23 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             if training:
                 # self.add_metric(loglik_mean, "loglik")
 
-                I = self.C.I_sparse.values if self.config.call_type != 4 else self.C.I_full_model
-                A = self.C.A_sparse.values if self.config.call_type != 4 else self.C.A_full_model
-                B = self.C.B_sparse.values if self.config.call_type != 4 else self.C.B_full_model
+                self.add_metric(tf.math.reduce_max(self.C.I_kernel),"ik_max")
+                self.add_metric(tf.math.reduce_min(self.C.I_kernel),"ik_min")
 
-                self.add_metric(tf.math.reduce_max(self.C.init_kernel),"init_kernel_max")
-                self.add_metric(tf.math.reduce_min(self.C.init_kernel),"init_kernel_min")
+                self.add_metric(tf.math.reduce_max(self.C.I_dense),"I_max")
+                self.add_metric(tf.math.reduce_min(self.C.I_dense),"I_min")
 
-                self.add_metric(tf.math.reduce_max(I),"I_max")
-                self.add_metric(tf.math.reduce_min(I),"I_min")
+                self.add_metric(tf.math.reduce_max(self.C.A_kernel),"tk_max")
+                self.add_metric(tf.math.reduce_min(self.C.A_kernel),"tk_min")
 
-                self.add_metric(tf.math.reduce_max(self.C.transition_kernel),"transition_kernel_max")
-                self.add_metric(tf.math.reduce_min(self.C.transition_kernel),"transition_kernel_min")
+                self.add_metric(tf.math.reduce_max(self.C.A_dense),"A_max")
+                self.add_metric(tf.math.reduce_min(self.C.A_dense),"A_min")
 
-                self.add_metric(tf.math.reduce_max(A),"A_max")
-                self.add_metric(tf.math.reduce_min(A),"A_min")
+                self.add_metric(tf.math.reduce_max(self.C.B_kernel),"ek_max")
+                self.add_metric(tf.math.reduce_min(self.C.B_kernel),"ek_min")
 
-                self.add_metric(tf.math.reduce_max(self.C.emission_kernel),"emission_kernel_max")
-                self.add_metric(tf.math.reduce_min(self.C.emission_kernel),"emission_kernel_min")
-
-                self.add_metric(tf.math.reduce_max(B),"B_max")
-                self.add_metric(tf.math.reduce_min(B),"B_min")
+                self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
+                self.add_metric(tf.math.reduce_min(self.C.B_dense),"B_min")
 
             use_reg = False
             if use_reg:
@@ -131,14 +126,9 @@ class CgpHmmLayer(tf.keras.layers.Layer):
                 # siehe Treffen_04
                 alpha = 4 # todo: scale punishment for inserts with different factor?
                 def add_reg(f, to):
-                    if not self.config.call_type == 4:
-                        probs_to_be_punished.append(tf.math.log(1 - \
-                                                    self.C.A_dense[description_to_state_id(f, self.nCodons), \
-                                                             description_to_state_id(to, self.nCodons)]))
-                    else:
-                         probs_to_be_punished.append(tf.math.log(1 - \
-                                                     self.C.A_full_model[description_to_state_id(f, self.nCodons), \
-                                                              description_to_state_id(to, self.nCodons)]))
+                    probs_to_be_punished.append(tf.math.log(1 - \
+                                                self.C.A_dense[self.config.model.str_to_state_id(f, self.nCodons), \
+                                                               self.config.model.str_to_state_id(to, self.nCodons)]))
 
                 # deletes to be punished
                 for i in range(1, self.C.nCodons):
