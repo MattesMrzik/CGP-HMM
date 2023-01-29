@@ -148,19 +148,19 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     @property
     def A_dense(self):
-        if self.config.model.A_is_sparse:
+        if self.config.A_is_sparse:
             return tf.sparse.to_dense(self.A)
         return self.A
 
     @property
     def B_dense(self):
-        if self.config.model.B_is_sparse:
+        if self.config.B_is_sparse:
             return tf.sparse.to_dense(self.B)
         return self.B
 ################################################################################
 ################################################################################
     def get_E(self, inputs):
-        if self.config.model.B_is_dense:
+        if self.config.B_is_dense:
             return tf.matmul(inputs, self.B)
         return tf.sparse.sparse_dense_matmul(inputs, self.B)
 
@@ -172,7 +172,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         scaled_forward = old_forward / Z_i_minus_1
         # if add_epsilon_to_z:
         #     Z_i_minus_1 = tf.math.add(Z_i_minus_1, add_epsilon_to_z)
-        if self.config.model.A_is_sparse:
+        if self.config.A_is_sparse:
             R = tf.sparse.sparse_dense_matmul(scaled_forward, self.A)
         else:
             R = tf.matmul(scaled_forward, self.A)

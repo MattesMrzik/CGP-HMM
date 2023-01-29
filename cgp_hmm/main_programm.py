@@ -64,16 +64,23 @@ def main(config):
             print(tf.math.round(cell.I[state,0]*100).numpy()/100)
     # printI()
 
-    WriteData.write_to_file(cell.I_dense, f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.txt")
-    WriteData.write_to_file(cell.A_dense, f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt")
-    WriteData.write_to_file(tf.transpose(cell.B_dense), f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt")
+    # WriteData.write_to_file(cell.I_dense, f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.txt")
+    # WriteData.write_to_file(cell.A_dense, f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt")
+    # WriteData.write_to_file(tf.transpose(cell.B_dense), f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt")
+    A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt"
+    # print(config.model.A_as_dense_to_str(cell.A_kernel, with_description = True))
+    config.model.A_as_dense_to_file(A_out_path, cell.A_kernel, with_description = True)
 
+    B_out_path =f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt"
+    # print(config.model.B_as_dense_to_str(cell.B_kernel, with_description = True))
+    config.model.B_as_dense_to_file(B_out_path, cell.B_kernel, with_description = True)
 
     if config.nCodons < 10:
         # run(f"python3 {config.src_path}/Visualize.py -c {config.nCodons} -o {config.order} -t")
 
         # TODO: instead of using the exportet IAB use the weights of the cell
-        config.model.export_to_dot_and_png()
+        # config.model.export_to_dot_and_png()
+        pass
 
 
     if config.run_viterbi:

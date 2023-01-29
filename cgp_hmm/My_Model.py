@@ -9,10 +9,6 @@ class My_Model(Model):
     # this overwrites the init from Model. alternatively i can omit it
     def __init__(self, config):
         Model.__init__(self, config)
-        self.A_is_sparse = True
-        self.A_is_dense = not self.A_is_sparse
-        self.B_is_sparse = False
-        self.B_is_dense = not self.B_is_sparse
 
         # =================> states <============================================
         self.number_of_states = self.get_number_of_states()
@@ -35,6 +31,10 @@ class My_Model(Model):
         self.B_indices_for_weights = self.B_indices_for_weights()
         self.B_indices_for_constants = self.B_indices_for_constants()
         self.B_indices = self.B_indices_for_weights + self.B_indices_for_constants
+
+        shape = (self.number_of_emissions, self.number_of_states)
+        B_indices_complement = tf.where(tf.ones(shape, dtype = tf.float32) - tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), shape = shape))
+        self.B_indices_complement = tf.cast(B_indices_complement, dtype = tf.int32)
 
     # =================> states <===============================================
     def get_number_of_states(self):
@@ -127,12 +127,15 @@ class My_Model(Model):
         return self.id_to_emi[id]
 
     def emission_tuple_to_str(self, emission_tuple):
-        if emi_tuple[0] == "X":
+        if emission_tuple[0] == "X":
             return "X"
-        return "".join(list(map(lambda x: "ACGTI"[x], emi_tuple)))
+        return "".join(list(map(lambda x: "ACGTI"[x], emission_tuple)))
 
     def emission_id_to_str(self, id):
-        return self.emi_tuple_to_str(self.emission_id_to_tuple(id))
+        try:
+            return self.emission_tuple_to_str(self.emission_id_to_tuple(id))
+        except:
+            return "-1"
 
     def str_to_emission_tuple(self, s):
         pass
@@ -324,11 +327,11 @@ class My_Model(Model):
     def get_indices_for_emission_and_state(self, indices, state, mask, x_bases_must_preceed):
         # if self.order_transformed_input and emissions[-1] == "X":
         if mask[-1] == "X":
-            indices += [[state, self.emission_tuple_to_id("X")]]
+            indices += [[self.emission_tuple_to_id("X"), state]]
             return
 
         for ho_emission in self.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state):
-            indices += [[state, self.emission_tuple_to_id(ho_emission)]]
+            indices += [[self.emission_tuple_to_id(ho_emission), state]]
 ################################################################################
     def B_indices_for_weights(self):
         nCodons = self.config.nCodons
@@ -399,17 +402,24 @@ class My_Model(Model):
         else:
             consts = tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
             values = tf.concat([weights, consts], axis = 0)
+        dense_shape = [self.number_of_states, self.number_of_states]
 
-        transition_matrix = tf.sparse.SparseTensor(indices = self.A_indices, \
-                                                   values = values, \
-                                                   dense_shape = [self.number_of_states] * 2)
+        if self.config.A_is_sparse:
+            transition_matrix = tf.sparse.SparseTensor(indices = self.A_indices, \
+                                                       values = values, \
+                                                       dense_shape = dense_shape)
 
-        transition_matrix = tf.sparse.reorder(transition_matrix)
-        transition_matrix = tf.sparse.softmax(transition_matrix, name = "A_sparse")
+            transition_matrix = tf.sparse.reorder(transition_matrix)
+            transition_matrix = tf.sparse.softmax(transition_matrix, name = "A_sparse")
 
-        if self.A_is_sparse:
-            return transition_matrix
-        return tf.sparse.to_dense(transition_matrix, name = "A_dense")
+        if self.config.A_is_dense:
+            transition_matrix = tf.scatter_nd(self.A_indices, values, dense_shape)
+            softmax_layer = tf.keras.layers.Softmax()
+            mask = tf.scatter_nd(self.A_indices, [1.0] * len(self.A_indices), dense_shape)
+            transition_matrix = softmax_layer(transition_matrix, mask)
+            # transition_matrix = tf.nn.softmax(transition_matrix, name = "A_dense")
+
+        return transition_matrix
 ################################################################################
     def B(self, weights):
         if self.config.use_weights_for_consts:
@@ -417,24 +427,38 @@ class My_Model(Model):
         else:
             consts = tf.cast([1.0] * len(self.B_indices_for_constants), dtype = self.config.dtype)
             values = tf.concat([weights, consts], axis = 0)
-        dense_shape = [self.number_of_states, \
-                       self.number_of_emissions]
-        # print("weights =", weights)#656
-        # print("B_indices =", self.B_indices)#660
-        emission_matrix = tf.sparse.SparseTensor(indices = self.B_indices, \
-                                                 values = values, \
-                                                 dense_shape = dense_shape)
+        dense_shape = [self.number_of_emissions, \
+                       self.number_of_states]
+        shape_to_apply_softmax_to = (-1, self.config.alphabet_size, self.number_of_states)
 
-        emission_matrix = tf.sparse.reorder(emission_matrix)
-        emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1, self.config.alphabet_size))
-        emission_matrix = tf.sparse.softmax(emission_matrix)
-        emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1))
+        if self.config.B_is_sparse:
+            emission_matrix = tf.sparse.SparseTensor(indices = self.B_indices, \
+                                                     values = values, \
+                                                     dense_shape = dense_shape)
 
-        emission_matrix = tf.sparse.transpose(emission_matrix, name = "B_sparse")
+            emission_matrix = tf.sparse.reorder(emission_matrix)
+            emission_matrix = tf.sparse.transpose(emission_matrix)
+            emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1, self.config.alphabet_size))
+            emission_matrix = tf.sparse.softmax(emission_matrix)
+            emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, self.number_of_emissions), name = "B_sparse")
+            emission_matrix = tf.sparse.transpose(emission_matrix)
 
-        if self.B_is_sparse:
-            return emission_matrix
-        return tf.sparse.to_dense(emission_matrix, name = "B_dense")
+        if self.config.B_is_dense:
+            emission_matrix = tf.scatter_nd(self.B_indices, values, dense_shape)
+            mask = tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), dense_shape)
+            # reshape
+            emission_matrix = tf.reshape(emission_matrix, shape = shape_to_apply_softmax_to)
+            mask            = tf.reshape(mask,            shape = shape_to_apply_softmax_to)
+            # softmax
+            softmax_layer = tf.keras.layers.Softmax(axis = 1)
+            emission_matrix = softmax_layer(emission_matrix, mask)# this leaves [0.25, 0.25, 0.25, 0.25] in columns where the mask has only zeros
+            # reshape
+            emission_matrix = tf.reshape(emission_matrix, shape = dense_shape, name = "B_dense")
+            #removing the [0.25, 0.25, 0.25, 0.25] artefact
+            emission_matrix = tf.tensor_scatter_nd_min(emission_matrix, \
+                                                       self.B_indices_complement, \
+                                                       [0.0] * len(self.B_indices_complement))
+        return emission_matrix
 ################################################################################
 ################################################################################
 ################################################################################
@@ -502,6 +526,55 @@ class My_Model(Model):
         # run(f"cat graph.{nCodons}codons.gv")
         from Utility import run
         run(f"dot -Tpng output/{nCodons}codons/graph.{nCodons}codons.gv -o output/{nCodons}codons/graph.{nCodons}codons.png")
+
+
+    # TODO: or do i want to have these functions in the cell, such that i dont have to pass the weights?
+    def A_as_dense_to_str(self, weights, with_description = False):
+        A = self.A(weights) if self.config.A_is_dense else tf.sparse.to_dense(self.A(weights))
+        result = ""
+        if with_description:
+            result += " "
+            for to_state in range(self.number_of_states):
+                result += self.state_id_to_str(to_state)
+                result += " "
+            result += "\n"
+        for from_state, row in enumerate(A):
+            if with_description:
+                result += self.state_id_to_str(from_state) + " "
+            for entry in row:
+                result += str(entry.numpy())
+                result += " "
+            result += "\n"
+        return result
+
+    def A_as_dense_to_file(self, path, weights, with_description = False):
+        with open(path, "w") as out_file:
+            out_file.write(self.A_as_dense_to_str(weights, with_description))
+
+    def B_as_dense_to_str(self, weights, with_description = False):
+        B = self.B(weights) if self.config.B_is_dense else tf.sparse.to_dense(self.B(weights))
+        result = ""
+        if with_description:
+            result += " "
+            for to_state in range(self.number_of_states):
+                result += self.state_id_to_str(to_state)
+                result += " "
+            result += "\n"
+
+        for emission_id, row in enumerate(B):
+            if with_description:
+                result += self.emission_id_to_str(emission_id) + " "
+            for entry in row:
+                result += str(entry.numpy())
+                result += " "
+            result += "\n"
+        return result
+
+    def B_as_dense_to_file(self, path, weights, with_description = False):
+        with open(path, "w") as out_file:
+            out_file.write(self.B_as_dense_to_str(weights, with_description))
+
+
 
 if __name__ == '__main__':
     from Config import Config

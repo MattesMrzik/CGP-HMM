@@ -34,6 +34,57 @@ class Config():
         if self.manual_traning_loop:
             assert self.batch_size == 32, "if you pass manual_traning_loop, then batch_size must be 32 (=default)"
         assert self.batch_size > 0, "batch_size must be greater than 0"
+        assert self.AB in ["dd", "ds", "sd", "ss"], "-AB must be in ['dd', 'ds', 'sd', 'ss']"
+
+
+    def add_attribtes(self):
+        import tensorflow as tf
+
+        self.tf_version = tf.__version__
+        # added this, so that it gets printed
+        self.manuall_arg_lists["main_programm"].append(("tf_version", self.tf_version))
+
+        self.alphabet_size = 4
+        self.write_return_sequnces = False
+
+        self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.call_type}call_type.log"
+        self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
+
+        self.check_assert = not self.dont_check_assert
+        self.generate_new_seqs = not self.dont_generate_new_seqs
+        self.dtype = tf.float64 if self.dtype64 else tf.float32
+        self.learning_rate = self.learning_rate if not self.no_learning else 0
+
+        self.A_is_dense = self.AB[0] == "d"
+        self.A_is_sparse = not self.A_is_dense
+        self.B_is_dense = self.AB[1] == "d"
+        self.B_is_sparse = not self.B_is_dense
+
+        self.gen_len = 3 * self.nCodons
+
+        print("self.parsed_args.seq_len =", self.parsed_args.seq_len)
+        print("self.nCodons =", self.nCodons)
+
+        self.seq_len = self.parsed_args.seq_len if self.parsed_args.seq_len else ((self.nCodons * 3 + 6 + 2) * 2)
+
+        #                                     start and stop, i want at least one ig 3' and 5'
+        assert self.seq_len >= self.gen_len + 6               + 2, f"self.seq_len ({self.seq_len}) < self.gen_len ({self.gen_len}) + 6 + 2"
+
+    def prepare_before_main_programm(self):
+        run(f"mkdir -p {self.src_path}/output/{self.nCodons}codons/")
+
+        run(f"mkdir -p {self.src_path}/verbose")
+        run(f"rm       {self.src_path}/verbose/{self.nCodons}codons.txt")
+
+        run(f"rm {self.src_path}/{self.bench_path}")
+
+    def determine_attributes(self):
+        from My_Model import My_Model
+        my_model = My_Model(self)
+        self.model = my_model
+        my_model.config.print()
+        self.state_id_description_list = my_model.get_state_id_description_list()
+        # print("self.indices_for_B in determine_attributes in config =", self.indices_for_B)
 
     def apply_args(self):
         import tensorflow as tf
@@ -63,50 +114,6 @@ class Config():
             print("Config: printing local devices")
             for i, x in  enumerate(device_lib.list_local_devices()):
                 print(i, x.name)
-
-    def add_attribtes(self):
-        import tensorflow as tf
-
-        self.tf_version = tf.__version__
-        # added this, so that it gets printed
-        self.manuall_arg_lists["main_programm"].append(("tf_version", self.tf_version))
-
-        self.alphabet_size = 4
-        self.write_return_sequnces = False
-
-        self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.call_type}call_type.log"
-        self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
-
-        self.check_assert = not self.dont_check_assert
-        self.generate_new_seqs = not self.dont_generate_new_seqs
-        self.dtype = tf.float64 if self.dtype64 else tf.float32
-        self.learning_rate = self.learning_rate if not self.no_learning else 0
-
-        self.gen_len = 3 * self.nCodons
-
-        print("self.parsed_args.seq_len =", self.parsed_args.seq_len)
-        print("self.nCodons =", self.nCodons)
-
-        self.seq_len = self.parsed_args.seq_len if self.parsed_args.seq_len else ((self.nCodons * 3 + 6 + 2) * 2)
-
-        #                                     start and stop, i want at least one ig 3' and 5'
-        assert self.seq_len >= self.gen_len + 6               + 2, f"self.seq_len ({self.seq_len}) < self.gen_len ({self.gen_len}) + 6 + 2"
-
-    def prepare_before_main_programm(self):
-        run(f"mkdir -p {self.src_path}/output/{self.nCodons}codons/")
-
-        run(f"mkdir -p {self.src_path}/verbose")
-        run(f"rm       {self.src_path}/verbose/{self.nCodons}codons.txt")
-
-        run(f"rm {self.src_path}/{self.bench_path}")
-
-    def determine_attributes(self):
-        from My_Model import My_Model
-        my_model = My_Model(self)
-        self.model = my_model
-        my_model.config.print()
-        self.state_id_description_list = my_model.get_state_id_description_list()
-        # print("self.indices_for_B in determine_attributes in config =", self.indices_for_B)
 
 
     def add_arg_small_bench(self, *kwargs, type = None, help ="help", default = None, action = None, nargs = None):
@@ -163,6 +170,7 @@ class Config():
     def add_main_programm(self):
         self.add_arg_main('-c', '--nCodons', type = int, default = 1, help='number of codons')
         self.add_arg_main('-t', '--call_type', type = int, default = 0, help='type of cell.call():  default = 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
+        self.add_arg_main('-AB', default = 'dd', help = '[dd (default), ds, sd, ss] specify the sparse or denseness of A and B')
         self.add_arg_main('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
         self.add_arg_main('-p', '--src_path', default = ".", help='path to src')
         self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [SDG]')

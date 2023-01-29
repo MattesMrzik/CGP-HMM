@@ -105,20 +105,20 @@ class CgpHmmLayer(tf.keras.layers.Layer):
                 self.add_metric(tf.math.reduce_max(self.C.I_kernel),"ik_max")
                 self.add_metric(tf.math.reduce_min(self.C.I_kernel),"ik_min")
 
-                self.add_metric(tf.math.reduce_max(self.C.I_dense),"I_max")
-                self.add_metric(tf.math.reduce_min(self.C.I_dense),"I_min")
+                # self.add_metric(tf.math.reduce_max(self.C.I_dense),"I_max")
+                # self.add_metric(tf.math.reduce_min(self.C.I_dense),"I_min")
 
                 self.add_metric(tf.math.reduce_max(self.C.A_kernel),"tk_max")
                 self.add_metric(tf.math.reduce_min(self.C.A_kernel),"tk_min")
 
-                self.add_metric(tf.math.reduce_max(self.C.A_dense),"A_max")
-                self.add_metric(tf.math.reduce_min(self.C.A_dense),"A_min")
+                # self.add_metric(tf.math.reduce_max(self.C.A_dense),"A_max")
+                # self.add_metric(tf.math.reduce_min(self.C.A_dense),"A_min")
 
                 self.add_metric(tf.math.reduce_max(self.C.B_kernel),"ek_max")
                 self.add_metric(tf.math.reduce_min(self.C.B_kernel),"ek_min")
 
-                self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
-                self.add_metric(tf.math.reduce_min(self.C.B_dense),"B_min")
+                # self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
+                # self.add_metric(tf.math.reduce_min(self.C.B_dense),"B_min")
 
             use_reg = False
             if use_reg:
@@ -129,7 +129,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
                     probs_to_be_punished.append(tf.math.log(1 - \
                                                 self.C.A_dense[self.config.model.str_to_state_id(f, self.nCodons), \
                                                                self.config.model.str_to_state_id(to, self.nCodons)]))
-
+# 
                 # deletes to be punished
                 for i in range(1, self.C.nCodons):
                     add_reg("stG", f"c_{i},0")
