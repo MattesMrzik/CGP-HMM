@@ -4,7 +4,7 @@ from Utility import append_time_ram_stamp_to_file
 
 from Utility import tfprint
 
-
+import os
 import time
 from random import randint
 from itertools import product
@@ -66,15 +66,11 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         # setting the initilizers
         if self.config.get_gradient_for_current_txt or self.config.init_weights_from_txt:
-            with open(f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_I.json") as file:
-                weights_I = np.array(json.load(file))
-                I_initializer = tf.constant_initializer(weights_I)
-            with open(f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_A.json") as file:
-                weights_A = np.array(json.load(file))
-                A_initializer = tf.constant_initializer(weights_A)
-            with open(f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_B.json") as file:
-                weights_B = np.array(json.load(file))
-                B_initializer = tf.constant_initializer(weights_B)
+            path = f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"
+            weights = self.read_weights_from_file(path)
+            I_initializer = tf.constant_initializer(weights[0])
+            A_initializer = tf.constant_initializer(weights[1])
+            B_initializer = tf.constant_initializer(weights[2])
         # elif self.config["get_gradient_from_saved_model_weights"] and "model" in self.config:
         elif self.config.get_gradient_from_saved_model_weights and "weights" in self.config.__dict__:
             # weights = self.config["model"].get_weights()
@@ -86,6 +82,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             I_initializer = tf.constant_initializer(weights[0])
             A_initializer = tf.constant_initializer(weights[1])
             B_initializer = tf.constant_initializer(weights[2])
+
         elif self.config.use_constant_initializer:
             I_initializer = tf.constant_initializer(1)
             A_initializer = tf.constant_initializer(1)
@@ -113,14 +110,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         visualize_after_build = False
         if visualize_after_build:
-            import WriteData
-            import os
-            WriteData.write_to_file(self.A_dense, f"{self.config.src_path}/output/{self.nCodons}codons/A.{self.nCodons}codons.txt")
-            WriteData.write_to_file(tf.transpose(self.B_dense), f"{self.config.src_path}/output/{self.nCodons}codons/B.{self.nCodons}codons.txt")
-            WriteData.write_to_file(self.I_dense, f"{self.config.src_path}/output/{self.nCodons}codons/I.{self.nCodons}codons.txt")
-
-            os.system(f"./Visualize.py -c {self.config.nCodons} -o {self.config.order} -t")
-            exit(1)
+            config.model.export_to_dot_and_png(A_kernel, B_kernel)
+            exit()
         append_time_ram_stamp_to_file(start, f"Cell.build() end   {run_id}", self.config.bench_path)
 
 ################################################################################
@@ -260,3 +251,27 @@ class CgpHmmCell(tf.keras.layers.Layer):
             verbose_print("loglik", loglik)
 
         return [alpha, inputs, count], [alpha, loglik, count]
+
+    def write_weights_to_file(self, path): # is this sufficient to get reproducable behaviour?
+        ik = [float(x) for x in self.I_kernel]
+        ak = [float(x) for x in self.A_kernel]
+        bk = [float(x) for x in self.B_kernel]
+
+        if not os.path.exists(path):
+            os.system(f"mkdir -p {path}")
+
+        with open(f"{path}/I_kernel.json", "w") as file:
+            json.dump(ik, file)
+        with open(f"{path}/A_kernel.json", "w") as file:
+            json.dump(ak, file)
+        with open(f"{path}/B_kernel.json", "w") as file:
+            json.dump(bk, file)
+
+    def read_weights_from_file(self, path):
+        with open(f"{path}/I_kernel.json") as file:
+            weights_I = np.array(json.load(file))
+        with open(f"{path}/A_kernel.json") as file:
+            weights_A = np.array(json.load(file))
+        with open(f"{path}/B_kernel.json") as file:
+            weights_B = np.array(json.load(file))
+        return weights_I, weights_A, weights_B

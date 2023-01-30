@@ -67,32 +67,9 @@ def get_call_backs(config, model):
 
             # TODO: why can i access condig here?
 
-            if not os.path.exists(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"):
-                Utility.run(f"mkdir -p {config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/")
-            os.system(f"rm {config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/*")
+            path = f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"
 
-            ik, ak, bk = model.get_weights()
-            ik = [float(x) for x in ik]
-            ak = [float(x) for x in ak]
-            bk = [float(x) for x in bk]
-
-            with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_I.json", "w") as file:
-                json.dump(ik, file)
-            with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_A.json", "w") as file:
-                json.dump(ak, file)
-            with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_B.json", "w") as file:
-                json.dump(bk, file)
-
-
-            with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_I_dense.json", "w") as file:
-                I = model.get_layer("cgp_hmm_layer").C.I_dense
-                json.dump(I.numpy().tolist(), file)
-            with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_A_dense.json", "w") as file:
-                A = model.get_layer("cgp_hmm_layer").C.A_dense
-                json.dump(A.numpy().tolist(), file)
-            with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_B_dense.json", "w") as file:
-                B = model.get_layer("cgp_hmm_layer").C.B_dense
-                json.dump(B.numpy().tolist(), file)
+            model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
             if config.check_for_zeros:
                 Utility.find_indices_in_sparse_A_that_are_zero(config = config, \
