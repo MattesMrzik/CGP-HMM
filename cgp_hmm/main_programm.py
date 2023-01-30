@@ -42,11 +42,7 @@ def main(config):
         config.model.B_as_dense_to_file(B_out_path + ".with_description", B_kernel, with_description = True)
 
     if config.nCodons < 10:
-        # run(f"python3 {config.src_path}/Visualize.py -c {config.nCodons} -o {config.order} -t")
-
-        # TODO: instead of using the exportet IAB use the weights of the cell
-        config.model.export_to_dot_and_png(cell.A_kernel, cell.B_kernel)
-        pass
+        config.model.export_to_dot_and_png(A_kernel, B_kernel)
 
 
     if config.run_viterbi:
