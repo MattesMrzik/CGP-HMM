@@ -37,6 +37,9 @@ class My_Model(Model):
         self.B_indices_for_constants = self.B_indices_for_constants()
         self.B_indices = self.B_indices_for_weights + self.B_indices_for_constants
 
+        if config.use_weights_for_consts:
+            self.B_indices = sorted(self.B_indices)
+
         shape = (self.number_of_emissions, self.number_of_states)
         B_indices_complement = tf.where(tf.ones(shape, dtype = tf.float32) - tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), shape = shape))
         self.B_indices_complement = tf.cast(B_indices_complement, dtype = tf.int32)

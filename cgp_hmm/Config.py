@@ -26,9 +26,6 @@ class Config():
         if self.check_for_zeros:
             assert self.batch_begin_write_weights__layer_call_write_inputs, "if check_for_zeros also pass --batch"
 
-        if self.use_sparse_full_model:
-            assert self.call_type == 4, "if you specify --use_sparse_full_model then you also have to set the call_type (-t) to 4"
-
         if self.get_gradient_of_first_batch:
             assert self.batch_size == 32, "if you pass get_gradient_of_first_batch, then batch_size must be 32 (=default)"
         if self.manual_traning_loop:
@@ -47,7 +44,7 @@ class Config():
         self.alphabet_size = 4
         self.write_return_sequnces = False
 
-        self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.call_type}call_type.log"
+        self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.AB}_call_type.log"
         self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
 
         self.check_assert = not self.dont_check_assert
@@ -159,7 +156,6 @@ class Config():
 
     def add_small_bench(self):
         self.add_arg_small_bench('-r', '--range_codon', nargs='+', help='usage: < -r 1 10 > to run 1 2 3 4 5 6 7 8 9 10 codons')
-        self.add_arg_small_bench('-tl', '--typesList', nargs="+", help='types of cell.call() that should be used')
         self.add_arg_small_bench('-cl', '--nCodonsList', nargs="+", help ='usage: < -c 10 20 50 > to run 10 20 50 codons')
         self.add_arg_small_bench('-il', '--alpha_i_gradient_list', nargs='+', help ='is only applied when --manual is passed')
         self.add_arg_small_bench('--repeat', type = int, default = 1, help ='repeat the main programm [repeat] times')
@@ -169,7 +165,6 @@ class Config():
 
     def add_main_programm(self):
         self.add_arg_main('-c', '--nCodons', type = int, default = 1, help='number of codons')
-        self.add_arg_main('-t', '--call_type', type = int, default = 0, help='type of cell.call():  default = 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel')
         self.add_arg_main('-AB', default = 'dd', help = '[dd (default), ds, sd, ss] specify the sparse or denseness of A and B')
         self.add_arg_main('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
         self.add_arg_main('-p', '--src_path', default = ".", help='path to src')
@@ -220,14 +215,11 @@ class Config():
         self.add_arg_main('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
         self.add_arg_main('--forced_gene_structure', action='store_true', help = 'TGs in igs and ACs in coding, ie the state seq is determinded by emission seq')
         self.add_arg_main('--check_for_zeros', action='store_true', help = 'must be passed together with --batch, checks for zeros in parameters')
-        self.add_arg_main('--use_sparse_full_model', action='store_true', help = 'THIS DOENST HAVE A NOTICEABLE EFFECT, converts A and B from the full model to sparse matrices (where all parameters are != 0)')
 
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""
         for key in self.manuall_arg_lists[for_what]:
             value = self.__dict__[key[0]] if key[0] in self.__dict__ else self.parsed_args.__dict__[key[0]]
-            if key[0] == "call_type":
-                print("value =", value, type(value))
             if type(value) == bool:
                 s += key[1] + key[0] + " " if value else ""
             else:

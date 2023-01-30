@@ -70,28 +70,27 @@ def get_call_backs(config, model):
             if not os.path.exists(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"):
                 Utility.run(f"mkdir -p {config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/")
             os.system(f"rm {config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/*")
-            if config.call_type != 4:
-                ik, ak, bk = model.get_weights()
-                ik = [float(x) for x in ik]
-                ak = [float(x) for x in ak]
-                bk = [float(x) for x in bk]
+            ik, ak, bk = model.get_weights()
+            ik = [float(x) for x in ik]
+            ak = [float(x) for x in ak]
+            bk = [float(x) for x in bk]
 
-                with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_I.json", "w") as file:
-                    json.dump(ik, file)
-                with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_A.json", "w") as file:
-                    json.dump(ak, file)
-                with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_B.json", "w") as file:
-                    json.dump(bk, file)
+            with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_I.json", "w") as file:
+                json.dump(ik, file)
+            with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_A.json", "w") as file:
+                json.dump(ak, file)
+            with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_B.json", "w") as file:
+                json.dump(bk, file)
 
 
             with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_I_dense.json", "w") as file:
-                I = model.get_layer("cgp_hmm_layer").C.I_dense if config.call_type != 4 else model.get_layer("cgp_hmm_layer").C.I_full_model
+                I = model.get_layer("cgp_hmm_layer").C.I_dense
                 json.dump(I.numpy().tolist(), file)
             with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_A_dense.json", "w") as file:
-                A = model.get_layer("cgp_hmm_layer").C.A_dense if config.call_type != 4 else model.get_layer("cgp_hmm_layer").C.A_full_model
+                A = model.get_layer("cgp_hmm_layer").C.A_dense
                 json.dump(A.numpy().tolist(), file)
             with open(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_B_dense.json", "w") as file:
-                B = model.get_layer("cgp_hmm_layer").C.B_dense if config.call_type != 4 else model.get_layer("cgp_hmm_layer").C.B_full_model
+                B = model.get_layer("cgp_hmm_layer").C.B_dense
                 json.dump(B.numpy().tolist(), file)
 
             if config.check_for_zeros:
@@ -101,9 +100,6 @@ def get_call_backs(config, model):
                                                                B_dense = B)
 
             model.save_weights(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_weights", overwrite=True, save_format="h5") #todo also try tf as save format
-
-            if config.call_type == 4:
-                pass
 
 
     class get_the_gradient(tf.keras.callbacks.Callback):

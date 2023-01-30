@@ -256,20 +256,3 @@ class CgpHmmCell(tf.keras.layers.Layer):
             verbose_print("loglik", loglik)
 
         return [alpha, inputs, count], [alpha, loglik, count]
-
-################################################################################
-
-if __name__ == '__main__':
-    import numpy as np
-    config = {}
-
-    config["nCodons"] = 1
-    config["order"] = 2
-    config["order_transformed_input"] = True
-    config["call_type"] = 4 # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel
-    config["bench_path"] = f"./bench/{config['nCodons']}codons/{config['call_type']}_{config['order_transformed_input']}orderTransformedInput.log"
-
-    config["alphabet_size"] = 4
-    c = CgpHmmCell(config)
-    print(len(c.get_indices_and_values_for_A_kernel_higher_order(np.arange(10000))[0]))
-    print(len(c.get_indices_for_weights_for_A()), len(c.get_indices_for_constants_for_A()))
