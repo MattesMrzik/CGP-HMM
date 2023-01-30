@@ -21,6 +21,11 @@ class My_Model(Model):
         self.id_to_emi = self.get_dicts_for_emission_tuple_and_id_conversion()[1] # these are dicts
         self.emi_to_id = self.get_dicts_for_emission_tuple_and_id_conversion()[0]
 
+        self.A_is_dense = config.A_is_dense
+        self.A_is_sparse = config.A_is_sparse
+        self.B_is_dense = config.B_is_dense
+        self.B_is_sparse = config.B_is_sparse
+
 
         self.I_indices = self.I_indices()
 
@@ -429,7 +434,6 @@ class My_Model(Model):
             values = tf.concat([weights, consts], axis = 0)
         dense_shape = [self.number_of_emissions, \
                        self.number_of_states]
-        shape_to_apply_softmax_to = (-1, self.config.alphabet_size, self.number_of_states)
 
         if self.config.B_is_sparse:
             emission_matrix = tf.sparse.SparseTensor(indices = self.B_indices, \
@@ -444,6 +448,7 @@ class My_Model(Model):
             emission_matrix = tf.sparse.transpose(emission_matrix)
 
         if self.config.B_is_dense:
+            shape_to_apply_softmax_to = (-1, self.config.alphabet_size, self.number_of_states)
             emission_matrix = tf.scatter_nd(self.B_indices, values, dense_shape)
             mask = tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), dense_shape)
             # reshape
@@ -462,66 +467,50 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
 ################################################################################
-    def export_to_dot_and_png(self, out_path = "this is still hard coded"):
+    def export_to_dot_and_png(self, A_weights, B_weights, out_path = "this is still hard coded"):
+        # TODO: add I parameters???
         import numpy as np
-        n_most_likely_emissions = 3
+        n_labels = self.number_of_emissions ** (self.config.order + 1)
         nCodons = self.config.nCodons
+
+        A = self.A(A_weights) if self.A_is_dense else tf.sparse.to_dense(self.A(A_weights))
+        B = self.B(B_weights) if self.B_is_dense else tf.sparse.to_dense(self.B(B_weights))
+
+        B_reshaped = tf.reshape(B, shape = (-1, self.config.alphabet_size, self.number_of_states))
+        B_argmax = np.argmax(B_reshaped, axis = 1)
 
         id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
         with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
-
-            most_likely = {}
-            with open(f"output/{nCodons}codons/B.{nCodons}codons.txt", "r") as b:
-                for line in b:
-                    line = re.sub("[(|)| ]","", line.strip())
-                    line = re.split(",|;", line)
-                    state = self.state_id_to_str(int(line[0]))
-                    prob = float(line[-1])
-                    if int(line[1]) not in self.id_to_emi:
-                        continue
-                    emissions_tuple = self.id_to_emi[int(line[1])]
-                    emissions_tuple = ("".join(list(map(lambda x: x if x == "X" else id_to_base[int(x)], emissions_tuple))), np.round(prob,4))
-                    # else: # this was else to orderTransformedInput
-                    #     emissions_tuple = ("".join(list(map(lambda x: id_to_base[int(x)], line[1:-1]))), np.round(prob,4))
-                    if not state in most_likely:
-                        most_likely[state] = [emissions_tuple]# = emission, prob
-                    else:
-                        most_likely[state].append(emissions_tuple)
-
-            for key in most_likely.keys():
-                most_likely[key] = sorted(most_likely[key], key = lambda x: x[1], reverse = True)
-                # print(most_likely[key])
             graph.write("DiGraph G{\nrankdir=LR;\n")
             # graph.write("nodesep=0.5; splines=polyline;")
+            for from_state, row in enumerate(A):
+                from_state_str = self.state_id_to_str(from_state)
+                graph.write("\"" + from_state_str + "\"\n") #  this was to_state before
 
-            with open(f"output/{nCodons}codons/A.{nCodons}codons.txt","r") as a:
-                for line in a:
-                    line = re.sub("[(|)| ]","", line.strip())
-                    line = re.split(",|;", line)
-                    i = self.state_id_to_str(int(line[0]))
-                    j = self.state_id_to_str(int(line[1]))
-                    if i == self.state_id_to_str(0):
-                        # graph.write("\""+ j +"\" [shape=record label=\"{{ " + j + "|" + "|".join([str(most_likely[j][k]) for k in range(n_most_likely_emissions)]) + "}}\"];\n")
+                graph.write("[\n")
+                graph.write("\tshape = none\n")
+                graph.write("\tlabel = <<table border=\"0\" cellspacing=\"0\"> \n")
+                try:
+                    color = {"c_":"teal", "i_": "crimson"}[from_state_str[0:2]]
+                except:
+                    color = "white"
 
-                        # or
+                graph.write(f"\t\t<tr><td port=\"port1\" border=\"1\" bgcolor=\"{color}\">" + from_state_str + "</td></tr>\n")
 
-                        graph.write("\"" + j + "\"\n")
-                        graph.write("[\n")
-                        graph.write("\tshape = none\n")
-                        graph.write("\tlabel = <<table border=\"0\" cellspacing=\"0\"> \n")
-                        try:
-                            color = {"c_":"teal", "i_": "crimson"}[j[0:2]]
-                        except:
-                            color = "white"
-                        graph.write(f"\t\t<tr><td port=\"port1\" border=\"1\" bgcolor=\"{color}\">" + j + "</td></tr>\n")
-                        for k in range(n_most_likely_emissions):
-                            graph.write(f"\t\t<tr><td port=\"port{k+2}\" border=\"1\">{most_likely[j][k]}</td></tr>\n" )
-                        graph.write("\t </table>>\n")
-                        graph.write("]\n")
+                for k, most_likely_index in enumerate(B_argmax[:,from_state]):
+                    emission_id = most_likely_index + k * self.config.alphabet_size
+                    emission_str = self.emission_id_to_str(emission_id)
+                    emi_prob = str(np.round(B[emission_id, from_state].numpy(),4))
+                    graph.write(f"\t\t<tr><td port=\"port{k+2}\" border=\"1\">({emission_str + ' ' +emi_prob})</td></tr>\n" )
+                graph.write("\t </table>>\n")
+                graph.write("]\n")
 
-                    prob = float(line[2])
+                for to_state, prob in enumerate(row):
+                    to_state_str = self.state_id_to_str(to_state)
                     if prob > 0:
-                        graph.write(f"\"{i}\" -> \"{j}\" [label = {np.round(prob, 4)} fontsize=\"{30*prob + 5}pt\"]\n")
+                        prob = prob.numpy()
+                        graph.write(f"\"{from_state_str}\" -> \"{to_state_str}\" [label = {str(np.round(prob, 4))[:6]} fontsize=\"{30*prob + 5}pt\"]\n")
+
             graph.write("}")
         # run(f"cat graph.{nCodons}codons.gv")
         from Utility import run
@@ -530,7 +519,7 @@ class My_Model(Model):
 
     # TODO: or do i want to have these functions in the cell, such that i dont have to pass the weights?
     def A_as_dense_to_str(self, weights, with_description = False):
-        A = self.A(weights) if self.config.A_is_dense else tf.sparse.to_dense(self.A(weights))
+        A = self.A(weights) if self.A_is_dense else tf.sparse.to_dense(self.A(weights))
         result = ""
         if with_description:
             result += " "
@@ -552,7 +541,7 @@ class My_Model(Model):
             out_file.write(self.A_as_dense_to_str(weights, with_description))
 
     def B_as_dense_to_str(self, weights, with_description = False):
-        B = self.B(weights) if self.config.B_is_dense else tf.sparse.to_dense(self.B(weights))
+        B = self.B(weights) if self.B_is_dense else tf.sparse.to_dense(self.B(weights))
         result = ""
         if with_description:
             result += " "
