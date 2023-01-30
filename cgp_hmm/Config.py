@@ -33,7 +33,6 @@ class Config():
         assert self.batch_size > 0, "batch_size must be greater than 0"
         assert self.AB in ["dd", "ds", "sd", "ss"], "-AB must be in ['dd', 'ds', 'sd', 'ss']"
 
-
     def add_attribtes(self):
         import tensorflow as tf
 
@@ -64,6 +63,10 @@ class Config():
         #                                     start and stop, i want at least one ig 3' and 5'
         assert self.seq_len >= self.gen_len + 6               + 2, f"self.seq_len ({self.seq_len}) < self.gen_len ({self.gen_len}) + 6 + 2"
 
+        from My_Model import My_Model
+        my_model = My_Model(self)
+        self.model = my_model
+
     def prepare_before_main_programm(self):
         run(f"mkdir -p {self.src_path}/output/{self.nCodons}codons/")
 
@@ -73,9 +76,7 @@ class Config():
         run(f"rm {self.src_path}/{self.bench_path}")
 
     def determine_attributes(self):
-        from My_Model import My_Model
-        my_model = My_Model(self)
-        self.model = my_model
+        pass
         # print("self.indices_for_B in determine_attributes in config =", self.indices_for_B)
 
     def apply_args(self):
@@ -182,6 +183,7 @@ class Config():
         self.add_arg_main('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist for MSAgen')
         self.add_arg_main('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks ie all seqs have the same length")
         self.add_arg_main('--batch_size', type = int, default = 32, help = 'the batch_size, default si 32')
+        self.add_arg_main('--scale_with_const', type = float, default = 0, help = 'scale the forward variables with constant float')
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
