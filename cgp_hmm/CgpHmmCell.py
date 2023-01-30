@@ -253,9 +253,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return [alpha, inputs, count], [alpha, loglik, count]
 
     def write_weights_to_file(self, path): # is this sufficient to get reproducable behaviour?
-        ik = [float(x) for x in self.I_kernel]
-        ak = [float(x) for x in self.A_kernel]
-        bk = [float(x) for x in self.B_kernel]
+        ik = [float(x) for x in self.I_kernel.numpy()]
+        ak = [float(x) for x in self.A_kernel.numpy()]
+        bk = [float(x) for x in self.B_kernel.numpy()]
 
         if not os.path.exists(path):
             os.system(f"mkdir -p {path}")

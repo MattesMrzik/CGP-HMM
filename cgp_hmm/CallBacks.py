@@ -110,12 +110,12 @@ def get_call_backs(config, model):
         callbacks += [exit_after_first_batch()]
     if config.exit_after_loglik_is_nan:
         callbacks += [exit_after_loglik_is_nan()]
+    if config.check_assert:
+        callbacks += [assert_kernels_at_batch_begin()]
     if config.remove_verbose_at_batch_begin:
         callbacks += [remove_verbose_at_batch_begin()]
     if config.batch_begin_write_weights__layer_call_write_inputs:
         callbacks += [batch_begin_write_weights__layer_call_write_inputs()]
-    if config.check_assert:
-        callbacks += [assert_kernels_at_batch_begin()]
     if config.print_batch_id:
         callbacks += [batch_id_at_begin()]
 
