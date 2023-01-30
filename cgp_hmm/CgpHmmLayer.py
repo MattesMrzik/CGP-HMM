@@ -69,6 +69,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         loglik_state = result[4]
         count_state = result[5]
 
+
         if self.config.batch_begin_write_weights__layer_call_write_inputs:
             # os.system(f"rm {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
             # also remove the file at beginning of batch
@@ -129,7 +130,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
                     probs_to_be_punished.append(tf.math.log(1 - \
                                                 self.C.A_dense[self.config.model.str_to_state_id(f, self.nCodons), \
                                                                self.config.model.str_to_state_id(to, self.nCodons)]))
-# 
+#
                 # deletes to be punished
                 for i in range(1, self.C.nCodons):
                     add_reg("stG", f"c_{i},0")
