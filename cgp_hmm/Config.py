@@ -79,8 +79,6 @@ class Config():
         from My_Model import My_Model
         my_model = My_Model(self)
         self.model = my_model
-        my_model.config.print()
-        self.state_id_description_list = my_model.get_state_id_description_list()
         # print("self.indices_for_B in determine_attributes in config =", self.indices_for_B)
 
     def apply_args(self):
@@ -143,9 +141,11 @@ class Config():
                 s += " " * (max_len - len(key[0]))
             s += " = "
             s += str(self.__dict__[key[0]] if key[0] in self.__dict__ else self.parsed_args.__dict__[key[0]]) + "\n"
-        s += "==========> config <==========\n"
-        for key, value in self.__dict__.items():
-            s += f"{key} = {str(value)[:50]}"
+
+        # the attributes including parser
+        # s += "==========> config <==========\n"
+        # for key, value in self.__dict__.items():
+        #     s += f"{key} = {str(value)[:50]}"
         s += "==========> config full <=========="
 
         print(s)
@@ -201,6 +201,7 @@ class Config():
         self.add_arg_main('--get_gradient_from_saved_model_weights', action='store_true', help ="get_gradient_from_saved_model_weights, previous run saved weights when passing --batch_begin_write_weights__layer_call_write_inputs")
         self.add_arg_main('--assert_summarize', type = int, default = 5, help = 'assert_summarize [5]')
         self.add_arg_main('--print_batch_id', action='store_true', help = 'prints the batch id via on_train_batch_begin callback')
+        self.Addarg_main('--write_parameters_after_fit', action ='store_true', help ='after fit write parameters to file')
 
         # debugging
         self.add_arg_main('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")

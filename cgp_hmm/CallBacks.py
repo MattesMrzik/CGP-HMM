@@ -70,6 +70,7 @@ def get_call_backs(config, model):
             if not os.path.exists(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"):
                 Utility.run(f"mkdir -p {config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/")
             os.system(f"rm {config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/*")
+
             ik, ak, bk = model.get_weights()
             ik = [float(x) for x in ik]
             ak = [float(x) for x in ak]

@@ -28,54 +28,18 @@ def main(config):
     plt.plot(history.history['loss'])
     plt.savefig(f"{config.src_path}/progress.png")
 
+    I_kernel, A_kernel, B_kernel = model.get_weights()
 
-    # writing the model parameters to file, to visualize
-    from CgpHmmCell import CgpHmmCell
-    cell = CgpHmmCell(config)
-    cell.I_kernel = model.get_weights()[0]
-    cell.A_kernel = model.get_weights()[1]
-    cell.B_kernel = model.get_weights()[2]
+    if config.write_parameters_after_fit:
+        A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt"
+        # print(config.model.A_as_dense_to_str(cell.A_kernel, with_description = True))
+        config.model.A_as_dense_to_file(A_out_path, A_kernel, with_description = False)
+        config.model.A_as_dense_to_file(A_out_path + ".with_description", A_kernel, with_description = True)
 
-    def printA():
-        global cell, model
-        print(".\t", end ="")
-        for state in range(cell.state_size[0]):
-            print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
-        print()
-        for state in range(cell.state_size[0]):
-            print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
-            for goal_state in cell.A[state]:
-                print((tf.math.round(goal_state*100)/100).numpy(), end = "\t")
-            print()
-    # printA()
-
-    def printB():
-        global cell, model
-        for state in range(len(cell.B)):
-            tf.print(Utility.state_id_to_description(state, cell.nCodons))
-            tf.print(tf.math.round(cell.B[state]*100).numpy()/100, summarize = -1)
-            tf.print("---------------------------------------------")
-    # printB()
-
-    def printI():
-        global cell, model
-        for state in range(len(cell.I)):
-            print(Utility.state_id_to_description(state, cell.nCodons), end = "\t")
-            print(tf.math.round(cell.I[state,0]*100).numpy()/100)
-    # printI()
-
-    # WriteData.write_to_file(cell.I_dense, f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.txt")
-    # WriteData.write_to_file(cell.A_dense, f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt")
-    # WriteData.write_to_file(tf.transpose(cell.B_dense), f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt")
-    A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt"
-    # print(config.model.A_as_dense_to_str(cell.A_kernel, with_description = True))
-    config.model.A_as_dense_to_file(A_out_path, cell.A_kernel, with_description = False)
-    config.model.A_as_dense_to_file(A_out_path + ".with_description", cell.A_kernel, with_description = True)
-
-    B_out_path =f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt"
-    # print(config.model.B_as_dense_to_str(cell.B_kernel, with_description = True))
-    config.model.B_as_dense_to_file(B_out_path, cell.B_kernel, with_description = False)
-    config.model.B_as_dense_to_file(B_out_path + ".with_description", cell.B_kernel, with_description = True)
+        B_out_path =f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt"
+        # print(config.model.B_as_dense_to_str(cell.B_kernel, with_description = True))
+        config.model.B_as_dense_to_file(B_out_path, B_kernel, with_description = False)
+        config.model.B_as_dense_to_file(B_out_path + ".with_description", B_kernel, with_description = True)
 
     if config.nCodons < 10:
         # run(f"python3 {config.src_path}/Visualize.py -c {config.nCodons} -o {config.order} -t")
