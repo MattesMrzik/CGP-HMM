@@ -65,9 +65,26 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         alpha_seq = result[0]
         inputs_seq = result[1]
         count_seq = result[2]
-        alpha_state = result[3]
-        loglik_state = result[4]
-        count_state = result[5]
+        Z_i_seq = result[3]
+        alpha_state = result[4]
+        loglik_state = result[5]
+        count_state = result[6]
+
+        # alpha_seq = result[0]
+        # inputs_seq = result[1]
+        # count_seq = result[2]
+        # alpha_state = result[3]
+        # loglik_state = result[4]
+        # count_state = result[5]
+
+        # if training:
+        #
+        #     # if a mask is used this has to be adjusted
+        #     if self.config.scale_with_conditional_const:
+        #         pass
+        #     elif self.config.scale_with_const:
+        #         tf.print("<asdfwesbgfdd")
+        #         # loglik_state = tf.math.log(self.config.scale_with_const) - tf.math.log(tf.shape(inputs)[1]) - tf.math.log(self.config.scale_with_const)
 
 
         if self.config.batch_begin_write_weights__layer_call_write_inputs:
@@ -95,7 +112,19 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         def my_loss(loglik_state):
             probs_to_be_punished = []
-            loglik_mean = tf.reduce_mean(loglik_state)
+            if not self.config.scale_with_conditional_const and not self.config.scale_with_const:
+                if self.config.felix:
+                    loglik_mean = tf.reduce_mean(loglik_state)
+                else:
+                    loglik_mean = tf.reduce_mean(loglik_state + tf.math.log(tf.reduce_sum(alpha_state, axis = -1)))
+            else:
+                if self.config.scale_with_const:
+                    length = tf.cast(tf.shape(inputs)[1], dtype=tf.float32)
+                    loglik_mean = tf.reduce_mean(tf.math.log(loglik_state)-length * tf.math.log(self.config.scale_with_const))
+                else:
+                    # TODO: need to apply log before mean
+                    loglik_mean = tf.reduce_mean(loglik_state)
+
             if self.config.check_assert:
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_state)), [loglik_state],              name = "loglik_state_is_finite", summarize = self.config.assert_summarize)
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_mean)),  [loglik_mean, loglik_state], name = "loglik_mean_is_finite",  summarize = self.config.assert_summarize)
@@ -130,7 +159,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
                     probs_to_be_punished.append(tf.math.log(1 - \
                                                 self.C.A_dense[self.config.model.str_to_state_id(f, self.nCodons), \
                                                                self.config.model.str_to_state_id(to, self.nCodons)]))
-#
+
                 # deletes to be punished
                 for i in range(1, self.C.nCodons):
                     add_reg("stG", f"c_{i},0")

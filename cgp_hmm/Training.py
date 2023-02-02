@@ -212,8 +212,100 @@ def fit_model(config):
                 print()
         exit()
 
+
 ################################################################################
-    elif config.manual_traning_loop:
+    elif config.manual_forward:
+            config.A_dense = True
+            config.A_sparse = False
+            config.B_dense = True
+            config.B_sparse = False
+
+            layer = CgpHmmLayer(config)
+
+
+            layer.build(None)
+            layer.C.build(None)
+            cell = layer.C
+            batchsize = config.batch_size
+            low = 0
+            n = len(seqs)
+            high = min(batchsize, n)
+            for epoch in range(config.epochs):
+                for step in range(config.steps_per_epoch):
+                    # print(f"low = {low}, high = {high}")
+                    batch = seqs[low : high]
+
+                    low = low + batchsize if low + batchsize < n else 0
+                    if high == n:
+                        high = min(batchsize, n)
+                    elif high + batchsize > n:
+                        high = n
+                    else:
+                        high += batchsize
+
+                    max_len_seq_in_batch = max([len(seq) for seq in batch])
+                    # print("max_len_seq_in_batch =", max_len_seq_in_batch)
+                    batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq) + 1) for seq in batch]
+                    batch = tf.one_hot(batch, config.model.number_of_emissions)
+                    # tf.print("batch = ", batch, summarize = -1)
+
+
+                    # felix
+                    alpha = tf.matmul(batch[:,0,:], cell.B) * cell.I
+                    prod_zi =  1
+                    loglike = tf.math.log(tf.reduce_sum(alpha, axis = 1))
+                    for i in range(1, max_len_seq_in_batch + 1):
+                        # E * R
+                        z_i_minus_1 = tf.reduce_sum(alpha, axis = 1, keepdims = True)
+                        # print("i =", i)
+                        # print("z_i_minus_1 =", z_i_minus_1)
+                        prod_zi *= z_i_minus_1
+                        alpha =  tf.matmul(batch[:,i,:], cell.B) * tf.matmul(alpha, cell.A)
+                        # print("alpha =", alpha)
+                        alpha = tf.math.divide(alpha, z_i_minus_1)
+                        loglike += tf.math.log(tf.reduce_sum(alpha, axis = 1))
+                    # print("alpha =", alpha)
+                    print("\n=========> felix <===========")
+                    print("mean(loglike += log(sum_q(alpha))", tf.reduce_mean(loglike))
+                    print("mean(log(sum_q(alpha * prod_zi)))", tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha * prod_zi, axis=1))))
+                    # is there another way to get P(Y)
+
+                    # only one reduce sum
+                    alpha = tf.matmul(batch[:,0,:], cell.B) * cell.I
+                    z_0 = tf.reduce_sum(alpha, axis =1, keepdims = True)
+                    loglike = tf.math.log(tf.reduce_sum(alpha, axis = 1))
+                    alpha = tf.math.divide(alpha, z_0)
+                    prod_zi = z_0
+                    for i in range(1, max_len_seq_in_batch + 1):
+                        # E * R
+                        alpha =  tf.matmul(batch[:,i,:], cell.B) * tf.matmul(alpha, cell.A)
+                        loglike += tf.math.log(tf.reduce_sum(alpha, axis = 1))
+
+                        z_i = tf.reduce_sum(alpha, axis = 1, keepdims = True)
+                        prod_zi *= z_i
+                        alpha = tf.math.divide(alpha, z_i)
+
+                    print("\n=========> mattes <===========")
+                    print("mean(loglike += log(sum_q(alpha)) + log(sum_q(alpha))", tf.reduce_mean(loglike + tf.math.log(tf.reduce_sum(alpha, axis = 1))))
+                    print("mean(log(sum_q(alpha * prod_zi)))", tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha * prod_zi, axis=1))))
+
+
+                    # manual_forward
+                    alpha = tf.matmul(batch[:,0,:], cell.B) * cell.I
+                    for i in range(1, max_len_seq_in_batch + 1):
+                        # E * R
+                        alpha =  tf.matmul(batch[:,i,:], cell.B) * tf.matmul(alpha, cell.A)
+
+                    loglike = tf.math.log(tf.reduce_sum(alpha, axis=1))
+                    mean_loglike = tf.reduce_mean(loglike)
+
+                    print("\n=========> alpha dp <===========")
+                    print("mean(log(sum_q(alpha)))=", mean_loglike)
+                    print()
+
+            exit()
+
+    elif config.manual_training_loop:
         #  get the very first init weights of a run that resulted in nan
         # maybe this is not necessary, since i can run with --dont_generate_new_seqs flag,
         # and even though the kernels are always initialized differently nan always occur
@@ -242,7 +334,7 @@ def fit_model(config):
 
                 max_len_seq_in_batch = max([len(seq) for seq in batch])
                 # print("max_len_seq_in_batch =", max_len_seq_in_batch)
-                batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq)) for seq in batch]
+                batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq) + 1) for seq in batch]
                 batch = tf.one_hot(batch, n_emission_columns_in_B(config.alphabet_size, config.order))
                 # tf.print("batch = ", batch, summarize = -1)
 

@@ -171,6 +171,9 @@ class My_Model(Model):
 ################################################################################
     # TODO: maybe use small letters instead of capital ones
     def I_indices(self):
+        only_start_in_ig5 = True
+        if only_start_in_ig5:
+            return [[0,0]]
         # start and codons
         indices = [[i,0] for i in range(3 + self.config.nCodons*3)]
         # inserts
@@ -413,6 +416,7 @@ class My_Model(Model):
         dense_shape = [self.number_of_states, self.number_of_states]
 
         if self.config.A_is_sparse:
+            # print("a sparse")
             transition_matrix = tf.sparse.SparseTensor(indices = self.A_indices, \
                                                        values = values, \
                                                        dense_shape = dense_shape)
@@ -421,6 +425,7 @@ class My_Model(Model):
             transition_matrix = tf.sparse.softmax(transition_matrix, name = "A_sparse")
 
         if self.config.A_is_dense:
+            # print("a dense")
             transition_matrix = tf.scatter_nd(self.A_indices, values, dense_shape)
             softmax_layer = tf.keras.layers.Softmax()
             mask = tf.scatter_nd(self.A_indices, [1.0] * len(self.A_indices), dense_shape)
@@ -439,6 +444,7 @@ class My_Model(Model):
                        self.number_of_states]
 
         if self.config.B_is_sparse:
+            # print("b sparse")
             emission_matrix = tf.sparse.SparseTensor(indices = self.B_indices, \
                                                      values = values, \
                                                      dense_shape = dense_shape)
@@ -451,6 +457,7 @@ class My_Model(Model):
             emission_matrix = tf.sparse.transpose(emission_matrix)
 
         if self.config.B_is_dense:
+            # print("b dense")
             shape_to_apply_softmax_to = (-1, self.config.alphabet_size, self.number_of_states)
             emission_matrix = tf.scatter_nd(self.B_indices, values, dense_shape)
             mask = tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), dense_shape)

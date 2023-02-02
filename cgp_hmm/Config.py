@@ -28,10 +28,22 @@ class Config():
 
         if self.get_gradient_of_first_batch:
             assert self.batch_size == 32, "if you pass get_gradient_of_first_batch, then batch_size must be 32 (=default)"
-        if self.manual_traning_loop:
-            assert self.batch_size == 32, "if you pass manual_traning_loop, then batch_size must be 32 (=default)"
+        if self.manual_training_loop:
+            assert self.batch_size == 32, "if you pass manual_training_loop, then batch_size must be 32 (=default)"
         assert self.batch_size > 0, "batch_size must be greater than 0"
         assert self.AB in ["dd", "ds", "sd", "ss"], "-AB must be in ['dd', 'ds', 'sd', 'ss']"
+
+        if self.scale_with_conditional_const:
+            assert self.scale_with_const == 0, "if you pass --scale_with_conditional_const, then --scale_with_const must be 0"
+            assert not self.felix, "not felix"
+
+        if self.scale_with_const:
+            assert not self.felix, "not felix"
+
+        if self.felix:
+            assert not self.scale_with_const, "felix is on, so not scale with const"
+            assert not self.scale_with_conditional_const, "felix is on, so not scale with conditional_const"
+
 
     def add_attribtes(self):
         import tensorflow as tf
@@ -184,6 +196,8 @@ class Config():
         self.add_arg_main('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks ie all seqs have the same length")
         self.add_arg_main('--batch_size', type = int, default = 32, help = 'the batch_size, default si 32')
         self.add_arg_main('--scale_with_const', type = float, default = 0, help = 'scale the forward variables with constant float')
+        self.add_arg_main('--scale_with_conditional_const', action = "store_true", help = 'scale the forward variables with constant if they are too small')
+        self.add_arg_main('--felix', action='store_true',  help = 'use felix forward version')
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
@@ -206,16 +220,17 @@ class Config():
         self.add_arg_main('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
         self.add_arg_main('-n', '--exit_after_loglik_is_nan', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
         self.add_arg_main('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
-        self.add_arg_main('--manual_traning_loop', action='store_true', help ="manual_traning_loop")
+        self.add_arg_main('--manual_training_loop', action='store_true', help ="manual_training_loop")
         self.add_arg_main('--dont_check_assert', action='store_true', help ="dont_check_assert")
         self.add_arg_main('--run_eagerly', action='store_true', help ='run model.fit in eager execution')
-        self.add_arg_main('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_traning_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
+        self.add_arg_main('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
         self.add_arg_main('--init_weights_from_txt', action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --batch_begin_write_weights__layer_call_write_inputs was passed')
         self.add_arg_main('--no_deletes', action='store_true', help = 'the delete transitions in A are removed')
         self.add_arg_main('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
         self.add_arg_main('--forced_gene_structure', action='store_true', help = 'TGs in igs and ACs in coding, ie the state seq is determinded by emission seq')
         self.add_arg_main('--check_for_zeros', action='store_true', help = 'must be passed together with --batch, checks for zeros in parameters')
         self.add_arg_main('--use_constant_initializer', action='store_true', help = 'init weights with all ones')
+        self.add_arg_main('--manual_forward', action = 'store_true', help = 'gets mean likelihood of with manual loop')
 
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""

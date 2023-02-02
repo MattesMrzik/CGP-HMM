@@ -161,25 +161,20 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
     def get_R(self, old_forward, init = False):
         if init:
-            return self.I, tf.cast(1.0, dtype = self.config.dtype) # bc return must be same in main and off branch, must be != 0 bc assert check z != 0
+            return self.I
 
-        if self.config.scale_with_const:
-            scaled_forward = old_forward * self.config.scale_with_const
-            Z_i_minus_1 = 1.0
-        else:
-            Z_i_minus_1 = tf.reduce_sum(old_forward, axis = 1, keepdims = True)
-            scaled_forward = old_forward / Z_i_minus_1
         # if add_epsilon_to_z:
-        #     Z_i_minus_1 = tf.math.add(Z_i_minus_1, add_epsilon_to_z)
+        #     Z_i = tf.math.add(Z_i, add_epsilon_to_z)
         if self.config.A_is_sparse:
-            R = tf.sparse.sparse_dense_matmul(scaled_forward, self.A)
+            R = tf.sparse.sparse_dense_matmul(old_forward, self.A)
         else:
-            R = tf.matmul(scaled_forward, self.A)
+            R = tf.matmul(old_forward, self.A)
 
-        return R, Z_i_minus_1
+        return R
 
 ################################################################################
-    def call(self, inputs, states, training = None): # call_sparse
+
+    def call(self, inputs, states, training = None): # how often is the graph for this build?
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse: tf")
 
@@ -195,9 +190,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_kernel)), [self.B_kernel], name = "B_kernel_beginning_of_cell", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.I_dense)),  [self.I_dense, count[0,0]], name = "I_dense_beginning_of_call", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)),  [self.A_dense, old_forward, count[0,0]], name = "A_dense_beginning_of_call", summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)),  [self.B_dense, count[0,0]], name = "B_dense_beginning_of_call", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)),  [self.B_dense,  count[0,0]], name = "B_dense_beginning_of_call", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),   [old_forward,   count[0,0]], name = "old_forward",              summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),[old_loglik,    count[0,0]], name = "old_loglik",               summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),[old_loglik,        count[0,0]], name = "old_loglik",               summarize = self.config.assert_summarize)
 
         run_id = randint(0,100)
 
@@ -227,25 +222,46 @@ class CgpHmmCell(tf.keras.layers.Layer):
             verbose_print("old_loglik", old_loglik)
             verbose_print("E", E)
 
-        R, Z_i_minus_1 = self.get_R(old_forward, init = count[0,0] == 1)
+        R = self.get_R(old_forward, init = count[0,0] == 1)
 
         if self.config.check_assert:
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(Z_i_minus_1)),  [Z_i_minus_1, count[0,0]],  name = "z_finite",  summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(Z_i_minus_1 != 0),                [Z_i_minus_1, count[0,0]],  name = "z_nonzero", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(R)),            [R, count[0,0]],            name = "R_finite",  summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(E)),            [E, count[0,0]],            name = "E_finite",  summarize = self.config.assert_summarize)
-        alpha = E * R # batch_size * state_size
+
+        unscaled_alpha = E * R # batch_size * state_size
+
+        if self.config.scale_with_const:
+            scaled_alpha = unscaled_alpha * self.config.scale_with_const
+            loglik = tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True)
+            Z_i = loglik # just to have a value to be returned
+        elif self.config.scale_with_conditional_const:
+            Z_i = tf.reduce_sum(unscaled_alpha, axis = 1, keepdims = True)
+            Z_i = tf.cast(Z_i < 0.1, dtype = self.config.dtype)
+            Z_i *= 9
+            Z_i += 1
+            scaled_alpha = unscaled_alpha * Z_i
+            loglik = tf.reduce_sum(scaled_alpha, axis = -1, keepdims = True, name = "likelihood")
+        elif self.config.felix:
+            if count[0,0] != 1:
+                Z_i = tf.reduce_sum(old_forward, axis = 1, keepdims = True, name = "felix_z")
+                scaled_alpha = tf.math.divide(unscaled_alpha, Z_i)
+            else:
+                scaled_alpha = unscaled_alpha
+                Z_i = unscaled_alpha
+            # scaled_alpha = unscaled_alpha
+            loglik = tf.math.add(old_loglik, tf.math.log(tf.reduce_sum(scaled_alpha, axis = -1)), name = "loglik")
+        else:
+            Z_i = tf.reduce_sum(unscaled_alpha, axis = 1, keepdims = True, name = "my_z")
+            loglik = tf.math.add(old_loglik, tf.math.log(Z_i), name = "loglik")
+            scaled_alpha = unscaled_alpha / Z_i
 
         # keepsdims is true such that shape of result is (32,1) rather than (32,)
         # loglik = old_loglik + tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "loglik"))
-        if not self.config.scale_with_const:
-            loglik = tf.math.add(old_loglik, tf.math.log(tf.reduce_sum(alpha, axis = -1, keepdims = True)), name = "loglik")
-        else:
-            loglik = tf.reduce_sum(alpha, axis = -1, keepdims = True, name = "likelihood")
 
         if self.config.check_assert:
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),  [alpha, count[0,0], alpha],  name = "alpha",         summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)), [loglik, count[0,0],[123456789], alpha, [123456789], E,[123456789],  R, [123456789], inputs], name = "loglik_finite", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(scaled_alpha)),  [scaled_alpha, count[0,0]],  name = "alpha",         summarize = self.config.assert_summarize)
+
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)), [loglik, count[0,0],[123456789], scaled_alpha, [123456789], E,[123456789],  R, [123456789], inputs], name = "loglik_finite", summarize = self.config.assert_summarize)
             # i think this should be allowed since sum across alpha can be 1, then log is 0, which is fine
             # tf.debugging.Assert(tf.math.reduce_all(loglik != 0),                     [loglik, count[0,0]],       name = "loglik_nonzero",            summarize = -1)
 
@@ -253,9 +269,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         if verbose:
             verbose_print("R", R)
-            verbose_print("forward", alpha)
+            verbose_print("forward", scaled_alpha)
             verbose_print("loglik", loglik)
-        return [alpha, inputs, count], [alpha, loglik, count]
+
+        return [scaled_alpha, inputs, count, Z_i], [scaled_alpha, loglik, count]
+
+################################################################################
 
     def write_weights_to_file(self, path): # is this sufficient to get reproducable behaviour?
         ik = [float(x) for x in self.I_kernel.numpy()]
