@@ -306,6 +306,7 @@ def fit_model(config):
             exit()
 
     elif config.manual_training_loop:
+        assert self.conifg.return_seqs, "if manual training loop then return seqs must be true"
         #  get the very first init weights of a run that resulted in nan
         # maybe this is not necessary, since i can run with --dont_generate_new_seqs flag,
         # and even though the kernels are always initialized differently nan always occur

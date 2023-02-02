@@ -44,7 +44,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # self.C.build(input_shape) # build
         # this isnt needed for training but when calling the layer, then i need to build C manually, but it is then called
         # a second time when calling F
-        self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = True) # F = forward ie the chain of cells C
+        self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = self.config.return_seqs) # F = forward ie the chain of cells C
 
         append_time_ram_stamp_to_file(start, f"Layer.build() end   {run_id}", self.config.bench_path)
 
@@ -62,21 +62,33 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         result = self.F(inputs) #  build and call of CgpHmmCell are called
 
         # i think this is an artefact from a previous version, where i would sometimes return an additional value. I think this can be unwrapped right away on the preceeding line
-        alpha_seq = result[0]
-        inputs_seq = result[1]
-        count_seq = result[2]
-        Z_i_seq = result[3]
-        alpha_state = result[4]
-        loglik_state = result[5]
-        count_state = result[6]
-
+        scale_count_state = 0
+        if self.config.return_seqs:
+            alpha_seq = result[0]
+            inputs_seq = result[1]
+            count_seq = result[2]
+            Z_i_seq = result[3]
+            alpha_state = result[4]
+            loglik_state = result[5]
+            count_state = result[6]
+            if self.config.scale_with_conditional_const:
+                # print("scale_count_state")
+                scale_count_state = result[7]
+        else:
+            alpha_state = result[0]
+            loglik_state = result[1]
+            count_state = result[2]
+            if self.config.scale_with_conditional_const:
+                # print("scale_count_state")
+                scale_count_state = result[3]
         # alpha_seq = result[0]
         # inputs_seq = result[1]
         # count_seq = result[2]
         # alpha_state = result[3]
         # loglik_state = result[4]
         # count_state = result[5]
-
+        # if self.config.scale_with_conditional_const:
+        #     tf.print("scale_count_state =", scale_count_state, summarize = -1)
         # if training:
         #
         #     # if a mask is used this has to be adjusted
@@ -110,80 +122,83 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         # squeeze removes dimensions of size 1, ie shape (1,3,2,1) -> (3,2)
 
-        def my_loss(loglik_state):
-            probs_to_be_punished = []
-            if not self.config.scale_with_conditional_const and not self.config.scale_with_const:
-                if self.config.felix:
-                    loglik_mean = tf.reduce_mean(loglik_state)
-                else:
-                    loglik_mean = tf.reduce_mean(loglik_state + tf.math.log(tf.reduce_sum(alpha_state, axis = -1)))
-            else:
-                if self.config.scale_with_const:
-                    length = tf.cast(tf.shape(inputs)[1], dtype=tf.float32)
-                    loglik_mean = tf.reduce_mean(tf.math.log(loglik_state)-length * tf.math.log(self.config.scale_with_const))
-                else:
-                    # TODO: need to apply log before mean
-                    loglik_mean = tf.reduce_mean(loglik_state)
 
-            if self.config.check_assert:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_state)), [loglik_state],              name = "loglik_state_is_finite", summarize = self.config.assert_summarize)
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_mean)),  [loglik_mean, loglik_state], name = "loglik_mean_is_finite",  summarize = self.config.assert_summarize)
+        probs_to_be_punished = []
+        if self.config.scale_with_const:
+            length = tf.cast(tf.shape(inputs)[1], dtype=tf.float32)
+            loglik_mean = tf.reduce_mean(tf.math.log(loglik_state) - length * tf.math.log(self.config.scale_with_const))
+        elif self.config.scale_with_conditional_const:
+            print("layer scale_with_conditional_const")
+            # print("scale_count_state =", scale_count_state)
+            scale_count_state = tf.cast(scale_count_state, dtype=tf.float32) #  das sind ja eigentlich ints. kann da überhaupt eine ableitung gebildet werden?
+            loglik_mean = tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha_state, axis = 1)) - scale_count_state * tf.math.log(10.0))
 
-            if training:
-                # self.add_metric(loglik_mean, "loglik")
+        elif self.config.felix:
+            loglik_mean = tf.reduce_mean(loglik_state)
+        else:
+            loglik_mean = tf.reduce_mean(loglik_state + tf.math.log(tf.reduce_sum(alpha_state, axis = -1)))
 
-                self.add_metric(tf.math.reduce_max(self.C.I_kernel),"ik_max")
-                self.add_metric(tf.math.reduce_min(self.C.I_kernel),"ik_min")
+        if self.config.check_assert:
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_state)), [loglik_state],              name = "loglik_state_is_finite", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_mean)),  [loglik_mean, loglik_state], name = "loglik_mean_is_finite",  summarize = self.config.assert_summarize)
 
-                # self.add_metric(tf.math.reduce_max(self.C.I_dense),"I_max")
-                # self.add_metric(tf.math.reduce_min(self.C.I_dense),"I_min")
+        if training:
+            # self.add_metric(loglik_mean, "loglik")
 
-                self.add_metric(tf.math.reduce_max(self.C.A_kernel),"tk_max")
-                self.add_metric(tf.math.reduce_min(self.C.A_kernel),"tk_min")
+            self.add_metric(tf.math.reduce_max(self.C.I_kernel),"ik_max")
+            self.add_metric(tf.math.reduce_min(self.C.I_kernel),"ik_min")
 
-                # self.add_metric(tf.math.reduce_max(self.C.A_dense),"A_max")
-                # self.add_metric(tf.math.reduce_min(self.C.A_dense),"A_min")
+            # self.add_metric(tf.math.reduce_max(self.C.I_dense),"I_max")
+            # self.add_metric(tf.math.reduce_min(self.C.I_dense),"I_min")
 
-                self.add_metric(tf.math.reduce_max(self.C.B_kernel),"ek_max")
-                self.add_metric(tf.math.reduce_min(self.C.B_kernel),"ek_min")
+            self.add_metric(tf.math.reduce_max(self.C.A_kernel),"tk_max")
+            self.add_metric(tf.math.reduce_min(self.C.A_kernel),"tk_min")
 
-                # self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
-                # self.add_metric(tf.math.reduce_min(self.C.B_dense),"B_min")
+            # self.add_metric(tf.math.reduce_max(self.C.A_dense),"A_max")
+            # self.add_metric(tf.math.reduce_min(self.C.A_dense),"A_min")
 
-            use_reg = False
-            if use_reg:
-                # regularization
-                # siehe Treffen_04
-                alpha = 4 # todo: scale punishment for inserts with different factor?
-                def add_reg(f, to):
-                    probs_to_be_punished.append(tf.math.log(1 - \
-                                                self.C.A_dense[self.config.model.str_to_state_id(f, self.nCodons), \
-                                                               self.config.model.str_to_state_id(to, self.nCodons)]))
+            self.add_metric(tf.math.reduce_max(self.C.B_kernel),"ek_max")
+            self.add_metric(tf.math.reduce_min(self.C.B_kernel),"ek_min")
 
-                # deletes to be punished
-                for i in range(1, self.C.nCodons):
-                    add_reg("stG", f"c_{i},0")
-                add_reg("stG", "stop1")
-                for i in range(self.C.nCodons - 1):
-                    for j in range(i + 2, self.C.nCodons):
-                        add_reg(f"c_{i},2", f"c_{j},0")
-                    add_reg(f"c_{i},2", "stop1")
-                # inserts to be punished
-                add_reg("stG", "i_0,0")
-                for i in range(self.C.nCodons):
-                    add_reg(f"c_{i},2", f"i_{i+1},0")
+            # self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
+            # self.add_metric(tf.math.reduce_min(self.C.B_dense),"B_min")
 
-                reg_mean = sum(probs_to_be_punished) / len(probs_to_be_punished)
+        use_reg = False
+        if use_reg:
+            # regularization
+            # siehe Treffen_04
+            alpha = 4 # todo: scale punishment for inserts with different factor?
+            def add_reg(f, to):
+                probs_to_be_punished.append(tf.math.log(1 - \
+                                            self.C.A_dense[self.config.model.str_to_state_id(f, self.nCodons), \
+                                                           self.config.model.str_to_state_id(to, self.nCodons)]))
 
-                if loglik_mean < 0 and reg_mean >0:
-                    tf.print("not same sign")
-                if loglik_mean > 0 and reg_mean <0:
-                    tf.print("not same sign")
-                return tf.squeeze(-loglik_mean - alpha * reg_mean)
-            else:
-                return tf.squeeze(-loglik_mean)
-        # end myloss()
-        self.add_loss(my_loss(loglik_state))
+            # deletes to be punished
+            for i in range(1, self.C.nCodons):
+                add_reg("stG", f"c_{i},0")
+            add_reg("stG", "stop1")
+            for i in range(self.C.nCodons - 1):
+                for j in range(i + 2, self.C.nCodons):
+                    add_reg(f"c_{i},2", f"c_{j},0")
+                add_reg(f"c_{i},2", "stop1")
+            # inserts to be punished
+            add_reg("stG", "i_0,0")
+            for i in range(self.C.nCodons):
+                add_reg(f"c_{i},2", f"i_{i+1},0")
+
+            reg_mean = sum(probs_to_be_punished) / len(probs_to_be_punished)
+
+            if loglik_mean < 0 and reg_mean >0:
+                tf.print("not same sign")
+            if loglik_mean > 0 and reg_mean <0:
+                tf.print("not same sign")
+            self.add_loss(tf.squeeze(-loglik_mean - alpha * reg_mean))
+        else:
+            self.add_loss(tf.squeeze(-loglik_mean))
+
 
         append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config.bench_path)
-        return loglik_state, alpha_seq
+        if self.config.return_seqs:
+            return loglik_state, alpha_seq
+        else:
+            return loglik_state

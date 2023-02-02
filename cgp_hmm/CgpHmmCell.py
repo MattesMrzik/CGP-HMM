@@ -34,7 +34,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         self.config = config
 
-        self.state_size = [config.model.number_of_states, 1, 1]
+        if config.scale_with_conditional_const:
+            self.state_size = [config.model.number_of_states, 1, 1, 1]
+        else:
+            self.state_size = [config.model.number_of_states, 1, 1]
 
         # self.indices_for_weights_A = self.get_indices_for_weights_for_A()
         # # vielleich einfach den consts auch ein weigt geben, welches durch softmax eh dann 1 wird
@@ -177,8 +180,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def call(self, inputs, states, training = None): # how often is the graph for this build?
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse: tf")
-
-        old_forward, old_loglik, count = states
+        if self.config.scale_with_conditional_const:
+            old_forward, old_loglik, count, old_scale_count = states
+        else:
+            old_forward, old_loglik, count = states
         # TODO: make this a bool
         # print("optype", self.A_dense.op.type)
         count = tf.math.add(count, 1)
@@ -237,6 +242,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         elif self.config.scale_with_conditional_const:
             Z_i = tf.reduce_sum(unscaled_alpha, axis = 1, keepdims = True)
             Z_i = tf.cast(Z_i < 0.1, dtype = self.config.dtype)
+            scale_count = old_scale_count + Z_i
             Z_i *= 9
             Z_i += 1
             scaled_alpha = unscaled_alpha * Z_i
@@ -272,7 +278,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
             verbose_print("forward", scaled_alpha)
             verbose_print("loglik", loglik)
 
-        return [scaled_alpha, inputs, count, Z_i], [scaled_alpha, loglik, count]
+        if self.config.scale_with_conditional_const:
+            states = [scaled_alpha, loglik, count, scale_count]
+        else:
+            states = [scaled_alpha, loglik, count]
+        if self.config.return_seqs:
+            return [scaled_alpha, inputs, count, Z_i], states
+        else:
+            return [], states
 
 ################################################################################
 

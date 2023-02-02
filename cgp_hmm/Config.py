@@ -38,6 +38,7 @@ class Config():
             assert not self.felix, "not felix"
 
         if self.scale_with_const:
+            assert not self.scale_with_conditional_const, "not scale_with_const"
             assert not self.felix, "not felix"
 
         if self.felix:
@@ -198,6 +199,7 @@ class Config():
         self.add_arg_main('--scale_with_const', type = float, default = 0, help = 'scale the forward variables with constant float')
         self.add_arg_main('--scale_with_conditional_const', action = "store_true", help = 'scale the forward variables with constant if they are too small')
         self.add_arg_main('--felix', action='store_true',  help = 'use felix forward version')
+        self.add_arg_main('--return_seqs', action = 'store_true', help = 'the RNN and layer.py return seq = [alpha, count, inputs]')
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
