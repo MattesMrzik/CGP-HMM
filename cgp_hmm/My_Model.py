@@ -185,8 +185,14 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
     def A_indices_for_constants(self):
+
+        indices = []
+        # from ig 5'
+        if self.config.ig5_const_transition:
+            indices += [[0,0], [0,1]]
+
         # from start a
-        indices = [[1,2]]
+        indices += [[1,2]]
         # from start t
         indices += [[2,3]]
 
@@ -220,8 +226,11 @@ class My_Model(Model):
         return indices
 
     def A_indices_for_weights(self): # no shared parameters
+
+        indices = []
         # from ig 5'
-        indices = [[0,0], [0,1]]
+        if not self.config.ig5_const_transition:
+            indices += [[0,0], [0,1]]
 
         # enter codon
         indices += [[3 + i*3, 4 + i*3] for i in range(self.config.nCodons)]
@@ -252,6 +261,11 @@ class My_Model(Model):
 
     def A_indices(self):
         return self.A_indices_for_weights + self.A_indices_for_constants
+
+    def A_consts(self):
+        if self.config.ig5_const_transition:
+            return tf.cast(tf.concat([[5.0,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
+        return tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
 ################################################################################
 ################################################################################
 ################################################################################
@@ -410,7 +424,7 @@ class My_Model(Model):
         if self.config.use_weights_for_consts:
             values = weights
         else:
-            consts = tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
+            consts = self.A_consts()
             values = tf.concat([weights, consts], axis = 0)
         dense_shape = [self.number_of_states, self.number_of_states]
 

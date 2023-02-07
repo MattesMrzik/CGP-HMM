@@ -45,6 +45,9 @@ class Config():
             assert not self.scale_with_const, "felix is on, so not scale with const"
             assert not self.scale_with_conditional_const, "felix is on, so not scale with conditional_const"
 
+        if self.ig5_const_transition:
+            assert not self.use_weights_for_consts, "if --ig5_const_transition then --use_weights_for_consts cant be used"
+
 
     def add_attribtes(self):
         import tensorflow as tf
@@ -201,6 +204,7 @@ class Config():
         self.add_arg_main('--felix', action='store_true',  help = 'use felix forward version')
         self.add_arg_main('--logsumexp', action = "store_true", help = "logsumexp")
         self.add_arg_main('--return_seqs', action = 'store_true', help = 'the RNN and layer.py return seq = [alpha, count, inputs]')
+        self.add_arg_main('--ig5_const_transition', action = 'store_true', help = "uses const transition from ig5 -> ig5 and ig5 -> startA")
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
