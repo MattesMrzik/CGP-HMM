@@ -106,6 +106,8 @@ def get_call_backs(config, model):
     callbacks = [write_time_ram_epoch_start_callback(),
                  write_time_ram_epoch_end_callback()]
 
+    if config.print_batch_id:
+        callbacks += [batch_id_at_begin()]
     if config.exit_after_first_batch:
         callbacks += [exit_after_first_batch()]
     if config.exit_after_loglik_is_nan:
@@ -116,8 +118,6 @@ def get_call_backs(config, model):
         callbacks += [remove_verbose_at_batch_begin()]
     if config.batch_begin_write_weights__layer_call_write_inputs:
         callbacks += [batch_begin_write_weights__layer_call_write_inputs()]
-    if config.print_batch_id:
-        callbacks += [batch_id_at_begin()]
 
     callbacks += [get_the_gradient()]
 

@@ -155,7 +155,8 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
     def I_kernel_size(self):
-        return len(self.I_indices)
+        # return len(self.I_indices)
+        return 0
 
     def A_kernel_size(self):
         if self.config.use_weights_for_consts:
@@ -400,12 +401,10 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
     def I(self, weights):
-        # always has to to be dense, since R must the same on the main and off branch, and off branch R is dense and main R = I
-        initial_matrix = tf.sparse.SparseTensor(indices = self.I_indices, values = weights, dense_shape = [self.number_of_states,1])
-        initial_matrix = tf.sparse.reorder(initial_matrix)
-        initial_matrix = tf.sparse.reshape(initial_matrix, (1,self.number_of_states), name = "I_sparse")
-        initial_matrix = tf.sparse.softmax(initial_matrix, name = "I_sparse")
-        return tf.sparse.to_dense(initial_matrix, name = "I_dense")
+        # initial_matrix = tf.scatter_nd([[0,0]], [1.0], [self.number_of_states,1])
+        initial_matrix = tf.scatter_nd([[0,0]], [1.0], [1, self.number_of_states])
+        return initial_matrix
+
 ################################################################################
     def A(self, weights):
         if self.config.use_weights_for_consts:
@@ -452,7 +451,9 @@ class My_Model(Model):
             emission_matrix = tf.sparse.reorder(emission_matrix)
             emission_matrix = tf.sparse.transpose(emission_matrix)
             emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1, self.config.alphabet_size))
-            emission_matrix = tf.sparse.softmax(emission_matrix)
+            emission_matrix = tf.sparse.softmax(emission_matrix)# for sparse only sparse.softmax works, which has no arg "axis"
+            softmax_layer = tf.keras.layers.Softmax(axis = 1)
+            softmax_layer(emission_matrix)
             emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, self.number_of_emissions), name = "B_sparse")
             emission_matrix = tf.sparse.transpose(emission_matrix)
 
@@ -465,7 +466,7 @@ class My_Model(Model):
             emission_matrix = tf.reshape(emission_matrix, shape = shape_to_apply_softmax_to)
             mask            = tf.reshape(mask,            shape = shape_to_apply_softmax_to)
             # softmax
-            softmax_layer = tf.keras.layers.Softmax(axis = 1)
+            softmax_layer = tf.keras.layers.Softmax(axis = 1) # using layer here, bc it has a mask
             emission_matrix = softmax_layer(emission_matrix, mask)# this leaves [0.25, 0.25, 0.25, 0.25] in columns where the mask has only zeros
             # reshape
             emission_matrix = tf.reshape(emission_matrix, shape = dense_shape, name = "B_dense")

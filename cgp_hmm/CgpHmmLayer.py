@@ -67,13 +67,12 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             alpha_seq = result[0]
             inputs_seq = result[1]
             count_seq = result[2]
-            Z_i_seq = result[3]
-            alpha_state = result[4]
-            loglik_state = result[5]
-            count_state = result[6]
+            alpha_state = result[3]
+            loglik_state = result[4]
+            count_state = result[5]
             if self.config.scale_with_conditional_const:
                 # print("scale_count_state")
-                scale_count_state = result[7]
+                scale_count_state = result[6]
         else:
             alpha_state = result[0]
             loglik_state = result[1]
@@ -128,12 +127,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             length = tf.cast(tf.shape(inputs)[1], dtype=tf.float32)
             loglik_mean = tf.reduce_mean(tf.math.log(loglik_state) - length * tf.math.log(self.config.scale_with_const))
         elif self.config.scale_with_conditional_const:
-            print("layer scale_with_conditional_const")
             # print("scale_count_state =", scale_count_state)
             scale_count_state = tf.cast(scale_count_state, dtype=tf.float32) #  das sind ja eigentlich ints. kann da überhaupt eine ableitung gebildet werden?
             loglik_mean = tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha_state, axis = 1)) - scale_count_state * tf.math.log(10.0))
 
         elif self.config.felix:
+            loglik_mean = tf.reduce_mean(loglik_state)
+        elif self.config.logsumexp:
             loglik_mean = tf.reduce_mean(loglik_state)
         else:
             loglik_mean = tf.reduce_mean(loglik_state + tf.math.log(tf.reduce_sum(alpha_state, axis = -1)))
@@ -163,38 +163,39 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             # self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
             # self.add_metric(tf.math.reduce_min(self.C.B_dense),"B_min")
 
-        use_reg = False
-        if use_reg:
-            # regularization
-            # siehe Treffen_04
-            alpha = 4 # todo: scale punishment for inserts with different factor?
-            def add_reg(f, to):
-                probs_to_be_punished.append(tf.math.log(1 - \
-                                            self.C.A_dense[self.config.model.str_to_state_id(f, self.nCodons), \
-                                                           self.config.model.str_to_state_id(to, self.nCodons)]))
+        # use_reg = False
+        # if use_reg:
+        #     # regularization
+        #     # siehe Treffen_04
+        #     alpha = 4 # todo: scale punishment for inserts with different factor?
+        #     def add_reg(f, to):
+        #         probs_to_be_punished.append(tf.math.log(1 - \
+        #                                     self.C.A_dense[self.config.model.str_to_state_id(f, self.nCodons), \
+        #                                                    self.config.model.str_to_state_id(to, self.nCodons)]))
+        #
+        #     # deletes to be punished
+        #     for i in range(1, self.C.nCodons):
+        #         add_reg("stG", f"c_{i},0")
+        #     add_reg("stG", "stop1")
+        #     for i in range(self.C.nCodons - 1):
+        #         for j in range(i + 2, self.C.nCodons):
+        #             add_reg(f"c_{i},2", f"c_{j},0")
+        #         add_reg(f"c_{i},2", "stop1")
+        #     # inserts to be punished
+        #     add_reg("stG", "i_0,0")
+        #     for i in range(self.C.nCodons):
+        #         add_reg(f"c_{i},2", f"i_{i+1},0")
+        #
+        #     reg_mean = sum(probs_to_be_punished) / len(probs_to_be_punished)
+        #
+        #     if loglik_mean < 0 and reg_mean >0:
+        #         tf.print("not same sign")
+        #     if loglik_mean > 0 and reg_mean <0:
+        #         tf.print("not same sign")
+        #     self.add_loss(tf.squeeze(-loglik_mean - alpha * reg_mean))
+        # else:
 
-            # deletes to be punished
-            for i in range(1, self.C.nCodons):
-                add_reg("stG", f"c_{i},0")
-            add_reg("stG", "stop1")
-            for i in range(self.C.nCodons - 1):
-                for j in range(i + 2, self.C.nCodons):
-                    add_reg(f"c_{i},2", f"c_{j},0")
-                add_reg(f"c_{i},2", "stop1")
-            # inserts to be punished
-            add_reg("stG", "i_0,0")
-            for i in range(self.C.nCodons):
-                add_reg(f"c_{i},2", f"i_{i+1},0")
-
-            reg_mean = sum(probs_to_be_punished) / len(probs_to_be_punished)
-
-            if loglik_mean < 0 and reg_mean >0:
-                tf.print("not same sign")
-            if loglik_mean > 0 and reg_mean <0:
-                tf.print("not same sign")
-            self.add_loss(tf.squeeze(-loglik_mean - alpha * reg_mean))
-        else:
-            self.add_loss(tf.squeeze(-loglik_mean))
+        self.add_loss(tf.squeeze(-loglik_mean))
 
 
         append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config.bench_path)

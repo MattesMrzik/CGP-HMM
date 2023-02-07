@@ -173,7 +173,7 @@ def fit_model(config):
         with tf.GradientTape() as tape:
             y, alpha_seq = layer(input) # eventuell wird hier die cell nochmal gebaut und das weight setzen davor bringt nichts
 
-            dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+            dy_dx = tape.gradient(y,  [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel])
 
             for g, name in zip(dy_dx, "IAB"):
                 tf.print(f"gradient for {name}", g)
@@ -200,9 +200,9 @@ def fit_model(config):
 
         # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
         with tf.GradientTape() as tape:
-            tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+            tape.watch([layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel])
             y = layer(first_batch)
-            dy_dx = tape.gradient(y,  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+            dy_dx = tape.gradient(y,  [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel])
             if not dy_dx:
                 print("list dy_dx =", round(dy_dx,3))
             print()
@@ -266,8 +266,8 @@ def fit_model(config):
                         loglike += tf.math.log(tf.reduce_sum(alpha, axis = 1))
                     # print("alpha =", alpha)
                     print("\n=========> felix <===========")
-                    print("mean(loglike += log(sum_q(alpha))", tf.reduce_mean(loglike))
-                    print("mean(log(sum_q(alpha * prod_zi)))", tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha * prod_zi, axis=1))))
+                    print("mean(loglike += log(sum_q(alpha)) =", tf.reduce_mean(loglike).numpy())
+                    print("mean(log(sum_q(alpha * prod_zi))) =", tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha * prod_zi, axis=1))).numpy())
                     # is there another way to get P(Y)
 
                     # only one reduce sum
@@ -286,8 +286,8 @@ def fit_model(config):
                         alpha = tf.math.divide(alpha, z_i)
 
                     print("\n=========> mattes <===========")
-                    print("mean(loglike += log(sum_q(alpha)) + log(sum_q(alpha))", tf.reduce_mean(loglike + tf.math.log(tf.reduce_sum(alpha, axis = 1))))
-                    print("mean(log(sum_q(alpha * prod_zi)))", tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha * prod_zi, axis=1))))
+                    print("mean(loglike += log(sum_q(alpha)) + log(sum_q(alpha)) =", tf.reduce_mean(loglike + tf.math.log(tf.reduce_sum(alpha, axis = 1))).numpy())
+                    print("mean(log(sum_q(alpha * prod_zi))) =", tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha * prod_zi, axis=1))).numpy())
 
 
                     # manual_forward
@@ -300,13 +300,28 @@ def fit_model(config):
                     mean_loglike = tf.reduce_mean(loglike)
 
                     print("\n=========> alpha dp <===========")
-                    print("mean(log(sum_q(alpha)))=", mean_loglike)
+                    print("mean(log(sum_q(alpha))) =", mean_loglike.numpy())
                     print()
+
+                    # logsumexp
+                    alpha = tf.math.log(tf.matmul(batch[:,0,:], cell.B)) + tf.math.log(cell.I)
+                    for i in range(1, max_len_seq_in_batch + 1):
+                        m_alpha = tf.reduce_max(alpha, axis = 1, keepdims = True)
+                        alpha =  tf.math.log(tf.matmul(batch[:,i,:], cell.B)) + tf.math.log(tf.matmul(tf.math.exp(alpha - m_alpha), cell.A)) + m_alpha
+
+                    loglike = tf.math.reduce_logsumexp(alpha, axis=1)
+                    mean_loglike = tf.reduce_mean(loglike)
+
+                    print("\n=========> alpha logsumexp <===========")
+                    print("logsumexp(alpha) =", mean_loglike.numpy())
+                    print()
+
+
 
             exit()
 
     elif config.manual_training_loop:
-        assert self.conifg.return_seqs, "if manual training loop then return seqs must be true"
+        assert config.return_seqs, "if manual training loop then return seqs must be true"
         #  get the very first init weights of a run that resulted in nan
         # maybe this is not necessary, since i can run with --dont_generate_new_seqs flag,
         # and even though the kernels are always initialized differently nan always occur
@@ -336,12 +351,12 @@ def fit_model(config):
                 max_len_seq_in_batch = max([len(seq) for seq in batch])
                 # print("max_len_seq_in_batch =", max_len_seq_in_batch)
                 batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq) + 1) for seq in batch]
-                batch = tf.one_hot(batch, n_emission_columns_in_B(config.alphabet_size, config.order))
+                batch = tf.one_hot(batch, config.model.number_of_emissions)
                 # tf.print("batch = ", batch, summarize = -1)
 
                 with tf.GradientTape() as tape:
 
-                    tape.watch([layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                    tape.watch([layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel])
                     y, alpha_seq = layer(batch)
                     # alpha_seq [batch, i, q]
                     # print("tf.shape(alpha_seq) =", tf.shape(alpha_seq))
@@ -368,41 +383,54 @@ def fit_model(config):
                     print(f"epoch({epoch}), step({step}) the loss is: {tf.math.reduce_mean(y)}")
 
                     if config.alpha_i_gradient == -1: # ie. differentiate y
-                        gradient = tape.gradient(-1*tf.math.reduce_mean(y),  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                        gradient = tape.gradient(-1*tf.math.reduce_mean(y),  [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel])
                     elif config.alpha_i_gradient == -2: # ie. differentiate alpha(n-1), this should be the same as when y is differentiated
-                        gradient = tape.gradient(-1*tf.math.reduce_mean(loglikes[-1]),  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                        gradient = tape.gradient(-1*tf.math.reduce_mean(loglikes[-1]),  [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel])
                     else:
-                        gradient =  tape.gradient(-1*tf.math.reduce_mean(loglikes[config.alpha_i_gradient]),  [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel])
+                        gradient =  tape.gradient(-1*tf.math.reduce_mean(loglikes[config.alpha_i_gradient]),  [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel])
                     # tf.print("gradient =", gradient, summarize = gradient_summarize)
 
 
-                    ik = [float(x) for x in gradient[0]]
+                    # ik = [float(x) for x in gradient[0]]
                     ak = [float(x) for x in gradient[1]]
                     bk = [float(x) for x in gradient[2]]
 
-                    with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_ik_for_alpha{config.alpha_i_gradient}.txt","w") as file:
-                        json.dump(ik, file)
+                    # with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_ik_for_alpha{config.alpha_i_gradient}.txt","w") as file:
+                    #     json.dump(ik, file)
                     with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_ak_for_alpha{config.alpha_i_gradient}.txt","w") as file:
                         json.dump(ak, file)
                     with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_bk_for_alpha{config.alpha_i_gradient}.txt","w") as file:
                         json.dump(bk, file)
 
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I", summarize = config.assert_summarize)
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A", summarize = config.assert_summarize)
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_B", summarize = config.assert_summarize)
-                    gradient[0] = config.learning_rate * gradient[0]
+                    # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I", summarize = config.assert_summarize)
+                    # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A", summarize = config.assert_summarize)
+                    # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_B", summarize = config.assert_summarize)
+                    # gradient[0] = config.learning_rate * gradient[0]
+                    # gradient[1] = config.learning_rate * gradient[1]
+                    # gradient[2] = config.learning_rate * gradient[2]
+                    # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I_after_learning_rate_scaled", summarize = config.assert_summarize)
+                    # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A_after_learning_rate_scaled", summarize = config.assert_summarize)
+                    # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_B_after_learning_rate_scaled", summarize = config.assert_summarize)
+                    # # print("layer.C.I_kernel before apply grad=", layer.C.I_kernel)
+                    # optimizer.apply_gradients(zip(gradient, [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel]))
+                    # # print("layer.C.I_kernel after apply grad =", layer.C.I_kernel)
+                    #
+                    # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.I_kernel)),       [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel], name = "I_kernel_after_apply_grads", summarize = config.assert_summarize)
+                    # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.A_kernel)), [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel], name = "I_kernel_after_apply_grads", summarize = config.assert_summarize)
+                    # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.B_kernel)),   [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel], name = "B_kernel_after_apply_grads", summarize = config.assert_summarize)
+
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[1], gradient[2]], name = "gradient_for_A", summarize = config.assert_summarize)
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[1], gradient[2]], name = "gradient_for_B", summarize = config.assert_summarize)
                     gradient[1] = config.learning_rate * gradient[1]
                     gradient[2] = config.learning_rate * gradient[2]
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I_after_learning_rate_scaled", summarize = config.assert_summarize)
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_A_after_learning_rate_scaled", summarize = config.assert_summarize)
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_B_after_learning_rate_scaled", summarize = config.assert_summarize)
-                    # print("layer.C.init_kernel before apply grad=", layer.C.init_kernel)
-                    optimizer.apply_gradients(zip(gradient, [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel]))
-                    # print("layer.C.init_kernel after apply grad =", layer.C.init_kernel)
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[1])), [gradient[1], gradient[2]], name = "gradient_for_A_after_learning_rate_scaled", summarize = config.assert_summarize)
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[2])), [gradient[1], gradient[2]], name = "gradient_for_B_after_learning_rate_scaled", summarize = config.assert_summarize)
+                    # print("layer.C.I_kernel before apply grad=", layer.C.I_kernel)
+                    optimizer.apply_gradients(zip(gradient, [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel]))
+                    # print("layer.C.I_kernel after apply grad =", layer.C.I_kernel)
 
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.init_kernel)),       [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "I_kernel_after_apply_grads", summarize = config.assert_summarize)
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.transition_kernel)), [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "A_kernel_after_apply_grads", summarize = config.assert_summarize)
-                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.emission_kernel)),   [layer.C.init_kernel, layer.C.transition_kernel, layer.C.emission_kernel], name = "B_kernel_after_apply_grads", summarize = config.assert_summarize)
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.A_kernel)), [layer.C.A_kernel, layer.C.B_kernel], name = "I_kernel_after_apply_grads", summarize = config.assert_summarize)
+                    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(layer.C.B_kernel)),   [layer.C.A_kernel, layer.C.B_kernel], name = "B_kernel_after_apply_grads", summarize = config.assert_summarize)
         exit()
 
 

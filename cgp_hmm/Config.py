@@ -199,6 +199,7 @@ class Config():
         self.add_arg_main('--scale_with_const', type = float, default = 0, help = 'scale the forward variables with constant float')
         self.add_arg_main('--scale_with_conditional_const', action = "store_true", help = 'scale the forward variables with constant if they are too small')
         self.add_arg_main('--felix', action='store_true',  help = 'use felix forward version')
+        self.add_arg_main('--logsumexp', action = "store_true", help = "logsumexp")
         self.add_arg_main('--return_seqs', action = 'store_true', help = 'the RNN and layer.py return seq = [alpha, count, inputs]')
 
         # hardware
