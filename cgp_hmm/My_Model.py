@@ -264,7 +264,8 @@ class My_Model(Model):
 
     def A_consts(self):
         if self.config.ig5_const_transition:
-            return tf.cast(tf.concat([[5.0,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
+            # return tf.cast(tf.concat([[5.0,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
+            return tf.cast(tf.concat([[self.config.ig5_const_transition,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
         return tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
 ################################################################################
 ################################################################################

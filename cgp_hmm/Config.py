@@ -204,7 +204,7 @@ class Config():
         self.add_arg_main('--felix', action='store_true',  help = 'use felix forward version')
         self.add_arg_main('--logsumexp', action = "store_true", help = "logsumexp")
         self.add_arg_main('--return_seqs', action = 'store_true', help = 'the RNN and layer.py return seq = [alpha, count, inputs]')
-        self.add_arg_main('--ig5_const_transition', action = 'store_true', help = "uses const transition from ig5 -> ig5 and ig5 -> startA")
+        self.add_arg_main('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
