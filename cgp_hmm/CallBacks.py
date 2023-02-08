@@ -65,11 +65,12 @@ def get_call_backs(config, model):
         # and is activated by same flag as this callback
         def on_train_batch_begin(self, batch, logs = None):
 
-            # TODO: why can i access condig here?
+            # TODO: why can i access config here?
 
-            path = f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"
+            if batch == 0:
+                path = f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"
 
-            model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
+                model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
             if config.check_for_zeros:
                 Utility.find_indices_in_sparse_A_that_are_zero(config = config, \
