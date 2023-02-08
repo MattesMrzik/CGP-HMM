@@ -207,7 +207,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             Z_i *= 9
             Z_i += 1
             scaled_alpha = unscaled_alpha * Z_i
-            loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1)) - scale_helper * tf.math.log(10.0)
+            loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True)) - scale_helper * tf.math.log(10.0)
 
         elif self.config.felix:
             unscaled_alpha = E*R

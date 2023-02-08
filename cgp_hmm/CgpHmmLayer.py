@@ -129,7 +129,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         elif self.config.scale_with_conditional_const:
             # print("scale_count_state =", scale_count_state)
             scale_count_state = tf.cast(scale_count_state, dtype=tf.float32) #  das sind ja eigentlich ints. kann da überhaupt eine ableitung gebildet werden?
-            loglik_mean = tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha_state, axis = 1)) - scale_count_state * tf.math.log(10.0))
+            loglik_mean = tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha_state, axis = 1, keepdims = True)) - scale_count_state * tf.math.log(10.0))
 
         elif self.config.felix:
             loglik_mean = tf.reduce_mean(loglik_state)
