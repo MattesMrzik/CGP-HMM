@@ -228,7 +228,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha), axis = 1, keepdims = True)) + m_alpha
             scale_helper = m_alpha
 
-        else:
+        else: # only one reduce sum. Z_i = sum_q unscaled_alpha(i)
             unscaled_alpha = E*R
             scale_helper = tf.reduce_sum(unscaled_alpha, axis = 1, keepdims = True, name = "my_z")
             loglik = tf.math.add(old_loglik, tf.math.log(scale_helper), name = "loglik")
@@ -295,8 +295,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
                 tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(alpha)), [alpha, count[0,0]], name = "alpha", summarize = self.config.assert_summarize)
             else:
                 tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),  [alpha, count[0,0]], name = "alpha", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)), [loglik, count[0,0],[123456789], alpha], name = "loglik_finite", summarize = self.config.assert_summarize)
 
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)), [loglik, count[0,0],[123456789], alpha, [123456789], E,[123456789],  R, [123456789]], name = "loglik_finite", summarize = self.config.assert_summarize)
             # i think this should be allowed since sum across alpha can be 1, then log is 0, which is fine
             # tf.debugging.Assert(tf.math.reduce_all(loglik != 0),                     [loglik, count[0,0]],       name = "loglik_nonzero",            summarize = -1)
 
