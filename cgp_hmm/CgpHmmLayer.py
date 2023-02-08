@@ -121,11 +121,11 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         # squeeze removes dimensions of size 1, ie shape (1,3,2,1) -> (3,2)
 
-
-        probs_to_be_punished = []
+        #=========> getting loglik_mean <======================================#
         if self.config.scale_with_const:
             length = tf.cast(tf.shape(inputs)[1], dtype=tf.float32)
             loglik_mean = tf.reduce_mean(tf.math.log(loglik_state) - length * tf.math.log(self.config.scale_with_const))
+
         elif self.config.scale_with_conditional_const:
             # print("scale_count_state =", scale_count_state)
             scale_count_state = tf.cast(scale_count_state, dtype=tf.float32) #  das sind ja eigentlich ints. kann da überhaupt eine ableitung gebildet werden?
@@ -133,10 +133,15 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         elif self.config.felix:
             loglik_mean = tf.reduce_mean(loglik_state)
+
         elif self.config.logsumexp:
             loglik_mean = tf.reduce_mean(loglik_state)
+
         else:
             loglik_mean = tf.reduce_mean(loglik_state + tf.math.log(tf.reduce_sum(alpha_state, axis = -1)))
+        #=========> getting loglik_mean done <=================================#
+
+
 
         if self.config.check_assert:
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_state)), [loglik_state],              name = "loglik_state_is_finite", summarize = self.config.assert_summarize)
@@ -163,6 +168,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             # self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
             # self.add_metric(tf.math.reduce_min(self.C.B_dense),"B_min")
 
+        probs_to_be_punished = []
         # use_reg = False
         # if use_reg:
         #     # regularization

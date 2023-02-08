@@ -196,8 +196,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         if self.config.scale_with_const:
             unscaled_alpha = E * R
             scaled_alpha = unscaled_alpha * self.config.scale_with_const
-            loglik = tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True)
-            scale_helper = loglik # just to have a value to be returned
+            loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1)) - count * tf.math.log(self.config.scale_with_const) # TODO: check this
+            scale_helper = loglik # just to have a value to be returnedtf.math.log(loglik_state) - length * tf.math.log(self.config.scale_with_const)
 
         elif self.config.scale_with_conditional_const:
             unscaled_alpha = E * R
@@ -207,7 +207,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             Z_i *= 9
             Z_i += 1
             scaled_alpha = unscaled_alpha * Z_i
-            loglik = tf.reduce_sum(scaled_alpha, axis = -1, keepdims = True, name = "likelihood")
+            loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1)) - scale_helper * tf.math.log(10.0)
 
         elif self.config.felix:
             unscaled_alpha = E*R
@@ -345,11 +345,13 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def assert_E_R_alpha(self, E, R, alpha):
         if self.config.check_assert:
             if self.config.logsumexp:
-                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(R)),            [R, count[0,0]],            name = "R_finite",  summarize = self.config.assert_summarize)
-                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(E)),            [E, count[0,0]],            name = "E_finite",  summarize = self.config.assert_summarize)
+                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(R)),     [R, count[0,0]], name = "R_finite", summarize = self.config.assert_summarize)
+                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(E)),     [E, count[0,0]], name = "E_finite", summarize = self.config.assert_summarize)
+                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(alpha)), [alpha, count[0,0]], name = "E_finite", summarize = self.config.assert_summarize)
             else:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(R)),            [R, count[0,0]],            name = "R_finite",  summarize = self.config.assert_summarize)
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(E)),            [E, count[0,0]],            name = "E_finite",  summarize = self.config.assert_summarize)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(R)),      [R, count[0,0]], name = "R_finite", summarize = self.config.assert_summarize)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(E)),      [E, count[0,0]], name = "E_finite", summarize = self.config.assert_summarize)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),  [alpha, count[0,0]], name = "E_finite", summarize = self.config.assert_summarize)
 ################################################################################
     def write_weights_to_file(self, path): # is this sufficient to get reproducable behaviour?
         ik = [float(x) for x in self.I_kernel.numpy()]
