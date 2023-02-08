@@ -223,6 +223,9 @@ class My_Model(Model):
         index_of_terminal_1 = 8 + self.config.nCodons*3 + (self.config.nCodons + 1) *3
         indices += [[index_of_terminal_1, index_of_terminal_1]]
 
+        if self.config.ig3_const_transition:
+            indices += [[7 + self.config.nCodons*3, 7 + self.config.nCodons*3], [7 + self.config.nCodons*3, index_of_terminal_1]]
+
         return indices
 
     def A_indices_for_weights(self): # no shared parameters
@@ -255,7 +258,9 @@ class My_Model(Model):
 
         # ig -> ig, terminal_1
         index_of_terminal_1 = 8 + self.config.nCodons*3 + (self.config.nCodons + 1) *3
-        indices += [[7 + self.config.nCodons*3, 7 + self.config.nCodons*3], [7 + self.config.nCodons*3, index_of_terminal_1]]
+
+        if not self.config.ig3_const_transition:
+            indices += [[7 + self.config.nCodons*3, 7 + self.config.nCodons*3], [7 + self.config.nCodons*3, index_of_terminal_1]]
 
         return indices
 
@@ -265,7 +270,10 @@ class My_Model(Model):
     def A_consts(self):
         if self.config.ig5_const_transition:
             # return tf.cast(tf.concat([[5.0,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
-            return tf.cast(tf.concat([[self.config.ig5_const_transition,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
+            if self.config.ig3_const_transition:
+                return tf.cast(tf.concat([[self.config.ig5_const_transition,1], [1.0] * (len(self.A_indices_for_constants) -4), [self.config.ig5_const_transition,1]], axis = 0),dtype = self.config.dtype)
+            else:
+                return tf.cast(tf.concat([[self.config.ig5_const_transition,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
         return tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
 ################################################################################
 ################################################################################

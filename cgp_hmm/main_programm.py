@@ -31,15 +31,15 @@ def main(config):
     I_kernel, A_kernel, B_kernel = model.get_weights()
 
     if config.write_parameters_after_fit:
-        A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.txt"
+        A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.csv"
         # print(config.model.A_as_dense_to_str(cell.A_kernel, with_description = True))
         config.model.A_as_dense_to_file(A_out_path, A_kernel, with_description = False)
-        config.model.A_as_dense_to_file(A_out_path + ".with_description", A_kernel, with_description = True)
+        config.model.A_as_dense_to_file(A_out_path + ".with_description.csv", A_kernel, with_description = True)
 
-        B_out_path =f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.txt"
+        B_out_path =f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.csv"
         # print(config.model.B_as_dense_to_str(cell.B_kernel, with_description = True))
         config.model.B_as_dense_to_file(B_out_path, B_kernel, with_description = False)
-        config.model.B_as_dense_to_file(B_out_path + ".with_description", B_kernel, with_description = True)
+        config.model.B_as_dense_to_file(B_out_path + ".with_description.csv", B_kernel, with_description = True)
 
     if config.nCodons < 10:
         config.model.export_to_dot_and_png(A_kernel, B_kernel)

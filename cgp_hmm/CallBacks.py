@@ -102,6 +102,10 @@ def get_call_backs(config, model):
         # cp_callback = tf.keras.callbacks.ModelCheckpoint(filepath=checkpoint_path,
         #                                                  save_weights_only=True,
         #                                                  verbose=1)
+    import datetime
+    log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
+
 
     callbacks = []
     callbacks = [write_time_ram_epoch_start_callback(),
@@ -119,6 +123,8 @@ def get_call_backs(config, model):
         callbacks += [remove_verbose_at_batch_begin()]
     if config.batch_begin_write_weights__layer_call_write_inputs:
         callbacks += [batch_begin_write_weights__layer_call_write_inputs()]
+
+    callbacks += [tensorboard_callback]
 
     callbacks += [get_the_gradient()]
 
