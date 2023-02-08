@@ -284,18 +284,18 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)),  [self.A_dense, old_forward, count[0,0]], name = "A_dense_beginning_of_call",  summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)),  [self.B_dense,  count[0,0]],             name = "B_dense_beginning_of_call",  summarize = self.config.assert_summarize)
             if self.config.logsumexp:
-                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(old_forward)),   [old_forward,   count[0,0]],        name = "old_forward",              summarize = self.config.assert_summarize)
+                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(old_forward)),   [old_forward,   count[0,0]],        name = "old_forward_nan_beginning_of_call",              summarize = self.config.assert_summarize)
             else:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),   [old_forward, count[0,0]], name = "old_forward", summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),        [old_loglik, count[0,0]],  name = "old_loglik",  summarize = self.config.assert_summarize)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),   [old_forward, count[0,0]], name = "old_forward_finite_beginning_of_call", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),        [old_loglik, count[0,0]],  name = "old_loglik_finite_beginning_of_call",  summarize = self.config.assert_summarize)
 ################################################################################
     def assert_check_end_of_call(self, E, R, alpha, loglik, count):
         if self.config.check_assert:
             if self.config.logsumexp:
-                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(alpha)), [alpha, count[0,0]], name = "alpha", summarize = self.config.assert_summarize)
+                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(alpha)), [alpha, count[0,0]], name = "alpha_nan_end_of_call", summarize = self.config.assert_summarize)
             else:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),  [alpha, count[0,0]], name = "alpha", summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)), [loglik, count[0,0],[123456789], alpha], name = "loglik_finite", summarize = self.config.assert_summarize)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),  [alpha, count[0,0]], name = "alpha_finite_end_of_call", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)), [loglik, count[0,0],[123456789], alpha], name = "loglik_finite_end_of_call", summarize = self.config.assert_summarize)
 
             # i think this should be allowed since sum across alpha can be 1, then log is 0, which is fine
             # tf.debugging.Assert(tf.math.reduce_all(loglik != 0),                     [loglik, count[0,0]],       name = "loglik_nonzero",            summarize = -1)
