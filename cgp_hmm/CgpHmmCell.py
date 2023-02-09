@@ -156,11 +156,11 @@ class CgpHmmCell(tf.keras.layers.Layer):
             return tf.sparse.to_dense(self.B)
         return self.B
 
-    @property
+    # @property
     # is has some -inf since log of forbidden emissions, these cant be multiplied with 0, since 0*inf is not defined
 
-    def B_log(self): # TODO: do i need a different method if B is sparse
-        return tf.math.log(self.B)
+    # def B_log(self): # TODO: do i need a different method if B is sparse
+    #     return tf.math.log(self.B)
 ################################################################################
 ################################################################################
     def get_E(self, inputs):

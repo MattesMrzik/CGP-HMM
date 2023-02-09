@@ -124,8 +124,8 @@ def get_call_backs(config, model):
     if config.batch_begin_write_weights__layer_call_write_inputs:
         callbacks += [batch_begin_write_weights__layer_call_write_inputs()]
 
-    callbacks += [tensorboard_callback]
+    # callbacks += [tensorboard_callback]
 
-    callbacks += [get_the_gradient()]
+    # callbacks += [get_the_gradient()]
 
     return callbacks

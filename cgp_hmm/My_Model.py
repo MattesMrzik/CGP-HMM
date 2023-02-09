@@ -475,8 +475,8 @@ class My_Model(Model):
             emission_matrix = tf.sparse.transpose(emission_matrix)
             emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, -1, self.config.alphabet_size))
             emission_matrix = tf.sparse.softmax(emission_matrix)# for sparse only sparse.softmax works, which has no arg "axis"
-            softmax_layer = tf.keras.layers.Softmax(axis = 1)
-            softmax_layer(emission_matrix)
+            # softmax_layer = tf.keras.layers.Softmax(axis = 1)
+            # softmax_layer(emission_matrix)
             emission_matrix = tf.sparse.reshape(emission_matrix, shape = (self.number_of_states, self.number_of_emissions), name = "B_sparse")
             emission_matrix = tf.sparse.transpose(emission_matrix)
 
