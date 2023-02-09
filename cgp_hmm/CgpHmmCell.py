@@ -185,7 +185,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         if self.config.logsumexp:
             m_alpha = tf.reduce_max(old_forward, axis = 1, keepdims = True)
-            R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha), self.A)) + m_alpha
+            R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.epsilon_R, self.A)) + m_alpha
             return R
 
         R = mul(old_forward, self.A)
@@ -196,7 +196,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         if self.config.scale_with_const:
             unscaled_alpha = E * R
             scaled_alpha = unscaled_alpha * self.config.scale_with_const
-            loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1)) - count * tf.math.log(self.config.scale_with_const) # TODO: check this
+            loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True)) - count * tf.math.log(self.config.scale_with_const) # TODO: check this
             scale_helper = loglik # just to have a value to be returnedtf.math.log(loglik_state) - length * tf.math.log(self.config.scale_with_const)
 
         elif self.config.scale_with_conditional_const:
@@ -220,12 +220,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
             loglik = tf.math.add(old_loglik, tf.math.log(tf.reduce_sum(scaled_alpha, axis = -1)), name = "loglik")
 
         elif self.config.logsumexp:
-            unscaled_alpha = tf.math.log(E) + R
+            unscaled_alpha = tf.math.log(E + self.config.epsilon_E) + R
             scaled_alpha = unscaled_alpha
             # TODO: replace this with manual logusmexp and see if grad can be calculated now
             m_alpha = tf.math.reduce_max(scaled_alpha, axis = 1, keepdims = True)
             # loglik = tf.math.reduce_logsumexp(scaled_alpha, axis = 1, keepdims = True)
-            loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha), axis = 1, keepdims = True)) + m_alpha
+            loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + self.config.epsilon_l, axis = 1, keepdims = True)) + m_alpha
             scale_helper = m_alpha
 
         else: # only one reduce sum. Z_i = sum_q unscaled_alpha(i)

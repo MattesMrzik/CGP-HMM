@@ -124,7 +124,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #=========> getting loglik_mean <======================================#
         if self.config.scale_with_const:
             length = tf.cast(tf.shape(inputs)[1], dtype=tf.float32)
-            loglik_mean = tf.reduce_mean(tf.math.log(loglik_state) - length * tf.math.log(self.config.scale_with_const))
+            # loglik_mean = tf.reduce_mean(tf.math.log(loglik_state) - length * tf.math.log(self.config.scale_with_const))
+            loglik_mean = tf.reduce_mean(loglik_state)
 
         elif self.config.scale_with_conditional_const:
             # print("scale_count_state =", scale_count_state)
