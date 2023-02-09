@@ -234,8 +234,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         else: # only one reduce sum. Z_i = sum_q unscaled_alpha(i)
             unscaled_alpha = E*R
             scale_helper = tf.reduce_sum(unscaled_alpha, axis = 1, keepdims = True, name = "my_z")
-            loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.epsilon_my_scale), name = "loglik")
-            scaled_alpha = unscaled_alpha / scale_helper
+            loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.epsilon_my_scale_log), name = "loglik")
+            scaled_alpha = unscaled_alpha / (scale_helper  + self.config.epsilon_my_scale_alpha)
 
         return scaled_alpha, unscaled_alpha, loglik, scale_helper
 ################################################################################
