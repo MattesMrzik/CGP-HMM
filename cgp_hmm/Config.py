@@ -206,9 +206,12 @@ class Config():
         self.add_arg_main('--epsilon_l', type = float, default = 1e-8, help = '[1e-8] loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + self.config.epsilon_l, axis = 1, keepdims = True)) + m_alpha')
         self.add_arg_main('--epsilon_R', type = float, default = 1e-8, help = '[1e-8] R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.epsilon_R, self.A)) + m_alpha')
         self.add_arg_main('--epsilon_E', type = float, default = 1e-8, help = '[1e-8] unscaled_alpha = tf.math.log(E + self.config.epsilon_E) + R')
+        self.add_arg_main('--epsilon_my_scale', type = float, default = 1e-8, help = '[1e-8] loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.epsilon_my_scale), name = "loglik")')
+        self.add_arg_main('--epsilon_conditional', type = float, default = 1e-8, help = '[1e-8] loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True) + self.config.epsilon_conditional) - scale_helper * tf.math.log(10.0)')
         self.add_arg_main('--return_seqs', action = 'store_true', help = 'the RNN and layer.py return seq = [alpha, count, inputs]')
         self.add_arg_main('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
         self.add_arg_main('--ig3_const_transition', type = float, default = 0, help = "uses const transition from ig3 -> ig3 (weight = --ig3) and ig3 -> terminal (weight = 1) and softmax applied")
+
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
