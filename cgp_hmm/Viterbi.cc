@@ -6,10 +6,12 @@
 #include <cmath>
 #include <algorithm> // for reverse vector
 #include "json.hpp"
-using json = nlohmann::json;
-size_t nCodons;
 
-std::vector<size_t> viterbi(json A, json B, json I, json Y) {
+#include <future>
+#include <thread>
+using json = nlohmann::json;
+
+std::vector<size_t> viterbi(json I, json A, json B, json Y, int id) {
     auto nStates = A.size();
     auto n = Y.size();
     // i, state
@@ -26,6 +28,7 @@ std::vector<size_t> viterbi(json A, json B, json I, json Y) {
     icolumn.clear();
     // dp_g_pointer_to_max.push_back(icolumn_max);
     // icolumn_max.clear();
+
     for (size_t i = 1; i < n; i++) {
         for (size_t q = 0; q < nStates; q++) {
             auto M = std::log(0);
@@ -85,14 +88,16 @@ void is_empty(std::ifstream& pFile, std::string & s) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        std::cout << "you need to pass nCodons" << '\n';
+    if (argc != 3) {
+        std::cout << "you need to pass nCodons and nThreads" << '\n';
         return 1;
     }
-    std::string str_nCodons(argv[1]);
-    nCodons = std::stoi(str_nCodons);
 
-    std::vector<std::vector<size_t>> state_seqs;
+    std::string str_nCodons(argv[1]);
+    auto nCodons = std::stoi(str_nCodons);
+
+    std::string str_nThreads(argv[2]);
+    auto nThreads = std::stoi(str_nThreads);
 
     ////////////////////////////////////////////////////////////////////////////////
     // [nSeqs, lengths], values in range(rows in B)
@@ -134,10 +139,34 @@ int main(int argc, char *argv[]) {
     // std::cout << "b = " << b.dump() << '\n';
     ////////////////////////////////////////////////////////////////////////////////
 
-    for (auto seq : seqs) {
-        auto x = viterbi(a,b,i,seq);
-        state_seqs.push_back(x);
+    std::vector<std::vector<size_t>> state_seqs;
+    for (size_t j = 0; j < seqs.size(); ++j) {
+        state_seqs.push_back({});
     }
+    for (size_t low = 0; low < seqs.size(); low += nThreads) {
+        std::vector<std::future<std::vector<size_t> > > threads;
+        size_t now_using = 0;
+        if (low + nThreads <= seqs.size()) {
+            now_using = nThreads;
+        }
+        else {
+            now_using = seqs.size() - low;
+        }
+        for (size_t j = 0; j < now_using; j++) {
+            // can i pass by reference?
+            threads.push_back(std::async(std::launch::async, viterbi, i,a,b,seqs[low + j], low + j));
+        }
+        for (size_t j = 0; j < now_using; j++) {
+            auto result = threads[j].get();
+            state_seqs[low + j] = result;
+        }
+    }
+    // for (auto seq : state_seqs) {
+    //     for (auto v : seq) {
+    //         std::cout << v << ' ';
+    //     }
+    //     std::cout << '\n';
+    // }
 
     std::string out_path = "output/" + std::to_string(nCodons) + "codons/viterbi.json";
     std::ofstream f_out(out_path);

@@ -13,9 +13,10 @@ def main(config):
     from Bio import SeqIO
     import WriteData
     import re
-    from Utility import run
     import json
     import pandas as pd
+    import time
+    import os
 
     model, history = fit_model(config)
     print("done fit_model()")
@@ -34,21 +35,27 @@ def main(config):
 
     if config.write_parameters_after_fit:
 
-
-        # print(config.model.A_as_dense_to_str(cell.A_kernel, with_description = True))
-        A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.csv"
-        config.model.A_as_dense_to_file(A_out_path, A_kernel, with_description = False)
-        config.model.A_as_dense_to_file(A_out_path + ".with_description.csv", A_kernel, with_description = True)
-
-        B_out_path =f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.csv"
-        # print(config.model.B_as_dense_to_str(cell.B_kernel, with_description = True))
-        config.model.B_as_dense_to_file(B_out_path, B_kernel, with_description = False)
-        config.model.B_as_dense_to_file(B_out_path + ".with_description.csv", B_kernel, with_description = True)
+        start = time.perf_counter()
+        print("starting to write model")
 
         I_out_path =f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.csv"
+        A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.csv"
+        B_out_path =f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.csv"
+
+        # print(config.model.A_as_dense_to_str(cell.A_kernel, with_description = True))
+        if config.nCodons < 20:
+            config.model.A_as_dense_to_file(A_out_path, A_kernel, with_description = False)
+            config.model.A_as_dense_to_file(A_out_path + ".with_description.csv", A_kernel, with_description = True)
+
+        # print(config.model.B_as_dense_to_str(cell.B_kernel, with_description = True))
+            config.model.B_as_dense_to_file(B_out_path, B_kernel, with_description = False)
+            config.model.B_as_dense_to_file(B_out_path + ".with_description.csv", B_kernel, with_description = True)
+
         config.model.I_as_dense_to_json_file(I_out_path + ".json", I_kernel)
         config.model.A_as_dense_to_json_file(A_out_path + ".json", A_kernel)
         config.model.B_as_dense_to_json_file(B_out_path + ".json", B_kernel)
+
+        print("done write model. it took ", time.perf_counter() - start)
 
     if config.nCodons < 10:
         config.model.export_to_dot_and_png(A_kernel, B_kernel)
@@ -58,9 +65,15 @@ def main(config):
         # write convert fasta file to json (not one hot)
         # see make_dataset in Training.py
 
-        
 
-        run(f"{config.src_path}/Viterbi " + str(config.nCodons))
+
+        start = time.perf_counter()
+        print("starting viterbi")
+
+        import multiprocessing
+
+        os.system(f"{config.src_path}/Viterbi " + str(config.nCodons) + " " + str(multiprocessing.cpu_count()-1))
+        print("done viterbi. it took ", time.perf_counter() - start)
 
         stats = {"start_not_found" : 0,\
                  "start_too_early" : 0,\
@@ -70,6 +83,9 @@ def main(config):
                  "stop_too_early" : 0,\
                  "stop_correct" : 0,\
                  "stop_too_late" : 0}
+
+        start = time.perf_counter()
+        print("start evaluating viterbi")
 
         viterbi_file = open(f"{config.src_path}/output/{config.nCodons}codons/viterbi.json", "r")
         viterbi = json.load(viterbi_file)
@@ -124,6 +140,9 @@ def main(config):
 
         for key, value in stats.items():
             print(f"{key}: {value}")
+
+        print("done evaluating viterbi. it took ", time.perf_counter() - start)
+
 
 
 
