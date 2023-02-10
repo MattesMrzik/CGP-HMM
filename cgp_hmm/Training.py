@@ -99,12 +99,14 @@ def make_dataset(config):
 
     seqs = read_data_with_order(config, add_one_terminal_symbol = True)
 
+    index_of_terminal = config.model.emission_tuple_to_id("X")
+    json.dump(seqs, open(f"{config.fasta_path}.json","w"))
+
 
     ds = tf.data.Dataset.from_generator(lambda: seqs,
                                          tf.as_dtype(tf.int32), # has to be int, bc one_hot doesnt work for floats
                                          tf.TensorShape([None]))
 
-    index_of_terminal = config.model.emission_tuple_to_id("X")
     ds = ds.padded_batch(config.batch_size, padding_values = index_of_terminal)
 
     def to_one_hot(seq):

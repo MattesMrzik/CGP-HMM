@@ -48,6 +48,9 @@ class Config():
         if self.ig5_const_transition:
             assert not self.use_weights_for_consts, "if --ig5_const_transition then --use_weights_for_consts cant be used"
 
+        if self.run_viterbi:
+            assert self.write_parameters_after_fit, "if you run viterbi you must pass --write_parameters_after_fit bc viterbi.cc uses those files"
+
 
     def add_attribtes(self):
         import tensorflow as tf

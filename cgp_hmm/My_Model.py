@@ -3,6 +3,7 @@ from Model import Model
 import re
 from itertools import product
 import tensorflow as tf
+import json
 
 class My_Model(Model):
 
@@ -75,7 +76,7 @@ class My_Model(Model):
 
     def str_to_state_id(self, s):
         try:
-            return state_id_description_list.index(s)
+            return self.state_id_description_list.index(s)
         except:
             return -1
 
@@ -551,6 +552,10 @@ class My_Model(Model):
         run(f"dot -Tpng output/{nCodons}codons/graph.{nCodons}codons.gv -o output/{nCodons}codons/graph.{nCodons}codons.png")
 
 
+    def I_as_dense_to_json_file(self, path, weights):
+        with open(path, "w") as out_file:
+            json.dump(self.I(weights).numpy().tolist(), out_file)
+
     # TODO: or do i want to have these functions in the cell, such that i dont have to pass the weights?
     def A_as_dense_to_str(self, weights, with_description = False):
         A = self.A(weights) if self.A_is_dense else tf.sparse.to_dense(self.A(weights))
@@ -573,6 +578,11 @@ class My_Model(Model):
     def A_as_dense_to_file(self, path, weights, with_description = False):
         with open(path, "w") as out_file:
             out_file.write(self.A_as_dense_to_str(weights, with_description))
+
+    def A_as_dense_to_json_file(self, path, weights):
+        with open(path, "w") as out_file:
+            A = self.A(weights) if self.A_is_dense else tf.sparse.to_dense(self.A(weights))
+            json.dump(A.numpy().tolist(), out_file)
 
     def B_as_dense_to_str(self, weights, with_description = False):
         B = self.B(weights) if self.B_is_dense else tf.sparse.to_dense(self.B(weights))
@@ -597,6 +607,10 @@ class My_Model(Model):
         with open(path, "w") as out_file:
             out_file.write(self.B_as_dense_to_str(weights, with_description))
 
+    def B_as_dense_to_json_file(self, path, weights):
+        with open(path, "w") as out_file:
+            B = self.B(weights) if self.B_is_dense else tf.sparse.to_dense(self.B(weights))
+            json.dump(B.numpy().tolist(), out_file)
 
 
 if __name__ == '__main__':

@@ -112,12 +112,11 @@ run(f"head {args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa")
 with open(f"{args.path}/output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt","w") as file:
     for seq in sequences:
         file.write(">" + seq.id)
-        file.write("\n")
+        file.write(";")
         if args.dont_strip_flanks:
             file.write(str(posDict['start_codon']) + ";" + str(posDict['stop_codon']) + ";" + str(len(seq.seq)))
         else:
             file.write(str(seq.startATGPos) + ";" + str(seq.stopPos) + ";" + str(len(seq.seq)))
-        file.write("\n")
         file.write("\n")
 
 # run("/home/mattes/Documents/CGP-HMM-python-project/data/artificial/muscle3.8.31_i86linux64" +

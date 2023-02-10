@@ -14,6 +14,8 @@ def main(config):
     import WriteData
     import re
     from Utility import run
+    import json
+    import pandas as pd
 
     model, history = fit_model(config)
     print("done fit_model()")
@@ -31,8 +33,10 @@ def main(config):
     I_kernel, A_kernel, B_kernel = model.get_weights()
 
     if config.write_parameters_after_fit:
-        A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.csv"
+
+
         # print(config.model.A_as_dense_to_str(cell.A_kernel, with_description = True))
+        A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.csv"
         config.model.A_as_dense_to_file(A_out_path, A_kernel, with_description = False)
         config.model.A_as_dense_to_file(A_out_path + ".with_description.csv", A_kernel, with_description = True)
 
@@ -41,13 +45,22 @@ def main(config):
         config.model.B_as_dense_to_file(B_out_path, B_kernel, with_description = False)
         config.model.B_as_dense_to_file(B_out_path + ".with_description.csv", B_kernel, with_description = True)
 
+        I_out_path =f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.csv"
+        config.model.I_as_dense_to_json_file(I_out_path + ".json", I_kernel)
+        config.model.A_as_dense_to_json_file(A_out_path + ".json", A_kernel)
+        config.model.B_as_dense_to_json_file(B_out_path + ".json", B_kernel)
+
     if config.nCodons < 10:
         config.model.export_to_dot_and_png(A_kernel, B_kernel)
 
 
     if config.run_viterbi:
-        # running Viterbi
-        run(f"{config.src_path}/Viterbi " + config.fasta_path + " " + str(config.nCodons))
+        # write convert fasta file to json (not one hot)
+        # see make_dataset in Training.py
+
+        
+
+        run(f"{config.src_path}/Viterbi " + str(config.nCodons))
 
         stats = {"start_not_found" : 0,\
                  "start_too_early" : 0,\
@@ -58,56 +71,59 @@ def main(config):
                  "stop_correct" : 0,\
                  "stop_too_late" : 0}
 
-        # comparing viterbi result with correct state seq
-        with open(f"{config.src_path}/output/{config.nCodons}codons/viterbi.{config.nCodons}codons.csv", "r") as viterbi_file:
-            with open(f"{config.src_path}/output/{config.nCodons}codons/out.start_stop_pos.{config.nCodons}codons.txt", "r") as start_stop_file:
-                for v_line in viterbi_file:
-                    try:
-                        ss_line = start_stop_file.readline()
-                    except:
-                        print("ran out of line in :" + f"out.start_stop_pos.{config.nCodons}codons.txt")
-                        quit(1)
-                    if ss_line[:4] == ">seq" or len(ss_line) <= 1:
-                        continue
-                    true_start = int(ss_line.split(";")[0])
-                    true_stop = int(ss_line.split(";")[1].strip())
-                    try:
-                        viterbi_start = v_line.split("\t").index("stA")
-                    except:
-                        viterbi_start = -1
-                    try:
-                        viterbi_stop = v_line.split("\t").index("st1")
-                    except:
-                        viterbi_stop = -1
-                    # print(f"true_start = {true_start} vs viterbi_start = {viterbi_start}")
-                    # print(f"true_stop = {true_stop} vs viterbi_stop = {viterbi_stop}")
+        viterbi_file = open(f"{config.src_path}/output/{config.nCodons}codons/viterbi.json", "r")
+        viterbi = json.load(viterbi_file)
 
-                    if viterbi_start == -1:
-                        stats["start_not_found"] += 1
-                        if viterbi_stop != -1:
-                            print("found stop but not start")
-                            quit(1)
-                    elif viterbi_start < true_start:
-                        stats["start_too_early"] += 1
-                    elif viterbi_start == true_start:
-                        stats["start_correct"] += 1
-                    else:
-                        stats["start_too_late"] += 1
+        start_stop = pd.read_csv(f"{config.src_path}/output/{config.nCodons}codons/out.start_stop_pos.{config.nCodons}codons.txt", sep=";", header=None)
 
-                    if viterbi_stop == -1:
-                        stats["stop_not_found"] += 1
-                    elif viterbi_stop < true_stop:
-                        stats["stop_too_early"] += 1
-                    elif viterbi_stop == true_stop:
-                        stats["stop_correct"] += 1
-                    else:
-                        stats["stop_too_late"] += 1
+        stA_id = config.model.str_to_state_id("stA")
+        stop1_id = config.model.str_to_state_id("stop1")
+        for i, state_seq in enumerate(viterbi):
+            try:
+                viterbi_start = state_seq.index(stA_id)
+            except:
+                viterbi_start = -1
+            try:
+                viterbi_stop = state_seq.index(stop1_id)
+            except:
+                viterbi_stop = -1
 
-        nSeqs = sum([v for v in stats.values()])/2 # div by 2 bc every seq appears twice in stats (in start and stop)
 
-        with open(f"{config.src_path}/output/{cinfig.nCodons}codons/statistics.txt", "w") as file:
-            for key, value in stats.items():
-                file.write(key + "\t" + str(value/nSeqs) + "\n")
+            true_start = start_stop.iloc[i,1]
+            true_stop = start_stop.iloc[i,2]
+
+            # print(f"true_start = {true_start} vs viterbi_start = {viterbi_start}")
+            # print(f"true_stop = {true_stop} vs viterbi_stop = {viterbi_stop}")
+
+            nSeqs = len(viterbi)
+
+            if viterbi_start == -1:
+                stats["start_not_found"] += 1/nSeqs
+                if viterbi_stop != -1:
+                    print("found stop but not start")
+                    quit(1)
+            elif viterbi_start < true_start:
+                stats["start_too_early"] += 1/nSeqs
+            elif viterbi_start == true_start:
+                stats["start_correct"] += 1/nSeqs
+            else:
+                stats["start_too_late"] += 1/nSeqs
+
+            if viterbi_stop == -1:
+                stats["stop_not_found"] += 1/nSeqs
+            elif viterbi_stop < true_stop:
+                stats["stop_too_early"] += 1/nSeqs
+            elif viterbi_stop == true_stop:
+                stats["stop_correct"] += 1/nSeqs
+            else:
+                stats["stop_too_late"] += 1/nSeqs
+
+
+        with open(f"{config.src_path}/output/{config.nCodons}codons/statistics.json", "w") as file:
+            json.dump(stats, file)
+
+        for key, value in stats.items():
+            print(f"{key}: {value}")
 
 
 
