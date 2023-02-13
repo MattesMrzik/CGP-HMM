@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
     std::string str_nThreads(argv[2]);
     auto nThreads = std::stoi(str_nThreads);
 
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     // [nSeqs, lengths], values in range(rows in B)
     std::string seq_path = "output/" + std::to_string(nCodons) + "codons/out.seqs." + std::to_string(nCodons) + "codons.fa.json";
     std::ifstream f_seq(seq_path);
@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
     f_seq >> seqs;
     // std::cout << "seqs = " << seqs.dump() << '\n';
 
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     // [1, nStates]
     std::string i_path = "output/" + std::to_string(nCodons) + "codons/I." + std::to_string(nCodons) + "codons.csv.json";
     std::ifstream f_i(i_path);
@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
     f_i >> i;
     // std::cout << "i = " << i.dump() << '\n';
     // std::vector<float> i_v(i[0]);
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     // [nStates, nStates]
     std::string a_path = "output/" + std::to_string(nCodons) + "codons/A." + std::to_string(nCodons) + "codons.csv.json";
     std::ifstream f_a(a_path);
@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
     json a;
     f_a >> a;
     // std::cout << "a = " << a.dump() << '\n';
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
     // [emissions_state_size, nStates]
     std::string b_path = "output/" + std::to_string(nCodons) + "codons/B." + std::to_string(nCodons) + "codons.csv.json";
     std::ifstream f_b(b_path);
@@ -137,7 +137,7 @@ int main(int argc, char *argv[]) {
     json b;
     f_b >> b;
     // std::cout << "b = " << b.dump() << '\n';
-    ////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////
 
     std::vector<std::vector<size_t>> state_seqs;
     for (size_t j = 0; j < seqs.size(); ++j) {

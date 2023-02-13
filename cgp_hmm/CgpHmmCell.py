@@ -68,8 +68,11 @@ class CgpHmmCell(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(start, f"Cell.build() start {run_id}", self.config.bench_path)
 
         # setting the initilizers
-        if self.config.get_gradient_for_current_txt or self.config.init_weights_from_txt:
-            path = f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"
+        if self.config.get_gradient_for_current_txt or self.config.init_weights_from_before_fit or self.config.init_weights_from_after_fit:
+            if self.config.init_weights_from_after_fit:
+                path = f"{self.config.src_path}/output/{self.config.nCodons}codons/after_fit_kernels"
+            else:
+                path = f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs"
             weights = self.read_weights_from_file(path)
             I_initializer = tf.constant_initializer(weights[0])
             A_initializer = tf.constant_initializer(weights[1])

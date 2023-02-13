@@ -17,6 +17,7 @@ def main(config):
     import pandas as pd
     import time
     import os
+    import datetime
 
     model, history = fit_model(config)
     print("done fit_model()")
@@ -25,7 +26,7 @@ def main(config):
     # writng the loss history to file
     with open(f"{config.src_path}/output/{config.nCodons}codons/loss.log", "w") as file:
         for loss in history.history['loss']:
-            file.write(str(loss))
+            file.write(str(loss) + " " + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
             file.write("\n")
 
     plt.plot(history.history['loss'])
@@ -33,7 +34,7 @@ def main(config):
 
     I_kernel, A_kernel, B_kernel = model.get_weights()
 
-    if config.write_parameters_after_fit:
+    if config.write_matrices_after_fit:
 
         start = time.perf_counter()
         print("starting to write model")
@@ -56,6 +57,10 @@ def main(config):
         config.model.B_as_dense_to_json_file(B_out_path + ".json", B_kernel)
 
         print("done write model. it took ", time.perf_counter() - start)
+
+    if config.write_parameters_after_fit:
+        path = f"{config.src_path}/output/{config.nCodons}codons/after_fit_kernels"
+        model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
     if config.nCodons < 10:
         config.model.export_to_dot_and_png(A_kernel, B_kernel)

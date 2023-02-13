@@ -49,7 +49,7 @@ class Config():
             assert not self.use_weights_for_consts, "if --ig5_const_transition then --use_weights_for_consts cant be used"
 
         if self.run_viterbi:
-            assert self.write_parameters_after_fit, "if you run viterbi you must pass --write_parameters_after_fit bc viterbi.cc uses those files"
+            assert self.write_matrices_after_fit, "if you run viterbi you must pass --write_matrices_after_fit bc viterbi.cc uses those files"
 
 
     def add_attribtes(self):
@@ -194,7 +194,7 @@ class Config():
         self.add_arg_main('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
         self.add_arg_main('-d', '--dtype64', action='store_true', help='using dytpe tf.float64')
         self.add_arg_main('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
-        self.add_arg_main('--learning_rate', help ="learning_rate", type = float, default = 0.1)
+        self.add_arg_main('--learning_rate', help ="learning_rate", type = float, default = 0.05)
         self.add_arg_main('--no_learning', help ="learning_rate is set to 0", action='store_true')
         self.add_arg_main('--seq_len', type = int, help = 'lenght of output seqs before the optional stripping of flanks, must be at least 3*nCodons + 8')
         self.add_arg_main('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen (just random seqs) and not MSAgen")
@@ -232,7 +232,8 @@ class Config():
         self.add_arg_main('--get_gradient_from_saved_model_weights', action='store_true', help ="get_gradient_from_saved_model_weights, previous run saved weights when passing --batch_begin_write_weights__layer_call_write_inputs")
         self.add_arg_main('--assert_summarize', type = int, default = 5, help = 'assert_summarize [5]')
         self.add_arg_main('--print_batch_id', action='store_true', help = 'prints the batch id via on_train_batch_begin callback')
-        self.add_arg_main('--write_parameters_after_fit', action ='store_true', help ='after fit write parameters to file')
+        self.add_arg_main('--write_matrices_after_fit', action ='store_true', help ='after fit write matrices to file')
+        self.add_arg_main('--write_parameters_after_fit', action = 'store_true', help = 'after fit write kernels to file')
 
         # debugging
         self.add_arg_main('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
@@ -242,7 +243,8 @@ class Config():
         self.add_arg_main('--dont_check_assert', action='store_true', help ="dont_check_assert")
         self.add_arg_main('--run_eagerly', action='store_true', help ='run model.fit in eager execution')
         self.add_arg_main('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
-        self.add_arg_main('--init_weights_from_txt', action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --batch_begin_write_weights__layer_call_write_inputs was passed')
+        self.add_arg_main('--init_weights_from_before_fit', action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --batch_begin_write_weights__layer_call_write_inputs was passed')
+        self.add_arg_main('--init_weights_from_after_fit' , action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --write_parameters_after_fit was passed')
         self.add_arg_main('--no_deletes', action='store_true', help = 'the delete transitions in A are removed')
         self.add_arg_main('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
         self.add_arg_main('--forced_gene_structure', action='store_true', help = 'TGs in igs and ACs in coding, ie the state seq is determinded by emission seq')
