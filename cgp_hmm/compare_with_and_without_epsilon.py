@@ -60,35 +60,35 @@ if not only_train_with_epsilon:
     ############################################################################
     max_i_kernel = 0
     for i in range(len(I_kernel)):
-        max_i_kernel = max_i_kernel if abs(I_kernel[i] - I_kernel[i]) < max_i_kernel else abs(I_kernel[i] - I_kernel[i])
+        max_i_kernel = max_i_kernel if abs(I_kernel[i] - I_kernel_log[i]) < max_i_kernel else abs(I_kernel[i] - I_kernel_log[i])
     print("max_i_kernel =", max_i_kernel)
 
     max_i = 0
     for i in range(len(I[0])):
-        max_i = max_i if abs(I[0][i] - I[0][i]) < max_i else abs(I[0][i] - I[0][i])
+        max_i = max_i if abs(I[0][i] - I_log[0][i]) < max_i else abs(I[0][i] - I_log[0][i])
     print("max_i =", max_i)
 
     ############################################################################
     max_a_kernel = 0
     for i in range(len(A_kernel)):
-        max_a_kernel = max_a_kernel if abs(A_kernel[i] - A_kernel[i]) < max_a_kernel else abs(A_kernel[i] - A_kernel[i])
+        max_a_kernel = max_a_kernel if abs(A_kernel[i] - A_kernel_log[i]) < max_a_kernel else abs(A_kernel[i] - A_kernel_log[i])
     print("max_a_kernel =", max_a_kernel)
 
     max_a = 0
     for i in range(len(A)):
         for j in range(len(A[i])):
-            max_a = max_a if abs(A[i][j] - A[i][j]) < max_a else abs(A[i][j] - A[i][j])
+            max_a = max_a if abs(A[i][j] - A_log[i][j]) < max_a else abs(A[i][j] - A_log[i][j])
     print("max_a =", max_a)
 
     ############################################################################
     max_b_kernel = 0
     for i in range(len(B_kernel)):
-        max_b_kernel = max_b_kernel if abs(B_kernel[i] - B_kernel[i]) < max_b_kernel else abs(B_kernel[i] - B_kernel[i])
+        max_b_kernel = max_b_kernel if abs(B_kernel[i] - B_kernel_log[i]) < max_b_kernel else abs(B_kernel[i] - B_kernel_log[i])
     print("max_b_kernel =", max_b_kernel)
 
     max_b = 0
     for i in range(len(B)):
         for j in range(len(B[i])):
-            max_b = max_b if abs(B[i][j] - B[i][j]) < max_b else abs(B[i][j] - B[i][j])
+            max_b = max_b if abs(B[i][j] - B_log[i][j]) < max_b else abs(B[i][j] - B_log[i][j])
     print("max_b =", max_b)
     ############################################################################
