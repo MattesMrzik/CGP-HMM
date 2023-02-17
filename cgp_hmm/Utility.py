@@ -9,6 +9,7 @@ from resource import getrusage
 from resource import RUSAGE_SELF
 from itertools import product
 import os
+import json
 
 from My_Model import My_Model
 
@@ -127,93 +128,72 @@ def plot_time_against_ram(path):
     plt.show()
 
 ################################################################################
-def plot_time_and_ram(path, bar = False, extrapolate = 1, degree = 3):
+def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
     import os
     import matplotlib.pyplot as plt
 
-    def get_infos_from(type):
-        files = os.listdir(path)
-        files = sorted(files, key = lambda x: int(re.search("\d+", x).group(0)))
-        max_n_codons = int(re.search("\d+", files[-1]).group(0))
-        times = np.zeros(max_n_codons)
-        ram_peaks = np.zeros(max_n_codons)
-        for dir in files:
-            if os.path.isdir(f"{path}/{dir}"):
-                if os.path.exists(f"{path}/{dir}/{type}"):
-                    with open(f"{path}/{dir}/{type}","r") as infile:
-                        min_time = float("inf")
-                        max_time = 0
-                        ram_peak = 0
-                        for line in infile:
-                            description = line.split("\t")[3]
-
-                            time = float(line.split("\t")[0])
-                            min_time = min(min_time, time)
-                            if re.search("Training.model.fit.. end", description):
-                                max_time = max(max_time, time)
-
-                            ram = float(line.split("\t")[2])
-                            ram_peak = max(ram_peak, ram)
-                        times[int(re.search("\d+", dir).group(0))-1] = max_time - min_time
-                        ram_peaks[int(re.search("\d+", dir).group(0))-1] = ram_peak
-
-        for i in range(max_n_codons-1,-1,-1):
-            if times[i] == 0:
-                max_n_codons -=1
-        times = times[:max_n_codons]
-        ram_peaks = ram_peaks[:max_n_codons]
-
-        return {"max_n_codons":max_n_codons, "times":times, "max_ram_peaks":ram_peaks}
-
-
+    assert all(b >= a for a, b in zip(codons, codons[1:])), "codons must be sorted"
 
     fig = plt.figure(figsize=(12, 12))
     from itertools import product
-    for id in range(6):
-        # 3_TrueorderTransformedInput.log
 
-        info = get_infos_from(f"{id}_TrueorderTransformedInput.log")
-        print(f"{id}_TrueorderTransformedInput.log")
-        max_n_codons = info["max_n_codons"]
+    for type_id, type in enumerate(types):
+        y_times = {} # y values
+        y_ram = {} # y values
+        for codon in codons:
+            file_path = f"bench/{codon}codons/{type}_call_type.log"
+            if not os.path.exists(file_path):
+                print(f"file {file_path} does not exist")
+                exit(1)
 
-        max_n_codons_extrapolate = max_n_codons * extrapolate
+            with open(file_path, "r") as file:
+                start_time = -1
+                end_time = -1
+                max_ram_in_gb = float("-inf")
+                for line in file:
+                    # print("trying to laods =", line)
+                    data = json.loads(line.strip())
+                    if data["description"].startswith("Training.make_dataset() start"):
+                        start_time = data["time"]
+                    if data["description"].startswith("Training:model.fit() end"):
+                        end_time = data["time"]
+                    max_ram_in_gb = max(max_ram_in_gb, data["RAM in GB"])
+                assert start_time != -1, "start_time is not found"
+                assert end_time != -1, "end_time is not found"
+                y_times[codon] = end_time - start_time
+                y_ram[codon] = max_ram_in_gb
 
-        times = info["times"]
-        ram_peaks = info["max_ram_peaks"]
+        time_axis = fig.add_subplot(310 + type_id + 1)
 
-        ax1 = fig.add_subplot(320 + i +1)
-        # plt.plot(, times, "bo-")
-        # plt.plot(np.arange(max_n_codons), ram_peaks, "rx-")
-        x = np.arange(1,max_n_codons +1)
-
-        # should coefs all be positive? for a runtime s
-        coef_times = np.polyfit(x,times, degree) # coef for x^degree is coef_times[0]
-        coef_ram_peaks = np.polyfit(x,ram_peaks/1024, degree)
-        print("coef_times:", coef_times)
-        print("coef_ram_peaks:", coef_ram_peaks)
-
+        # time
+        y_times = [y_times[codon] for codon in codons]
+        coef_times = np.polyfit(codons,y_times, degree) # coef for x^degree is coef_times[0]
         color = 'tab:red'
-        ax1.set_xlabel('ncodons')
-        ax1.set_ylabel('time in sec', color=color)
-        ax1.plot(x, times, "rx")
+        time_axis.set_xlabel('ncodons')
+        time_axis.set_ylabel('time in sec', color=color)
+        time_axis.plot(codons, y_times, "rx")
 
-        x_extrapolate = np.arange(1,max_n_codons_extrapolate+1)
-        y = [np.polyval(coef_times,x) for x in x_extrapolate]
         if extrapolate:
-            ax1.plot(x_extrapolate, y, color = "tab:red")
-        ax1.tick_params(axis='y', labelcolor=color)
+            x_values = np.arange(1, max(codons) * extrapolate +1)
+            y = [np.polyval(coef_times,x) for x in x_values]
+            time_axis.plot(x_values, y, color = "tab:red")
+        time_axis.tick_params(axis='y', labelcolor=color)
 
-        ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+        # ram
+        y_ram   = [y_ram[codon]   for codon in codons]
+        coef_ram = np.polyfit(codons,y_ram, degree)
+
+        ram_axis = time_axis.twinx()  # instantiate a second axes that shares the same x-axis
 
         color = 'tab:blue'
-        ax2.set_ylabel('ram_peak in mb', color=color)  # we already handled the x-label with ax1
-        ax2.plot(x, ram_peaks/1024, "bx")
-        y = [np.polyval(coef_ram_peaks ,x) for x in x_extrapolate]
-        if extrapolate:
-            ax2.plot(x_extrapolate, y, color = "tab:blue")
-        ax2.tick_params(axis='y', labelcolor=color)
+        ram_axis.set_ylabel('ram_peak in mb', color=color)  # we already handled the x-label with ax1
+        ram_axis.plot(codons, y_ram, "bx")
 
-        title = ["AB sparse","A dense","B dense","AB dense","full matrices"][i]
+        if extrapolate:
+            y = [np.polyval(coef_ram ,x) for x in x_values]
+            ram_axis.plot(x_values, y, color = "tab:blue")
+        ram_axis.tick_params(axis='y', labelcolor=color)
+
         def x_to_power_of(exponent):
             if exponent == 0:
                 return ""
@@ -221,10 +201,102 @@ def plot_time_and_ram(path, bar = False, extrapolate = 1, degree = 3):
                 return "x"
             else:
                 return f"x^{exponent}"
-        title = " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}" for jj, cc in enumerate(coef_times)]) + title
-        title += " " + " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram_peaks)])
-        ax1.title.set_text(title)
+        title = " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}" for jj, cc in enumerate(coef_times)]) + type
+        title += " " + " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram)])
+        time_axis.title.set_text(title)
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
+
+    # def get_infos_from(type):
+    #     files = os.listdir(path)
+        # files = sorted(files, key = lambda x: int(re.search("\d+", x).group(0)))
+        # max_n_codons = int(re.search("\d+", files[-1]).group(0))
+        # times = np.zeros(max_n_codons)
+        # ram_peaks = np.zeros(max_n_codons)
+        # for dir in files:
+        #     if os.path.isdir(f"{path}/{dir}"):
+        #         if os.path.exists(f"{path}/{dir}/{type}"):
+        #             with open(f"{path}/{dir}/{type}","r") as infile:
+        #                 min_time = float("inf")
+        #                 max_time = 0
+        #                 ram_peak = 0
+        #                 for line in infile:
+        #                     description = line.split("\t")[3]
+        #
+        #                     time = float(line.split("\t")[0])
+        #                     min_time = min(min_time, time)
+        #                     if re.search("Training.model.fit.. end", description):
+        #                         max_time = max(max_time, time)
+        #
+        #                     ram = float(line.split("\t")[2])
+        #                     ram_peak = max(ram_peak, ram)
+        #                 times[int(re.search("\d+", dir).group(0))-1] = max_time - min_time
+        #                 ram_peaks[int(re.search("\d+", dir).group(0))-1] = ram_peak
+        #
+        # for i in range(max_n_codons-1,-1,-1):
+        #     if times[i] == 0:
+        #         max_n_codons -=1
+        # times = times[:max_n_codons]
+        # ram_peaks = ram_peaks[:max_n_codons]
+        #
+        # return {"max_n_codons":max_n_codons, "times":times, "max_ram_peaks":ram_peaks}
+
+
+    # for id in range(6):
+    #     # 3_TrueorderTransformedInput.log
+    #
+    #     info = get_infos_from(f"{id}_TrueorderTransformedInput.log")
+    #     print(f"{id}_TrueorderTransformedInput.log")
+    #     max_n_codons = info["max_n_codons"]
+    #
+    #     max_n_codons_extrapolate = max_n_codons * extrapolate
+    #
+    #     times = info["times"]
+    #     ram_peaks = info["max_ram_peaks"]
+    #
+    #     ax1 = fig.add_subplot(320 + i +1)
+    #     # plt.plot(, times, "bo-")
+    #     # plt.plot(np.arange(max_n_codons), ram_peaks, "rx-")
+    #     x = np.arange(1,max_n_codons +1)
+    #
+    #     # should coefs all be positive? for a runtime s
+    #     coef_times = np.polyfit(x,times, degree) # coef for x^degree is coef_times[0]
+    #     coef_ram_peaks = np.polyfit(x,ram_peaks/1024, degree)
+    #     print("coef_times:", coef_times)
+    #     print("coef_ram_peaks:", coef_ram_peaks)
+    #
+    #     color = 'tab:red'
+    #     ax1.set_xlabel('ncodons')
+    #     ax1.set_ylabel('time in sec', color=color)
+    #     ax1.plot(x, times, "rx")
+    #
+    #     x_extrapolate = np.arange(1,max_n_codons_extrapolate+1)
+    #     y = [np.polyval(coef_times,x) for x in x_extrapolate]
+    #     if extrapolate:
+    #         ax1.plot(x_extrapolate, y, color = "tab:red")
+    #     ax1.tick_params(axis='y', labelcolor=color)
+    #
+    #     ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
+    #
+    #     color = 'tab:blue'
+    #     ax2.set_ylabel('ram_peak in mb', color=color)  # we already handled the x-label with ax1
+    #     ax2.plot(x, ram_peaks/1024, "bx")
+    #     y = [np.polyval(coef_ram_peaks ,x) for x in x_extrapolate]
+    #     if extrapolate:
+    #         ax2.plot(x_extrapolate, y, color = "tab:blue")
+    #     ax2.tick_params(axis='y', labelcolor=color)
+    #
+    #     title = ["AB sparse","A dense","B dense","AB dense","full matrices"][i]
+    #     def x_to_power_of(exponent):
+    #         if exponent == 0:
+    #             return ""
+    #         elif exponent == 1:
+    #             return "x"
+    #         else:
+    #             return f"x^{exponent}"
+    #     title = " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}" for jj, cc in enumerate(coef_times)]) + title
+    #     title += " " + " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram_peaks)])
+    #     ax1.title.set_text(title)
+    #     fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
     plt.savefig("bench.png")
 ################################################################################
@@ -283,167 +355,167 @@ def view_current_inputs_txt(path):
 ################################################################################
 ################################################################################
 # type is either I, A, B
-def transform_json_to_csv(path, I_or_A_or_B, nCodons):
-    import json
-    print("I_or_A_or_B =", I_or_A_or_B)
-    with open(path, "r") as file:
-        data = json.load(file)
-    print("data shape =", tf.shape(data))
-    if I_or_A_or_B == "I":
-        data = data[0]
-        with open(path + ".csv", "w") as file:
-            for id, value in enumerate(data):
-                file.write(state_id_to_description(id, nCodons))
-                file.write(";")
-                file.write(str(value))
-                file.write("\n")
-    elif I_or_A_or_B == "A":
-        with open(path + ".csv", "w") as file:
-            file.write(";")
-            for state in range(len(data)):
-                file.write(state_id_to_description(state, nCodons))
-                file.write(";")
-            file.write("\n")
-            for id, row in enumerate(data):
-                file.write(state_id_to_description(id, nCodons))
-                file.write(";")
-                for value in row:
-                    file.write(str(value))
-                    file.write(";")
-                file.write("\n")
-    elif I_or_A_or_B == "B":
-        print("B")
-        id_to_emi = get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = 4, order = 2)[1]
-        with open(path + ".csv", "w") as file:
-            file.write(";")
-            for state in range(len(data[0])):
-                file.write(state_id_to_description(state, nCodons))
-                file.write(";")
-            file.write("\n")
-            print("data =", str(data)[:50], "...")
-            for id, row in enumerate(data):
-                if not id in id_to_emi:
-                    break
-                # print("id_to_emi[id] =", id_to_emi[id])
-                file.write(emi_tuple_to_str(id_to_emi[id]))
-                file.write(";")
-                for value in row:
-                    file.write(str(value))
-                    file.write(";")
-                file.write("\n")
+# def transform_json_to_csv(path, I_or_A_or_B, nCodons):
+#     import json
+#     print("I_or_A_or_B =", I_or_A_or_B)
+#     with open(path, "r") as file:
+#         data = json.load(file)
+#     print("data shape =", tf.shape(data))
+#     if I_or_A_or_B == "I":
+#         data = data[0]
+#         with open(path + ".csv", "w") as file:
+#             for id, value in enumerate(data):
+#                 file.write(state_id_to_description(id, nCodons))
+#                 file.write(";")
+#                 file.write(str(value))
+#                 file.write("\n")
+#     elif I_or_A_or_B == "A":
+#         with open(path + ".csv", "w") as file:
+#             file.write(";")
+#             for state in range(len(data)):
+#                 file.write(state_id_to_description(state, nCodons))
+#                 file.write(";")
+#             file.write("\n")
+#             for id, row in enumerate(data):
+#                 file.write(state_id_to_description(id, nCodons))
+#                 file.write(";")
+#                 for value in row:
+#                     file.write(str(value))
+#                     file.write(";")
+#                 file.write("\n")
+#     elif I_or_A_or_B == "B":
+#         print("B")
+#         id_to_emi = get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = 4, order = 2)[1]
+#         with open(path + ".csv", "w") as file:
+#             file.write(";")
+#             for state in range(len(data[0])):
+#                 file.write(state_id_to_description(state, nCodons))
+#                 file.write(";")
+#             file.write("\n")
+#             print("data =", str(data)[:50], "...")
+#             for id, row in enumerate(data):
+#                 if not id in id_to_emi:
+#                     break
+#                 # print("id_to_emi[id] =", id_to_emi[id])
+#                 file.write(emi_tuple_to_str(id_to_emi[id]))
+#                 file.write(";")
+#                 for value in row:
+#                     file.write(str(value))
+#                     file.write(";")
+#                 file.write("\n")
 
 ################################################################################
-def transform_verbose_txt_to_csv(path, nCodons):
-    log = {}
-    with open(path,"r") as file:
-        for line in file:
-            line = line.strip().split(";")
-            # beginning of data entry
-            if len(line) == 4:
-                if line[2][0] != ">":
-                    continue
-                count = int(line[0])
-                run_id = int(line[1])
-                description = line[2][1:]
-                data = [round(float(x),3) for x in re.sub("[\[\]]","", line[3]).split(" ")]
-            else:
-                data = [round(float(x),3) for x in re.sub("[\[\]]","", line[0]).split(" ")]
-            if count not in log:
-                e = {description : [data]}
-                log[count] = {run_id : e}
-            else:
-                if run_id not in log[count]:
-                    e = {description : [data]}
-                    log[count][run_id] = e
-                else:
-                    if description not in log[count][run_id]:
-                        log[count][run_id][description] = [data]
-                    else:
-                        log[count][run_id][description].append(data)
-    # for count in log.keys():
-    #     for id in log[count].keys():
-    #         for description in log[count][id].keys():
-    #             for data in log[count][id][description]:
-    #                 print(count,id,description,data, sep = "\t")
-
-    with open(path + ".csv","w") as file:
-        import numpy as np
-        sep = ";"
-        decimal_seperator = ","
-        file.write("A\n" + sep*2)
-        for id in log[1]:
-            for i in range(len(log[1][id]["A"])):
-                file.write(state_id_to_description(i, nCodons))
-                file.write(sep)
-            file.write("\n")
-            for row_id, data in enumerate(log[1][id]["A"]):
-                file.write(sep)
-                file.write(state_id_to_description(row_id, nCodons))
-                file.write(sep)
-                file.write(sep.join(list(map(str,data))).replace(".",decimal_seperator))
-                file.write("\n")
-            break
-        file.write("B\n" + sep*2)
-        for id in log[1]:
-            for i in range(len(log[1][id]["A"])):
-                file.write(state_id_to_description(i, nCodons))
-                file.write(sep)
-            file.write("\n")
-            for row_id, data in enumerate(log[1][id]["B"]):
-                alphabet_size = 4
-                order = 2
-                file.write("".join(["ACGTIT"[b] for b in id_to_higher_order_emission(row_id, alphabet_size, order)]))
-                file.write(sep)
-                file.write(str(row_id))
-                file.write(sep)
-                file.write(sep.join(list(map(str,data))).replace(".",decimal_seperator))
-                file.write("\n")
-            break
-
-        for i in sorted(list(log)): # sort by count
-            for id in log[i]:
-                file.write(str(id)+"_")
-                max_len = max([len(v) for k,v in log[i][id].items() if k not in ["A","B"]])
-                inputs = sep.join("i") # since i will decode the one_hot encoding
-                E = sep.join("E" * len(log[i][id]["E"][0]))
-                R = sep.join("R" * len(log[i][id]["R"][0]))
-                a = sep.join("a" * len(log[i][id]["forward"][0]))
-                l = sep.join("l" * len(log[i][id]["loglik"][0]))
-                file.write(f"{i}{sep}{inputs}{sep}{E}{sep}{R}{sep}{a}{sep}{l}\n")
-                for row in range(max_len):
-                    file.write(str(i))
-                    file.write(sep)
-                    try:
-                        file.write(str(np.argmax(log[i][id]["inputs"][row])).replace(".",decimal_seperator))
-                        file.write(sep)
-                    except:
-                        file.write(sep)
-                        file.write(sep)
-                    try:
-                        file.write(sep.join(list(map(str, log[i][id]["E"][row]))).replace(".",decimal_seperator))
-                        file.write(sep)
-                    except:
-                        file.write(sep * (len(log[i][id]["E"][0])-1))
-                        file.write(sep)
-                    try:
-                        file.write(sep.join(list(map(str, log[i][id]["R"][row]))).replace(".",decimal_seperator))
-                        file.write(sep)
-                    except:
-                        file.write(sep * (len(log[i][id]["R"][0])-1))
-                        file.write(sep)
-                    try:
-                        file.write(sep.join(list(map(str, log[i][id]["forward"][row]))).replace(".",decimal_seperator))
-                        file.write(sep)
-                    except:
-                        file.write(sep * (len(log[i][id]["forward"][0])-1))
-                        file.write(sep)
-                    try:
-                        file.write(sep.join(list(map(str, log[i][id]["loglik"][row]))).replace(".",decimal_seperator))
-                        file.write(sep)
-                    except:
-                        file.write(sep * (len(log[i][id]["loglik"][0])-1).replace(".",decimal_seperator))
-                        file.write(sep)
-                    file.write("\n")
+# def transform_verbose_txt_to_csv(path, nCodons):
+#     log = {}
+#     with open(path,"r") as file:
+#         for line in file:
+#             line = line.strip().split(";")
+#             # beginning of data entry
+#             if len(line) == 4:
+#                 if line[2][0] != ">":
+#                     continue
+#                 count = int(line[0])
+#                 run_id = int(line[1])
+#                 description = line[2][1:]
+#                 data = [round(float(x),3) for x in re.sub("[\[\]]","", line[3]).split(" ")]
+#             else:
+#                 data = [round(float(x),3) for x in re.sub("[\[\]]","", line[0]).split(" ")]
+#             if count not in log:
+#                 e = {description : [data]}
+#                 log[count] = {run_id : e}
+#             else:
+#                 if run_id not in log[count]:
+#                     e = {description : [data]}
+#                     log[count][run_id] = e
+#                 else:
+#                     if description not in log[count][run_id]:
+#                         log[count][run_id][description] = [data]
+#                     else:
+#                         log[count][run_id][description].append(data)
+#     # for count in log.keys():
+#     #     for id in log[count].keys():
+#     #         for description in log[count][id].keys():
+#     #             for data in log[count][id][description]:
+#     #                 print(count,id,description,data, sep = "\t")
+#
+#     with open(path + ".csv","w") as file:
+#         import numpy as np
+#         sep = ";"
+#         decimal_seperator = ","
+#         file.write("A\n" + sep*2)
+#         for id in log[1]:
+#             for i in range(len(log[1][id]["A"])):
+#                 file.write(state_id_to_description(i, nCodons))
+#                 file.write(sep)
+#             file.write("\n")
+#             for row_id, data in enumerate(log[1][id]["A"]):
+#                 file.write(sep)
+#                 file.write(state_id_to_description(row_id, nCodons))
+#                 file.write(sep)
+#                 file.write(sep.join(list(map(str,data))).replace(".",decimal_seperator))
+#                 file.write("\n")
+#             break
+#         file.write("B\n" + sep*2)
+#         for id in log[1]:
+#             for i in range(len(log[1][id]["A"])):
+#                 file.write(state_id_to_description(i, nCodons))
+#                 file.write(sep)
+#             file.write("\n")
+#             for row_id, data in enumerate(log[1][id]["B"]):
+#                 alphabet_size = 4
+#                 order = 2
+#                 file.write("".join(["ACGTIT"[b] for b in id_to_higher_order_emission(row_id, alphabet_size, order)]))
+#                 file.write(sep)
+#                 file.write(str(row_id))
+#                 file.write(sep)
+#                 file.write(sep.join(list(map(str,data))).replace(".",decimal_seperator))
+#                 file.write("\n")
+#             break
+#
+#         for i in sorted(list(log)): # sort by count
+#             for id in log[i]:
+#                 file.write(str(id)+"_")
+#                 max_len = max([len(v) for k,v in log[i][id].items() if k not in ["A","B"]])
+#                 inputs = sep.join("i") # since i will decode the one_hot encoding
+#                 E = sep.join("E" * len(log[i][id]["E"][0]))
+#                 R = sep.join("R" * len(log[i][id]["R"][0]))
+#                 a = sep.join("a" * len(log[i][id]["forward"][0]))
+#                 l = sep.join("l" * len(log[i][id]["loglik"][0]))
+#                 file.write(f"{i}{sep}{inputs}{sep}{E}{sep}{R}{sep}{a}{sep}{l}\n")
+#                 for row in range(max_len):
+#                     file.write(str(i))
+#                     file.write(sep)
+#                     try:
+#                         file.write(str(np.argmax(log[i][id]["inputs"][row])).replace(".",decimal_seperator))
+#                         file.write(sep)
+#                     except:
+#                         file.write(sep)
+#                         file.write(sep)
+#                     try:
+#                         file.write(sep.join(list(map(str, log[i][id]["E"][row]))).replace(".",decimal_seperator))
+#                         file.write(sep)
+#                     except:
+#                         file.write(sep * (len(log[i][id]["E"][0])-1))
+#                         file.write(sep)
+#                     try:
+#                         file.write(sep.join(list(map(str, log[i][id]["R"][row]))).replace(".",decimal_seperator))
+#                         file.write(sep)
+#                     except:
+#                         file.write(sep * (len(log[i][id]["R"][0])-1))
+#                         file.write(sep)
+#                     try:
+#                         file.write(sep.join(list(map(str, log[i][id]["forward"][row]))).replace(".",decimal_seperator))
+#                         file.write(sep)
+#                     except:
+#                         file.write(sep * (len(log[i][id]["forward"][0])-1))
+#                         file.write(sep)
+#                     try:
+#                         file.write(sep.join(list(map(str, log[i][id]["loglik"][row]))).replace(".",decimal_seperator))
+#                         file.write(sep)
+#                     except:
+#                         file.write(sep * (len(log[i][id]["loglik"][0])-1).replace(".",decimal_seperator))
+#                         file.write(sep)
+#                     file.write("\n")
 
 ################################################################################
 ################################################################################
@@ -451,33 +523,24 @@ def transform_verbose_txt_to_csv(path, nCodons):
 def append_time_stamp_to_file(time, description, path):
     with open(path, "a") as file:
         file.write(f"{time}\t{description}\n")
-def append_time_ram_stamp_to_file(start, description, path):
+################################################################################
+def append_time_ram_stamp_to_file(description, path, start = None):
     if not os.path.exists('/'.join(path.split('/')[:-1])):
-        run(f"mkdir -p {'/'.join(path.split('/')[:-1])}")
+        os.system(f"mkdir -p {'/'.join(path.split('/')[:-1])}")
     with open(path, "a") as file:
-        s = [time.perf_counter(),
-             time.perf_counter() - start,
-             getrusage(RUSAGE_SELF).ru_maxrss]
-        s = [str(round(x,5)) for x in s]
-        s = "\t".join(s + [description + "\n"])
-        file.write(s)
+        d = {}
+        d["time"] = np.round(time.perf_counter(),3)
+        d["time since passed start time"] = np.round(time.perf_counter() - start,3) if start != None else "no start passed"
+        RAM = getrusage(RUSAGE_SELF).ru_maxrss
+        d["RAM"] = RAM
+        d["RAM in GB"] = np.round(RAM/1024/1024/1024,3)
+        d["description"] = description
 
-    # if re.search("init", description) or True:
-    #     tf.print("in append time and ram stamp")
-    #     with open(path,"r") as file:
-    #         for line in file:
-    #             tf.print(line.strip())
-    #     tf.print("done with printing file")
+        json.dump(d, file)
+        file.write("\n")
 
-def remove_old_bench_files(nCodons):
+################################################################################
 
-        output_path = f"bench/{nCodons}codons"
-
-        run(f"rm {output_path}/callbackoutput_time_start.txt")
-        run(f"rm {output_path}/callbackoutput_time_end.txt")
-        run(f"rm {output_path}/callbackoutput_ram_start.txt")
-        run(f"rm {output_path}/callbackoutput_ram_end.txt")
-        run(f"rm {output_path}/stamps.log")
 def remove_old_verbose_files(nCodons):
 
         output_path = f"verbose"
@@ -512,41 +575,41 @@ def run(command):
 ################################################################################
 ################################################################################
 ################################################################################
-def generate_state_emission_seqs(a,b,n,l, a0 = [], one_hot = False):
-
-    state_space_size = len(a)
-    emission_space_size = len(b[0])
-
-    states = 0
-    emissions = 0
-
-    def loaded_dice(faces, p):
-        return np.argmax(np.random.multinomial(1,p))
-
-    # todo just use else case, this can be converted by tf.one_hot
-    if one_hot:
-        states = np.zeros((n,l,state_space_size), dtype = np.int64)
-        emissions = np.zeros((n,l,emission_space_size), dtype = np.int64)
-        for i in range(n):
-            states[i,0,0 if len(a0) == 0 else loaded_dice(state_space_size, a0)] = 1
-            emissions[i,0, loaded_dice(emission_space_size, b[np.argmax(states[i,0,:])])] = 1
-            for j in range(1,l):
-                states[i,j, loaded_dice(state_space_size, a[np.argmax(states[i,j-1])])] = 1
-                emissions[i,j, loaded_dice(emission_space_size, b[np.argmax(states[i,j-1])])] = 1
-            # emssions.write(seq + "\n")
-            # states.write(">id" + str(i) + "\n")
-            # states.write(state_seq + "\n")
-    else:
-        states = np.zeros((n,l), dtype = np.int64)
-        emissions = np.zeros((n,l), dtype = np.int64)
-        for i in range(n):
-            states[i,0] = 0 if len(a0) == 0 else loaded_dice(state_space_size, a0)
-            emissions[i,0] = loaded_dice(emission_space_size, b[states[i,0]])
-            for j in range(1,l):
-                states[i,j] = loaded_dice(state_space_size, a[states[i,j-1]])
-                emissions[i,j] = loaded_dice(emission_space_size, b[states[i,j-1]])
-
-    return states, emissions
+# def generate_state_emission_seqs(a,b,n,l, a0 = [], one_hot = False):
+#
+#     state_space_size = len(a)
+#     emission_space_size = len(b[0])
+#
+#     states = 0
+#     emissions = 0
+#
+#     def loaded_dice(faces, p):
+#         return np.argmax(np.random.multinomial(1,p))
+#
+#     # todo just use else case, this can be converted by tf.one_hot
+#     if one_hot:
+#         states = np.zeros((n,l,state_space_size), dtype = np.int64)
+#         emissions = np.zeros((n,l,emission_space_size), dtype = np.int64)
+#         for i in range(n):
+#             states[i,0,0 if len(a0) == 0 else loaded_dice(state_space_size, a0)] = 1
+#             emissions[i,0, loaded_dice(emission_space_size, b[np.argmax(states[i,0,:])])] = 1
+#             for j in range(1,l):
+#                 states[i,j, loaded_dice(state_space_size, a[np.argmax(states[i,j-1])])] = 1
+#                 emissions[i,j, loaded_dice(emission_space_size, b[np.argmax(states[i,j-1])])] = 1
+#             # emssions.write(seq + "\n")
+#             # states.write(">id" + str(i) + "\n")
+#             # states.write(state_seq + "\n")
+#     else:
+#         states = np.zeros((n,l), dtype = np.int64)
+#         emissions = np.zeros((n,l), dtype = np.int64)
+#         for i in range(n):
+#             states[i,0] = 0 if len(a0) == 0 else loaded_dice(state_space_size, a0)
+#             emissions[i,0] = loaded_dice(emission_space_size, b[states[i,0]])
+#             for j in range(1,l):
+#                 states[i,j] = loaded_dice(state_space_size, a[states[i,j-1]])
+#                 emissions[i,j] = loaded_dice(emission_space_size, b[states[i,j-1]])
+#
+#     return states, emissions
 ################################################################################
 ################################################################################
 ################################################################################

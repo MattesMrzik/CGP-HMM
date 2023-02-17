@@ -21,7 +21,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Cell.__init__() start {run_id}", config.bench_path)
+        append_time_ram_stamp_to_file(f"Cell.__init__() start {run_id}", config.bench_path, start)
 
         # super(CgpHmmCell, self).__init__()
         super(CgpHmmCell, self).__init__()
@@ -47,7 +47,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # self.indices_for_constants_B = self.get_indices_for_constants_for_B()
 
 
-        append_time_ram_stamp_to_file(start, f"Cell.__init__() end   {run_id}", self.config.bench_path)
+        append_time_ram_stamp_to_file(f"Cell.__init__() end   {run_id}", self.config.bench_path, start)
 
 
         # this is for shared parameter vesion which ran slow
@@ -65,7 +65,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Cell.build() start {run_id}", self.config.bench_path)
+        append_time_ram_stamp_to_file(f"Cell.build() start {run_id}", self.config.bench_path, start)
 
         # setting the initilizers
         if self.config.get_gradient_for_current_txt or self.config.init_weights_from_before_fit or self.config.init_weights_from_after_fit:
@@ -118,7 +118,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         if visualize_after_build:
             config.model.export_to_dot_and_png(A_kernel, B_kernel)
             exit()
-        append_time_ram_stamp_to_file(start, f"Cell.build() end   {run_id}", self.config.bench_path)
+        append_time_ram_stamp_to_file(f"Cell.build() end   {run_id}", self.config.bench_path, start)
 
 ################################################################################
     # this might be a possible alternative for the count variable in cell.call()

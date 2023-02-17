@@ -11,7 +11,6 @@ import re
 import Utility
 from Utility import run
 from CallBacks import get_call_backs
-from Utility import transform_verbose_txt_to_csv
 from Utility import append_time_ram_stamp_to_file
 
 from CgpHmmLayer import CgpHmmLayer
@@ -26,7 +25,7 @@ def make_model(config):
 
     # TODO: https://www.tensorflow.org/guide/keras/masking_and_padding
 
-    append_time_ram_stamp_to_file(start, f"Traning.make_model() start {run_id}", config.bench_path)
+    append_time_ram_stamp_to_file(f"Traning.make_model() start {run_id}", config.bench_path, start)
 
     # another None added automatically for yet unkown batch_size
     sequences = tf.keras.Input(shape = (None, config.model.number_of_emissions), name = "sequences", dtype = config.dtype)
@@ -38,14 +37,14 @@ def make_model(config):
 
     model = tf.keras.Model(inputs = sequences, outputs = [tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik)]) #  the output of the model is the value that is computed by a final layer that picks the loglike of the [alpha, loglik, count]
 
-    append_time_ram_stamp_to_file(start, f"Traning.make_model() end   {run_id}", config.bench_path)
+    append_time_ram_stamp_to_file(f"Traning.make_model() end   {run_id}", config.bench_path, start)
     return model, cgp_hmm_layer
 
 
 def make_dataset(config):
     start = time.perf_counter()
     run_id = randint(0,100)
-    append_time_ram_stamp_to_file(start, f"Training.make_dataset() start {run_id}", config.bench_path)
+    append_time_ram_stamp_to_file(f"Training.make_dataset() start {run_id}", config.bench_path, start)
 
     if config.generate_new_seqs:
         if config.use_simple_seq_gen:
@@ -83,7 +82,7 @@ def make_dataset(config):
     # TODO: shuffle dataset?
     ds = ds.repeat()
 
-    append_time_ram_stamp_to_file(start, f"Training.make_dataset() end   {run_id}", config.bench_path)
+    append_time_ram_stamp_to_file(f"Training.make_dataset() end   {run_id}", config.bench_path, start)
     return ds, seqs
 
 # from memory_profiler import profile
@@ -414,16 +413,16 @@ def fit_model(config):
                 # compile model
                 start = time.perf_counter()
                 run_id = randint(0,100)
-                append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config.bench_path)
+                append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
                 model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
-                append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config.bench_path)
+                append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
 
                 # fit model
                 start = time.perf_counter()
                 run_id = randint(0,100)
-                append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config.bench_path)
+                append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
                 history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-                append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config.bench_path)
+                append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
         else:
              model, cgp_hmm_layer = make_model(config)
              model.summary()
@@ -431,17 +430,17 @@ def fit_model(config):
              # compile model
              start = time.perf_counter()
              run_id = randint(0,100)
-             append_time_ram_stamp_to_file(start, f"Training:model.compile() start {run_id}", config.bench_path)
+             append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
              model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
-             append_time_ram_stamp_to_file(start, f"Training:model.compile() end   {run_id}", config.bench_path)
+             append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
 
              # git model
              start = time.perf_counter()
              run_id = randint(0,100)
-             append_time_ram_stamp_to_file(start, f"Training:model.fit() start {run_id}", config.bench_path)
+             append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
              print("optimizer.iterations should be 0:", optimizer.iterations)
              history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
              print("optimizer.iterations should be larger 0:", optimizer.iterations)
-             append_time_ram_stamp_to_file(start, f"Training:model.fit() end   {run_id}", config.bench_path)
+             append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
 
     return model, history

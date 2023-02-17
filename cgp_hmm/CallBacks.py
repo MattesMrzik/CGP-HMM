@@ -8,31 +8,22 @@ import os
 
 def get_call_backs(config, model):
 
-    class write_time_epoch_start_callback(tf.keras.callbacks.Callback):
-        def on_epoch_begin(self, epoch, logs = None):
-            with open(f"{output_path}/callbackoutput_time_start.txt", "a") as file:
-                file.write(f"{time.time()}\n")
-    class write_time_epoch_end_callback(tf.keras.callbacks.Callback):
-        def on_epoch_end(self, epoch, logs = None):
-            with open(f"{output_path}/callbackoutput_time_end.txt", "a") as file:
-                file.write(f"{time.time()}\n")
-
     class write_time_ram_epoch_start_callback(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):
-            Utility.append_time_ram_stamp_to_file(0, "epoch_begin", config.bench_path)
+            Utility.append_time_ram_stamp_to_file("epoch_begin_callback", config.bench_path)
 
     class write_time_ram_epoch_end_callback(tf.keras.callbacks.Callback):
         def on_epoch_end(self, epoch, logs = None):
             # with open(f"{output_path}/callbackoutput_ram_end.txt", "a") as file:
             #     file.write(f"{process.memory_info().rss}\n")
                 #                              oder vms     Virtual Memory Size
-            Utility.append_time_ram_stamp_to_file(0, "epoch_end", config.bench_path)
+            Utility.append_time_ram_stamp_to_file("epoch_end_callback", config.bench_path)
 
     class exit_after_first_batch(tf.keras.callbacks.Callback):
         def on_train_batch_end(self, batch, logs = None):
             # das vielleicht rein ins callback, da ja exit und der code hier dann ja gar nicht mehr erreicht wird
-            if config.verbose and config.exit_after_first_batch:
-                Utility.transform_verbose_txt_to_csv(f"{config.src_path}/verbose/{config.nCodons}codons.txt", config.nCodons)
+            # if config.verbose and config.exit_after_first_batch:
+            #     Utility.transform_verbose_txt_to_csv(f"{config.src_path}/verbose/{config.nCodons}codons.txt", config.nCodons)
             exit(1)
 
     class exit_after_loglik_is_nan(tf.keras.callbacks.Callback):

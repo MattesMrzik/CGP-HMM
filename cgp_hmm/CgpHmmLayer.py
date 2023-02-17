@@ -25,12 +25,12 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init: tf")
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.init() start {run_id}", config.bench_path)
+        append_time_ram_stamp_to_file(f"Layer.init() start {run_id}", config.bench_path, start)
         super(CgpHmmLayer, self).__init__()
         self.nCodons = config.nCodons
         self.config = config
 
-        append_time_ram_stamp_to_file(start, f"Layer.init() end  {run_id}", self.config.bench_path)
+        append_time_ram_stamp_to_file(f"Layer.init() end  {run_id}", self.config.bench_path, start)
 
     def build(self, inputs):
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer build")
@@ -38,7 +38,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.build() start {run_id}", self.config.bench_path)
+        append_time_ram_stamp_to_file(f"Layer.build() start {run_id}", self.config.bench_path, start)
         self.C = CgpHmmCell(self.config) # init
 
         # self.C.build(input_shape) # build
@@ -46,7 +46,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # a second time when calling F
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = self.config.return_seqs) # F = forward ie the chain of cells C
 
-        append_time_ram_stamp_to_file(start, f"Layer.build() end   {run_id}", self.config.bench_path)
+        append_time_ram_stamp_to_file(f"Layer.build() end   {run_id}", self.config.bench_path, start)
 
     def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
@@ -54,7 +54,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         start = time.perf_counter()
         run_id = randint(0,100)
-        append_time_ram_stamp_to_file(start, f"Layer.call() start {run_id}", self.config.bench_path)
+        append_time_ram_stamp_to_file(f"Layer.call() start {run_id}", self.config.bench_path, start)
 
         # todo: felix macht auch nochmal a und b
         self.C.init_cell()
@@ -227,7 +227,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             # self.add_metric(tf.math.reduce_min(self.C.B_dense),"B_min")
 
 
-        append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config.bench_path)
+        append_time_ram_stamp_to_file(f"Layer.call() end   {run_id}", self.config.bench_path, start)
         if self.config.return_seqs:
             return loglik_state, alpha_seq
         else:

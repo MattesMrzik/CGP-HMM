@@ -178,7 +178,7 @@ class Config():
     def add_small_bench(self):
         self.add_arg_small_bench('-r', '--range_codon', nargs='+', help='usage: < -r 1 10 > to run 1 2 3 4 5 6 7 8 9 10 codons')
         self.add_arg_small_bench('-cl', '--nCodonsList', nargs="+", help ='usage: < -c 10 20 50 > to run 10 20 50 codons')
-        self.add_arg_small_bench('-il', '--alpha_i_gradient_list', nargs='+', help ='is only applied when --manual is passed')
+        # self.add_arg_small_bench('-il', '--alpha_i_gradient_list', nargs='+', help ='is only applied when --manual is passed')
         self.add_arg_small_bench('--repeat', type = int, default = 1, help ='repeat the main programm [repeat] times')
         self.add_arg_small_bench('--exit_on_nan', action='store_true', help ="exit_on_nan")
 
