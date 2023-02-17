@@ -190,7 +190,7 @@ class My_Model(Model):
         indices = []
         # from ig 5'
         if self.config.ig5_const_transition:
-            indices += [[0,0], [0,1]]
+            indices += self.A_indices_ig5()
 
         # from start a
         indices += [[1,2]]
@@ -210,7 +210,6 @@ class My_Model(Model):
         indices += [[offset + i*3, offset + 1 + i*3] for i in range(self.config.nCodons + 1)]
         # second to third position in insert
         indices += [[offset + 1 + i*3, offset + 2 + i*3] for i in range(self.config.nCodons + 1)]
-        # ending an insert
 
         # stop T
         indices += [[4 +  self.config.nCodons*3, 5 + self.config.nCodons*3]]
@@ -225,7 +224,7 @@ class My_Model(Model):
         indices += [[index_of_terminal_1, index_of_terminal_1]]
 
         if self.config.ig3_const_transition:
-            indices += [[7 + self.config.nCodons*3, 7 + self.config.nCodons*3], [7 + self.config.nCodons*3, index_of_terminal_1]]
+            indices += self.A_indices_ig3()
 
         return indices
 
@@ -234,36 +233,56 @@ class My_Model(Model):
         indices = []
         # from ig 5'
         if not self.config.ig5_const_transition:
-            indices += [[0,0], [0,1]]
+            indices += self.A_indices_ig5()
 
-        # enter codon
-        indices += [[3 + i*3, 4 + i*3] for i in range(self.config.nCodons)]
+        indices += self.A_indices_enter_next_codon()
 
         if not self.config.no_inserts:
-            offset = 8 + 3*self.config.nCodons
-            # begin inserts
-            indices += [[3 + i*3, offset + i*3] for i in range(self.config.nCodons + 1)]
-            # ending an insert
-            indices += [[offset + 2 + i*3, 4 + i*3] for i in range(self.config.nCodons + 1)]
-            # continuing an insert
-            indices += [[offset + 2 + i*3, offset + i*3] for i in range(self.config.nCodons +1)]
+            indices += self.A_indices_begin_inserts()
+            indices += self.A_indices_end_inserts()
+            indices += self.A_indices_continue_inserts()
 
-        # exit last codon
-        indices += [[3 + self.config.nCodons*3, 4 + self.config.nCodons*3]]
+        indices += self.A_indices_enter_stop()
 
-        # deletes
         if not self.config.no_deletes:
-            i_delete = [3 + i*3 for i in range(self.config.nCodons) for j in range(self.config.nCodons-i)]
-            j_delete = [4 + j*3 for i in range(1,self.config.nCodons+1) for j in range(i,self.config.nCodons+1)]
-            indices += [[i,j] for i,j in zip(i_delete, j_delete)]
-
-        # ig -> ig, terminal_1
-        index_of_terminal_1 = 8 + self.config.nCodons*3 + (self.config.nCodons + 1) *3
+            indices += self.A_indices_deletes()
 
         if not self.config.ig3_const_transition:
-            indices += [[7 + self.config.nCodons*3, 7 + self.config.nCodons*3], [7 + self.config.nCodons*3, index_of_terminal_1]]
+            indices += self.A_indices_ig3()
 
         return indices
+
+    def A_indices_ig5(self):
+        return [[0,0], [0,1]]
+
+    def A_indices_ig3(self):
+        index_of_terminal_1 = 8 + self.config.nCodons*3 + (self.config.nCodons + 1) *3
+        index_of_ig3 = 7 + self.config.nCodons*3
+        return [[index_of_ig3, index_of_ig3], [index_of_ig3, index_of_terminal_1]]
+
+    def A_indices_enter_next_codon(self):
+        return [[3 + i*3, 4 + i*3] for i in range(self.config.nCodons)]
+
+    def A_indices_enter_stop(self):
+        return [[3 + self.config.nCodons*3, 4 + self.config.nCodons*3]]
+
+    def A_indices_deletes(self):
+        i_delete = [3 + i*3 for i in range(self.config.nCodons) for j in range(self.config.nCodons-i)]
+        j_delete = [4 + j*3 for i in range(1,self.config.nCodons+1) for j in range(i,self.config.nCodons+1)]
+        return [[i,j] for i,j in zip(i_delete, j_delete)]
+
+    def A_indices_begin_inserts(self):
+        offset = 8 + 3*self.config.nCodons
+        return [[3 + i*3, offset + i*3] for i in range(self.config.nCodons + 1)]
+
+    def A_indices_end_inserts(self):
+        offset = 8 + 3*self.config.nCodons
+        return [[offset + 2 + i*3, 4 + i*3] for i in range(self.config.nCodons + 1)]
+
+    def A_indices_continue_inserts(self):
+        offset = 8 + 3*self.config.nCodons
+        return [[offset + 2 + i*3, offset + i*3] for i in range(self.config.nCodons +1)]
+
 
     def A_indices(self):
         return self.A_indices_for_weights + self.A_indices_for_constants
@@ -276,6 +295,8 @@ class My_Model(Model):
             else:
                 return tf.cast(tf.concat([[self.config.ig5_const_transition,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
         return tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
+
+
 ################################################################################
 ################################################################################
 ################################################################################

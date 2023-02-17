@@ -47,44 +47,10 @@ def make_dataset(config):
     run_id = randint(0,100)
     append_time_ram_stamp_to_file(start, f"Training.make_dataset() start {run_id}", config.bench_path)
 
-    from itertools import product
-    codons = []
-    for codon in product("ACGT", repeat = 3):
-        codon = "".join(codon)
-        if codon not in ["TAA", "TGA", "TAG"]:
-            codons += [codon]
-
-    if config.forced_gene_structure:
-        codons = ["AAA", "AAC", "ACA", "ACC", "CAA", "CAC", "CCA", "CCC"]
-    alphabet = ["A","C","G","T"]
-
     if config.generate_new_seqs:
         if config.use_simple_seq_gen:
-            num_seqs = 100
-            seqs = {}
-            with open(config.fasta_path, "w") as file:
-                max_left_flank_len = (config.seq_len - config.gen_len -6)//2
-                max_right_flank_len = config.seq_len - config.gen_len - 6 - max_left_flank_len
-
-                min_left_flank_len = max_left_flank_len if config.dont_strip_flanks else 1
-                min_right_flank_len = max_right_flank_len if config.dont_strip_flanks else 1
-
-                for seq_id in range(num_seqs):
-                    if config.forced_gene_structure:
-                        alphabet = ["T","G"]
-                    ig5 = "".join(np.random.choice(alphabet, np.random.randint(min_left_flank_len, max_left_flank_len +1))) # TODO: also check if low = 2
-                    atg = "ATG"
-                    # coding = "".join(np.random.choice(["A","C","G","T"], config["nCodons"] * 3))
-                    coding = "".join(np.random.choice(codons, config.nCodons))
-                    stop = np.random.choice(["TAA","TGA","TAG"])
-                    ig3 = "".join(np.random.choice(alphabet, np.random.randint(min_right_flank_len, max_right_flank_len +1)))
-
-                    seqs[f">use_simple_seq_gen_{seq_id}"] = ig5 + atg + coding + stop + ig3
-                for key, value in seqs.items():
-                    file.write(key + "\n")
-                    file.write(value + "\n")
-
-
+            from generate_seqs import generate_simple
+            generate_simple()
         else:
             command = f"python3 {config.src_path}/useMSAgen.py -c {config.nCodons} \
                           {'-n 100'} \
@@ -92,16 +58,17 @@ def make_dataset(config):
                           {'-cd ' + str(config.coding_dist) if config.coding_dist else ''} \
                           {'-ncd ' + str(config.noncoding_dist) if config.noncoding_dist else ''}\
                           {'--dont_strip_flanks' if config.dont_strip_flanks else ''} \
-                          {'-p ' + config.src_path if config.src_path else ''}"
+                          {'-p ' + config.src_path if config.src_path else ''} \
+                          {'--insertions ' if config.simulate_insertions else ''} \
+                          {'--deletions ' if config.simulate_deletions else ''}"
+
             command = re.sub("\s+", " ", command)
             run(command)
-
 
     seqs = read_data_with_order(config, add_one_terminal_symbol = True)
 
     index_of_terminal = config.model.emission_tuple_to_id("X")
     json.dump(seqs, open(f"{config.fasta_path}.json","w"))
-
 
     ds = tf.data.Dataset.from_generator(lambda: seqs,
                                          tf.as_dtype(tf.int32), # has to be int, bc one_hot doesnt work for floats

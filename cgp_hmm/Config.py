@@ -48,8 +48,12 @@ class Config():
         if self.ig5_const_transition:
             assert not self.use_weights_for_consts, "if --ig5_const_transition then --use_weights_for_consts cant be used"
 
-        if self.run_viterbi:
+        if self.viterbi:
             assert self.write_matrices_after_fit, "if you run viterbi you must pass --write_matrices_after_fit bc viterbi.cc uses those files"
+
+        if self.simulate_insertions or self.simulate_deletions:
+            assert not self.use_simple_seq_gen, "indels only work with MSAgen"
+            assert not self.dont_generate_new_seqs, "simulate indels option isnt applied if you dont generate new seqs"
 
 
     def add_attribtes(self):
@@ -188,7 +192,7 @@ class Config():
         self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [SDG]')
         self.add_arg_main('--epochs', default = 2, type = int, help = 'how many epochs [2]')
         self.add_arg_main('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
-        self.add_arg_main('--run_viterbi', action='store_true', help ="run_viterbi")
+        self.add_arg_main('--viterbi', action='store_true', help ="viterbi")
 
         # fine tune algo
         self.add_arg_main('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
@@ -215,7 +219,11 @@ class Config():
         self.add_arg_main('--return_seqs', action = 'store_true', help = 'the RNN and layer.py return seq = [alpha, count, inputs]')
         self.add_arg_main('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
         self.add_arg_main('--ig3_const_transition', type = float, default = 0, help = "uses const transition from ig3 -> ig3 (weight = --ig3) and ig3 -> terminal (weight = 1) and softmax applied")
-
+        self.add_arg_main('--regularize', action= 'store_true', help = 'regularize the parameters')
+        self.add_arg_main('--inserts_punish_factor', type = float, default = 1, help = 'inserts_punish_factor')
+        self.add_arg_main('--deletes_punish_factor', type = float, default = 1, help = 'deletes_punish_factor')
+        self.add_arg_main('--simulate_insertions', action='store_true', help = 'simulate insertion when using MSAgen')
+        self.add_arg_main('--simulate_deletions', action='store_true', help = 'simulate deletions when using MSAgen')
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")

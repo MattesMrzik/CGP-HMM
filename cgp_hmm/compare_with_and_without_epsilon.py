@@ -3,12 +3,8 @@
 import os
 import json
 
-nCodons = 1
-epochs = 4
-steps = 4
-epsilon_l = 1e-10
-epsilon_E = 1e-10
-epsilon_R = 1e-10
+config = Config("main_programm")
+model = My_Model(config)
 
 loglikes = []
 
@@ -58,6 +54,8 @@ if not only_train_with_epsilon:
     B = json.load(open(f"output/{nCodons}codons/B.{nCodons}codons.csv.json","r"))
 
     ############################################################################
+
+
     max_i_kernel = 0
     for i in range(len(I_kernel)):
         max_i_kernel = max_i_kernel if abs(I_kernel[i] - I_kernel_log[i]) < max_i_kernel else abs(I_kernel[i] - I_kernel_log[i])
@@ -92,3 +90,6 @@ if not only_train_with_epsilon:
             max_b = max_b if abs(B[i][j] - B_log[i][j]) < max_b else abs(B[i][j] - B_log[i][j])
     print("max_b =", max_b)
     ############################################################################
+
+    # auch wenn hier die werte manchmal auseinander gehen, könnte es ja sein,
+    # dass das eine einfach schneller lernt und deshalb am ende schon weiter vorraus ist

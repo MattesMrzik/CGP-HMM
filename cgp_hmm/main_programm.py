@@ -66,88 +66,21 @@ def main(config):
         config.model.export_to_dot_and_png(A_kernel, B_kernel)
 
 
-    if config.run_viterbi:
+    if config.viterbi:
         # write convert fasta file to json (not one hot)
         # see make_dataset in Training.py
 
+        import Viterbi
 
+        Viterbi.run_cc_viterbi(config)
 
-        start = time.perf_counter()
-        print("starting viterbi")
+        viterbi_guess = Viterbi.load_viterbi_guess(config)
 
-        import multiprocessing
+        true_state_seqs = Viterbi.get_true_state_seqs_from_true_MSA(config)
 
-        os.system(f"{config.src_path}/Viterbi " + str(config.nCodons) + " " + str(multiprocessing.cpu_count()-1))
-        print("done viterbi. it took ", time.perf_counter() - start)
+        Viterbi.write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
 
-        stats = {"start_not_found" : 0,\
-                 "start_too_early" : 0,\
-                 "start_correct" : 0,\
-                 "start_too_late" : 0,\
-                 "stop_not_found" : 0,\
-                 "stop_too_early" : 0,\
-                 "stop_correct" : 0,\
-                 "stop_too_late" : 0}
-
-        start = time.perf_counter()
-        print("start evaluating viterbi")
-
-        viterbi_file = open(f"{config.src_path}/output/{config.nCodons}codons/viterbi.json", "r")
-        viterbi = json.load(viterbi_file)
-
-        start_stop = pd.read_csv(f"{config.src_path}/output/{config.nCodons}codons/out.start_stop_pos.{config.nCodons}codons.txt", sep=";", header=None)
-
-        stA_id = config.model.str_to_state_id("stA")
-        stop1_id = config.model.str_to_state_id("stop1")
-        for i, state_seq in enumerate(viterbi):
-            try:
-                viterbi_start = state_seq.index(stA_id)
-            except:
-                viterbi_start = -1
-            try:
-                viterbi_stop = state_seq.index(stop1_id)
-            except:
-                viterbi_stop = -1
-
-
-            true_start = start_stop.iloc[i,1]
-            true_stop = start_stop.iloc[i,2]
-
-            # print(f"true_start = {true_start} vs viterbi_start = {viterbi_start}")
-            # print(f"true_stop = {true_stop} vs viterbi_stop = {viterbi_stop}")
-
-            nSeqs = len(viterbi)
-
-            if viterbi_start == -1:
-                stats["start_not_found"] += 1/nSeqs
-                if viterbi_stop != -1:
-                    print("found stop but not start")
-                    quit(1)
-            elif viterbi_start < true_start:
-                stats["start_too_early"] += 1/nSeqs
-            elif viterbi_start == true_start:
-                stats["start_correct"] += 1/nSeqs
-            else:
-                stats["start_too_late"] += 1/nSeqs
-
-            if viterbi_stop == -1:
-                stats["stop_not_found"] += 1/nSeqs
-            elif viterbi_stop < true_stop:
-                stats["stop_too_early"] += 1/nSeqs
-            elif viterbi_stop == true_stop:
-                stats["stop_correct"] += 1/nSeqs
-            else:
-                stats["stop_too_late"] += 1/nSeqs
-
-
-        with open(f"{config.src_path}/output/{config.nCodons}codons/statistics.json", "w") as file:
-            json.dump(stats, file)
-
-        for key, value in stats.items():
-            print(f"{key}: {value}")
-
-        print("done evaluating viterbi. it took ", time.perf_counter() - start)
-
+        Viterbi.eval_start_stop(config, viterbi_guess)
 
 
 

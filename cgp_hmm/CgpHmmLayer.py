@@ -149,30 +149,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_state)), [loglik_state],              name = "loglik_state_is_finite", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik_mean)),  [loglik_mean, loglik_state], name = "loglik_mean_is_finite",  summarize = self.config.assert_summarize)
 
-        if training:
-            # self.add_metric(loglik_mean, "loglik")
 
-            self.add_metric(tf.math.reduce_max(self.C.I_kernel),"ik_max")
-            self.add_metric(tf.math.reduce_min(self.C.I_kernel),"ik_min")
 
-            # self.add_metric(tf.math.reduce_max(self.C.I_dense),"I_max")
-            # self.add_metric(tf.math.reduce_min(self.C.I_dense),"I_min")
-
-            self.add_metric(tf.math.reduce_max(self.C.A_kernel),"tk_max")
-            self.add_metric(tf.math.reduce_min(self.C.A_kernel),"tk_min")
-
-            # self.add_metric(tf.math.reduce_max(self.C.A_dense),"A_max")
-            # self.add_metric(tf.math.reduce_min(self.C.A_dense),"A_min")
-
-            self.add_metric(tf.math.reduce_max(self.C.B_kernel),"ek_max")
-            self.add_metric(tf.math.reduce_min(self.C.B_kernel),"ek_min")
-
-            # self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
-            # self.add_metric(tf.math.reduce_min(self.C.B_dense),"B_min")
-
-        probs_to_be_punished = []
-        # use_reg = False
-        # if use_reg:
         #     # regularization
         #     # siehe Treffen_04
         #     alpha = 4 # todo: scale punishment for inserts with different factor?
@@ -189,6 +167,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #         for j in range(i + 2, self.C.nCodons):
         #             add_reg(f"c_{i},2", f"c_{j},0")
         #         add_reg(f"c_{i},2", "stop1")
+
         #     # inserts to be punished
         #     add_reg("stG", "i_0,0")
         #     for i in range(self.C.nCodons):
@@ -203,7 +182,49 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #     self.add_loss(tf.squeeze(-loglik_mean - alpha * reg_mean))
         # else:
 
-        self.add_loss(tf.squeeze(-loglik_mean))
+        reg = 0
+        if self.config.regularize:
+            punish_beginning_inserts = True
+            if punish_beginning_inserts:
+                for index_tuple in self.config.model.A_indices_begin_inserts():
+                    reg += self.config.inserts_punish_factor * tf.math.log(1 - self.C.A_dense[index_tuple]) # this shouldnt be log(0) since parameters are punished if near 1
+                for index_tuple in self.config.model.A_indices_continue_inserts():
+                    reg += self.config.inserts_punish_factor * tf.math.log(1 - self.C.A_dense[index_tuple])
+            punish_deletes = True
+            if punish_deletes:
+                for index_tuple in self.config.model.A_indices_deletes():
+                    # TODO: longer deletes should be punihsed more
+                    reg += self.config.deletes_punish_factor * tf.math.log(1 - self.C.A_dense[index_tuple])
+
+
+        # TODO: sollte der reg term normalisert werden auf die anzahl der regularisierten terme?
+        if self.config.regularize:
+            self.add_metric(reg, "reg")
+            alpha = 1
+            self.add_loss(tf.squeeze(-loglik_mean - alpha * reg))
+        else:
+            self.add_loss(tf.squeeze(-loglik_mean))
+
+        if training:
+            # self.add_metric(loglik_mean, "loglik")
+
+            # self.add_metric(tf.math.reduce_max(self.C.I_kernel),"ik_max")
+            # self.add_metric(tf.math.reduce_min(self.C.I_kernel),"ik_min")
+
+            # self.add_metric(tf.math.reduce_max(self.C.I_dense),"I_max")
+            # self.add_metric(tf.math.reduce_min(self.C.I_dense),"I_min")
+
+            self.add_metric(tf.math.reduce_max(self.C.A_kernel),"tk_max")
+            self.add_metric(tf.math.reduce_min(self.C.A_kernel),"tk_min")
+
+            # self.add_metric(tf.math.reduce_max(self.C.A_dense),"A_max")
+            # self.add_metric(tf.math.reduce_min(self.C.A_dense),"A_min")
+
+            self.add_metric(tf.math.reduce_max(self.C.B_kernel),"ek_max")
+            self.add_metric(tf.math.reduce_min(self.C.B_kernel),"ek_min")
+
+            # self.add_metric(tf.math.reduce_max(self.C.B_dense),"B_max")
+            # self.add_metric(tf.math.reduce_min(self.C.B_dense),"B_min")
 
 
         append_time_ram_stamp_to_file(start, f"Layer.call() end   {run_id}", self.config.bench_path)

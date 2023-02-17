@@ -265,7 +265,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         alpha, unscaled_alpha, loglik, scale_helper = self.calc_new_cell_state(E, R, old_forward, old_loglik, scale_helper, count)
 
         self.assert_check_end_of_call(E, R, alpha, loglik, count)
-        self.verbose_end_of_call(E, R, alpha, loglik)
+        self.verbose_end_of_call(run_id, E, R, alpha, loglik)
 
         return self.get_return_values(alpha, inputs, count, scale_helper, loglik)
 
@@ -330,7 +330,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             verbose_print("old_forward", old_forward)
             verbose_print("old_loglik", old_loglik)
 ################################################################################
-    def verbose_end_of_call(self, E, R, alpha, loglik):
+    def verbose_end_of_call(self, run_id, E, R, alpha, loglik):
         if self.config.verbose:
             if self.config.print_to_file:
                 outstream = f"file://{self.config.src_path}/verbose/{self.nCodons}codons.txt"
