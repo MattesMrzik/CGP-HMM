@@ -10,6 +10,7 @@ from resource import RUSAGE_SELF
 from itertools import product
 import os
 import json
+from scipy.optimize import curve_fit
 
 from My_Model import My_Model
 
@@ -93,7 +94,7 @@ def view_parameters():
     pass
 ################################################################################
 def view_parameters_in_A(path, index):
-
+    pass
 ################################################################################
 def plot_time_against_ram(path):
     import matplotlib.pyplot as plt
@@ -134,7 +135,7 @@ def plot_time_against_ram(path):
     plt.show()
 
 ################################################################################
-def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
+def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3, fit_only_positive = False, show_diagramm = False):
     import os
     import matplotlib.pyplot as plt
 
@@ -155,7 +156,7 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
             with open(file_path, "r") as file:
                 start_time = -1
                 end_time = -1
-                max_ram_in_mb = float("-inf")
+                max_ram_in_gb = float("-inf")
                 for line in file:
                     # print("trying to laods =", line)
                     data = json.loads(line.strip())
@@ -163,35 +164,38 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
                         start_time = data["time"]
                     if data["description"].startswith("Training:model.fit() end"):
                         end_time = data["time"]
-                    max_ram_in_gb = max(max_ram_in_gb, data["RAM"]/1024/1024)
+                    max_ram_in_gb = max(max_ram_in_gb, data["RAM in kb"]/1024/1024)
                 assert start_time != -1, "start_time is not found"
                 assert end_time != -1, "end_time is not found"
                 y_times[codon] = end_time - start_time
-                y_ram[codon] = max_ram_in_mb
+                y_ram[codon] = max_ram_in_gb
 
         time_axis = fig.add_subplot(310 + type_id + 1)
 
         # time
         y_times = [y_times[codon] for codon in codons]
-        coef_times = np.polyfit(codons,y_times, degree) # coef for x^degree is coef_times[0]
         color = 'tab:red'
         time_axis.set_xlabel('nCodons')
         time_axis.set_ylabel('time in sec', color=color)
         time_axis.plot(codons, y_times, "rx")
 
-        def fitcurve(x, **args):
-            return sum([abs(arg) * x ** p for p, arg in enumerate(args)])
+        def fitcurve(x, a,b,c,d):
+            return abs(a)*x**3 + abs(b)*x**2 + abs(c)*x + abs(d)
 
         if extrapolate:
             x_values = np.arange(1, max(codons) * extrapolate +1)
+            if fit_only_positive:
+                coef_times, params_covariance = curve_fit(fitcurve, codons, y_times, p0=[0.01]*4)
+                coef_times = [abs(xx) for xx in coef_times]
+            else:
+                coef_times = np.polyfit(codons,y_times, degree) # coef for x^degree is coef_times[0]
+
             y = [np.polyval(coef_times,x) for x in x_values]
             time_axis.plot(x_values, y, color = "tab:red")
         time_axis.tick_params(axis='y', labelcolor=color)
 
         # ram
         y_ram   = [y_ram[codon]   for codon in codons]
-        coef_ram = np.polyfit(codons,y_ram, degree)
-
         ram_axis = time_axis.twinx()  # instantiate a second axes that shares the same x-axis
 
         color = 'tab:blue'
@@ -199,6 +203,11 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
         ram_axis.plot(codons, y_ram, "bx")
 
         if extrapolate:
+            if fit_only_positive:
+                coef_ram, params_covariance = curve_fit(fitcurve, codons, y_ram, p0=[0.1]*4)
+                coef_ram = [abs(xx) for xx in coef_ram]
+            else:
+                coef_ram = np.polyfit(codons,y_ram, degree)
             y = [np.polyval(coef_ram ,x) for x in x_values]
             ram_axis.plot(x_values, y, color = "tab:blue")
         ram_axis.tick_params(axis='y', labelcolor=color)
@@ -307,8 +316,9 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
     #     title += " " + " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram_peaks)])
     #     ax1.title.set_text(title)
     #     fig.tight_layout()  # otherwise the right y-label is slightly clipped
-
     plt.savefig("bench.png")
+    if show_diagramm:
+        plt.show()
 ################################################################################
 ################################################################################
 ################################################################################

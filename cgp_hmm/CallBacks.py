@@ -56,7 +56,7 @@ def get_call_backs(config, model):
             if epoch == 0:
                 path = f"{config.src_path}/output/{config.nCodons}codons/initial_weights_from_callback/"
                 # init got called twice. the weights which are written here, are they the ones which are actually used????
-
+                model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
 
     class batch_begin_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):

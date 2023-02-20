@@ -59,9 +59,9 @@ class Config():
             assert self.log, "you passed epsilon_E or epsilon_l or epsilon_R, so you must also pass --log"
 
         if self.epsilon_conditional:
-            assert self.scale_with_conditional_const "you passed epsilon_conditional, so you must also pass scale_with_conditional_const"
+            assert self.scale_with_conditional_const, "you passed epsilon_conditional, so you must also pass scale_with_conditional_const"
 
-        if self.epsilon_my_scale:
+        if self.epsilon_my_scale_log or self.epsilon_my_scale_alpha:
             assert not self.felix, "epsilon_my_scale was passed, so you must not use --felix"
             assert not self.scale_with_const, "epsilon_my_scale was passed, so you must not use --scale_with_const"
             assert not self.scale_with_conditional_const, "epsilon_my_scale was passed, so you must not use --scale_with_conditional_const"
