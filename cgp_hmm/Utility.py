@@ -89,6 +89,12 @@ def find_indices_in_sparse_A_that_are_zero(config = None, \
 ################################################################################
 ################################################################################
 ################################################################################
+def view_parameters():
+    pass
+################################################################################
+def view_parameters_in_A(path, index):
+
+################################################################################
 def plot_time_against_ram(path):
     import matplotlib.pyplot as plt
     time = []
@@ -149,7 +155,7 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
             with open(file_path, "r") as file:
                 start_time = -1
                 end_time = -1
-                max_ram_in_gb = float("-inf")
+                max_ram_in_mb = float("-inf")
                 for line in file:
                     # print("trying to laods =", line)
                     data = json.loads(line.strip())
@@ -157,11 +163,11 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
                         start_time = data["time"]
                     if data["description"].startswith("Training:model.fit() end"):
                         end_time = data["time"]
-                    max_ram_in_gb = max(max_ram_in_gb, data["RAM in GB"])
-                assert start_time != -1, "start_time is not found"
-                assert end_time != -1, "end_time is not found"
+                    max_ram_in_mb = max(max_ram_in_mb, data["RAM"]/1024)
+                assert start_time != -1, f"start_time is not found in file {file_path}"
+                assert end_time != -1, f"end_time is not found in file {file_path}"
                 y_times[codon] = end_time - start_time
-                y_ram[codon] = max_ram_in_gb
+                y_ram[codon] = max_ram_in_mb
 
         time_axis = fig.add_subplot(310 + type_id + 1)
 
@@ -172,6 +178,9 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
         time_axis.set_xlabel('ncodons')
         time_axis.set_ylabel('time in sec', color=color)
         time_axis.plot(codons, y_times, "rx")
+
+        def fitcurve(x, **args):
+            return sum([abs(arg) * x ** p for p, arg in enumerate(args)])
 
         if extrapolate:
             x_values = np.arange(1, max(codons) * extrapolate +1)
@@ -532,8 +541,8 @@ def append_time_ram_stamp_to_file(description, path, start = None):
         d["time"] = np.round(time.perf_counter(),3)
         d["time since passed start time"] = np.round(time.perf_counter() - start,3) if start != None else "no start passed"
         RAM = getrusage(RUSAGE_SELF).ru_maxrss
-        d["RAM"] = RAM
-        d["RAM in GB"] = np.round(RAM/1024/1024/1024,3)
+        d["RAM in kb"] = RAM
+        d["RAM in GB"] = np.round(RAM/1024/1024,3)
         d["description"] = description
 
         json.dump(d, file)

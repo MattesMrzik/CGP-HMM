@@ -51,11 +51,18 @@ def get_call_backs(config, model):
         def on_train_batch_begin(self, batch, logs = None):
             tf.print("on_train_batch_begin_batch_id (1 based index) =", batch + 1)
 
+    class write_initial_weights_to_file(tf.keras.callbacks.Callback):
+        def on_epoch_begin(self, epoch, logs = None):
+            if epoch == 0:
+                path = f"{config.src_path}/output/{config.nCodons}codons/initial_weights_from_callback/"
+                # init got called twice. the weights which are written here, are they the ones which are actually used????
+
+
+
     class batch_begin_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):
         # layer call write inputs -> the code is located in layer.py
         # and is activated by same flag as this callback
         def on_train_batch_begin(self, batch, logs = None):
-
             # TODO: why can i access config here?
 
             if batch == 0:
