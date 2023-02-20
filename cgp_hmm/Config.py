@@ -55,6 +55,17 @@ class Config():
             assert not self.use_simple_seq_gen, "indels only work with MSAgen"
             assert not self.dont_generate_new_seqs, "simulate indels option isnt applied if you dont generate new seqs"
 
+        if self.epsilon_E or self.epsilon_l or self.epsilon_R:
+            assert self.log, "you passed epsilon_E or epsilon_l or epsilon_R, so you must also pass --log"
+
+        if self.epsilon_conditional:
+            assert self.scale_with_conditional_const "you passed epsilon_conditional, so you must also pass scale_with_conditional_const"
+
+        if self.epsilon_my_scale:
+            assert not self.felix, "epsilon_my_scale was passed, so you must not use --felix"
+            assert not self.scale_with_const, "epsilon_my_scale was passed, so you must not use --scale_with_const"
+            assert not self.scale_with_conditional_const, "epsilon_my_scale was passed, so you must not use --scale_with_conditional_const"
+
 
     def add_attribtes(self):
         import tensorflow as tf
@@ -210,12 +221,12 @@ class Config():
         self.add_arg_main('--scale_with_conditional_const', action = "store_true", help = 'scale the forward variables with constant if they are too small')
         self.add_arg_main('--felix', action='store_true',  help = 'use felix forward version')
         self.add_arg_main('--logsumexp', action = "store_true", help = "logsumexp")
-        self.add_arg_main('--epsilon_l', type = float, default = 0, help = '[1e-8] loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + self.config.epsilon_l, axis = 1, keepdims = True)) + m_alpha')
-        self.add_arg_main('--epsilon_R', type = float, default = 1e-37, help = '[1e-8] R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.epsilon_R, self.A)) + m_alpha')
-        self.add_arg_main('--epsilon_E', type = float, default = 1e-37, help = '[1e-8] unscaled_alpha = tf.math.log(E + self.config.epsilon_E) + R')
-        self.add_arg_main('--epsilon_my_scale_log', type = float, default = 1e-8, help = '[1e-8] loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.epsilon_my_scale), name = "loglik")')
-        self.add_arg_main('--epsilon_my_scale_alpha', type = float, default = 1e-8, help = '[1e-8] scaled_alpha = unscaled_alpha / (scale_helper self.config.epsilon_my_scale_alpha)')
-        self.add_arg_main('--epsilon_conditional', type = float, default = 1e-8, help = '[1e-8] loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True) + self.config.epsilon_conditional) - scale_helper * tf.math.log(10.0)')
+        self.add_arg_main('--epsilon_l', type = float, default = 0, help = '[0] loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + self.config.epsilon_l, axis = 1, keepdims = True)) + m_alpha')
+        self.add_arg_main('--epsilon_R', type = float, default = 0, help = '[0] R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.epsilon_R, self.A)) + m_alpha')
+        self.add_arg_main('--epsilon_E', type = float, default = 0, help = '[0] unscaled_alpha = tf.math.log(E + self.config.epsilon_E) + R')
+        self.add_arg_main('--epsilon_my_scale_log', type = float, default = 0, help = '[0] loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.epsilon_my_scale), name = "loglik")')
+        self.add_arg_main('--epsilon_my_scale_alpha', type = float, default = 0, help = '[0] scaled_alpha = unscaled_alpha / (scale_helper self.config.epsilon_my_scale_alpha)')
+        self.add_arg_main('--epsilon_conditional', type = float, default = 0, help = '[0] loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True) + self.config.epsilon_conditional) - scale_helper * tf.math.log(10.0)')
         self.add_arg_main('--return_seqs', action = 'store_true', help = 'the RNN and layer.py return seq = [alpha, count, inputs]')
         self.add_arg_main('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
         self.add_arg_main('--ig3_const_transition', type = float, default = 0, help = "uses const transition from ig3 -> ig3 (weight = --ig3) and ig3 -> terminal (weight = 1) and softmax applied")

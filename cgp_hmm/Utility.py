@@ -163,9 +163,9 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
                         start_time = data["time"]
                     if data["description"].startswith("Training:model.fit() end"):
                         end_time = data["time"]
-                    max_ram_in_mb = max(max_ram_in_mb, data["RAM"]/1024)
-                assert start_time != -1, f"start_time is not found in file {file_path}"
-                assert end_time != -1, f"end_time is not found in file {file_path}"
+                    max_ram_in_gb = max(max_ram_in_gb, data["RAM"]/1024/1024)
+                assert start_time != -1, "start_time is not found"
+                assert end_time != -1, "end_time is not found"
                 y_times[codon] = end_time - start_time
                 y_ram[codon] = max_ram_in_mb
 
@@ -175,7 +175,7 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
         y_times = [y_times[codon] for codon in codons]
         coef_times = np.polyfit(codons,y_times, degree) # coef for x^degree is coef_times[0]
         color = 'tab:red'
-        time_axis.set_xlabel('ncodons')
+        time_axis.set_xlabel('nCodons')
         time_axis.set_ylabel('time in sec', color=color)
         time_axis.plot(codons, y_times, "rx")
 
@@ -195,7 +195,7 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
         ram_axis = time_axis.twinx()  # instantiate a second axes that shares the same x-axis
 
         color = 'tab:blue'
-        ram_axis.set_ylabel('ram_peak in mb', color=color)  # we already handled the x-label with ax1
+        ram_axis.set_ylabel('ram_peak in gb', color=color)  # we already handled the x-label with ax1
         ram_axis.plot(codons, y_ram, "bx")
 
         if extrapolate:
@@ -210,8 +210,9 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3):
                 return "x"
             else:
                 return f"x^{exponent}"
-        title = " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}" for jj, cc in enumerate(coef_times)]) + type
-        title += " " + " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram)])
+        title =  f" A is {type[0]}, B is {type[1]}"
+        title += ", time_fit "+ " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}" for jj, cc in enumerate(coef_times)])
+        title += ", ram_fit " + " + ".join([f"{round(cc,4)} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram)])
         time_axis.title.set_text(title)
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
