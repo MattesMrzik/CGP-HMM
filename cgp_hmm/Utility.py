@@ -684,7 +684,11 @@ def append_time_stamp_to_file(time, description, path):
     with open(path, "a") as file:
         file.write(f"{time}\t{description}\n")
 ################################################################################
-def append_time_ram_stamp_to_file(description, path, start = None):
+# WARNING:tensorflow:AutoGraph could not transform <function _make_iterencode at 0x7fd619f7c550> and will run it as-is.
+# Cause: generators are not supported
+# To silence this warning, decorate the function with @tf.autograph.experimental.do_not_convert
+@tf.autograph.experimental.do_not_convert
+def append_time_ram_stamp_to_file(description, path, start = None, ):
     if not os.path.exists('/'.join(path.split('/')[:-1])):
         os.system(f"mkdir -p {'/'.join(path.split('/')[:-1])}")
     with open(path, "a") as file:

@@ -120,6 +120,8 @@ def get_call_backs(config, model):
         callbacks += [remove_verbose_at_batch_begin()]
     if config.batch_begin_write_weights__layer_call_write_inputs:
         callbacks += [batch_begin_write_weights__layer_call_write_inputs()]
+    if config.write_initial_weights_to_file:
+        callbacks += [write_initial_weights_to_file()]
 
     # callbacks += [tensorboard_callback]
 

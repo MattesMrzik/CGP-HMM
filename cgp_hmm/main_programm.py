@@ -19,6 +19,9 @@ def main(config):
     import os
     import datetime
 
+    if config.autograph_verbose:
+        tf.autograph.set_verbosity(3, True)
+
     model, history = fit_model(config)
     print("done fit_model()")
     # model.save("my_saved_model")

@@ -264,6 +264,7 @@ class Config():
         self.add_arg_main('--print_batch_id', action='store_true', help = 'prints the batch id via on_train_batch_begin callback')
         self.add_arg_main('--write_matrices_after_fit', action ='store_true', help ='after fit write matrices to file')
         self.add_arg_main('--write_parameters_after_fit', action = 'store_true', help = 'after fit write kernels to file')
+        self.add_arg_main('--write_initial_weights_to_file', action='store_true', help = 'before fit write kernels to file')
 
         # debugging
         self.add_arg_main('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
@@ -281,6 +282,7 @@ class Config():
         self.add_arg_main('--check_for_zeros', action='store_true', help = 'must be passed together with --batch, checks for zeros in parameters')
         self.add_arg_main('--use_constant_initializer', action='store_true', help = 'init weights with all ones')
         self.add_arg_main('--manual_forward', action = 'store_true', help = 'gets mean likelihood of with manual loop')
+        self.add_arg_main('--autograph_verbose', action = 'store_true', help = 'set tf.autograph.set_verbosity(3, True)')
 
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""
