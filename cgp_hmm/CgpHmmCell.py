@@ -188,7 +188,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         if self.config.logsumexp:
             m_alpha = tf.reduce_max(old_forward, axis = 1, keepdims = True)
-            R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.epsilon_R, self.A)) + m_alpha
+            R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.R_epsilon, self.A)) + m_alpha
             return R
 
         R = mul(old_forward, self.A)
@@ -210,7 +210,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             Z_i *= 9
             Z_i += 1
             scaled_alpha = unscaled_alpha * Z_i
-            loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True) + self.config.epsilon_conditional) - scale_helper * tf.math.log(10.0)
+            loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True) + self.config.conditional_epsilon) - scale_helper * tf.math.log(10.0)
 
         elif self.config.felix:
             unscaled_alpha = E*R
@@ -223,12 +223,12 @@ class CgpHmmCell(tf.keras.layers.Layer):
             loglik = tf.math.add(old_loglik, tf.math.log(tf.reduce_sum(scaled_alpha, axis = -1)), name = "loglik")
 
         elif self.config.logsumexp:
-            unscaled_alpha = tf.math.log(E + self.config.epsilon_E) + R
+            unscaled_alpha = tf.math.log(E + self.config.E_epsilon) + R
             scaled_alpha = unscaled_alpha
             # TODO: replace this with manual logusmexp and see if grad can be calculated now
             m_alpha = tf.math.reduce_max(scaled_alpha, axis = 1, keepdims = True)
             # loglik = tf.math.reduce_logsumexp(scaled_alpha, axis = 1, keepdims = True)
-            loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + self.config.epsilon_l, axis = 1, keepdims = True)) + m_alpha
+            loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + self.config.l_epsilon, axis = 1, keepdims = True)) + m_alpha
             scale_helper = m_alpha
 
         # TODO: kann ich auch einfach mal das log bei z scaling weg lassen? und schauen ob dann der grad berechnet werden kann,
@@ -237,8 +237,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         else: # only one reduce sum. Z_i = sum_q unscaled_alpha(i)
             unscaled_alpha = E*R
             scale_helper = tf.reduce_sum(unscaled_alpha, axis = 1, keepdims = True, name = "my_z")
-            loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.epsilon_my_scale_log), name = "loglik")
-            scaled_alpha = unscaled_alpha / (scale_helper  + self.config.epsilon_my_scale_alpha)
+            loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.my_scale_log_epsilon), name = "loglik")
+            scaled_alpha = unscaled_alpha / (scale_helper  + self.config.my_scale_alpha_epsilon)
 
         return scaled_alpha, unscaled_alpha, loglik, scale_helper
 ################################################################################
