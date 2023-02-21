@@ -90,11 +90,151 @@ def find_indices_in_sparse_A_that_are_zero(config = None, \
 ################################################################################
 ################################################################################
 ################################################################################
-def view_parameters():
-    pass
+def get_A_for_viewing_parameters(before_fit = False, after_fit = False):
+    assert not (before_fit and after_fit), "you cant take both"
+    assert before_fit or after_fit, "you must choose one"
+    config.init_weights_from_after_fit = after_fit
+    config.init_weights_from_before_fit = before_fit
+    assert config.AB == "dd", "pass -AB dd"
+    from CgpHmmCell import CgpHmmCell
+    cell = CgpHmmCell(config)
+    not_used_parameter = 1
+    cell.build(not_used_parameter)
+    A = config.model.A(cell.A_kernel)
+    return A
 ################################################################################
-def view_parameters_in_A(path, index):
-    pass
+def view_parameters_in_A(index = None, description = None,):
+    A = get_A_for_viewing_parameters(before_fit, not before_fit)
+    if index != None:
+        assert len(index) in [1,2], "check index"
+        if len(index) == 2:
+            print(f"A[{index}] = from {config.model.state_id_to_str(index[0])} to {config.model.state_id_to_str(index[1])} = {A[index]}")
+            if A[index] == 0 and index in config.model.A_indices:
+                print("the parameter was learned to be zero")
+        if len(index) == 1:
+            value_print_str = []
+            for to_state, value in enumerate(A[index[0]]):
+                value = A[[index[0], to_state]]
+                if value != 0:
+                    msg = f"A[{index[0],to_state}] = from {config.model.state_id_to_str(index[0])} to {config.model.state_id_to_str(to_state)} = {value}"
+                    print(msg)
+                    value_print_str.append((value, msg))
+
+                if value == 0 and [index[0], to_state] in config.model.A_indices:
+                    msg = f"A[{index[0],to_state}] = from {config.model.state_id_to_str(index[0])} to {config.model.state_id_to_str(to_state)} was parameter was learned to be zero"
+                    print(msg)
+                    value_print_str.append((value, msg))
+
+            print("sorted:")
+            for value, msg in sorted(value_print_str, reverse = True):
+                print(msg)
+################################################################################
+def view_A_summary(before_fit = False, how_many = 5):
+    A = get_A_for_viewing_parameters(before_fit, not before_fit)
+    # deletes, inserts, codon continue, (insert continue doesnt seem to be a problem, yet)
+    indices = {}
+    indices["deletes"] = config.model.A_indices_deletes()
+    indices["enter_next_codon"] = config.model.A_indices_enter_next_codon()
+    indices["begin_inserts"] = config.model.A_indices_begin_inserts()
+
+    for key, value in indices.items():
+        values = [(A[index], index, f"from {config.model.state_id_to_str(index[0])}, to {config.model.state_id_to_str(index[1])}") for index in value]
+        print(key)
+        for i, (value, index, index_str) in enumerate(sorted(values, reverse = True)):
+            if i > how_many:
+                break
+            print(f"{index}, {index_str} = {value}")
+################################################################################
+def view_A_differences(how_many = 5):
+    A_before = get_A_for_viewing_parameters(before_fit=True)
+    A_after = get_A_for_viewing_parameters(after_fit=True)
+    diff = []
+    for index in config.model.A_indices:
+        from_state = index[0]
+        to_state = index[1]
+        index_str = f"{config.model.state_id_to_str(from_state)}, {config.model.state_id_to_str(to_state)}"
+        a_before = A_before[from_state, to_state]
+        a_after = A_after[from_state, to_state]
+        value = abs(a_before - a_after)
+        diff.append((value, index, index_str, a_before, a_after))
+    for i, (value, index, index_str, a_before, a_after) in enumerate(sorted(diff, reverse=True)):
+        if i > how_many:
+            break
+        print(f"{index},\t{index_str},\tdiff = {a_after - a_before},\tbefore = {a_before},\tafter = {a_after}")
+################################################################################
+################################################################################
+def get_B_for_viewing_parameters(before_fit = False, after_fit = False):
+    assert not (before_fit and after_fit), "you cant take both"
+    assert before_fit or after_fit, "you must choose one"
+    config.init_weights_from_after_fit = after_fit
+    config.init_weights_from_before_fit = before_fit
+    assert config.AB == "dd", "pass -AB dd"
+    from CgpHmmCell import CgpHmmCell
+    cell = CgpHmmCell(config)
+    not_used_parameter = 1
+    cell.build(not_used_parameter)
+    B = config.model.B(cell.B_kernel)
+    return B
+################################################################################
+def view_parameters_in_B(state_id, before_fit = False, how_many = 5):
+    B = get_B_for_viewing_parameters(before_fit, not before_fit)
+    values = []
+    for emission_id in range(len(B)):
+        value = B[emission_id, state_id]
+        values.append((value, (emission_id, state_id), f"{config.model.emission_id_to_str(emission_id)}, {config.model.state_id_to_str(state_id)}"))
+
+    for i, (value, index, index_str) in enumerate(sorted(values, reverse=True)):
+        if i > how_many:
+            break
+        print(f"{index}, {index_str} = {value}")
+
+    if config.order > 0:
+        given_prev_bases = {}
+        for value, index, index_str in values:
+            if index_str[:config.order] in given_prev_bases:
+                given_prev_bases[index_str[:config.order]].append((value, index, index_str))
+            else:
+                given_prev_bases[index_str[:config.order]] = [(value, index, index_str)]
+
+        given_prev_bases_with_std = []
+        for last_bases, value_list in given_prev_bases.items():
+            print(last_bases)
+            data = np.array([entry[0] for entry in value_list])
+            std = data.std()
+            given_prev_bases_with_std.append((std, value_list))
+            for value, index, index_str in value_list:
+                print(f"{index}, {index_str} = {value}")
+        print("the highest and lowest std")
+        for i, (std, value_list) in enumerate(sorted(given_prev_bases_with_std, reverse=True)):
+            if i < how_many:
+                print("std =", std)
+                for value, index, index_str in value_list:
+                    print(f"{index}, {index_str} = {value}")
+            if i == how_many:
+                print("...")
+            if i > len(given_prev_bases_with_std) - how_many - 3:# for X and "fill to multiple of 4" states
+                print("std =", std)
+                for value, index, index_str in value_list:
+                    print(f"{index}, {index_str} = {value}")
+################################################################################
+def view_B_differences(how_many = 5):
+    B_before = get_B_for_viewing_parameters(before_fit=True)
+    B_after = get_B_for_viewing_parameters(after_fit=True)
+    diff = []
+    for index in config.model.B_indices:
+        emission_id = index[0]
+        state_id = index[1]
+        index_str = f"{config.model.emission_id_to_str(emission_id)}, {config.model.state_id_to_str(state_id)}"
+        b_before = B_before[emission_id, state_id]
+        b_after = B_after[emission_id, state_id]
+        value = abs(b_before - b_after)
+        diff.append((value, index, index_str, b_before, b_after))
+    for i, (value, index, index_str, b_before, b_after) in enumerate(sorted(diff, reverse=True)):
+        if i > how_many:
+            break
+        print(f"{index},\t{index_str},\tdiff = {b_after - b_before},\tbefore = {b_before},\tafter = {b_after}")
+################################################################################
+################################################################################
 ################################################################################
 def plot_time_against_ram(path):
     import matplotlib.pyplot as plt
@@ -220,8 +360,8 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3, f
             else:
                 return f"x^{exponent}"
         title =  f" A is {type[0]}, B is {type[1]}"
-        title += ", time_fit "+ " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}" for jj, cc in enumerate(coef_times)])
-        title += ", ram_fit " + " + ".join([f"{round(cc,4)} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram)])
+        title += ", time_fit "+ " + ".join([f"{'%.1E' % cc} {x_to_power_of(len(coef_times)-jj-1)}" for jj, cc in enumerate(coef_times)])
+        title += ", ram_fit " + " + ".join([f"{'%.1E' % cc} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram)])
         time_axis.title.set_text(title)
         fig.tight_layout()  # otherwise the right y-label is slightly clipped
 
@@ -560,14 +700,6 @@ def append_time_ram_stamp_to_file(description, path, start = None):
         file.write("\n")
 
 ################################################################################
-
-def remove_old_verbose_files(nCodons):
-
-        output_path = f"verbose"
-
-        run(f"rm {output_path}/{nCodons}codons.txt")
-
-################################################################################
 ################################################################################
 ################################################################################
 def tfprint(s):
@@ -862,20 +994,5 @@ def create_layer_without_recursive_call():
 ################################################################################
 ################################################################################
 if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(
-        description='pass "-f filename" to transfrom verbose output of E,R,alpha to csv\nand "-c [int]" for nCodons\nmust have -b option when running main_programm')
-    parser.add_argument('-f', '--filename',help='pass "-f filename" to transfrom verbose output of E,R,alpha to csv')
-    parser.add_argument('-c', '--nCodons',help ='nCodons')
-    parser.add_argument('-p', action='store_true', help ="plot bench folder")
-    parser.add_argument('--create_layer_without_recursive_call', action='store_true', help = 'create_layer_without_recursive_call, create a copy of CgpHmmLayer but without the recursive call which is used for calculating the gradient')
-
-    args = parser.parse_args()
-    if args.p:
-        plot_time_and_ram("bench", extrapolate = 1, degree = 2)
-    elif args.nCodons and args.filename:
-        if args.filename and args.nCodons:
-            transform_verbose_txt_to_csv(args.filename, int(args.nCodons))
-    elif args.create_layer_without_recursive_call:
-        create_layer_without_recursive_call()
+    from Config import Config
+    config = Config("main_programm_dont_interfere")

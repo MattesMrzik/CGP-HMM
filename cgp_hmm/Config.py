@@ -2,7 +2,7 @@ import argparse
 import Utility
 import re
 from Utility import run
-
+import os
 class Config():
 
     def __init__(self, for_which_program):
@@ -19,6 +19,15 @@ class Config():
             self.asserts()
             self.add_attribtes()
             self.prepare_before_main_programm()
+            self.determine_attributes()
+            self.apply_args()
+
+        if for_which_program == "main_programm_dont_interfere":
+            self.add_main_programm()
+            self.parsed_args = self.parser.parse_args()
+
+            self.asserts()
+            self.add_attribtes()
             self.determine_attributes()
             self.apply_args()
 
@@ -102,12 +111,14 @@ class Config():
         self.model = my_model
 
     def prepare_before_main_programm(self):
-        run(f"mkdir -p {self.src_path}/output/{self.nCodons}codons/")
-
-        run(f"mkdir -p {self.src_path}/verbose")
-        run(f"rm       {self.src_path}/verbose/{self.nCodons}codons.txt")
-
-        run(f"rm {self.src_path}/{self.bench_path}")
+        paths = [f"{self.src_path}/output/{self.nCodons}codons/", \
+                 f"{self.src_path}/verbose"]
+        for path in paths:
+            if not os.path.exists(path):
+                os.system(f"mkdir -p {path}")
+        if self.verbose:
+            os.system(f"rm {self.src_path}/verbose/{self.nCodons}codons.txt")
+        os.system(f"rm {self.src_path}/{self.bench_path}")
 
     def determine_attributes(self):
         pass

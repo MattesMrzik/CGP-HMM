@@ -55,7 +55,6 @@ def get_call_backs(config, model):
         def on_epoch_begin(self, epoch, logs = None):
             if epoch == 0:
                 path = f"{config.src_path}/output/{config.nCodons}codons/initial_weights_from_callback/"
-                # init got called twice. the weights which are written here, are they the ones which are actually used????
                 model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
 

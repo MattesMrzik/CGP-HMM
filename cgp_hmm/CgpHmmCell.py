@@ -59,7 +59,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         #
         # return(s)
 
-    def build(self, s):
+    def build(self, shape):
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build: tf")
 
