@@ -195,7 +195,7 @@ class My_Model(Model):
         indices = []
         # from ig 5'
         if self.config.ig5_const_transition:
-            indices += self.A_indices_ig5()
+            indices += self.A_indices_ig5
 
         # from start a
         indices += [[1,2]]
@@ -229,7 +229,7 @@ class My_Model(Model):
         indices += [[index_of_terminal_1, index_of_terminal_1]]
 
         if self.config.ig3_const_transition:
-            indices += self.A_indices_ig3()
+            indices += self.A_indices_ig3
 
         return indices
 
@@ -238,22 +238,22 @@ class My_Model(Model):
         indices = []
         # from ig 5'
         if not self.config.ig5_const_transition:
-            indices += self.A_indices_ig5()
+            indices += self.A_indices_ig5
 
-        indices += self.A_indices_enter_next_codon()
+        indices += self.A_indices_enter_next_codon
 
         if not self.config.no_inserts:
-            indices += self.A_indices_begin_inserts()
-            indices += self.A_indices_end_inserts()
-            indices += self.A_indices_continue_inserts()
+            indices += self.A_indices_begin_inserts
+            indices += self.A_indices_end_inserts
+            indices += self.A_indices_continue_inserts
 
-        indices += self.A_indices_enter_stop()
+        indices += self.A_indices_enter_stop
 
         if not self.config.no_deletes:
-            indices += self.A_indices_deletes()
+            indices += self.A_indices_deletes
 
         if not self.config.ig3_const_transition:
-            indices += self.A_indices_ig3()
+            indices += self.A_indices_ig3
 
         return indices
     @property

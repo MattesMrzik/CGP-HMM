@@ -140,7 +140,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             loglik_mean = tf.reduce_mean(loglik_state)
 
         else:
-            loglik_mean = tf.reduce_mean(loglik_state + tf.math.log(tf.reduce_sum(alpha_state + self.config.epsilon_my_scale_log, axis = -1)))
+            loglik_mean = tf.reduce_mean(loglik_state + tf.math.log(tf.reduce_sum(alpha_state + self.config.my_scale_log_epsilon, axis = -1)))
         #=========> getting loglik_mean done <=================================#
 
 
