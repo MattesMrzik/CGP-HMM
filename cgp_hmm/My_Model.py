@@ -27,6 +27,11 @@ class My_Model(Model):
         self.B_is_dense = config.B_is_dense
         self.B_is_sparse = config.B_is_sparse
 
+        # init for reg in layer
+        self.A_indices_begin_inserts
+        self.A_indices_continue_inserts
+        self.A_indices_deletes
+
 
         self.I_indices = self.I_indices()
 
@@ -251,34 +256,34 @@ class My_Model(Model):
             indices += self.A_indices_ig3()
 
         return indices
-
+    @property
     def A_indices_ig5(self):
         return [[0,0], [0,1]]
-
+    @property
     def A_indices_ig3(self):
         index_of_terminal_1 = 8 + self.config.nCodons*3 + (self.config.nCodons + 1) *3
         index_of_ig3 = 7 + self.config.nCodons*3
         return [[index_of_ig3, index_of_ig3], [index_of_ig3, index_of_terminal_1]]
-
+    @property
     def A_indices_enter_next_codon(self):
         return [[3 + i*3, 4 + i*3] for i in range(self.config.nCodons)]
-
+    @property
     def A_indices_enter_stop(self):
         return [[3 + self.config.nCodons*3, 4 + self.config.nCodons*3]]
-
+    @property
     def A_indices_deletes(self):
         i_delete = [3 + i*3 for i in range(self.config.nCodons) for j in range(self.config.nCodons-i)]
         j_delete = [4 + j*3 for i in range(1,self.config.nCodons+1) for j in range(i,self.config.nCodons+1)]
         return [[i,j] for i,j in zip(i_delete, j_delete)]
-
+    @property
     def A_indices_begin_inserts(self):
         offset = 8 + 3*self.config.nCodons
         return [[3 + i*3, offset + i*3] for i in range(self.config.nCodons + 1)]
-
+    @property
     def A_indices_end_inserts(self):
         offset = 8 + 3*self.config.nCodons
         return [[offset + 2 + i*3, 4 + i*3] for i in range(self.config.nCodons + 1)]
-
+    @property
     def A_indices_continue_inserts(self):
         offset = 8 + 3*self.config.nCodons
         return [[offset + 2 + i*3, offset + i*3] for i in range(self.config.nCodons +1)]

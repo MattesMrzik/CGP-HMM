@@ -54,8 +54,11 @@ def get_call_backs(config, model):
     class write_initial_weights_to_file(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):
             if epoch == 0:
+                start = time.perf_counter()
+                print("Starting callback write_initial_weights_to_file")
                 path = f"{config.src_path}/output/{config.nCodons}codons/initial_weights_from_callback/"
                 model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
+                print("done with callback write_initial_weights_to_file, it took:",  time.perf_counter() - start)
 
 
     class batch_begin_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):

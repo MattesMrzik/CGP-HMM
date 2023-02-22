@@ -208,7 +208,7 @@ class Config():
 
     def add_main_programm(self):
         self.add_arg_main('-c', '--nCodons', type = int, default = 1, help='number of codons')
-        self.add_arg_main('-AB', default = 'dd', help = '[dd (default), ds, sd, ss] specify the sparse or denseness of A and B')
+        self.add_arg_main('-AB', default = 'sd', help = '[sd (default), ds, sd, ss] specify the sparse or denseness of A and B')
         self.add_arg_main('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
         self.add_arg_main('-p', '--src_path', default = ".", help='path to src')
         self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [SDG]')

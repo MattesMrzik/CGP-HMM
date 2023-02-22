@@ -186,13 +186,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         if self.config.regularize:
             punish_beginning_inserts = True
             if punish_beginning_inserts:
-                for index_tuple in self.config.model.A_indices_begin_inserts():
+                for index_tuple in self.config.model.A_indices_begin_inserts:
                     reg += self.config.inserts_punish_factor * tf.math.log(1 - self.C.A_dense[index_tuple]) # this shouldnt be log(0) since parameters are punished if near 1
-                for index_tuple in self.config.model.A_indices_continue_inserts():
+                for index_tuple in self.config.model.A_indices_continue_inserts:
                     reg += self.config.inserts_punish_factor * tf.math.log(1 - self.C.A_dense[index_tuple])
             punish_deletes = True
             if punish_deletes:
-                for index_tuple in self.config.model.A_indices_deletes():
+                for index_tuple in self.config.model.A_indices_deletes:
                     # TODO: longer deletes should be punihsed more
                     reg += self.config.deletes_punish_factor * tf.math.log(1 - self.C.A_dense[index_tuple])
 
