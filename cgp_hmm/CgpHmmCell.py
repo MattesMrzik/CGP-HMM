@@ -70,9 +70,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # setting the initilizers
         if self.config.get_gradient_for_current_txt or self.config.init_weights_from_before_fit or self.config.init_weights_from_after_fit:
             if self.config.init_weights_from_after_fit:
-                path = f"{self.config.src_path}/output/{self.config.nCodons}codons/after_fit_kernels"
+                path = f"{self.config.src_path}/output/{self.config.nCodons}codons/after_fit_kernels/"
             else:
-                path = f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"
+                path = f"{self.config.src_path}/output/{self.config.nCodons}codons/initial_weights_from_callback/"
             weights = self.read_weights_from_file(path)
             I_initializer = tf.constant_initializer(weights[0])
             A_initializer = tf.constant_initializer(weights[1])
@@ -93,6 +93,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
             I_initializer = tf.constant_initializer(1)
             A_initializer = tf.constant_initializer(1)
             B_initializer = tf.constant_initializer(1)
+        elif self.config.my_initial_guess_for_parameters:
+            
         else:
             I_initializer="random_normal"
             A_initializer="random_normal"

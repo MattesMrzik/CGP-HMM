@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os
 import pandas as pd
 import json
@@ -187,3 +188,39 @@ def eval_start_stop(config, viterbi):
         print(f"{key}: {value}")
 
     print("done evaluating viterbi. it took ", time.perf_counter() - start)
+
+if __name__ == "__main__":
+    from Config import Config
+    import numpy as np
+    config = Config("main_programm_dont_interfere")
+
+    I_out_path =f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.csv"
+    A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.csv"
+    B_out_path =f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.csv"
+
+    if not os.path.exists(A_out_path):
+        # from cell.py
+        path = f"{config.src_path}/output/{config.nCodons}codons/after_fit_kernels/"
+        def read_weights_from_file(path):
+            with open(f"{path}/I_kernel.json") as file:
+                weights_I = np.array(json.load(file))
+            with open(f"{path}/A_kernel.json") as file:
+                weights_A = np.array(json.load(file))
+            with open(f"{path}/B_kernel.json") as file:
+                weights_B = np.array(json.load(file))
+            return weights_I, weights_A, weights_B
+
+        weights_I, weights_A, weights_B = read_weights_from_file(path)
+
+        config.model.I_as_dense_to_json_file(I_out_path + ".json", weights_I)
+        config.model.A_as_dense_to_json_file(A_out_path + ".json", weights_A)
+        config.model.B_as_dense_to_json_file(B_out_path + ".json", weights_B)
+
+    run_cc_viterbi(config)
+    viterbi_guess = load_viterbi_guess(config)
+
+    true_state_seqs = get_true_state_seqs_from_true_MSA(config)
+
+    write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
+
+    eval_start_stop(config, viterbi_guess)

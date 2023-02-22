@@ -141,11 +141,11 @@ with open(f"{args.path}/output/{nCodons}codons/trueMSA.txt", "w") as file:
     i = 0
     while i < len(sequences[0].true_state_seq):
         if sequences[0].true_state_seq[i] == "C":
-            first_line +="C" + (str(codon_id) if codon_id >= 10 else "0" + str(codon_id))
+            first_line +="C" + (str(codon_id)[:2] if codon_id >= 10 else "0" + str(codon_id))
             codon_id += 1
             i += 3
         elif sequences[0].true_state_seq[i] == "i":
-            first_line +="i" + (str(codon_id) if codon_id >= 10 else "0" + str(codon_id))
+            first_line +="i" + (str(codon_id)[:2] if codon_id >= 10 else "0" + str(codon_id))
             i += 3
         else:
             i += 1

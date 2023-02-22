@@ -39,6 +39,11 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(f"Layer.build() start {run_id}", self.config.bench_path, start)
+
+        # @tf.keras.utils.register_keras_serializable(package='Custom', name='l1')
+        # def l1_reg(weight_matrix):
+        #    return 0.01 * tf.math.reduce_sum(tf.math.abs(weight_matrix))
+
         self.C = CgpHmmCell(self.config) # init
 
         # self.C.build(input_shape) # build
@@ -182,20 +187,30 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #     self.add_loss(tf.squeeze(-loglik_mean - alpha * reg_mean))
         # else:
 
-        reg = 0
-        if self.config.regularize:
-            punish_beginning_inserts = True
-            if punish_beginning_inserts:
-                for index_tuple in self.config.model.A_indices_begin_inserts:
-                    reg += self.config.inserts_punish_factor * tf.math.log(1 - self.C.A_dense[index_tuple]) # this shouldnt be log(0) since parameters are punished if near 1
-                for index_tuple in self.config.model.A_indices_continue_inserts:
-                    reg += self.config.inserts_punish_factor * tf.math.log(1 - self.C.A_dense[index_tuple])
-            punish_deletes = True
-            if punish_deletes:
-                for index_tuple in self.config.model.A_indices_deletes:
-                    # TODO: longer deletes should be punihsed more
-                    reg += self.config.deletes_punish_factor * tf.math.log(1 - self.C.A_dense[index_tuple])
 
+        # or do it like this
+        # @tf.keras.utils.register_keras_serializable(package='Custom', name='l1')
+        # def l1_reg(weight_matrix):
+        #    return 0.01 * tf.math.reduce_sum(tf.math.abs(weight_matrix))
+
+        start = time.perf_counter()
+        run_id = randint(0,100)
+        append_time_ram_stamp_to_file(f"Layer.call() REG get indices and A_dense start {run_id}", self.config.bench_path, start)
+        A_indices_begin_inserts = self.config.model.A_indices_begin_inserts
+        A_indices_continue_inserts = self.config.model.A_indices_continue_inserts
+        A_indices_deletes = self.config.model.A_indices_deletes
+        A_dense = self.C.A_dense
+        append_time_ram_stamp_to_file(f"Layer.call() REG get indices end {run_id}", self.config.bench_path, start)
+
+        start = time.perf_counter()
+        run_id = randint(0,100)
+        append_time_ram_stamp_to_file(f"Layer.call() REG start {run_id}", self.config.bench_path, start)
+
+        reg = 0
+        reg += tf.reduce_sum(self.config.inserts_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_begin_inserts)))
+        reg += tf.reduce_sum(self.config.inserts_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_continue_inserts)))
+        reg += tf.reduce_sum(self.config.deletes_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_deletes)))
+        append_time_ram_stamp_to_file(f"Layer.call() REG end {run_id}", self.config.bench_path, start)
 
         # TODO: sollte der reg term normalisert werden auf die anzahl der regularisierten terme?
         if self.config.regularize:

@@ -103,7 +103,7 @@ def get_A_for_viewing_parameters(before_fit = False, after_fit = False):
     A = config.model.A(cell.A_kernel)
     return A
 ################################################################################
-def view_parameters_in_A(index = None, description = None,):
+def view_parameters_in_A(before_fit = False, index = None, description = None,):
     A = get_A_for_viewing_parameters(before_fit, not before_fit)
     if index != None:
         assert len(index) in [1,2], "check index"
@@ -133,9 +133,9 @@ def view_A_summary(before_fit = False, how_many = 5):
     A = get_A_for_viewing_parameters(before_fit, not before_fit)
     # deletes, inserts, codon continue, (insert continue doesnt seem to be a problem, yet)
     indices = {}
-    indices["deletes"] = config.model.A_indices_deletes()
-    indices["enter_next_codon"] = config.model.A_indices_enter_next_codon()
-    indices["begin_inserts"] = config.model.A_indices_begin_inserts()
+    indices["deletes"] = config.model.A_indices_deletes
+    indices["enter_next_codon"] = config.model.A_indices_enter_next_codon
+    indices["begin_inserts"] = config.model.A_indices_begin_inserts
 
     for key, value in indices.items():
         values = [(A[index], index, f"from {config.model.state_id_to_str(index[0])}, to {config.model.state_id_to_str(index[1])}") for index in value]
