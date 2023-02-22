@@ -216,7 +216,11 @@ if __name__ == "__main__":
         config.model.A_as_dense_to_json_file(A_out_path + ".json", weights_A)
         config.model.B_as_dense_to_json_file(B_out_path + ".json", weights_B)
 
-    run_cc_viterbi(config)
+    if os.path.exists(f"{config.src_path}/output/{config.nCodons}codons/viterbi.json"):
+        print("viterbi already exists. If you want to rerun it, then delete viterbi.json")
+    else:
+        run_cc_viterbi(config)
+
     viterbi_guess = load_viterbi_guess(config)
 
     true_state_seqs = get_true_state_seqs_from_true_MSA(config)

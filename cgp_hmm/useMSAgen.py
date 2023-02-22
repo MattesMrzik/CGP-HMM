@@ -43,7 +43,7 @@ if args.insertions:
 
 sequences, posDict = MSAgen.generate_sequences(num_sequences = int(num_seqs), # the number of sequences to generate
                                                seqlen = int(seqlen), # length of each sequence (in bp)
-                                               genelen = int(genlen), # length of the gene in each sequence (in bp, can be 0)
+                                               genelen = int(genlen), # length of the gene in each sequence (in bp, can be 0), without start and stop
                                                coding_dist = args.coding_dist, # branch length of the underlying tree for simulated gene evolution
                                                noncoding_dist = args.noncoding_dist) # branch length for flanking regions
 
@@ -56,15 +56,17 @@ with open(f"{args.path}/output/{nCodons}codons/MSAgen.out","w") as file:
         file.write(">" + seq.id + "\n")
         file.write(str(seq.seq) + "\n")
 
-# true state seq, with yet unnumerated codons and inserts
 for seq in sequences:
-    seq.true_state_seq = "5" * posDict["5flank_len"]
-    seq.true_state_seq += "ATG"
-    seq.true_state_seq += "C" * genlen
-    seq.true_state_seq += "STP"
-    seq.true_state_seq += "3" * posDict["3flank_len"]
     seq.startATGPos = posDict["start_codon"]
     seq.stopPos     = posDict["stop_codon"]
+
+inserts_marked_with_i = "5" * posDict["5flank_len"]
+inserts_marked_with_i += "ATG"
+inserts_marked_with_i += "C" * genlen
+inserts_marked_with_i += "STP"
+inserts_marked_with_i += "3" * posDict["3flank_len"]
+
+
 
 if args.insertions:
     print("useMSAgen: number_of_insertions =", number_of_insertions)
@@ -72,13 +74,14 @@ if args.insertions:
     positions_of_insertions = sorted(positions_of_insertions, reverse = True)
     percent_of_seq_that_have_insertion = .15
     for position_of_insertion in positions_of_insertions:
+        position_of_insertion_in_seq = posDict["5flank_len"] + len("ATG") + 3 * position_of_insertion
+        inserts_marked_with_i = inserts_marked_with_i[:position_of_insertion_in_seq] + "iii" + inserts_marked_with_i[position_of_insertion_in_seq +3:]
         seq_has_insertion = np.random.choice([True, False], size = num_seqs, p = [percent_of_seq_that_have_insertion, 1 - percent_of_seq_that_have_insertion])
         for i, seq in enumerate(sequences):
-            position_of_insertion_in_seq = posDict["5flank_len"] + len("ATG") + 3 * position_of_insertion
             if not seq_has_insertion[i]:
                 seq.seq = seq.seq[:position_of_insertion_in_seq] + "iii" + seq.seq[position_of_insertion_in_seq + 3:]
                 seq.startATGPos -= 3
-            seq.true_state_seq = seq.true_state_seq[:position_of_insertion_in_seq] + "iii" + seq.true_state_seq[position_of_insertion_in_seq + 3:]
+            # seq.true_state_seq = seq.true_state_seq[:position_of_insertion_in_seq] + "iii" + seq.true_state_seq[position_of_insertion_in_seq + 3:]
 
 if args.deletions:
     number_of_deletions = number_of_insertions
@@ -112,10 +115,8 @@ if strip_flanks:
         # print(strip_5flank_len, strip_3flank_len)
         if strip_3flank_len != 0:
             seq.seq = seq.seq[strip_5flank_len : -strip_3flank_len]
-            seq.true_state_seq = seq.true_state_seq[strip_5flank_len : -strip_3flank_len]
         else:
             seq.seq = seq.seq[strip_5flank_len :]
-            seq.true_state_seq = seq.true_state_seq[strip_5flank_len :]
             # print("seq.seq =", seq.seq)
             # print()
 
@@ -139,12 +140,12 @@ with open(f"{args.path}/output/{nCodons}codons/trueMSA.txt", "w") as file:
     first_line +="ATG"
     codon_id = 0
     i = 0
-    while i < len(sequences[0].true_state_seq):
-        if sequences[0].true_state_seq[i] == "C":
+    while i < len(inserts_marked_with_i):
+        if inserts_marked_with_i[i] == "C":
             first_line +="C" + (str(codon_id)[:2] if codon_id >= 10 else "0" + str(codon_id))
             codon_id += 1
             i += 3
-        elif sequences[0].true_state_seq[i] == "i":
+        elif inserts_marked_with_i[i] == "i":
             first_line +="i" + (str(codon_id)[:2] if codon_id >= 10 else "0" + str(codon_id))
             i += 3
         else:
