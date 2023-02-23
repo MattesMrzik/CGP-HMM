@@ -80,7 +80,7 @@ if args.insertions:
         for i, seq in enumerate(sequences):
             if not seq_has_insertion[i]:
                 seq.seq = seq.seq[:position_of_insertion_in_seq] + "iii" + seq.seq[position_of_insertion_in_seq + 3:]
-                seq.startATGPos -= 3
+                seq.stopPos = seq.stopPos - 3
             # seq.true_state_seq = seq.true_state_seq[:position_of_insertion_in_seq] + "iii" + seq.true_state_seq[position_of_insertion_in_seq + 3:]
 
 if args.deletions:
@@ -95,7 +95,7 @@ if args.deletions:
         for i, seq in enumerate(sequences):
             position_of_deletion_in_seq = posDict["5flank_len"] + len("ATG") + 3 * position_of_deletion
             if seq_has_deletions[i]:
-                seq.startATGPos -= 3
+                seq.stopPos = seq.stopPos - 3
                 seq.seq = seq.seq[:position_of_deletion_in_seq] + "ddd" + seq.seq[position_of_deletion_in_seq + 3:]
 
 # stripping seqs to have unequal lengths
@@ -120,8 +120,8 @@ if strip_flanks:
             # print("seq.seq =", seq.seq)
             # print()
 
-        seq.startATGPos = posDict["start_codon"] - strip_5flank_len
-        seq.stopPos     = posDict["stop_codon"] - strip_5flank_len
+        seq.startATGPos = seq.startATGPos - strip_5flank_len
+        seq.stopPos     = seq.stopPos - strip_5flank_len
 
 # write true MSA to file:
 with open(f"{args.path}/output/{nCodons}codons/trueMSA.txt", "w") as file:

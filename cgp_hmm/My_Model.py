@@ -39,6 +39,11 @@ class My_Model(Model):
         self.A_indices_for_constants = self.A_indices_for_constants()
         self.A_indices = self.A_indices_for_weights + self.A_indices_for_constants
 
+        if self.config.my_initial_guess_for_parameters:
+            self.A_my_initial_guess_for_parameters = self.get_A_my_initial_guess_for_parameters()
+
+        self.A_consts = self.get_A_consts()
+
         self.B_indices_for_weights = self.B_indices_for_weights()
         self.B_indices_for_constants = self.B_indices_for_constants()
         self.B_indices = self.B_indices_for_weights + self.B_indices_for_constants
@@ -274,6 +279,7 @@ class My_Model(Model):
     def A_indices_deletes(self):
         i_delete = [3 + i*3 for i in range(self.config.nCodons) for j in range(self.config.nCodons-i)]
         j_delete = [4 + j*3 for i in range(1,self.config.nCodons+1) for j in range(i,self.config.nCodons+1)]
+        # nCodons = 4: [[3, 7], [3, 10], [3, 13], [3, 16], [6, 10], [6, 13], [6, 16], [9, 13], [9, 16], [12, 16]]
         return [[i,j] for i,j in zip(i_delete, j_delete)]
     @property
     def A_indices_begin_inserts(self):
@@ -291,8 +297,8 @@ class My_Model(Model):
 
     def A_indices(self):
         return self.A_indices_for_weights + self.A_indices_for_constants
-
-    def A_consts(self):
+################################################################################
+    def get_A_consts(self):
         if self.config.ig5_const_transition:
             # return tf.cast(tf.concat([[5.0,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
             if self.config.ig3_const_transition:
@@ -300,7 +306,38 @@ class My_Model(Model):
             else:
                 return tf.cast(tf.concat([[self.config.ig5_const_transition,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
         return tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
+################################################################################
+    def get_A_my_initial_guess_for_parameters(self):
+        # für die ordnung die asserts vielleicht nach Config.py verschieben
+        assert self.config.ig5_const_transition, "when using my initial guess for parameters also pass ig5_const_transition"
+        assert self.config.ig3_const_transition, "when using my initial guess for parameters also pass ig3_const_transition"
+        assert not self.config.no_deletes, "when using my initial guess for parameters do not pass no_deletes"
+        assert not self.config.no_inserts, "when using my initial guess for parameters do not pass no_inserts"
+        assert not self.config.use_weights_for_consts, "when using my initial guess for parameters do not pass use_weights_for_consts"
 
+        my_weights = []
+        # enter codon
+        my_weights += [4] * len(self.A_indices_enter_next_codon)
+
+        # begin_inserts
+        my_weights += [1] * len(self.A_indices_begin_inserts)
+
+        # end inserts
+        my_weights += [4] * len(self.A_indices_end_inserts)
+
+        # continue inserts
+        my_weights += [1] * len(self.A_indices_continue_inserts)
+
+        # enter stop
+        my_weights += [4]
+
+        # deletes                                  2 is just an arbitrary factor
+        my_weights += [1 - j/2 for i in range(self.config.nCodons) for j in range(self.config.nCodons - i)]
+
+        # cast
+        # my_weights = tf.cast(my_weights, dtype = self.config.dtype)
+
+        return my_weights
 
 ################################################################################
 ################################################################################
@@ -460,7 +497,7 @@ class My_Model(Model):
         if self.config.use_weights_for_consts:
             values = weights
         else:
-            consts = self.A_consts()
+            consts = self.A_consts
             values = tf.concat([weights, consts], axis = 0)
         dense_shape = [self.number_of_states, self.number_of_states]
 

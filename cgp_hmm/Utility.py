@@ -103,7 +103,7 @@ def get_A_for_viewing_parameters(before_fit = False, after_fit = False):
     A = config.model.A(cell.A_kernel)
     return A
 ################################################################################
-def view_parameters_in_A(before_fit = False, index = None, description = None,):
+def view_parameters_in_A(index = None, description = None, before_fit = False):
     A = get_A_for_viewing_parameters(before_fit, not before_fit)
     if index != None:
         assert len(index) in [1,2], "check index"
@@ -129,7 +129,7 @@ def view_parameters_in_A(before_fit = False, index = None, description = None,):
             for value, msg in sorted(value_print_str, reverse = True):
                 print(msg)
 ################################################################################
-def view_A_summary(before_fit = False, how_many = 5):
+def view_A_summary(how_many = 5, before_fit = False):
     A = get_A_for_viewing_parameters(before_fit, not before_fit)
     # deletes, inserts, codon continue, (insert continue doesnt seem to be a problem, yet)
     indices = {}
@@ -141,9 +141,12 @@ def view_A_summary(before_fit = False, how_many = 5):
         values = [(A[index], index, f"from {config.model.state_id_to_str(index[0])}, to {config.model.state_id_to_str(index[1])}") for index in value]
         print(key)
         for i, (value, index, index_str) in enumerate(sorted(values, reverse = True)):
-            if i > how_many:
-                break
-            print(f"{index}, {index_str} = {value}")
+            if i < how_many:
+                print(f"{index}, {index_str} = {value}")
+            if i == how_many:
+                print("...")
+            if i > len(values) - how_many:
+                print(f"{index}, {index_str} = {value}")
 ################################################################################
 def view_A_differences(how_many = 5):
     A_before = get_A_for_viewing_parameters(before_fit=True)
@@ -176,7 +179,7 @@ def get_B_for_viewing_parameters(before_fit = False, after_fit = False):
     B = config.model.B(cell.B_kernel)
     return B
 ################################################################################
-def view_parameters_in_B(state_id, before_fit = False, how_many = 5):
+def view_parameters_in_B(state_id, how_many = 5, before_fit = False):
     B = get_B_for_viewing_parameters(before_fit, not before_fit)
     values = []
     for emission_id in range(len(B)):
