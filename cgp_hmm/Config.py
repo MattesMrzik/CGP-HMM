@@ -106,9 +106,14 @@ class Config():
         #                                     start and stop, i want at least one ig 3' and 5'
         assert self.seq_len >= self.gen_len + 6               + 2, f"self.seq_len ({self.seq_len}) < self.gen_len ({self.gen_len}) + 6 + 2"
 
-        from My_Model import My_Model
-        my_model = My_Model(self)
-        self.model = my_model
+        if self.intron_model:
+            from My_Model_with_introns import My_Model
+            my_model = My_Model(self)
+            self.model = my_model
+        else:
+            from My_Model import My_Model
+            my_model = My_Model(self)
+            self.model = my_model
 
     def prepare_before_main_programm(self):
         paths = [f"{self.src_path}/output/{self.nCodons}codons/", \
@@ -215,6 +220,7 @@ class Config():
         self.add_arg_main('--epochs', default = 2, type = int, help = 'how many epochs [2]')
         self.add_arg_main('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
         self.add_arg_main('--viterbi', action='store_true', help ="viterbi")
+        self.add_arg_main('--intron_model', action='store_true', help = 'use my model that includes introns')
 
         # fine tune algo
         self.add_arg_main('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
@@ -246,7 +252,9 @@ class Config():
         self.add_arg_main('--deletes_punish_factor', type = float, default = 1, help = 'deletes_punish_factor')
         self.add_arg_main('--simulate_insertions', action='store_true', help = 'simulate insertion when using MSAgen')
         self.add_arg_main('--simulate_deletions', action='store_true', help = 'simulate deletions when using MSAgen')
-
+        self.add_arg_main('--pattern_length_before_intron_loop', type = int, default = 2, help = 'number of states before intron loop')
+        self.add_arg_main('--pattern_length_after_intron_loop', type = int, default = 2, help = 'number of states after intron loop')
+        self.add_arg_main('--deletions_and_insertions_not_only_between_codons', action = 'store_true', help = 'deletions_and_insertions_not_only_between_codons. ie not after insertion or intron')
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
         self.add_arg_main('--dont_use_mirrored_strategy', action='store_true', help ="dont_use_mirrored_strategy")
