@@ -70,7 +70,7 @@ if check_AB:
 
     Utility.plot_time_and_ram(codons, types)
 
-check_seq_len = True
+check_batch_size = False
 if check_seq_len:
     import Utility
     import matplotlib.pyplot as plt
@@ -103,20 +103,70 @@ if check_seq_len:
     time_axis.set_ylabel('time in sec', color=color)
     time_axis.plot(seq_lens, y_times, "rx")
 
-
+    print("times", y_times)
+    print("ram", y_ram)
 
     ram_axis = time_axis.twinx()  # instantiate a second axes that shares the same x-axis
     color = 'tab:blue'
     ram_axis.set_ylabel('ram_peak in gb', color=color)  # we already handled the x-label with ax1
     ram_axis.plot(seq_lens, y_ram, "bo")
 
-    title = f"time and ram of different seq_len, type = {config.AB}, nCodons = {config.nCodons}, nStates = {config.model.number_of_states}"
+    title = f"time and ram of different seq_len, type = {config.AB}, nCodons = {config.nCodons}"
     time_axis.title.set_text(title)
     fig.tight_layout()
+
+
+    plt.savefig("bench_seq_len.png")
+    show_diagramm = True
+    if show_diagramm:
+        plt.show()
+
+check_batch_size = True
+if check_batch_size:
+    import Utility
+    import matplotlib.pyplot as plt
+    y_times = {}
+    y_ram = {}
+    batch_sizes = [i for i in range(1,65,4)]
+    for batch_size in batch_sizes:
+        config.batch_size = batch_size
+        command = f"./main_programm.py {config.get_args_as_str('main_programm')}"
+        print("running:", command)
+        status = os.system(command)
+        if status != 0:
+            print("status != 0")
+            exit()
+
+        file_path = f"bench/{config.nCodons}codons/{config.AB}_call_type.log"
+        y_time, max_ram_in_gb = Utility.get_time_and_ram_from_bench_file(file_path)
+        y_times[batch_size] = y_time
+        y_ram[batch_size] = max_ram_in_gb
+    fig = plt.figure(figsize=(12, 12))
+    time_axis = fig.add_subplot(111)
+
+
+    y_times = [y_times[batch_size] for batch_size in batch_sizes]
+    y_ram   = [y_ram[batch_size]   for batch_size in batch_sizes]
+
+    color = 'tab:red'
+    time_axis.set_xlabel('batch_size')
+    time_axis.set_ylabel('time in sec', color=color)
+    time_axis.plot(batch_sizes, y_times, "rx")
+
     print("times", y_times)
     print("ram", y_ram)
 
-    plt.savefig("bench_seq_len.png")
+    ram_axis = time_axis.twinx()  # instantiate a second axes that shares the same x-axis
+    color = 'tab:blue'
+    ram_axis.set_ylabel('ram_peak in gb', color=color)  # we already handled the x-label with ax1
+    ram_axis.plot(batch_sizes, y_ram, "bo")
+
+    title = f"time and ram of different batch_size, type = {config.AB}, nCodons = {config.nCodons}"
+    time_axis.title.set_text(title)
+    fig.tight_layout()
+
+
+    plt.savefig("bench_batch_size.png")
     show_diagramm = True
     if show_diagramm:
         plt.show()
