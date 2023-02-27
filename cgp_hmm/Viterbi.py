@@ -193,13 +193,13 @@ def compare_guess_to_true_state_seq(trues, guesses):
     correct = 0
     false = 0
     for true, guess in zip(trues, guesses):
-        for x,y in zip(true, guess):
+        for i, (x,y) in enumerate(zip(true, guess)):
             if x != y:
                 false += 1
                 print("true seq")
-                print(true)
+                print(true[:i], "__first_mistake__", true[i:])
                 print("prediction")
-                print(guess)
+                print(guess[:i], "__first_mistake__", guess[i:])
                 break
         else:
             correct += 1

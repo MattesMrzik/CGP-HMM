@@ -67,36 +67,36 @@ inserts_marked_with_i += "STP"
 inserts_marked_with_i += "3" * posDict["3flank_len"]
 
 
-
 if args.insertions:
     print("useMSAgen: number_of_insertions =", number_of_insertions)
-    positions_of_insertions = np.random.choice(np.arange(nCodons + number_of_insertions), size = number_of_insertions)
-    positions_of_insertions = sorted(positions_of_insertions, reverse = True)
+    ids_of_insertions =  sorted(np.random.choice(np.arange(nCodons + number_of_insertions), size = number_of_insertions, replace=False), reverse = True)
     percent_of_seq_that_have_insertion = .15
-    for position_of_insertion in positions_of_insertions:
-        position_of_insertion_in_seq = posDict["5flank_len"] + len("ATG") + 3 * position_of_insertion
-        inserts_marked_with_i = inserts_marked_with_i[:position_of_insertion_in_seq] + "iii" + inserts_marked_with_i[position_of_insertion_in_seq +3:]
+    for id_of_insertion in ids_of_insertions:
+        position_of_insertion = posDict["5flank_len"] + len("ATG") + 3 * id_of_insertion
+        inserts_marked_with_i = inserts_marked_with_i[:position_of_insertion] + "iii" + inserts_marked_with_i[position_of_insertion +3:]
         seq_has_insertion = np.random.choice([True, False], size = num_seqs, p = [percent_of_seq_that_have_insertion, 1 - percent_of_seq_that_have_insertion])
+        assert any(seq_has_insertion), "assert any(seq_has_insertion)"
+        assert not all(seq_has_insertion), "assert not all(seq_has_insertion)"
         for i, seq in enumerate(sequences):
             if not seq_has_insertion[i]:
-                seq.seq = seq.seq[:position_of_insertion_in_seq] + "iii" + seq.seq[position_of_insertion_in_seq + 3:]
+                seq.seq = seq.seq[:position_of_insertion] + "iii" + seq.seq[position_of_insertion + 3:]
                 seq.stopPos = seq.stopPos - 3
-            # seq.true_state_seq = seq.true_state_seq[:position_of_insertion_in_seq] + "iii" + seq.true_state_seq[position_of_insertion_in_seq + 3:]
-
+            # seq.true_state_seq = seq.true_state_seq[:position_of_insertion] + "iii" + seq.true_state_seq[position_of_insertion + 3:]
 if args.deletions:
     number_of_deletions = number_of_insertions
     print("useMSAgen: number_of_deletions =", number_of_deletions)
-    possible_positions_of_deletions = list(set(np.arange(nCodons + number_of_insertions)).difference(positions_of_insertions))
-    positions_of_deletions = np.random.choice(possible_positions_of_deletions, size = number_of_deletions)
-    positions_of_deletions = sorted(positions_of_deletions, reverse = True)
+    possible_positions_of_deletions = list(set(np.arange(nCodons + number_of_insertions)).difference(ids_of_insertions))
+    ids_of_deletions = sorted(np.random.choice(possible_positions_of_deletions, size = number_of_deletions, replace=False), reverse = True)
     percent_of_seqs_that_have_deletions = .15
-    for position_of_deletion in positions_of_deletions:
+    assert any(seq_has_insertion), "assert any(seq_has_insertion)"
+    assert not all(seq_has_insertion), "assert not all(seq_has_insertion)"
+    for id_of_deletion in ids_of_deletions:
         seq_has_deletions = np.random.choice([True, False], size = num_seqs, p = [percent_of_seqs_that_have_deletions, 1 - percent_of_seqs_that_have_deletions])
         for i, seq in enumerate(sequences):
-            position_of_deletion_in_seq = posDict["5flank_len"] + len("ATG") + 3 * position_of_deletion
+            position_of_deletion = posDict["5flank_len"] + len("ATG") + 3 * id_of_deletion
             if seq_has_deletions[i]:
                 seq.stopPos = seq.stopPos - 3
-                seq.seq = seq.seq[:position_of_deletion_in_seq] + "ddd" + seq.seq[position_of_deletion_in_seq + 3:]
+                seq.seq = seq.seq[:position_of_deletion] + "ddd" + seq.seq[position_of_deletion + 3:]
 
 # stripping seqs to have unequal lengths
 strip_flanks = not args.dont_strip_flanks
