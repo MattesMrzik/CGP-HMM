@@ -89,7 +89,6 @@ class Config():
         self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.AB}_call_type.log"
         self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
 
-        self.check_assert = not self.dont_check_assert
         self.generate_new_seqs = not self.dont_generate_new_seqs
         self.dtype = tf.float64 if self.dtype64 else tf.float32
         self.learning_rate = self.learning_rate if not self.no_learning else 0
@@ -279,7 +278,7 @@ class Config():
         self.add_arg_main('-n', '--exit_after_loglik_is_nan', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
         self.add_arg_main('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
         self.add_arg_main('--manual_training_loop', action='store_true', help ="manual_training_loop")
-        self.add_arg_main('--dont_check_assert', action='store_true', help ="dont_check_assert")
+        self.add_arg_main('--check_assert', action='store_true', help ="check_assert")
         self.add_arg_main('--run_eagerly', action='store_true', help ='run model.fit in eager execution')
         self.add_arg_main('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
         self.add_arg_main('--init_weights_from_before_fit', action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --batch_begin_write_weights__layer_call_write_inputs was passed')

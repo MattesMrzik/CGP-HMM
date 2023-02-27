@@ -276,6 +276,28 @@ def plot_time_against_ram(path):
     plt.legend();
 
     plt.show()
+################################################################################
+def get_time_and_ram_from_bench_file(path):
+    if not os.path.exists(path):
+        print(f"file {path} does not exist")
+        exit(1)
+
+    with open(path, "r") as file:
+        start_time = -1
+        end_time = -1
+        max_ram_in_gb = float("-inf")
+        for line in file:
+            # print("trying to laods =", line)
+            data = json.loads(line.strip())
+            if data["description"].startswith("Training.make_dataset() start"):
+                start_time = data["time"]
+            if data["description"].startswith("Training:model.fit() end"):
+                end_time = data["time"]
+            max_ram_in_gb = max(max_ram_in_gb, data["RAM in kb"]/1024/1024)
+        assert start_time != -1, "start_time is not found"
+        assert end_time != -1, "end_time is not found"
+        y_time = end_time - start_time
+    return y_time, max_ram_in_gb
 
 ################################################################################
 def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3, fit_only_positive = False, show_diagramm = False):
@@ -292,26 +314,9 @@ def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3, f
         y_ram = {} # y values
         for codon in codons:
             file_path = f"bench/{codon}codons/{type}_call_type.log"
-            if not os.path.exists(file_path):
-                print(f"file {file_path} does not exist")
-                exit(1)
-
-            with open(file_path, "r") as file:
-                start_time = -1
-                end_time = -1
-                max_ram_in_gb = float("-inf")
-                for line in file:
-                    # print("trying to laods =", line)
-                    data = json.loads(line.strip())
-                    if data["description"].startswith("Training.make_dataset() start"):
-                        start_time = data["time"]
-                    if data["description"].startswith("Training:model.fit() end"):
-                        end_time = data["time"]
-                    max_ram_in_gb = max(max_ram_in_gb, data["RAM in kb"]/1024/1024)
-                assert start_time != -1, "start_time is not found"
-                assert end_time != -1, "end_time is not found"
-                y_times[codon] = end_time - start_time
-                y_ram[codon] = max_ram_in_gb
+            y_time, max_ram_in_gb = get_time_and_ram_from_bench_file(file_path)
+            y_times[codon] = y_time
+            y_ram[codon] = max_ram_in_gb
 
         time_axis = fig.add_subplot(310 + type_id + 1)
 
