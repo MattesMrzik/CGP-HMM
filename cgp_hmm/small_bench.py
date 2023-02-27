@@ -70,7 +70,7 @@ if check_AB:
 
     Utility.plot_time_and_ram(codons, types)
 
-check_batch_size = False
+check_seq_len = False
 if check_seq_len:
     import Utility
     import matplotlib.pyplot as plt

@@ -189,6 +189,22 @@ def eval_start_stop(config, viterbi):
 
     print("done evaluating viterbi. it took ", time.perf_counter() - start)
 
+def compare_guess_to_true_state_seq(trues, guesses):
+    correct = 0
+    false = 0
+    for true, guess in zip(trues, guesses):
+        for x,y in zip(true, guess):
+            if x != y:
+                false += 1
+                print("true seq")
+                print(true)
+                print("prediction")
+                print(guess)
+                break
+        else:
+            correct += 1
+    print(f"correct = {correct}, false = {false}, accuracy = {correct/(false+correct)}")
+
 if __name__ == "__main__":
     from Config import Config
     import numpy as np
@@ -224,6 +240,8 @@ if __name__ == "__main__":
     viterbi_guess = load_viterbi_guess(config)
 
     true_state_seqs = get_true_state_seqs_from_true_MSA(config)
+
+    compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
 
     write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
 

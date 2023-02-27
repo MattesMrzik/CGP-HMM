@@ -81,6 +81,8 @@ def main(config):
 
         true_state_seqs = Viterbi.get_true_state_seqs_from_true_MSA(config)
 
+        Viterbi.compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
+
         Viterbi.write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
 
         Viterbi.eval_start_stop(config, viterbi_guess)
