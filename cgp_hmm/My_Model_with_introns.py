@@ -86,10 +86,19 @@ class My_Model(Model):
     def get_state_id_description_list(self):
         # if this is changed, also change state_is_third_pos_in_frame()
         states = re.split(" ", "ig5' stA stT stG")
-        states += ["c_" + str(i) + "," + str(j) for i in range(self.config.nCodons) for j in range(3)]
+        codons = ["c_" + str(i) + "," + str(j) for i in range(self.config.nCodons) for j in range(3)]
+        states += codons
         states += re.split(" ", "stop1 stop2 stop3 ig3'")
-        states += ["i_" + str(i) + "," + str(j) for i in range(self.config.nCodons+1) for j in range(3)]
-        states += [f"int_{after},{j}" for after in range(self.total_number_of_introns) for j in range(self.number_of_states_per_intron)]
+        inserts = ["i_" + str(i) + "," + str(j) for i in range(self.config.nCodons+1) for j in range(3)]
+        states += inserts
+
+        states += [f"int_ATG_{j  for j in range(self.number_of_states_per_intron)}"]
+
+        for codon in codons:
+            states += [f"int_{codon}_{j}" for j in range(self.number_of_states_per_intron)]
+        for intron in introns:
+            states += [f"int_{intron}_{j}" for j in range(self.number_of_states_per_intron)]
+
         states += ["ter"]
         for i, state in enumerate(states):
             print(i, state)
@@ -252,6 +261,9 @@ class My_Model(Model):
         append_transition("ig3'", "ter", trainable =  not self.ig3_const_transition)
         append_transition("ter", "ter")
 
+        def append_intron(from, to):
+
+
         # intron after start
         state_before_intron = self.str_to_state_id("stG")
         intron_start_id = self.str_to_state_id("int_0,0")
@@ -397,7 +409,7 @@ class My_Model(Model):
     def A_indices_begin_inserts(self):# including ATG -> first insert
         indices = [[self.str_to_state_id("stG"), self.str_to_state_id("i_0,0")]]
         for i in range(self.config.nCodons):
-            indices += [[self.str_to_state_id(f"c_{i},2"), self.str_to_state_id(f"i_{i+1},2")]]
+            indices += [[self.str_to_state_id(f"c_{i},2"), self.str_to_state_id(f"i_{i+1},0")]]
         return indices
     @property
     def A_indices_end_inserts(self): # including last insert -> stop1

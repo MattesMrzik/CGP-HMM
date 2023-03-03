@@ -109,6 +109,10 @@ class Config():
             from My_Model_with_introns import My_Model
             my_model = My_Model(self)
             self.model = my_model
+        elif self.internes_exon_model:
+            from My_internes_exon_model import My_Model
+            my_model = My_Model(self)
+            self.model = my_model
         else:
             from My_Model import My_Model
             my_model = My_Model(self)
@@ -220,6 +224,17 @@ class Config():
         self.add_arg_main('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
         self.add_arg_main('--viterbi', action='store_true', help ="viterbi")
         self.add_arg_main('--intron_model', action='store_true', help = 'use my model that includes introns')
+
+        self.add_arg_main('--internes_exon_model', action = 'store_true', help = 'finde ein exon welches von zwei introns begrenzt ist')
+        self.add_arg_main('--inserts_at_intron_borders', action = 'store_true', help = 'inserts can come right after and before intron')
+        self.add_arg_main('--akzeptor_pattern_len', type = int, default = 3, help = 'akzeptor_pattern_len before AG')
+        self.add_arg_main('--donor_pattern_len', type = int, default = 3, help = 'donor_pattern_len after GT')
+        self.add_arg_main('--left_intron_const',  type = float, default = 0, help = 'uses const transition [float] from left_intron -> left_intron and left_intron -> ak_0 [weight = 1]')
+        self.add_arg_main('--right_intron_const',  type = float, default = 0, help = 'uses const transition [float] from right_intron -> right_intron and right_intron -> ter [weight = 1]')
+        self.add_arg_main('--deletes_after_intron_to_codon', action = 'store_true', help = 'light green: deletes_after_intron_to_codon')
+        self.add_arg_main('--deletes_after_codon_to_intron', action = 'store_true', help = 'dark green: deletes_after_codon_to_intron')
+        self.add_arg_main('--deletes_after_insert_to_codon', action = 'store_true', help = 'red: deletes_after_insert_to_codon')
+        self.add_arg_main('--deletes_after_codon_to_insert', action = 'store_true', help = 'pink: deletes_after_codon_to_insert')
 
         # fine tune algo
         self.add_arg_main('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")

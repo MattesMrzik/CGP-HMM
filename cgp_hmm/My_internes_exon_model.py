@@ -11,32 +11,29 @@ class My_Model(Model):
     def __init__(self, config):
         Model.__init__(self, config)
 
+        self.insert_low = 0 if self.config.inserts_at_intron_borders else 1
+        self.insert_high = self.config.nCodons + 1 if self.config.inserts_at_intron_borders else self.config.nCodons
         # =================> states <============================================
+        self.id_to_state, self.state_to_id = self.get_state_id_description_dicts()
         self.number_of_states = self.get_number_of_states()
-        self.state_id_description_list = self.get_state_id_description_list()
+
 
         # =================> emissions <========================================
         self.emissions_state_size = self.get_emissions_state_size()
         self.number_of_emissions = self.get_number_of_emissions()
+        self.emi_to_id, self.id_to_emi = self.get_dicts_for_emission_tuple_and_id_conversion() # these are dicts
 
-        self.id_to_emi = self.get_dicts_for_emission_tuple_and_id_conversion()[1] # these are dicts
-        self.emi_to_id = self.get_dicts_for_emission_tuple_and_id_conversion()[0]
 
         self.A_is_dense = config.A_is_dense
         self.A_is_sparse = config.A_is_sparse
         self.B_is_dense = config.B_is_dense
         self.B_is_sparse = config.B_is_sparse
 
-        # init for reg in layer
-        self.A_indices_begin_inserts
-        self.A_indices_continue_inserts
-        self.A_indices_deletes
-
-
+        # I
         self.I_indices = self.I_indices()
 
-        self.A_indices_for_weights = self.A_indices_for_weights()
-        self.A_indices_for_constants = self.A_indices_for_constants()
+        # A
+        self.A_indices_for_weights, self.A_indices_for_constants = self.A_indices_for_weights_and_consts()
         self.A_indices = self.A_indices_for_weights + self.A_indices_for_constants
 
         if self.config.my_initial_guess_for_parameters:
@@ -44,8 +41,8 @@ class My_Model(Model):
 
         self.A_consts = self.get_A_consts()
 
-        self.B_indices_for_weights = self.B_indices_for_weights()
-        self.B_indices_for_constants = self.B_indices_for_constants()
+        # B
+        self.B_indices_for_weights, self.B_indices_for_constants = self.B_indices_for_weights_and_consts()
         self.B_indices = self.B_indices_for_weights + self.B_indices_for_constants
 
         if config.use_weights_for_consts:
@@ -57,38 +54,37 @@ class My_Model(Model):
 
     # =================> states <===============================================
     def get_number_of_states(self):
-        number_of_states = 1
-        # start
-        number_of_states += 3
-        # codons
-        number_of_states += 3 * self.config.nCodons
-        # codon inserts
-        number_of_states += 3 * (self.config.nCodons + 1)
-        # stop
-        number_of_states += 3
-        # ig 3'
-        number_of_states += 1
-        # terminal
-        number_of_states += 1
-        return number_of_states
+        return len(self.id_to_state)
 
-    def get_state_id_description_list(self):
+    def get_state_id_description_dicts(self):
         # if this is changed, also change state_is_third_pos_in_frame()
-        states = re.split(" ", "ig5' stA stT stG")
-        states += ["c_" + str(i) + "," + str(j) for i in range(self.config.nCodons) for j in range(3)]
-        states += re.split(" ", "stop1 stop2 stop3 ig3'")
-        states += ["i_" + str(i) + "," + str(j) for i in range(self.config.nCodons+1) for j in range(3)]
-        states += ["ter1", "ter2"]
-        return states
+        states = ["left_intron"]
+        states += [f"ak_{i}" for i in range(self.config.akzeptor_pattern_len)]
+        states += ["A", "AG"]
+        codons = ["c_" + str(i) + "," + str(j) for i in range(self.config.nCodons) for j in range(3)]
+        states += codons
+
+        inserts = ["i_" + str(i) + "," + str(j) for i in range(self.insert_low, self.insert_high) for j in range(3)]
+        states += inserts
+
+        states += ["G", "GT"]
+        states += [f"do_{i}" for i in range(self.config.donor_pattern_len)]
+        states += ["right_intron"]
+
+        states += ["ter"]
+        for i, state in enumerate(states):
+            print(i, state)
+
+        state_to_id = dict(zip(states, range(len(states))))
+        id_to_state = dict(zip(range(len(states)), states))
+
+        return id_to_state, state_to_id
 
     def state_id_to_str(self, id):
-        return self.state_id_description_list[id]
+        return self.id_to_state[id]
 
     def str_to_state_id(self, s):
-        try:
-            return self.state_id_description_list.index(s)
-        except:
-            return -1
+        return self.state_to_id[s]
 
     # =================> emissions <============================================
     def get_emissions_state_size(self):# with out terminal symbol
@@ -195,150 +191,211 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
 ################################################################################
-    def A_indices_for_constants(self):
+    def A_indices_for_weights_and_consts(self):
+        # für weights die trainable sind und gleich viele einer ähnlichen art sind,
+        # die in eine separate methode auslagen, damit ich leichter statistiken
+        # dafür ausarbeiten kann
+        indicies_for_constant_parameters = []
+        indices_for_trainable_parameters = []
+        def append_transition(s1 = None, s2 = None, l = None, trainable = True):
+            if l == None:
+                assert s1 != None and s2 != None, "s1 and s2 must be != None if l = None"
+                l = [[self.str_to_state_id(s1), self.str_to_state_id(s2)]]
+            for entry in l:
+                if trainable:
+                    indices_for_trainable_parameters.append(entry)
+                else:
+                    indicies_for_constant_parameters.append(entry)
 
-        indices = []
-        # from ig 5'
-        if self.config.ig5_const_transition:
-            indices += self.A_indices_ig5
+        append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const)
 
-        # from start a
-        indices += [[1,2]]
-        # from start t
-        indices += [[2,3]]
+        if self.config.akzeptor_pattern_len == 0:
+            append_transition("left_intron", "A", trainable = not self.config.left_intron_const)
+        else:
+            append_transition("left_intron", "ak_0", trainable = not self.config.left_intron_const)
+            for i in range(self.config.akzeptor_pattern_len - 1):
+                append_transition(f"ak_{i}", f"ak_{i+1}", trainable = False)
+            append_transition(f"ak_{self.config.akzeptor_pattern_len - 1}", "A", trainable = False)
 
-        # first to second codon position
-        indices += [[4 + i*3, 5 + i*3] for i in range(self.config.nCodons)]
-        # second to third codon position
-        indices += [[5 + i*3, 6 + i*3] for i in range(self.config.nCodons)]
+        append_transition("A", "AG", trainable = False)
 
-        # inserts
-        offset = 8 + 3*self.config.nCodons
-        # begin inserts
+        # enter first codon at all phases
+        append_transition("AG", "c_0,0")
+        append_transition("AG", "c_0,1")
+        append_transition("AG", "c_0,2")
 
-        # first to second position in insert
-        indices += [[offset + i*3, offset + 1 + i*3] for i in range(self.config.nCodons + 1)]
-        # second to third position in insert
-        indices += [[offset + 1 + i*3, offset + 2 + i*3] for i in range(self.config.nCodons + 1)]
+        append_transition(l = self.A_indices_enter_next_codon)
 
-        # stop T
-        indices += [[4 +  self.config.nCodons*3, 5 + self.config.nCodons*3]]
+        for i in range(self.config.nCodons):
+            append_transition(f"c_{i},0", f"c_{i},1", trainable = False) # TODO: do i want these trainable if i pass deletes after/before intron?
+            append_transition(f"c_{i},1", f"c_{i},2", trainable = False)
 
-        # second to third position in stop
-        indices += [[5 +  self.config.nCodons*3, 6 + self.config.nCodons*3]]
+        append_transition(l = self.A_indices_begin_inserts)
+        for i in range(self.insert_low, self.insert_high):
+            append_transition(f"i_{i},0", f"i_{i},1", trainable = False)
+            append_transition(f"i_{i},1", f"i_{i},2", trainable = False)
+        append_transition(l = self.A_indices_end_inserts)
+        append_transition(l = self.A_indices_continue_inserts)
 
-        # stop -> ig 3'
-        indices += [[6 +  self.config.nCodons*3, 7 + self.config.nCodons*3]]
+        append_transition(l = self.A_indices_normal_deletes)
+        if self.config.deletes_after_intron_to_codon:
+            append_transition(l = self.A_indices_deletes_after_intron_to_codon)
+        if self.config.deletes_after_codon_to_intron:
+            append_transition(l = self.A_indices_deletes_after_codon_to_intron)
+        if self.config.deletes_after_insert_to_codon:
+            append_transition(l = self.A_indices_deletes_after_insert_to_codon)
+        if self.config.deletes_after_codon_to_insert:
+            append_transition(l = self.A_indices_deletes_after_codon_to_insert)
 
-        index_of_terminal_1 = 8 + self.config.nCodons*3 + (self.config.nCodons + 1) *3
-        indices += [[index_of_terminal_1, index_of_terminal_1]]
+        # exit last codon
+        append_transition(f"c_{self.config.nCodons-1},0", "G")
+        append_transition(f"c_{self.config.nCodons-1},1", "G")
+        append_transition(f"c_{self.config.nCodons-1},2", "G")
 
-        if self.config.ig3_const_transition:
-            indices += self.A_indices_ig3
+        append_transition("G", "GT", trainable = False)
 
-        return indices
+        if self.config.donor_pattern_len == 0:
+            append_transition("GT", "right_intron", trainable = False)
+        else:
+            append_transition("GT", "do_0", trainable = False)
+            for i in range(self.config.donor_pattern_len-1):
+                append_transition(f"do_{i}", f"do_{i+1}", trainable = False)
+            append_transition(f"do_{self.config.donor_pattern_len-1}", "right_intron", trainable = False)
 
-    def A_indices_for_weights(self): # no shared parameters
+        append_transition("right_intron", "right_intron", trainable = not self.config.right_intron_const)
+        append_transition("right_intron", "ter", trainable = not self.config.right_intron_const)
+        append_transition("ter", "ter")
 
-        indices = []
-        # from ig 5'
-        if not self.config.ig5_const_transition:
-            indices += self.A_indices_ig5
+        print("trainable")
+        for index in indices_for_trainable_parameters:
+            print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
 
-        indices += self.A_indices_enter_next_codon
+        print("const")
+        for index in indicies_for_constant_parameters:
+            print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
 
-        if not self.config.no_inserts:
-            indices += self.A_indices_begin_inserts
-            indices += self.A_indices_end_inserts
-            indices += self.A_indices_continue_inserts
+        return indices_for_trainable_parameters, indicies_for_constant_parameters
 
-        indices += self.A_indices_enter_stop
-
-        if not self.config.no_deletes:
-            indices += self.A_indices_deletes
-
-        if not self.config.ig3_const_transition:
-            indices += self.A_indices_ig3
-
-        return indices
-        
-    @property
-    def A_indices_ig5(self):
-        return [[0,0], [0,1]]
-    @property
-    def A_indices_ig3(self):
-        index_of_terminal_1 = 8 + self.config.nCodons*3 + (self.config.nCodons + 1) *3
-        index_of_ig3 = 7 + self.config.nCodons*3
-        return [[index_of_ig3, index_of_ig3], [index_of_ig3, index_of_terminal_1]]
     @property
     def A_indices_enter_next_codon(self):
-        return [[3 + i*3, 4 + i*3] for i in range(self.config.nCodons)]
+        indices = []
+        for i in range(self.config.nCodons-1):
+            indices += [[self.str_to_state_id(f"c_{i},2"), self.str_to_state_id(f"c_{i+1},0")]]
+        return indices
+
+    # deletes
     @property
-    def A_indices_enter_stop(self):
-        return [[3 + self.config.nCodons*3, 4 + self.config.nCodons*3]]
+    def A_indices_normal_deletes(self):
+        indices = []
+        # from codons
+        for after_codon in range(self.config.nCodons):
+            for to_codon in range(after_codon + 2, self.config.nCodons):
+                indices += [[self.str_to_state_id(f"c_{after_codon},2"), self.str_to_state_id(f"c_{to_codon},0")]]
+        return indices
+
     @property
-    def A_indices_deletes(self):
-        i_delete = [3 + i*3 for i in range(self.config.nCodons) for j in range(self.config.nCodons-i)]
-        j_delete = [4 + j*3 for i in range(1,self.config.nCodons+1) for j in range(i,self.config.nCodons+1)]
-        # nCodons = 4: [[3, 7], [3, 10], [3, 13], [3, 16], [6, 10], [6, 13], [6, 16], [9, 13], [9, 16], [12, 16]]
-        return [[i,j] for i,j in zip(i_delete, j_delete)]
+    def A_indices_deletes_after_intron_to_codon(self):
+        indices = []
+        for i in range(1,self.config.nCodons):# including to the last codon
+            for j in range(3):
+                indices += [[self.str_to_state_id("AG"), self.str_to_state_id(f"c_{i},{j}")]]
+        return indices
+    @property
+    def A_indices_deletes_after_codon_to_intron(self):
+        indices = []
+        for i in range(self.config.nCodons-1):# including to the first codon
+            for j in range(3):
+                indices += [[self.str_to_state_id(f"c_{i},{j}"), self.str_to_state_id("G")]]
+        return indices
+    @property
+    def A_indices_deletes_after_insert_to_codon(self):
+        indices = []
+        for codon_id in range(self.config.nCodons-2):
+            for insert_id in range(2, self.config.nCodons):
+                indices += [[self.str_to_state_id(f"c_{codon_id},2"), self.str_to_state_id(f"i_{insert_id}, 0")]]
+        return indices
+    @property
+    def A_indices_deletes_after_codon_to_insert(self):
+        indices = []
+        for insert_id in range(1, self.config.nCodons - 1):
+            for codon_id in range(2, self.config.nCodons):
+                indices += [[self.str_to_state_id(f"i_{insert_id},2"), self.str_to_state_id(f"c_{codon_id}, 0")]]
+        return indices
+
+    # inserts
     @property
     def A_indices_begin_inserts(self):
-        offset = 8 + 3*self.config.nCodons
-        return [[3 + i*3, offset + i*3] for i in range(self.config.nCodons + 1)]
+        indices = []
+        if self.config.inserts_at_intron_borders:
+            indices += [[self.str_to_state_id("AG"), self.str_to_state_id("i_0,0")]]
+            indices += [[self.str_to_state_id("AG"), self.str_to_state_id("i_0,1")]]
+            indices += [[self.str_to_state_id("AG"), self.str_to_state_id("i_0,2")]]
+        for i in range(self.config.nCodons - 1):
+            indices += [[self.str_to_state_id(f"c_{i},2"), self.str_to_state_id(f"i_{i+1},0")]]
+        if self.config.inserts_at_intron_borders:
+            indices += [[self.str_to_state_id(f"c_{self.config.nCodons-1},0"), self.str_to_state_id(f"i_{self.insert_high},0")]]
+            indices += [[self.str_to_state_id(f"c_{self.config.nCodons-1},1"), self.str_to_state_id(f"i_{self.insert_high},0")]]
+            indices += [[self.str_to_state_id(f"c_{self.config.nCodons-1},2"), self.str_to_state_id(f"i_{self.insert_high},0")]]
+        return indices
     @property
     def A_indices_end_inserts(self):
-        offset = 8 + 3*self.config.nCodons
-        return [[offset + 2 + i*3, 4 + i*3] for i in range(self.config.nCodons + 1)]
+        indices = []
+        for i in range(self.insert_low, self.config.nCodons):
+            indices += [[self.str_to_state_id(f"i_{i},2"), self.str_to_state_id(f"c_{i},0")]]
+         # including last insert -> GT
+        if self.config.inserts_at_intron_borders:
+                indices += [[self.str_to_state_id(f"i_{self.config.nCodons},2"), self.str_to_state_id("G")]]
+        return indices
     @property
     def A_indices_continue_inserts(self):
-        offset = 8 + 3*self.config.nCodons
-        return [[offset + 2 + i*3, offset + i*3] for i in range(self.config.nCodons +1)]
-
-
+        indices = []
+        for i in range(self.insert_low, self.insert_high):
+            indices += [[self.str_to_state_id(f"i_{i},2"), self.str_to_state_id(f"i_{i},0")]]
+        return indices
+################################################################################
     def A_indices(self):
         return self.A_indices_for_weights + self.A_indices_for_constants
 ################################################################################
     def get_A_consts(self):
-        if self.config.ig5_const_transition:
+        if self.config.left_intron_const:
             # return tf.cast(tf.concat([[5.0,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
-            if self.config.ig3_const_transition:
-                return tf.cast(tf.concat([[self.config.ig5_const_transition,1], [1.0] * (len(self.A_indices_for_constants) -4), [self.config.ig5_const_transition,1]], axis = 0),dtype = self.config.dtype)
+            if self.config.right_intron_const:
+                return tf.cast(tf.concat([[self.config.left_intron_const,1], [1.0] * (len(self.A_indices_for_constants) -4), [self.config.right_intron_const,1]], axis = 0),dtype = self.config.dtype)
             else:
-                return tf.cast(tf.concat([[self.config.ig5_const_transition,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
+                return tf.cast(tf.concat([[self.config.left_intron_const,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
         return tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
 ################################################################################
-    def get_A_my_initial_guess_for_parameters(self):
-        # für die ordnung die asserts vielleicht nach Config.py verschieben
-        assert self.config.ig5_const_transition, "when using my initial guess for parameters also pass ig5_const_transition"
-        assert self.config.ig3_const_transition, "when using my initial guess for parameters also pass ig3_const_transition"
-        assert not self.config.no_deletes, "when using my initial guess for parameters do not pass no_deletes"
-        assert not self.config.no_inserts, "when using my initial guess for parameters do not pass no_inserts"
-        assert not self.config.use_weights_for_consts, "when using my initial guess for parameters do not pass use_weights_for_consts"
-
-        my_weights = []
-        # enter codon
-        my_weights += [4] * len(self.A_indices_enter_next_codon)
-
-        # begin_inserts
-        my_weights += [1] * len(self.A_indices_begin_inserts)
-
-        # end inserts
-        my_weights += [4] * len(self.A_indices_end_inserts)
-
-        # continue inserts
-        my_weights += [1] * len(self.A_indices_continue_inserts)
-
-        # enter stop
-        my_weights += [4]
-
-        # deletes                                  2 is just an arbitrary factor
-        my_weights += [1 - j/2 for i in range(self.config.nCodons) for j in range(self.config.nCodons - i)]
-
-        # cast
-        # my_weights = tf.cast(my_weights, dtype = self.config.dtype)
-
-        return my_weights
+    # def get_A_my_initial_guess_for_parameters(self):
+    #     # für die ordnung die asserts vielleicht nach Config.py verschieben
+    #     assert self.config.ig5_const_transition, "when using my initial guess for parameters also pass ig5_const_transition"
+    #     assert self.config.ig3_const_transition, "when using my initial guess for parameters also pass ig3_const_transition"
+    #     assert not self.config.no_deletes, "when using my initial guess for parameters do not pass no_deletes"
+    #     assert not self.config.no_inserts, "when using my initial guess for parameters do not pass no_inserts"
+    #     assert not self.config.use_weights_for_consts, "when using my initial guess for parameters do not pass use_weights_for_consts"
+    #
+    #     my_weights = []
+    #     # enter codon
+    #     my_weights += [4] * len(self.A_indices_enter_next_codon)
+    #
+    #     # begin_inserts
+    #     my_weights += [1] * len(self.A_indices_begin_inserts)
+    #
+    #     # end inserts
+    #     my_weights += [4] * len(self.A_indices_end_inserts)
+    #
+    #     # continue inserts
+    #     my_weights += [1] * len(self.A_indices_continue_inserts)
+    #
+    #     # enter stop
+    #     my_weights += [4]
+    #
+    #     # deletes                                  2 is just an arbitrary factor
+    #     my_weights += [1 - j/2 for i in range(self.config.nCodons) for j in range(self.config.nCodons - i)]
+    #
+    #     # cast
+    #     # my_weights = tf.cast(my_weights, dtype = self.config.dtype)
+    #
+    #     return my_weights
 
 ################################################################################
 ################################################################################
@@ -433,58 +490,40 @@ class My_Model(Model):
         for ho_emission in self.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state):
             indices += [[self.emission_tuple_to_id(ho_emission), state]]
 ################################################################################
-    def B_indices_for_weights(self):
+    def B_indices_for_weights_and_consts(self):
         nCodons = self.config.nCodons
-        indices = []
-
-        ig5 = "N" if not self.config.forced_gene_structure else "K" # T and G
-        coding = "N" if not self.config.forced_gene_structure else "M" # A and C
-        ig3 = ig5
-
-        # ig 5'
-        self.get_indices_for_emission_and_state(indices,0,ig5,0)
-        # start a
-        self.get_indices_for_emission_and_state(indices,1,"A",1)
-        # start t
-        self.get_indices_for_emission_and_state(indices,2,"AT",2)
-
-        # codon_11
-        self.get_indices_for_emission_and_state(indices,4,"ATG" + coding,2)
-        # codon_12
-        self.get_indices_for_emission_and_state(indices,5,"ATG" + coding*2,2)
-        # all other codons
-        for state in range(6, 6 + nCodons*3 -2):
-            self.get_indices_for_emission_and_state(indices,state,coding,2)
-        # stop
-        self.get_indices_for_emission_and_state(indices,4 + nCodons*3,"T", self.config.order)
-        self.get_indices_for_emission_and_state(indices,5 + nCodons*3,"TA", self.config.order)
-        self.get_indices_for_emission_and_state(indices,5 + nCodons*3,"TG", self.config.order)
-        # ig 3'
-        self.get_indices_for_emission_and_state(indices,7 + nCodons*3,ig3, self.config.order)
-        # inserts
-        for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
-            self.get_indices_for_emission_and_state(indices,state,coding, self.config.order)
-
-        self.get_indices_for_emission_and_state(indices,8 + nCodons*3 + (nCodons+1)*3,"X", self.config.order)
+        indices_for_trainable_parameters = []
+        indicies_for_constant_parameters = []
+        states_which_are_already_added = []
+        def append_emission(state, mask = "N", x_bases_must_preceed = self.config.order, trainable = True):
+            states_which_are_already_added.append(state)
+            if trainable:
+                self.get_indices_for_emission_and_state(indices_for_trainable_parameters, self.str_to_state_id(state), mask, x_bases_must_preceed)
+            else:
+                self.get_indices_for_emission_and_state(indicies_for_constant_parameters, self.str_to_state_id(state), mask, x_bases_must_preceed)
 
 
-        return indices
-################################################################################
-    def B_indices_for_constants(self):
-        nCodons = self.config.nCodons
-        indices = []
+        # here i add states + their emissions if a want to enforce a mask or want to make them not trainable, or x bases must preceed
+        append_emission("left_intron","N", 0)
+        append_emission("A", "A", self.config.order)
+        append_emission("AG", "AG", self.config.order)
 
-        self.get_indices_for_emission_and_state(indices,3,"ATG",2)
-        self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TAA", self.config.order)
-        self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TAG", self.config.order)
-        if self.config.order > 0:
-            # bc then only the third pos is codon is of importance, and then "A" would be added twice
-            self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TGA", self.config.order)
+        append_emission("c_0,0", "AGN")
+        # for c_0,1 and c_0,2 i cant force AG to be emitted before, since the exon can be entered in phase 1 or 2
 
-        return indices
-################################################################################
-    def B_indices(self):
-        return self.B_indices_for_weights() + self.B_indices_for_constants()
+        append_emission("G","G")
+        append_emission("GT","GT")
+
+        for i in range(self.config.donor_pattern_len):
+            append_emission(f"do_{i}", "GT" + "N"*(i+1))
+
+        append_emission("ter", "X")
+
+        states_that_werent_added_yet = set(self.state_to_id.keys()).difference(states_which_are_already_added)
+        for state in states_that_werent_added_yet:
+            append_emission(state)
+
+        return indices_for_trainable_parameters, indicies_for_constant_parameters
 ################################################################################
 ################################################################################
 ################################################################################
@@ -584,25 +623,27 @@ class My_Model(Model):
             # graph.write("nodesep=0.5; splines=polyline;")
             for from_state, row in enumerate(A):
                 from_state_str = self.state_id_to_str(from_state)
+                write_B = False
                 graph.write("\"" + from_state_str + "\"\n") #  this was to_state before
+                if write_B:
 
-                graph.write("[\n")
-                graph.write("\tshape = none\n")
-                graph.write("\tlabel = <<table border=\"0\" cellspacing=\"0\"> \n")
-                try:
-                    color = {"c_":"teal", "i_": "crimson"}[from_state_str[0:2]]
-                except:
-                    color = "white"
+                    graph.write("[\n")
+                    graph.write("\tshape = none\n")
+                    graph.write("\tlabel = <<table border=\"0\" cellspacing=\"0\"> \n")
+                    try:
+                        color = {"c_":"teal", "i_": "crimson"}[from_state_str[0:2]]
+                    except:
+                        color = "white"
 
-                graph.write(f"\t\t<tr><td port=\"port1\" border=\"1\" bgcolor=\"{color}\">" + from_state_str + "</td></tr>\n")
+                    graph.write(f"\t\t<tr><td port=\"port1\" border=\"1\" bgcolor=\"{color}\">" + from_state_str + "</td></tr>\n")
 
-                for k, most_likely_index in enumerate(B_argmax[:,from_state]):
-                    emission_id = most_likely_index + k * self.config.alphabet_size
-                    emission_str = self.emission_id_to_str(emission_id)
-                    emi_prob = str(np.round(B[emission_id, from_state].numpy(),4))
-                    graph.write(f"\t\t<tr><td port=\"port{k+2}\" border=\"1\">({emission_str + ' ' +emi_prob})</td></tr>\n" )
-                graph.write("\t </table>>\n")
-                graph.write("]\n")
+                    for k, most_likely_index in enumerate(B_argmax[:,from_state]):
+                        emission_id = most_likely_index + k * self.config.alphabet_size
+                        emission_str = self.emission_id_to_str(emission_id)
+                        emi_prob = str(np.round(B[emission_id, from_state].numpy(),4))
+                        graph.write(f"\t\t<tr><td port=\"port{k+2}\" border=\"1\">({emission_str + ' ' +emi_prob})</td></tr>\n" )
+                    graph.write("\t </table>>\n")
+                    graph.write("]\n")
 
                 for to_state, prob in enumerate(row):
                     to_state_str = self.state_id_to_str(to_state)

@@ -58,6 +58,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # s += 1 # exit last codon
         #
         # return(s)
+        self.init_cell()
 
     def build(self, shape):
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build")
@@ -74,6 +75,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             else:
                 path = f"{self.config.src_path}/output/{self.config.nCodons}codons/initial_weights_from_callback/"
             weights = self.read_weights_from_file(path)
+            print("reading weights from file", path)
             I_initializer = tf.constant_initializer(weights[0])
             A_initializer = tf.constant_initializer(weights[1])
             B_initializer = tf.constant_initializer(weights[2])
@@ -123,6 +125,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             config.model.export_to_dot_and_png(A_kernel, B_kernel)
             exit()
         append_time_ram_stamp_to_file(f"Cell.build() end   {run_id}", self.config.bench_path, start)
+        self.init_cell()
 
 ################################################################################
     # this might be a possible alternative for the count variable in cell.call()
@@ -131,7 +134,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
     # but using this bool didnt work, bc it was always set to False
     # in the first call, before the actual graph is executed
     def init_cell(self):
+        tf.print("init_cell()")
         self.inita = True
+        self.initb = True
+        self.initc = True
 
 ################################################################################
     @property
@@ -245,7 +251,32 @@ class CgpHmmCell(tf.keras.layers.Layer):
             scaled_alpha = unscaled_alpha / (scale_helper  + self.config.my_scale_alpha_epsilon)
 
         return scaled_alpha, unscaled_alpha, loglik, scale_helper
-################################################################################
+#################################################################################
+    def fast_call(self, inputs, states, training = None): # how often is the graph for this build?
+        # -AB sd, no felix , no log
+        old_forward, old_loglik, count = states
+        count = tf.math.add(count, 1)
+        E = tf.matmul(inputs, self.B)
+        if count[0,0] == 1:
+            tf.print("count = 1")
+        else:
+            tf.print("count is n where n > 1")
+        tf.print(f"before initc = {self.initc}")
+        if self.initc:
+            tf.print(f"before in initc = {self.initc}")
+            alpha = E * self.I
+            self.initc = False
+            tf.print(f"after in initc = {self.initc}")
+        else:
+            R = tf.sparse.sparse_dense_matmul(old_forward, self.A)
+            alpha = E*R
+        tf.print(f"after initc = {self.initc}")
+        scale_helper = tf.reduce_sum(alpha, axis = 1, keepdims = True, name = "my_z")
+        loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.my_scale_log_epsilon), name = "loglik")
+        scaled_alpha = alpha / (scale_helper  + self.config.my_scale_alpha_epsilon)
+        states = [scaled_alpha, loglik, count]
+        return [[], states]
+
     def call(self, inputs, states, training = None): # how often is the graph for this build?
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse: tf")
@@ -262,9 +293,28 @@ class CgpHmmCell(tf.keras.layers.Layer):
         run_id = randint(0,100)
         self.verbose_beginning_of_call(run_id, count, inputs, old_forward, old_loglik)
 
-
         E = self.get_E(inputs)
-        R = self.get_R(old_forward, init = count[0,0] == 1)
+
+        test_bool_init = False #  only works with eager
+
+        if test_bool_init:
+            if count[0,0] == 1:
+                tf.print("count = 1")
+            else:
+                tf.print("count is n where n > 1")
+            tf.print(f"before inita = {self.inita}, initb = {self.initb}")
+            # print(f"count = {count[0,0]}, self.inita = {self.initb}, self.initb = {self.initb}")
+            if self.inita:
+                self.inita = False
+            if not self_inita:
+                self.initb = False
+            tf.print(f"after  inita = {self.inita}, initb = {self.initb}")
+            R = self.get_R(old_forward, init = self.initb)
+            # R = self.get_R(old_forward, init = self.initb)
+            # self.initb = not self.initb
+        else:
+            R = self.get_R(old_forward, init = count[0,0] == 1)
+
 
         alpha, unscaled_alpha, loglik, scale_helper = self.calc_new_cell_state(E, R, old_forward, old_loglik, scale_helper, count)
 
@@ -273,6 +323,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         return self.get_return_values(alpha, inputs, count, scale_helper, loglik)
 
+################################################################################
+    def get_initial_state(self, inputs=None, batch_size=None, _dtype=None):
+        # old_forward = tf.repeat(tf.zeros(), repeats=batch_size, axis=0)
+        old_forward = tf.zeros((batch_size, self.config.model.number_of_states), dtype=self.config.dtype)
+        loglik = tf.zeros((batch_size, 1), dtype=self.config.dtype)
+        count = tf.zeros((batch_size, 1), dtype=self.config.dtype)
+        S = [old_forward, loglik, count]
+        return S
 ################################################################################
     def get_return_values(self, alpha, inputs, count, scale_helper, loglik):
         states = [alpha, loglik, count]

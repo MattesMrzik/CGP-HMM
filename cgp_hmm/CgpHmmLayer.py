@@ -45,27 +45,28 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #    return 0.01 * tf.math.reduce_sum(tf.math.abs(weight_matrix))
 
         self.C = CgpHmmCell(self.config) # init
+        self.C.init_cell()
 
         # self.C.build(input_shape) # build
         # this isnt needed for training but when calling the layer, then i need to build C manually, but it is then called
         # a second time when calling F
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = self.config.return_seqs) # F = forward ie the chain of cells C
-
+        self.C.init_cell()
         append_time_ram_stamp_to_file(f"Layer.build() end   {run_id}", self.config.bench_path, start)
 
     def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call: tf")
+        self.C.init_cell()
 
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(f"Layer.call() start {run_id}", self.config.bench_path, start)
 
         # todo: felix macht auch nochmal a und b
+
+        result = self.F(inputs, initial_state = self.C.get_initial_state(batch_size=tf.shape(inputs)[0])) #  build and call of CgpHmmCell are called
         self.C.init_cell()
-
-        result = self.F(inputs) #  build and call of CgpHmmCell are called
-
         # i think this is an artefact from a previous version, where i would sometimes return an additional value. I think this can be unwrapped right away on the preceeding line
         scale_count_state = 0
         if self.config.return_seqs:
@@ -193,27 +194,33 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # def l1_reg(weight_matrix):
         #    return 0.01 * tf.math.reduce_sum(tf.math.abs(weight_matrix))
 
-        start = time.perf_counter()
-        run_id = randint(0,100)
-        append_time_ram_stamp_to_file(f"Layer.call() REG get indices and A_dense start {run_id}", self.config.bench_path, start)
-        A_indices_begin_inserts = self.config.model.A_indices_begin_inserts
-        A_indices_continue_inserts = self.config.model.A_indices_continue_inserts
-        A_indices_deletes = self.config.model.A_indices_deletes
-        A_dense = self.C.A_dense
-        append_time_ram_stamp_to_file(f"Layer.call() REG get indices end {run_id}", self.config.bench_path, start)
 
-        start = time.perf_counter()
-        run_id = randint(0,100)
-        append_time_ram_stamp_to_file(f"Layer.call() REG start {run_id}", self.config.bench_path, start)
 
-        reg = 0
-        reg += tf.reduce_sum(self.config.inserts_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_begin_inserts)))
-        reg += tf.reduce_sum(self.config.inserts_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_continue_inserts)))
-        reg += tf.reduce_sum(self.config.deletes_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_deletes)))
-        append_time_ram_stamp_to_file(f"Layer.call() REG end {run_id}", self.config.bench_path, start)
+
+        # TODO: move the reg also to the model
+
+
+        if self.config.regularize:
+            start = time.perf_counter()
+            run_id = randint(0,100)
+            append_time_ram_stamp_to_file(f"Layer.call() REG get indices and A_dense start {run_id}", self.config.bench_path, start)
+            A_indices_begin_inserts = self.config.model.A_indices_begin_inserts
+            A_indices_continue_inserts = self.config.model.A_indices_continue_inserts
+            A_indices_deletes = self.config.model.A_indices_deletes
+            A_dense = self.C.A_dense
+            append_time_ram_stamp_to_file(f"Layer.call() REG get indices end {run_id}", self.config.bench_path, start)
+
+            start = time.perf_counter()
+            run_id = randint(0,100)
+            append_time_ram_stamp_to_file(f"Layer.call() REG start {run_id}", self.config.bench_path, start)
+
+            reg = 0
+            reg += tf.reduce_sum(self.config.inserts_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_begin_inserts)))
+            reg += tf.reduce_sum(self.config.inserts_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_continue_inserts)))
+            reg += tf.reduce_sum(self.config.deletes_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_deletes)))
+            append_time_ram_stamp_to_file(f"Layer.call() REG end {run_id}", self.config.bench_path, start)
 
         # TODO: sollte der reg term normalisert werden auf die anzahl der regularisierten terme?
-        if self.config.regularize:
             self.add_metric(reg, "reg")
             alpha = 1
             self.add_loss(tf.squeeze(-loglik_mean - alpha * reg))
