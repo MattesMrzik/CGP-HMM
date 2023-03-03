@@ -58,7 +58,12 @@ class My_Model(Model):
 
     def get_state_id_description_dicts(self):
         # if this is changed, also change state_is_third_pos_in_frame()
+
+        # states = ["initial_state"]
+        # states += ["left_intron"]
+
         states = ["left_intron"]
+
         states += [f"ak_{i}" for i in range(self.config.akzeptor_pattern_len)]
         states += ["A", "AG"]
         codons = ["c_" + str(i) + "," + str(j) for i in range(self.config.nCodons) for j in range(3)]
@@ -206,6 +211,8 @@ class My_Model(Model):
                     indices_for_trainable_parameters.append(entry)
                 else:
                     indicies_for_constant_parameters.append(entry)
+
+        # append_transition("initial_state", "left_intron")
 
         append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const)
 
@@ -502,6 +509,7 @@ class My_Model(Model):
             else:
                 self.get_indices_for_emission_and_state(indicies_for_constant_parameters, self.str_to_state_id(state), mask, x_bases_must_preceed)
 
+        # append_emission("initial_state")
 
         # here i add states + their emissions if a want to enforce a mask or want to make them not trainable, or x bases must preceed
         append_emission("left_intron","N", 0)
@@ -520,6 +528,7 @@ class My_Model(Model):
         append_emission("ter", "X")
 
         states_that_werent_added_yet = set(self.state_to_id.keys()).difference(states_which_are_already_added)
+        states_that_werent_added_yet = sorted(states_that_werent_added_yet)
         for state in states_that_werent_added_yet:
             append_emission(state)
 
@@ -585,7 +594,6 @@ class My_Model(Model):
             emission_matrix = tf.sparse.transpose(emission_matrix)
 
         if self.config.B_is_dense:
-            # print("b dense")
             shape_to_apply_softmax_to = (-1, self.config.alphabet_size, self.number_of_states)
             emission_matrix = tf.scatter_nd(self.B_indices, values, dense_shape)
             mask = tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), dense_shape)

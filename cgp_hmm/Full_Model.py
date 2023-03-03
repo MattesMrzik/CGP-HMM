@@ -25,9 +25,9 @@ class Full_Model_Sparse(Model):
         number_of_states += 1
         return number_of_states
 
-    def number_of_emissions(self):
-        from Utility import n_emission_columns_in_B #TODO this should rather be emission state size
-        return n_emission_columns_in_B(self.config.alphabet_size, self.config.order)
+    # def number_of_emissions(self):
+    #     from Utility import n_emission_columns_in_B #TODO this should rather be emission state size
+    #     return n_emission_columns_in_B(self.config.alphabet_size, self.config.order)
 ################################################################################
 ################################################################################
 ################################################################################

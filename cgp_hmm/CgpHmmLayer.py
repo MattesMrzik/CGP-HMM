@@ -45,19 +45,16 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #    return 0.01 * tf.math.reduce_sum(tf.math.abs(weight_matrix))
 
         self.C = CgpHmmCell(self.config) # init
-        self.C.init_cell()
 
         # self.C.build(input_shape) # build
         # this isnt needed for training but when calling the layer, then i need to build C manually, but it is then called
         # a second time when calling F
         self.F = tf.keras.layers.RNN(self.C, return_state = True, return_sequences = self.config.return_seqs) # F = forward ie the chain of cells C
-        self.C.init_cell()
         append_time_ram_stamp_to_file(f"Layer.build() end   {run_id}", self.config.bench_path, start)
 
     def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call: tf")
-        self.C.init_cell()
 
         start = time.perf_counter()
         run_id = randint(0,100)
@@ -65,8 +62,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         # todo: felix macht auch nochmal a und b
 
-        result = self.F(inputs, initial_state = self.C.get_initial_state(batch_size=tf.shape(inputs)[0])) #  build and call of CgpHmmCell are called
-        self.C.init_cell()
+        # result = self.F(inputs, initial_state = self.C.get_initial_state(batch_size=tf.shape(inputs)[0])) #  build and call of CgpHmmCell are called
+        result = self.F(inputs)
         # i think this is an artefact from a previous version, where i would sometimes return an additional value. I think this can be unwrapped right away on the preceeding line
         scale_count_state = 0
         if self.config.return_seqs:

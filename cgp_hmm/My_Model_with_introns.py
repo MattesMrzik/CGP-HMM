@@ -561,58 +561,58 @@ class My_Model(Model):
         for ho_emission in self.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state):
             indices += [[self.emission_tuple_to_id(ho_emission), state]]
 ################################################################################
-    def B_indices_for_weights(self):
-        nCodons = self.config.nCodons
-        indices = []
-
-        ig5 = "N" if not self.config.forced_gene_structure else "K" # T and G
-        coding = "N" if not self.config.forced_gene_structure else "M" # A and C
-        ig3 = ig5
-
-        # ig 5'
-        self.get_indices_for_emission_and_state(indices,0,ig5,0)
-        # start a
-        self.get_indices_for_emission_and_state(indices,1,"A",1)
-        # start t
-        self.get_indices_for_emission_and_state(indices,2,"AT",2)
-
-        # codon_11
-        self.get_indices_for_emission_and_state(indices,4,"ATG" + coding,2)
-        # codon_12
-        self.get_indices_for_emission_and_state(indices,5,"ATG" + coding*2,2)
-        # all other codons
-        for state in range(6, 6 + nCodons*3 -2):
-            self.get_indices_for_emission_and_state(indices,state,coding,2)
-        # stop
-        self.get_indices_for_emission_and_state(indices,4 + nCodons*3,"T", self.config.order)
-        self.get_indices_for_emission_and_state(indices,5 + nCodons*3,"TA", self.config.order)
-        self.get_indices_for_emission_and_state(indices,5 + nCodons*3,"TG", self.config.order)
-        # ig 3'
-        self.get_indices_for_emission_and_state(indices,7 + nCodons*3,ig3, self.config.order)
-        # inserts
-        for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
-            self.get_indices_for_emission_and_state(indices,state,coding, self.config.order)
-
-        self.get_indices_for_emission_and_state(indices,8 + nCodons*3 + (nCodons+1)*3,"X", self.config.order)
-
-
-        return indices
+    # def B_indices_for_weights(self):
+    #     nCodons = self.config.nCodons
+    #     indices = []
+    #
+    #     ig5 = "N" if not self.config.forced_gene_structure else "K" # T and G
+    #     coding = "N" if not self.config.forced_gene_structure else "M" # A and C
+    #     ig3 = ig5
+    #
+    #     # ig 5'
+    #     self.get_indices_for_emission_and_state(indices,0,ig5,0)
+    #     # start a
+    #     self.get_indices_for_emission_and_state(indices,1,"A",1)
+    #     # start t
+    #     self.get_indices_for_emission_and_state(indices,2,"AT",2)
+    #
+    #     # codon_11
+    #     self.get_indices_for_emission_and_state(indices,4,"ATG" + coding,2)
+    #     # codon_12
+    #     self.get_indices_for_emission_and_state(indices,5,"ATG" + coding*2,2)
+    #     # all other codons
+    #     for state in range(6, 6 + nCodons*3 -2):
+    #         self.get_indices_for_emission_and_state(indices,state,coding,2)
+    #     # stop
+    #     self.get_indices_for_emission_and_state(indices,4 + nCodons*3,"T", self.config.order)
+    #     self.get_indices_for_emission_and_state(indices,5 + nCodons*3,"TA", self.config.order)
+    #     self.get_indices_for_emission_and_state(indices,5 + nCodons*3,"TG", self.config.order)
+    #     # ig 3'
+    #     self.get_indices_for_emission_and_state(indices,7 + nCodons*3,ig3, self.config.order)
+    #     # inserts
+    #     for state in range(8 + nCodons*3, 8 + nCodons*3 + (nCodons + 1)*3):
+    #         self.get_indices_for_emission_and_state(indices,state,coding, self.config.order)
+    #
+    #     self.get_indices_for_emission_and_state(indices,8 + nCodons*3 + (nCodons+1)*3,"X", self.config.order)
+    #
+    #
+    #     return indices
 ################################################################################
-    def B_indices_for_constants(self):
-        nCodons = self.config.nCodons
-        indices = []
-
-        self.get_indices_for_emission_and_state(indices,3,"ATG",2)
-        self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TAA", self.config.order)
-        self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TAG", self.config.order)
-        if self.config.order > 0:
-            # bc then only the third pos is codon is of importance, and then "A" would be added twice
-            self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TGA", self.config.order)
-
-        return indices
+    # def B_indices_for_constants(self):
+    #     nCodons = self.config.nCodons
+    #     indices = []
+    #
+    #     self.get_indices_for_emission_and_state(indices,3,"ATG",2)
+    #     self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TAA", self.config.order)
+    #     self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TAG", self.config.order)
+    #     if self.config.order > 0:
+    #         # bc then only the third pos is codon is of importance, and then "A" would be added twice
+    #         self.get_indices_for_emission_and_state(indices,6 + nCodons*3,"TGA", self.config.order)
+    #
+    #     return indices
 ################################################################################
-    def B_indices(self):
-        return self.B_indices_for_weights() + self.B_indices_for_constants()
+    # def B_indices(self):
+    #     return self.B_indices_for_weights() + self.B_indices_for_constants()
 ################################################################################
 ################################################################################
 ################################################################################

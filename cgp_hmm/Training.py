@@ -154,6 +154,8 @@ def fit_model(config):
         exit()
 ################################################################################
     elif config.get_gradient_of_first_batch:
+        print("get_gradient_of_first_batch is decrepated")
+        exit()
         layer = CgpHmmLayer(config)
         layer.build(None)
         layer.C.build(None)
