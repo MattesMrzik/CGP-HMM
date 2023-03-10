@@ -188,10 +188,6 @@ def fit_model(config):
 
 ################################################################################
     elif config.manual_forward:
-            config.A_dense = True
-            config.A_sparse = False
-            config.B_dense = True
-            config.B_sparse = False
 
             layer = CgpHmmLayer(config)
 

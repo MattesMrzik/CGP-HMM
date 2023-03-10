@@ -59,9 +59,6 @@ class My_Model(Model):
     def get_state_id_description_dicts(self):
         # if this is changed, also change state_is_third_pos_in_frame()
 
-        # states = ["initial_state"]
-        # states += ["left_intron"]
-
         states = ["left_intron"]
 
         states += [f"ak_{i}" for i in range(self.config.akzeptor_pattern_len)]
@@ -211,8 +208,6 @@ class My_Model(Model):
                     indices_for_trainable_parameters.append(entry)
                 else:
                     indicies_for_constant_parameters.append(entry)
-
-        # append_transition("initial_state", "left_intron")
 
         append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const)
 
@@ -508,8 +503,6 @@ class My_Model(Model):
                 self.get_indices_for_emission_and_state(indices_for_trainable_parameters, self.str_to_state_id(state), mask, x_bases_must_preceed)
             else:
                 self.get_indices_for_emission_and_state(indicies_for_constant_parameters, self.str_to_state_id(state), mask, x_bases_must_preceed)
-
-        # append_emission("initial_state")
 
         # here i add states + their emissions if a want to enforce a mask or want to make them not trainable, or x bases must preceed
         append_emission("left_intron","N", 0)

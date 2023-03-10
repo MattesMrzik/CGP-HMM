@@ -76,6 +76,9 @@ class Config():
             assert not self.scale_with_conditional_const, "my_scale_epsilon was passed, so you must not use --scale_with_conditional_const"
 
 
+        if self.manual_forward:
+            assert self.AB == "dd", "manula forward only works with dense matrices, so pass -AB dd"
+
     def add_attribtes(self):
         import tensorflow as tf
 
@@ -258,7 +261,6 @@ class Config():
         self.add_arg_main('--my_scale_log_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.epsilon_my_scale), name = "loglik")')
         self.add_arg_main('--my_scale_alpha_epsilon', type = float, default = 0, help = '[0] scaled_alpha = unscaled_alpha / (scale_helper self.config.epsilon_my_scale_alpha)')
         self.add_arg_main('--conditional_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True) + self.config.epsilon_conditional) - scale_helper * tf.math.log(10.0)')
-        self.add_arg_main('--return_seqs', action = 'store_true', help = 'the RNN and layer.py return seq = [alpha, count, inputs]')
         self.add_arg_main('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
         self.add_arg_main('--ig3_const_transition', type = float, default = 0, help = "uses const transition from ig3 -> ig3 (weight = --ig3) and ig3 -> terminal (weight = 1) and softmax applied")
         self.add_arg_main('--regularize', action= 'store_true', help = 'regularize the parameters')
