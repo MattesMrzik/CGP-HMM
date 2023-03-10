@@ -198,8 +198,8 @@ def create_exon_data_sets(filtered_internal_exons):
 
     for exon in filtered_internal_exons:
         exon_dir = f"{output_dir}/exon_{exon['seq']}_{exon['start_in_genome']}_{exon['stop_in_genome']}"
-        bed_output_dir = f"{exon_dir}/sepcies_bed"
-        seqs_dir = f"{exon_dir}/sepcies_seqs"
+        bed_output_dir = f"{exon_dir}/species_bed"
+        seqs_dir = f"{exon_dir}/species_seqs"
         non_stripped_seqs_dir = f"{seqs_dir}/non_stripped"
         stripped_seqs_dir = f"{seqs_dir}/stripped"
 
@@ -225,8 +225,8 @@ def create_exon_data_sets(filtered_internal_exons):
 
         for single_species in all_species:
             command = f"time halLiftover {args.hal} Homo_sapiens {human_exon_to_be_lifted_path} {single_species} {bed_output_dir}/{single_species}.bed"
-            print("command:", command)
-            # os.system(command)
+            print("runnung:", command)
+            os.system(command)
 
             with open(f"{bed_output_dir}/{single_species}.bed", "r") as species_bed:
                 for i, line in enumerate(species_bed):
@@ -255,7 +255,8 @@ def create_exon_data_sets(filtered_internal_exons):
 
             # getting the seq
             command = f"time hal2fasta {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {seq} --ucscSequenceNames > {non_stripped_seqs_dir}/{single_species}.fa"
-            print(command)
+            print("running:", command)
+            os.system(command)
 
 
 create_exon_data_sets(filtered_internal_exons)
