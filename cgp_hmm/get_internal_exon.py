@@ -59,7 +59,7 @@ if os.path.exists(json_path):
 def load_hg38_refseq_bed():
     start = time.perf_counter()
     print("started load_hg38_refseq_bed()")
-    hg38_refseq_bed = pd.read_csv(args.hg38, delimiter="\t", header=0)
+    hg38_refseq_bed = pd.read_csv(args.hg38, delimiter = "\t", header = 0)
     hg38_refseq_bed.columns = ["chrom", "chromStart", "chromEnd", "name", "score", "strand", "thickStart", "thickEnd", "itemRgb", "blockCount", "blockSizes", "blockStarts"]
     hg38_refseq_bed["blockSizes"] = hg38_refseq_bed["blockSizes"].apply(lambda s: [int(a) for a in s[:-1].split(",")])
     hg38_refseq_bed["blockStarts"] = hg38_refseq_bed["blockStarts"].apply(lambda s: [int(a) for a in s[:-1].split(",")])
@@ -209,7 +209,7 @@ def create_exon_data_sets(filtered_internal_exons):
 
 
         human_exon_to_be_lifted_path = f"{exon_dir}/human_exons.bed"
-        len_of_seq_substring_in_human = exon["right_lift_end"] - exon["left_lift_start"]
+        len_of_seq_substring_in_human = exon["right_lift_start"] - exon["left_lift_end"]
 
         # seq     start           stop            name    score   strand
         # chr1    67093589        67093604        left    0       -
@@ -225,35 +225,40 @@ def create_exon_data_sets(filtered_internal_exons):
 
         for single_species in all_species:
             command = f"time halLiftover {args.hal} Homo_sapiens {human_exon_to_be_lifted_path} {single_species} {bed_output_dir}/{single_species}.bed"
-            print("runnung:", command)
+            print("running:", command)
             os.system(command)
 
-            with open(f"{bed_output_dir}/{single_species}.bed", "r") as species_bed:
-                for i, line in enumerate(species_bed):
-                    if i >= 2:
-                        print("got more than 2 line in resulting bed in:", f"{bed_output_dir}/{single_species}.bed")
-                        exit(1)
-                    line = line.split("\t")
-                    if line[3][-4:] == "left":
-                        left = int(line[1]) # left_lift_start
-                        seq_left = line[0]
-                    elif line[3][-4:] == "ight":
-                        right = int(line[2]) # right_lift_end
-                        seq_right = line[0]
-                    else:
-                        print("error no left or right in seq name in bed file")
-                        exit(1)
-                if seq_left != seq_right:
-                    print("seq_left != seq_right")
-                    exit(1)
-                else:
-                    seq = seq_left
+            species_bed = pd.read_csv(f"{bed_output_dir}/{single_species}.bed", delimiter = "\t", header = 0)
+            species_bed.columns = ["seq", "start", "stop", "name", "score", "strand"]
+            left_row = species_bed.iloc[0] if re.search("left", species_bed.iloc[0]["name"]) else species_bed.iloc[1]
+            right_row = species_bed.iloc[1] if re.search("right", species_bed.iloc[1]["name"]) else species_bed.iloc[0]
+            assert left_row["name"] != right_row["name"], "left and right row are identical"
+            if len(species_bed.index) != 2:
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_more_than_2_lines.bed")
+                continue
+            if left_row["strand"] != right_row["strand"]:
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_unequal_strands.bed")
+                continue
+            if left_row["seq"] != right_row["seq"]:
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_unequal_seqs.bed")
+                continue
+
+            # is this correct?
+            if exon["strand"] == left_row["strand"]:
+                left = left_row["end"]
+                right = right_row["start"]
+            else:
+                left = right_row["start"]
+                right = left_row["end"]
 
             # exit when this is in a different order of magnitude than len_of_seq_substring_in_human
             len_of_seq_substring_in_single_species = right - left
+            assert len_of_seq_substring_in_single_species > 0, "len_of_seq_substring_in_single_species <= 0"
             print(f"len_of_seq_substring_in_human {len_of_seq_substring_in_human}, in {single_species} {len_of_seq_substring_in_single_species}")
 
             # getting the seq
+
+            # muss ich das komplement der fasta nehmen, wenn die strands sich unterscheiden?
             command = f"time hal2fasta {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {seq} --ucscSequenceNames > {non_stripped_seqs_dir}/{single_species}.fa"
             print("running:", command)
             os.system(command)
