@@ -199,15 +199,32 @@ class My_Model(Model):
         # dafür ausarbeiten kann
         indicies_for_constant_parameters = []
         indices_for_trainable_parameters = []
-        def append_transition(s1 = None, s2 = None, l = None, trainable = True):
+        all_initial_weights = []
+
+        # etwas zufälligkeit auf die initial parameter addieren?
+        def append_transition(s1 = None, s2 = None, l = None, trainable = True, initial_weights = None):
             if l == None:
                 assert s1 != None and s2 != None, "s1 and s2 must be != None if l = None"
+                if initial_weights == None:
+                    initial_weights = 0
+                assert type(initial_weights) in [int, float], "if you append a single transition, you must pass either no initial weight or int or float"
+                if self.conifg.add_noise_to_initial_weights:
+                    initial_weights += "small variance random normal"
+                all_initial_weights.append(initial_weights)
                 l = [[self.str_to_state_id(s1), self.str_to_state_id(s2)]]
             for entry in l:
                 if trainable:
                     indices_for_trainable_parameters.append(entry)
                 else:
                     indicies_for_constant_parameters.append(entry)
+
+            if initial_weights == None:
+                initial_weights = [0] * len(l)
+            assert type(initial_weights) == list, "if you pass a list of transitions, you must pass either no initial weights or list of ints or floats"
+            if self.conifg.add_noise_to_initial_weights:
+                initial_weights += "small variance random normal"
+
+
 
         append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const)
 

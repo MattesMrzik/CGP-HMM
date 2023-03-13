@@ -4,6 +4,9 @@ import json
 import argparse
 import os
 import time
+import re
+from Bio import SeqIO
+import math
 
 parser = argparse.ArgumentParser(description='Config module description')
 parser.add_argument('--hg38', required = True, help = 'path to hg38-refseq.bed')
@@ -59,7 +62,7 @@ if os.path.exists(json_path):
 def load_hg38_refseq_bed():
     start = time.perf_counter()
     print("started load_hg38_refseq_bed()")
-    hg38_refseq_bed = pd.read_csv(args.hg38, delimiter = "\t", header = 0)
+    hg38_refseq_bed = pd.read_csv(args.hg38, delimiter = "\t", header = None)
     hg38_refseq_bed.columns = ["chrom", "chromStart", "chromEnd", "name", "score", "strand", "thickStart", "thickEnd", "itemRgb", "blockCount", "blockSizes", "blockStarts"]
     hg38_refseq_bed["blockSizes"] = hg38_refseq_bed["blockSizes"].apply(lambda s: [int(a) for a in s[:-1].split(",")])
     hg38_refseq_bed["blockStarts"] = hg38_refseq_bed["blockStarts"].apply(lambda s: [int(a) for a in s[:-1].split(",")])
@@ -228,20 +231,21 @@ def create_exon_data_sets(filtered_internal_exons):
             print("running:", command)
             os.system(command)
 
-            species_bed = pd.read_csv(f"{bed_output_dir}/{single_species}.bed", delimiter = "\t", header = 0)
+            species_bed = pd.read_csv(f"{bed_output_dir}/{single_species}.bed", delimiter = "\t", header = None)
             species_bed.columns = ["seq", "start", "stop", "name", "score", "strand"]
             left_row = species_bed.iloc[0] if re.search("left", species_bed.iloc[0]["name"]) else species_bed.iloc[1]
             right_row = species_bed.iloc[1] if re.search("right", species_bed.iloc[1]["name"]) else species_bed.iloc[0]
             assert left_row["name"] != right_row["name"], "left and right row are identical"
             if len(species_bed.index) != 2:
-                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_more_than_2_lines.bed")
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_more_than_2_lines.bed")
                 continue
             if left_row["strand"] != right_row["strand"]:
-                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_unequal_strands.bed")
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_unequal_strands.bed")
                 continue
             if left_row["seq"] != right_row["seq"]:
-                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_unequal_seqs.bed")
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_unequal_seqs.bed")
                 continue
+
 
             # is this correct?
             if exon["strand"] == left_row["strand"]:
@@ -256,12 +260,41 @@ def create_exon_data_sets(filtered_internal_exons):
             assert len_of_seq_substring_in_single_species > 0, "len_of_seq_substring_in_single_species <= 0"
             print(f"len_of_seq_substring_in_human {len_of_seq_substring_in_human}, in {single_species} {len_of_seq_substring_in_single_species}")
 
-            # getting the seq
+            threshold = 1
+            if abs(math.log10(len_of_seq_substring_in_single_species) - math.log10(len_of_seq_substring_in_human)) < threshold:
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_lengths_differ_substantially .bed")
+                continue
 
-            # muss ich das komplement der fasta nehmen, wenn die strands sich unterscheiden?
-            command = f"time hal2fasta {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {seq} --ucscSequenceNames > {non_stripped_seqs_dir}/{single_species}.fa"
+            # getting the seq, from humand: [left exon    [litfed]] [intron] [exon] [intron] [[lifted]right exon]
+            # the corresponding seq of [intron] [exon] [intron] in other species
+            out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
+            command = f"time hal2fasta --upper 1 {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {seq} --ucscSequenceNames --outFaPath {out_fa_path}"
             print("running:", command)
             os.system(command)
+
+            # checking if fasta out only contains one seq
+            # if the strands differ, convert to reverse_complement
+            for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
+                assert i == 0, f"found more than one seq in fasta file {out_fa_path}"
+                if exon["row"]["strand"] != left_row["strand"]:
+                    reverse = record.reverse_complement()
+                    with open(out_fa_path, "w") as out_file:
+                        SeqIO.write(reverse, out_file, "fasta")
+
+            # strip seqs
+            for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
+                with open(re.replace("non_stripped","stripped",out_fa_path), "w") as stripped_seq_file:
+                    record.seq = record.seq[args.min_left_neighbour_exon_len /2 : - args.min_right_neighbour_exon_len/2]
+                    SeqIO.write(record, stripped_seq_file, "fasta")
+
+            # gather all usable fasta seqs in a single file
+            output_file = "combined.fasta"
+            input_files = [f for f in os.listdir(stripped_seqs_dir) if f.endswith(".fa")]
+
+            with open(output_file, "w") as out:
+                for input_file in input_files:
+                    with open(input_file, "r") as f:
+                        out.write(f.read())
 
 
 create_exon_data_sets(filtered_internal_exons)
