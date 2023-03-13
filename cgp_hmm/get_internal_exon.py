@@ -4,6 +4,7 @@ import json
 import argparse
 import os
 import time
+import re
 
 parser = argparse.ArgumentParser(description='Config module description')
 parser.add_argument('--hg38', required = True, help = 'path to hg38-refseq.bed')
@@ -59,7 +60,7 @@ if os.path.exists(json_path):
 def load_hg38_refseq_bed():
     start = time.perf_counter()
     print("started load_hg38_refseq_bed()")
-    hg38_refseq_bed = pd.read_csv(args.hg38, delimiter = "\t", header = 0)
+    hg38_refseq_bed = pd.read_csv(args.hg38, delimiter = "\t", header = None)
     hg38_refseq_bed.columns = ["chrom", "chromStart", "chromEnd", "name", "score", "strand", "thickStart", "thickEnd", "itemRgb", "blockCount", "blockSizes", "blockStarts"]
     hg38_refseq_bed["blockSizes"] = hg38_refseq_bed["blockSizes"].apply(lambda s: [int(a) for a in s[:-1].split(",")])
     hg38_refseq_bed["blockStarts"] = hg38_refseq_bed["blockStarts"].apply(lambda s: [int(a) for a in s[:-1].split(",")])
@@ -228,11 +229,11 @@ def create_exon_data_sets(filtered_internal_exons):
             print("running:", command)
             os.system(command)
 
-            species_bed = pd.read_csv(f"{bed_output_dir}/{single_species}.bed", delimiter = "\t", header = 0)
+            species_bed = pd.read_csv(f"{bed_output_dir}/{single_species}.bed", delimiter = "\t", header = None)
             species_bed.columns = ["seq", "start", "stop", "name", "score", "strand"]
+            print("species_bed", species_bed, sep = "\n")
             left_row = species_bed.iloc[0] if re.search("left", species_bed.iloc[0]["name"]) else species_bed.iloc[1]
             right_row = species_bed.iloc[1] if re.search("right", species_bed.iloc[1]["name"]) else species_bed.iloc[0]
-            assert left_row["name"] != right_row["name"], "left and right row are identical"
             if len(species_bed.index) != 2:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_more_than_2_lines.bed")
                 continue
@@ -242,14 +243,15 @@ def create_exon_data_sets(filtered_internal_exons):
             if left_row["seq"] != right_row["seq"]:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_unequal_seqs.bed")
                 continue
+            assert left_row["name"] != right_row["name"], "left and right row are identical"
 
             # is this correct?
-            if exon["strand"] == left_row["strand"]:
-                left = left_row["end"]
+            if exon["row"]["strand"] == left_row["strand"]:
+                left = left_row["stop"]
                 right = right_row["start"]
             else:
                 left = right_row["start"]
-                right = left_row["end"]
+                right = left_row["stop"]
 
             # exit when this is in a different order of magnitude than len_of_seq_substring_in_human
             len_of_seq_substring_in_single_species = right - left
@@ -259,7 +261,7 @@ def create_exon_data_sets(filtered_internal_exons):
             # getting the seq
 
             # muss ich das komplement der fasta nehmen, wenn die strands sich unterscheiden?
-            command = f"time hal2fasta {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {seq} --ucscSequenceNames > {non_stripped_seqs_dir}/{single_species}.fa"
+            command = f"time hal2fasta {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {left_row['seq']} --ucscSequenceNames > {non_stripped_seqs_dir}/{single_species}.fa"
             print("running:", command)
             os.system(command)
 
