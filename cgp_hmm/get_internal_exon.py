@@ -22,6 +22,8 @@ parser.add_argument('--len_of_right_to_be_lifted', type = int, default = 15, hel
 parser.add_argument('--path', default = ".", help = 'working directory')
 parser.add_argument('-n', type = int, help = 'limit the number of exons to n')
 parser.add_argument('-v', action = 'store_true', help = 'verbose')
+parser.add_argument('--use_old_bed', action = 'store_true', help = 'use the old bed files and dont calculate new ones')
+parser.add_argument('--use_old_fasta', action = 'store_true', help = 'use the old fasta files and dont calculate new ones')
 args = parser.parse_args()
 
 assert args.len_of_left_to_be_lifted < args.min_left_neighbour_exon_len, "len_of_left_to_be_lifted > min_left_neighbour_exon_len"
@@ -227,8 +229,7 @@ def create_exon_data_sets(filtered_internal_exons):
 
 
         for single_species in all_species:
-            use_old_bed = False
-            if not use_old_bed:
+            if not args.use_old_bed:
                 command = f"time halLiftover {args.hal} Homo_sapiens {human_exon_to_be_lifted_path} {single_species} {bed_output_dir}/{single_species}.bed"
                 print("running:", command)
                 os.system(command)
@@ -243,11 +244,11 @@ def create_exon_data_sets(filtered_internal_exons):
             species_bed = pd.read_csv(f"{bed_output_dir}/{single_species}.bed", delimiter = "\t", header = None)
             species_bed.columns = ["seq", "start", "stop", "name", "score", "strand"]
             print("species_bed", species_bed, sep = "\n")
-            left_row = species_bed.iloc[0] if re.search("left", species_bed.iloc[0]["name"]) else species_bed.iloc[1]
-            right_row = species_bed.iloc[1] if re.search("right", species_bed.iloc[1]["name"]) else species_bed.iloc[0]
             if len(species_bed.index) != 2:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_more_than_2_lines.bed")
                 continue
+            left_row = species_bed.iloc[0] if re.search("left", species_bed.iloc[0]["name"]) else species_bed.iloc[1]
+            right_row = species_bed.iloc[1] if re.search("right", species_bed.iloc[1]["name"]) else species_bed.iloc[0]
             if left_row["strand"] != right_row["strand"]:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_unequal_strands.bed")
                 continue
@@ -271,7 +272,7 @@ def create_exon_data_sets(filtered_internal_exons):
             print(f"len_of_seq_substring_in_human {len_of_seq_substring_in_human}, in {single_species} {len_of_seq_substring_in_single_species}")
 
             threshold = 1
-            if abs(math.log10(len_of_seq_substring_in_single_species) - math.log10(len_of_seq_substring_in_human)) < threshold:
+            if abs(math.log10(len_of_seq_substring_in_single_species) - math.log10(len_of_seq_substring_in_human)) >= threshold:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_lengths_differ_substantially .bed")
                 continue
 
@@ -279,8 +280,7 @@ def create_exon_data_sets(filtered_internal_exons):
             # the corresponding seq of [intron] [exon] [intron] in other species
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
 
-            use_old_fasta = False:
-            if not use_old_fasta:
+            if not args.use_old_fasta:
                 command = f"time hal2fasta --upper 1 {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {left_row['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
                 print("running:", command)
                 os.system(command)
@@ -302,14 +302,15 @@ def create_exon_data_sets(filtered_internal_exons):
                         record.seq = record.seq[args.min_left_neighbour_exon_len /2 : - args.min_right_neighbour_exon_len/2]
                         SeqIO.write(record, stripped_seq_file, "fasta")
 
-            # gather all usable fasta seqs in a single file
-            output_file = "combined.fasta"
-            input_files = [f for f in os.listdir(stripped_seqs_dir) if f.endswith(".fa")]
+        # gather all usable fasta seqs in a single file
+        output_file = "combined.fasta"
+        input_files = [f"{stripped_seqs_dir}/{f}" for f in os.listdir(stripped_seqs_dir) if f.endswith(".fa")]
 
-            with open(output_file, "w") as out:
-                for input_file in input_files:
-                    with open(input_file, "r") as f:
-                        out.write(f.read())
+        with open(output_file, "w") as out:
+            for input_file in input_files:
+                for seq_record in SeqIO.parse(input_file, "fasta"):
+                    print("seq_record.id", seq_record.id)
+                    SeqIO.write(seq_record, out, "fasta")
 
 
 create_exon_data_sets(filtered_internal_exons)
