@@ -301,6 +301,7 @@ class Config():
         self.add_arg_main('--init_weights_from_before_fit', action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --batch_begin_write_weights__layer_call_write_inputs was passed')
         self.add_arg_main('--init_weights_from_after_fit' , action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --write_parameters_after_fit was passed')
         self.add_arg_main('--my_initial_guess_for_parameters', action='store_true', help = 'init A weights with my initial guess')
+        self.add_arg_main('--add_noise_to_initial_weights', action = 'store_true', help = 'add noise to my initial guess for weights ')
         self.add_arg_main('--no_deletes', action='store_true', help = 'the delete transitions in A are removed')
         self.add_arg_main('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
         self.add_arg_main('--forced_gene_structure', action='store_true', help = 'TGs in igs and ACs in coding, ie the state seq is determinded by emission seq')

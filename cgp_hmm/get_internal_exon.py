@@ -227,9 +227,18 @@ def create_exon_data_sets(filtered_internal_exons):
 
 
         for single_species in all_species:
-            command = f"time halLiftover {args.hal} Homo_sapiens {human_exon_to_be_lifted_path} {single_species} {bed_output_dir}/{single_species}.bed"
-            print("running:", command)
-            os.system(command)
+            use_old_bed = False
+            if not use_old_bed:
+                command = f"time halLiftover {args.hal} Homo_sapiens {human_exon_to_be_lifted_path} {single_species} {bed_output_dir}/{single_species}.bed"
+                print("running:", command)
+                os.system(command)
+            else:
+                bed_files = [f"{bed_output_dir}/{f}" for f in os.listdir(bed_output_dir) if f.endswith(".bed")]
+                for bed_file in bed_files:
+                    if bed_file.startswith(single_species):
+                        break # found an existing bed file
+                else:
+                    continue
 
             species_bed = pd.read_csv(f"{bed_output_dir}/{single_species}.bed", delimiter = "\t", header = None)
             species_bed.columns = ["seq", "start", "stop", "name", "score", "strand"]
@@ -269,24 +278,29 @@ def create_exon_data_sets(filtered_internal_exons):
             # getting the seq, from humand: [left exon    [litfed]] [intron] [exon] [intron] [[lifted]right exon]
             # the corresponding seq of [intron] [exon] [intron] in other species
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
-            command = f"time hal2fasta --upper 1 {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {left_row['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
-            print("running:", command)
-            os.system(command)
 
-            # checking if fasta out only contains one seq
-            # if the strands differ, convert to reverse_complement
-            for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
-                assert i == 0, f"found more than one seq in fasta file {out_fa_path}"
-                if exon["row"]["strand"] != left_row["strand"]:
-                    reverse = record.reverse_complement()
-                    with open(out_fa_path, "w") as out_file:
-                        SeqIO.write(reverse, out_file, "fasta")
+            use_old_fasta = False:
+            if not use_old_fasta:
+                command = f"time hal2fasta --upper 1 {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {left_row['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
+                print("running:", command)
+                os.system(command)
+
+                # checking if fasta out only contains one seq
+                # if the strands differ, convert to reverse_complement
+                for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
+                    assert i == 0, f"found more than one seq in fasta file {out_fa_path}"
+                    if exon["row"]["strand"] != left_row["strand"]:
+                        reverse = record.reverse_complement()
+                        with open(out_fa_path, "w") as out_file:
+                            SeqIO.write(reverse, out_file, "fasta")
 
             # strip seqs
-            for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
-                with open(re.replace("non_stripped","stripped",out_fa_path), "w") as stripped_seq_file:
-                    record.seq = record.seq[args.min_left_neighbour_exon_len /2 : - args.min_right_neighbour_exon_len/2]
-                    SeqIO.write(record, stripped_seq_file, "fasta")
+            if os.path.exists(out_fa_path):
+                for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
+                    stripped_fa_path = re.replace("non_stripped","stripped",out_fa_path)
+                    with open(stripped_fa_path, "w") as stripped_seq_file:
+                        record.seq = record.seq[args.min_left_neighbour_exon_len /2 : - args.min_right_neighbour_exon_len/2]
+                        SeqIO.write(record, stripped_seq_file, "fasta")
 
             # gather all usable fasta seqs in a single file
             output_file = "combined.fasta"

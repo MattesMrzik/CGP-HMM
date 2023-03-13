@@ -1,7 +1,5 @@
 #!/usr/bin/env python3
-
 from Utility import append_time_ram_stamp_to_file
-
 from Utility import tfprint
 
 import os
@@ -86,7 +84,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             B_initializer = tf.constant_initializer(1)
         elif self.config.my_initial_guess_for_parameters:
             I_initializer = tf.constant_initializer(1)
-            A_initializer = tf.constant_initializer(self.config.model.A_my_initial_guess_for_parameters)
+            A_initializer = tf.constant_initializer(self.config.model.A_initial_weights_for_trainable_parameters)
             B_initializer = tf.constant_initializer(1)
         else:
             I_initializer="random_normal"

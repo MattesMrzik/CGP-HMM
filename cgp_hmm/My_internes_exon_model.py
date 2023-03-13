@@ -4,6 +4,7 @@ import re
 from itertools import product
 import tensorflow as tf
 import json
+import numpy as np
 
 class My_Model(Model):
 
@@ -33,13 +34,24 @@ class My_Model(Model):
         self.I_indices = self.I_indices()
 
         # A
-        self.A_indices_for_weights, self.A_indices_for_constants = self.A_indices_for_weights_and_consts()
-        self.A_indices = self.A_indices_for_weights + self.A_indices_for_constants
+        self.A_indices_for_weights, \
+        self.A_indices_for_constants, \
+        self.A_initial_weights_for_trainable_parameters, \
+        self.A_initial_weights_for_constants = self.A_indices_and_initial_weights()
+        self.A_indices = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
 
-        if self.config.my_initial_guess_for_parameters:
-            self.A_my_initial_guess_for_parameters = self.get_A_my_initial_guess_for_parameters()
+        if config.use_weights_for_consts:
 
-        self.A_consts = self.get_A_consts()
+            self.A_indices_for_weights = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
+            self.A_indices_for_constants = []
+            self.A_initial_weights_for_trainable_parameters = np.concatenate([self.A_initial_weights_for_trainable_parameters, self.A_initial_weights_for_constants])
+            self.A_initial_weights_for_constants = []
+
+
+        # if self.config.my_initial_guess_for_parameters:
+        #     self.A_my_initial_guess_for_parameters = self.get_A_my_initial_guess_for_parameters()
+
+        # self.A_consts = self.get_A_consts()
 
         # B
         self.B_indices_for_weights, self.B_indices_for_constants = self.B_indices_for_weights_and_consts()
@@ -168,8 +180,6 @@ class My_Model(Model):
         return 0
 
     def A_kernel_size(self):
-        if self.config.use_weights_for_consts:
-            return len(self.A_indices_for_weights) + len(self.A_indices_for_constants)
         return len(self.A_indices_for_weights)
 
     def B_kernel_size(self):
@@ -193,45 +203,44 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
 ################################################################################
-    def A_indices_for_weights_and_consts(self):
+    def A_indices_and_initial_weights(self):
         # für weights die trainable sind und gleich viele einer ähnlichen art sind,
         # die in eine separate methode auslagen, damit ich leichter statistiken
         # dafür ausarbeiten kann
         indicies_for_constant_parameters = []
         indices_for_trainable_parameters = []
-        all_initial_weights = []
+        initial_weights_for_consts = []
+        initial_weights_for_trainable_parameters = []
 
         # etwas zufälligkeit auf die initial parameter addieren?
         def append_transition(s1 = None, s2 = None, l = None, trainable = True, initial_weights = None):
-            if l == None:
+            if l == None: # -> make l and list containing single weight
                 assert s1 != None and s2 != None, "s1 and s2 must be != None if l = None"
                 if initial_weights == None:
                     initial_weights = 0
                 assert type(initial_weights) in [int, float], "if you append a single transition, you must pass either no initial weight or int or float"
-                if self.conifg.add_noise_to_initial_weights:
-                    initial_weights += "small variance random normal"
-                all_initial_weights.append(initial_weights)
+                initial_weights = [initial_weights]
                 l = [[self.str_to_state_id(s1), self.str_to_state_id(s2)]]
-            for entry in l:
-                if trainable:
-                    indices_for_trainable_parameters.append(entry)
-                else:
-                    indicies_for_constant_parameters.append(entry)
-
             if initial_weights == None:
                 initial_weights = [0] * len(l)
             assert type(initial_weights) == list, "if you pass a list of transitions, you must pass either no initial weights or list of ints or floats"
-            if self.conifg.add_noise_to_initial_weights:
-                initial_weights += "small variance random normal"
+            assert len(l) == len(initial_weights), "list of indices must be the same length as list of initial parameters"
+            for entry, weight in zip(l, initial_weights):
+                if self.config.add_noise_to_initial_weights:
+                    weight += "small variance random normal"
+                if trainable:
+                    indices_for_trainable_parameters.append(entry)
+                    initial_weights_for_trainable_parameters.append(weight)
+                else:
+                    indicies_for_constant_parameters.append(entry)
+                    initial_weights_for_consts.append(weight)
 
-
-
-        append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const)
+        append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const, initial_weights = self.config.left_intron_const)
 
         if self.config.akzeptor_pattern_len == 0:
-            append_transition("left_intron", "A", trainable = not self.config.left_intron_const)
+            append_transition("left_intron", "A", trainable = not self.config.left_intron_const, initial_weights = self.config.left_intron_const)
         else:
-            append_transition("left_intron", "ak_0", trainable = not self.config.left_intron_const)
+            append_transition("left_intron", "ak_0", trainable = not self.config.left_intron_const, initial_weights = self.config.left_intron_const)
             for i in range(self.config.akzeptor_pattern_len - 1):
                 append_transition(f"ak_{i}", f"ak_{i+1}", trainable = False)
             append_transition(f"ak_{self.config.akzeptor_pattern_len - 1}", "A", trainable = False)
@@ -243,20 +252,22 @@ class My_Model(Model):
         append_transition("AG", "c_0,1")
         append_transition("AG", "c_0,2")
 
-        append_transition(l = self.A_indices_enter_next_codon)
+        append_transition(l = self.A_indices_enter_next_codon, initial_weights = [3] * len(self.A_indices_enter_next_codon) )
 
         for i in range(self.config.nCodons):
             append_transition(f"c_{i},0", f"c_{i},1", trainable = False) # TODO: do i want these trainable if i pass deletes after/before intron?
             append_transition(f"c_{i},1", f"c_{i},2", trainable = False)
 
+        # inserts
         append_transition(l = self.A_indices_begin_inserts)
         for i in range(self.insert_low, self.insert_high):
             append_transition(f"i_{i},0", f"i_{i},1", trainable = False)
             append_transition(f"i_{i},1", f"i_{i},2", trainable = False)
-        append_transition(l = self.A_indices_end_inserts)
+        append_transition(l = self.A_indices_end_inserts, initial_weights = [3] * len(self.A_indices_end_inserts))
         append_transition(l = self.A_indices_continue_inserts)
 
-        append_transition(l = self.A_indices_normal_deletes)
+        # deletes
+        append_transition(l = self.A_indices_normal_deletes, initial_weights = [-j/2 for j in range(len(self.A_indices_normal_deletes))])
         if self.config.deletes_after_intron_to_codon:
             append_transition(l = self.A_indices_deletes_after_intron_to_codon)
         if self.config.deletes_after_codon_to_intron:
@@ -281,8 +292,8 @@ class My_Model(Model):
                 append_transition(f"do_{i}", f"do_{i+1}", trainable = False)
             append_transition(f"do_{self.config.donor_pattern_len-1}", "right_intron", trainable = False)
 
-        append_transition("right_intron", "right_intron", trainable = not self.config.right_intron_const)
-        append_transition("right_intron", "ter", trainable = not self.config.right_intron_const)
+        append_transition("right_intron", "right_intron", trainable = not self.config.right_intron_const, initial_weights = self.config.right_intron_const)
+        append_transition("right_intron", "ter", trainable = not self.config.right_intron_const, initial_weights = self.config.right_intron_const)
         append_transition("ter", "ter")
 
         print("trainable")
@@ -293,7 +304,9 @@ class My_Model(Model):
         for index in indicies_for_constant_parameters:
             print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
 
-        return indices_for_trainable_parameters, indicies_for_constant_parameters
+        initial_weights_for_trainable_parameters = np.array(initial_weights_for_trainable_parameters, dtype = np.float32)
+        initial_weights_for_consts = np.array(initial_weights_for_consts, dtype = np.float32)
+        return indices_for_trainable_parameters, indicies_for_constant_parameters, initial_weights_for_trainable_parameters, initial_weights_for_consts
 
     @property
     def A_indices_enter_next_codon(self):
@@ -375,14 +388,14 @@ class My_Model(Model):
     def A_indices(self):
         return self.A_indices_for_weights + self.A_indices_for_constants
 ################################################################################
-    def get_A_consts(self):
-        if self.config.left_intron_const:
-            # return tf.cast(tf.concat([[5.0,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
-            if self.config.right_intron_const:
-                return tf.cast(tf.concat([[self.config.left_intron_const,1], [1.0] * (len(self.A_indices_for_constants) -4), [self.config.right_intron_const,1]], axis = 0),dtype = self.config.dtype)
-            else:
-                return tf.cast(tf.concat([[self.config.left_intron_const,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
-        return tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
+    # def get_A_consts(self):
+    #     if self.config.left_intron_const:
+    #         # return tf.cast(tf.concat([[5.0,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
+    #         if self.config.right_intron_const:
+    #             return tf.cast(tf.concat([[self.config.left_intron_const,1], [1.0] * (len(self.A_indices_for_constants) -4), [self.config.right_intron_const,1]], axis = 0),dtype = self.config.dtype)
+    #         else:
+    #             return tf.cast(tf.concat([[self.config.left_intron_const,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
+    #     return tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
 ################################################################################
     # def get_A_my_initial_guess_for_parameters(self):
     #     # für die ordnung die asserts vielleicht nach Config.py verschieben
@@ -556,8 +569,7 @@ class My_Model(Model):
         if self.config.use_weights_for_consts:
             values = weights
         else:
-            consts = self.A_consts
-            values = tf.concat([weights, consts], axis = 0)
+            values = tf.concat([weights, self.A_initial_weights_for_constants], axis = 0)
         dense_shape = [self.number_of_states, self.number_of_states]
 
         if self.config.A_is_sparse:
