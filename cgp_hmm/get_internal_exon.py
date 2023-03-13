@@ -234,11 +234,11 @@ def create_exon_data_sets(filtered_internal_exons):
             species_bed = pd.read_csv(f"{bed_output_dir}/{single_species}.bed", delimiter = "\t", header = None)
             species_bed.columns = ["seq", "start", "stop", "name", "score", "strand"]
             print("species_bed", species_bed, sep = "\n")
-            left_row = species_bed.iloc[0] if re.search("left", species_bed.iloc[0]["name"]) else species_bed.iloc[1]
-            right_row = species_bed.iloc[1] if re.search("right", species_bed.iloc[1]["name"]) else species_bed.iloc[0]
             if len(species_bed.index) != 2:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_more_than_2_lines.bed")
                 continue
+            left_row = species_bed.iloc[0] if re.search("left", species_bed.iloc[0]["name"]) else species_bed.iloc[1]
+            right_row = species_bed.iloc[1] if re.search("right", species_bed.iloc[1]["name"]) else species_bed.iloc[0]
             if left_row["strand"] != right_row["strand"]:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_unequal_strands.bed")
                 continue
@@ -262,16 +262,16 @@ def create_exon_data_sets(filtered_internal_exons):
             print(f"len_of_seq_substring_in_human {len_of_seq_substring_in_human}, in {single_species} {len_of_seq_substring_in_single_species}")
 
             threshold = 1
-            if abs(math.log10(len_of_seq_substring_in_single_species) - math.log10(len_of_seq_substring_in_human)) < threshold:
+            if abs(math.log10(len_of_seq_substring_in_single_species) - math.log10(len_of_seq_substring_in_human)) >= threshold:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_lengths_differ_substantially .bed")
                 continue
 
             # getting the seq, from humand: [left exon    [litfed]] [intron] [exon] [intron] [[lifted]right exon]
             # the corresponding seq of [intron] [exon] [intron] in other species
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
-            command = f"time hal2fasta --upper 1 {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {left_row['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
+            command = f"time hal2fasta --upper {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {left_row['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
             print("running:", command)
-            os.system(command)
+#            os.system(command)
 
             # checking if fasta out only contains one seq
             # if the strands differ, convert to reverse_complement
@@ -284,18 +284,19 @@ def create_exon_data_sets(filtered_internal_exons):
 
             # strip seqs
             for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
-                with open(re.replace("non_stripped","stripped",out_fa_path), "w") as stripped_seq_file:
-                    record.seq = record.seq[args.min_left_neighbour_exon_len /2 : - args.min_right_neighbour_exon_len/2]
+                stripped_fa_path = re.sub("non_stripped","stripped",out_fa_path)
+                with open(stripped_fa_path, "w") as stripped_seq_file:
+                    record.seq = record.seq[int(args.min_left_neighbour_exon_len /2) : - int(args.min_right_neighbour_exon_len/2)]
                     SeqIO.write(record, stripped_seq_file, "fasta")
 
-            # gather all usable fasta seqs in a single file
-            output_file = "combined.fasta"
-            input_files = [f for f in os.listdir(stripped_seqs_dir) if f.endswith(".fa")]
+        # gather all usable fasta seqs in a single file
+        output_file = "combined.fasta"
+        input_files = [f"{stripped_seqs_dir}/{f}" for f in os.listdir(stripped_seqs_dir) if f.endswith(".fa")]
 
-            with open(output_file, "w") as out:
-                for input_file in input_files:
-                    with open(input_file, "r") as f:
-                        out.write(f.read())
+        with open(output_file, "w") as out:
+            for input_file in input_files:
+                for seq_record in SeqIO.parse(input_file, "fasta"):
+                    SeqIO.write(seq_record, out, "fasta")
 
 
 create_exon_data_sets(filtered_internal_exons)
