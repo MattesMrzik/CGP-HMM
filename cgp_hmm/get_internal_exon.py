@@ -233,9 +233,9 @@ def create_exon_data_sets(filtered_internal_exons):
 
             species_bed = pd.read_csv(f"{bed_output_dir}/{single_species}.bed", delimiter = "\t", header = None)
             species_bed.columns = ["seq", "start", "stop", "name", "score", "strand"]
+            print("species_bed", species_bed, sep = "\n")
             left_row = species_bed.iloc[0] if re.search("left", species_bed.iloc[0]["name"]) else species_bed.iloc[1]
             right_row = species_bed.iloc[1] if re.search("right", species_bed.iloc[1]["name"]) else species_bed.iloc[0]
-            assert left_row["name"] != right_row["name"], "left and right row are identical"
             if len(species_bed.index) != 2:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_more_than_2_lines.bed")
                 continue
@@ -245,15 +245,16 @@ def create_exon_data_sets(filtered_internal_exons):
             if left_row["seq"] != right_row["seq"]:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_unequal_seqs.bed")
                 continue
+            assert left_row["name"] != right_row["name"], "left and right row are identical"
 
 
             # is this correct?
-            if exon["strand"] == left_row["strand"]:
-                left = left_row["end"]
+            if exon["row"]["strand"] == left_row["strand"]:
+                left = left_row["stop"]
                 right = right_row["start"]
             else:
                 left = right_row["start"]
-                right = left_row["end"]
+                right = left_row["stop"]
 
             # exit when this is in a different order of magnitude than len_of_seq_substring_in_human
             len_of_seq_substring_in_single_species = right - left
@@ -268,7 +269,7 @@ def create_exon_data_sets(filtered_internal_exons):
             # getting the seq, from humand: [left exon    [litfed]] [intron] [exon] [intron] [[lifted]right exon]
             # the corresponding seq of [intron] [exon] [intron] in other species
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
-            command = f"time hal2fasta --upper 1 {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {seq} --ucscSequenceNames --outFaPath {out_fa_path}"
+            command = f"time hal2fasta --upper 1 {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {left_row['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
             print("running:", command)
             os.system(command)
 
