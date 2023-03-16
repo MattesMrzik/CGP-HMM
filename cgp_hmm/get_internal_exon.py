@@ -279,7 +279,7 @@ def create_exon_data_sets(filtered_internal_exons):
             # the corresponding seq of [intron] [exon] [intron] in other species
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
             if not args.use_old_fasta:
-                command = f"time hal2fasta --upper  {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {left_row['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
+                command = f"time hal2fasta {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {left_row['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
                 print("running:", command)
                 os.system(command)
                 os.system(f"head {out_fa_path}q	")

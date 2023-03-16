@@ -15,6 +15,8 @@ from Utility import append_time_ram_stamp_to_file
 
 from CgpHmmLayer import CgpHmmLayer
 from ReadData import read_data_with_order
+from ReadData import read_data_one_hot_with_Ns_spread
+from ReadData import read_data_one_hot_with_Ns_spread_str
 from tensorflow.python.client import device_lib
 
 import time
@@ -67,26 +69,69 @@ def make_dataset(config):
             command = re.sub("\s+", " ", command)
             run(command)
 
-    seqs = read_data_with_order(config, add_one_terminal_symbol = True)
 
+    def print_data_set(ds, name):
+        dsout = open(name,"w")
+        for batch_id, batch in enumerate(ds):
+            for seq_id, seq in enumerate(batch):
+                for id_in_seq, one_hot_entry in enumerate(seq):
+                    # tf.print(one_hot_entry.numpy(), summarize = -1)
+                    dsout.write(f"name = {name}, batch_id = {batch_id}, seq_id = {seq_id}, id in seq = {id_in_seq}\n")
+                    dsout.write(config.model.emission_id_to_str(np.argmax(one_hot_entry.numpy())))
+                    dsout.write("\n")
+                    json.dump([float(x) for x in one_hot_entry.numpy()], dsout)
+                    dsout.write("\n")
+
+    use_old_read_seqs = 0
+
+    # if use_old_read_seqs:
     index_of_terminal = config.model.emission_tuple_to_id("X")
-    json.dump(seqs, open(f"{config.fasta_path}.json","w"))
+    if use_old_read_seqs:
+        seqs = read_data_with_order(config, add_one_terminal_symbol = True)
+        ds = tf.data.Dataset.from_generator(lambda: seqs,
+                                             tf.as_dtype(tf.int32), # has to be int, bc one_hot doesnt work for floats
+                                             tf.TensorShape([None]))
 
-    ds = tf.data.Dataset.from_generator(lambda: seqs,
-                                         tf.as_dtype(tf.int32), # has to be int, bc one_hot doesnt work for floats
-                                         tf.TensorShape([None]))
+        ds = ds.padded_batch(config.batch_size, padding_values = index_of_terminal)
 
-    ds = ds.padded_batch(config.batch_size, padding_values = index_of_terminal)
+        def to_one_hot(seq): # shoud this rather be called seqs? (plural)
+            return tf.cast(tf.one_hot(seq, config.model.number_of_emissions), dtype=config.dtype)
 
-    def to_one_hot(seq):
-        return tf.cast(tf.one_hot(seq, config.model.number_of_emissions), dtype=config.dtype)
+        ds = ds.map(to_one_hot)
 
-    ds = ds.map(to_one_hot)
+        # print_data_set(ds,"ds")
+
+    if not use_old_read_seqs:
+        # when mapping
+        # Use tf.py_function, which allows you to write arbitrary Python code but will generally result in worse performance than 1). For example:
+        # https://www.tensorflow.org/api_docs/python/tf/data/Dataset
+        seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
+
+        dataset = tf.data.Dataset.from_generator(
+            lambda: seqs, tf.string, output_shapes=[None])
+
+        bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
+        bucket_batch_sizes = [config.batch_size] * (len(seqs)//config.batch_size) + [len(seqs) - len(seqs)//config.batch_size]
+        # print("(len(seqs)//config.batch_size)", (len(seqs)//config.batch_size))
+
+        # dataset = dataset.bucket_by_sequence_length(
+        #     element_length_func = lambda elem: tf.shape(elem)[0],
+        #     bucket_boundaries = bucket_boundaries,
+        #     padded_shapes = tf.TensorShape(None),  # Each sequence has 2 values
+        #     padding_values = f"0{'_0'*(config.model.number_of_emissions-2)}_1",
+        #     bucket_batch_sizes = bucket_batch_sizes)
+        dataset = dataset.padded_batch(config.batch_size, None, "_".join(["1.0" if i == index_of_terminal else "0.0" for i in range(config.model.number_of_emissions)]))
+        dataset = dataset.map(lambda x: tf.strings.to_number(tf.strings.split(x,'_')))
+        dataset = dataset.map(lambda x: x.to_tensor()) # bc it is ragged
+        np.set_printoptions(linewidth=200)
+
+        # print_data_set(dataset, "ds_str")
+
     # TODO: shuffle dataset?
-    ds = ds.repeat()
+    dataset = dataset.repeat()
 
     append_time_ram_stamp_to_file(f"Training.make_dataset() end   {run_id}", config.bench_path, start)
-    return ds, seqs
+    return dataset, seqs
 
 # from memory_profiler import profile
 # @profile

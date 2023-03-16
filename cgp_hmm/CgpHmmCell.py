@@ -304,7 +304,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_kernel)), [self.A_kernel],                         name = "A_kernel_beginning_of_cell", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_kernel)), [self.B_kernel],                         name = "B_kernel_beginning_of_cell", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.I_dense)),  [self.I_dense],              name = "I_dense_beginning_of_call",  summarize = self.config.assert_summarize)
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)),  [self.A_dense], old_forward, name = "A_dense_beginning_of_call",  summarize = self.config.assert_summarize)
+            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)),  [self.A_dense],              name = "A_dense_beginning_of_call",  summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)),  [self.B_dense],              name = "B_dense_beginning_of_call",  summarize = self.config.assert_summarize)
             if self.config.logsumexp:
                 tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(old_forward)),   [old_forward],          name = "old_forward_nan_beginning_of_call",              summarize = self.config.assert_summarize)
