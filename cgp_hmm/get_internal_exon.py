@@ -17,6 +17,7 @@ parser.add_argument('--min_left_neighbour_intron_len', type = int, default = 20,
 parser.add_argument('--min_right_neighbour_exon_len', type = int, default = 20, help = 'min_right_neighbour_exon_len')
 parser.add_argument('--min_right_neighbour_intron_len', type = int, default = 20, help = 'min_right_neighbour_intron_len')
 parser.add_argument('--min_exon_len', type = int, default = 50, help = 'min_exon_len')
+parser.add_argument('--len_of_exon_middle_to_be_lifted', type = int, default = 15, help = 'the middle of the exon is also lifted, to check whether it is between left and right if target .bed')
 parser.add_argument('--len_of_left_to_be_lifted', type = int, default = 15, help = 'len_of_left_to_be_lifted')
 parser.add_argument('--len_of_right_to_be_lifted', type = int, default = 15, help = 'len_of_right_to_be_lifted')
 parser.add_argument('--path', default = ".", help = 'working directory')
@@ -28,11 +29,13 @@ args = parser.parse_args()
 
 assert args.len_of_left_to_be_lifted < args.min_left_neighbour_exon_len, "len_of_left_to_be_lifted > min_left_neighbour_exon_len"
 assert args.len_of_right_to_be_lifted < args.min_right_neighbour_exon_len, "len_of_right_to_be_lifted > min_right_neighbour_exon_len"
+assert args.len_of_exon_middle_to_be_lifted < args.min_exon_len, "len_of_exon_middle_to_be_lifted > min_exon_len"
 
 lengths_config_str = str(args.min_left_neighbour_exon_len)
 lengths_config_str += "_" + str(args.len_of_left_to_be_lifted)
 lengths_config_str += "_" + str(args.min_left_neighbour_intron_len)
 lengths_config_str += "_" + str(args.min_exon_len)
+lengths_config_str += "_" + str(args.len_of_exon_middle_to_be_lifted)
 lengths_config_str += "_" + str(args.min_right_neighbour_intron_len)
 lengths_config_str += "_" + str(args.len_of_right_to_be_lifted)
 lengths_config_str += "_" + str(args.min_right_neighbour_exon_len)
@@ -76,7 +79,7 @@ def get_all_internal_exons(hg38_refseq_bed):
     print("started get_all_internal_exons()")
     internal_exons = {} # key is chromosom, start and stop of exon in genome, value is list of rows that mapped to this exon range
     for index, row in hg38_refseq_bed.iterrows():
-        if args.n and index > args.n * 100: # cant jsut break at args.n since, exons arg filtered in an additional step. So i have to build some more here, such that after filtering sufficiently many remain.
+        if args.n and index > args.n * 100: # cant just break at args.n since, exons arg filtered in an additional step. So i have to build some more here, such that after filtering sufficiently many remain.
             break
         if row["blockCount"] < 3:
             continue
@@ -87,7 +90,7 @@ def get_all_internal_exons(hg38_refseq_bed):
             assert row["thickStart"] <= row["thickEnd"], 'row["thickStart"] <= row["thickEnd"]'
             chromosom = row["chrom"]
             exon_start_in_genome = row["chromStart"] + exon_start
-            exon_end_in_genome = row["chromStart"] + exon_start + exon_len
+            exon_end_in_genome = row["chromStart"] + exon_start + exon_len # the end id is not included
             key = (chromosom, exon_start_in_genome, exon_end_in_genome)
             if key in internal_exons:
                 internal_exons[key].append(row)
@@ -226,6 +229,14 @@ def create_exon_data_sets(filtered_internal_exons):
                     bed_file.write(f"exon_{exon['start_in_genome']}_{exon['stop_in_genome']}_{exon['exon_id']}_{left_or_right}" + "\t")
                     bed_file.write("0" + "\t")
                     bed_file.write(exon["row"]["strand"] + "\n")
+                bed_file.write(exon["seq"] + "\t")
+                left_middle = (exon["stop_in_genome"] - exon['start_in_genome'] - args.len_of_exon_middle_to_be_lifted)//2
+                right_middle = left_middle + args.len_of_exon_middle_to_be_lifted # this index does not part of the area to be lifted
+                bed_file.write(str(left_middle) + "\t")
+                bed_file.write(str(right_middle) + "\t")
+                bed_file.write(f"exon_{exon['start_in_genome']}_{exon['stop_in_genome']}_{exon['exon_id']}_middle" + "\t")
+                bed_file.write("0" + "\t")
+                bed_file.write(exon["row"]["strand"] + "\n")
 
         for single_species in all_species:
             bed_file_path = f"{bed_output_dir}/{single_species}.bed"
@@ -244,31 +255,46 @@ def create_exon_data_sets(filtered_internal_exons):
 
             species_bed = pd.read_csv(bed_file_path, delimiter = "\t", header = None)
             species_bed.columns = ["seq", "start", "stop", "name", "score", "strand"]
-            if len(species_bed.index) != 2:
-                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_more_than_2_lines.bed")
+            if len(species_bed.index) != 3:
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_more_than_3_lines.bed")
                 continue
-            left_row = species_bed.iloc[0] if re.search("left", species_bed.iloc[0]["name"]) else species_bed.iloc[1]
-            right_row = species_bed.iloc[1] if re.search("right", species_bed.iloc[1]["name"]) else species_bed.iloc[0]
-            if left_row["strand"] != right_row["strand"]:
+            l_m_r = {}
+            for index, row in hg38_refseq_bed.iterrows():
+                x = re.search(r"\d+_\d+_(.+)",row["name"])
+                try:
+                    l_m_r[x.group(1)] = row
+                except:
+                    print("l_m_r[x.group(1)] didnt work")
+                    print("row['name']", row["name"])
+                    exit()
+            if len(l_m_r) != 3:
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_not_all_l_m_r.bed")
+                continue
+
+            if l_m_r["left"]["strand"] != l_m_r["right"]["strand"] or l_m_r["left"]["strand"] != l_m_r["middle"]["strand"]:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_unequal_strands.bed")
                 continue
-            if left_row["seq"] != right_row["seq"]:
+            if l_m_r["left"]["seq"] != l_m_r["left"]["seq"] or l_m_r["left"]["seq"] != l_m_r["middle"]["seq"]:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_unequal_seqs.bed")
                 continue
-            assert left_row["name"] != right_row["name"], "left and right row are identical"
 
-
-            # is this correct?
-            if exon["row"]["strand"] == left_row["strand"]:
-                left = left_row["stop"]
-                right = right_row["start"]
+            if exon["row"]["strand"] == l_m_r["left"]["strand"]:
+                left_stop = l_m_r["left"]["stop"]
+                middle_start = l_m_r["middle"]["start"]
+                middle_end = l_m_r["middle"]["stop"]
+                right_start = l_m_r["right"]["start"]
             else:
-                left = right_row["start"]
-                right = left_row["stop"]
+                left_stop = l_m_r["right"]["start"]
+                middle_start = l_m_r["middle"]["stop"]
+                middle_end = l_m_r["middle"]["start"]
+                right_start = l_m_r["left"]["stop"]
+
+            assert left_stop < middle_start, "left_stop > middle_start"
+            assert middle_start < middle_stop, "middle_start > middle_stop"
+            assert middle_stop < right_start, "middle_stop > right_start"
 
             # exit when this is in a different order of magnitude than len_of_seq_substring_in_human
-            len_of_seq_substring_in_single_species = right - left
-            assert len_of_seq_substring_in_single_species > 0, "len_of_seq_substring_in_single_species <= 0"
+            len_of_seq_substring_in_single_species = right_start - left_stop
 
             threshold = 1
             if abs(math.log10(len_of_seq_substring_in_single_species) - math.log10(len_of_seq_substring_in_human)) >= threshold:
@@ -279,16 +305,16 @@ def create_exon_data_sets(filtered_internal_exons):
             # the corresponding seq of [intron] [exon] [intron] in other species
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
             if not args.use_old_fasta:
-                command = f"time hal2fasta {args.hal} {single_species} --start {left} --length {len_of_seq_substring_in_single_species} --sequence {left_row['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
+                command = f"time hal2fasta {args.hal} {single_species} --start {left_stop} --length {len_of_seq_substring_in_single_species} --sequence {l_m_r['left']['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
                 print("running:", command)
                 os.system(command)
                 os.system(f"head {out_fa_path}q	")
 
                 # checking if fasta out only contains one seq
-                # if the strands differ, convert to reverse_complement
+                # if strand is -, convert to reverse_complement
                 for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
                     assert i == 0, f"found more than one seq in fasta file {out_fa_path}"
-                    if exon["row"]["strand"] != left_row["strand"]:
+                    if l_m_r["left"]["strand"] == "-":
                         reverse_seq = record.seq.reverse_complement()
                         record.seq = reverse_seq
                         with open(out_fa_path, "w") as out_file:

@@ -79,6 +79,10 @@ class Config():
         if self.manual_forward:
             assert self.AB == "dd", "manula forward only works with dense matrices, so pass -AB dd"
 
+        if self.fasta_path:
+            assert not self.dont_generate_new_seqs, "using fasta path, so nothig should get generated"
+            assert not self.use_simple_seq_gen, "using fasta path, so nothig should get generated"
+
     def add_attribtes(self):
         import tensorflow as tf
 
@@ -90,7 +94,8 @@ class Config():
         self.write_return_sequnces = False
 
         self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.AB}_call_type.log"
-        self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
+        if not self.fasta_path:
+            self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
 
         self.generate_new_seqs = not self.dont_generate_new_seqs
         self.dtype = tf.float64 if self.dtype64 else tf.float32
@@ -227,6 +232,7 @@ class Config():
         self.add_arg_main('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
         self.add_arg_main('--viterbi', action='store_true', help ="viterbi")
         self.add_arg_main('--intron_model', action='store_true', help = 'use my model that includes introns')
+        self.add_arg_main('--fasta_path', help = 'path to fasta file where the traning seqs are')
 
         self.add_arg_main('--internes_exon_model', action = 'store_true', help = 'finde ein exon welches von zwei introns begrenzt ist')
         self.add_arg_main('--inserts_at_intron_borders', action = 'store_true', help = 'inserts can come right after and before intron')

@@ -15,7 +15,7 @@ from Utility import append_time_ram_stamp_to_file
 
 from CgpHmmLayer import CgpHmmLayer
 from ReadData import read_data_with_order
-from ReadData import read_data_one_hot_with_Ns_spread
+# from ReadData import read_data_one_hot_with_Ns_spread
 from ReadData import read_data_one_hot_with_Ns_spread_str
 from tensorflow.python.client import device_lib
 
@@ -125,7 +125,7 @@ def make_dataset(config):
         dataset = dataset.map(lambda x: x.to_tensor()) # bc it is ragged
         np.set_printoptions(linewidth=200)
 
-        # print_data_set(dataset, "ds_str")
+        print_data_set(dataset, "ds_str")
 
     # TODO: shuffle dataset?
     dataset = dataset.repeat()
