@@ -230,7 +230,7 @@ def create_exon_data_sets(filtered_internal_exons):
                     bed_file.write("0" + "\t")
                     bed_file.write(exon["row"]["strand"] + "\n")
                 bed_file.write(exon["seq"] + "\t")
-                left_middle = (exon["stop_in_genome"] - exon['start_in_genome'] - args.len_of_exon_middle_to_be_lifted)//2
+                left_middle = (exon["stop_in_genome"] + exon['start_in_genome'] - args.len_of_exon_middle_to_be_lifted)//2
                 right_middle = left_middle + args.len_of_exon_middle_to_be_lifted # this index does not part of the area to be lifted
                 bed_file.write(str(left_middle) + "\t")
                 bed_file.write(str(right_middle) + "\t")
@@ -259,7 +259,7 @@ def create_exon_data_sets(filtered_internal_exons):
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_more_than_3_lines.bed")
                 continue
             l_m_r = {}
-            for index, row in hg38_refseq_bed.iterrows():
+            for index, row in species_bed.iterrows():
                 x = re.search(r"\d+_\d+_(.+)",row["name"])
                 try:
                     l_m_r[x.group(1)] = row
