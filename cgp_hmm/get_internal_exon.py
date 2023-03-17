@@ -260,7 +260,7 @@ def create_exon_data_sets(filtered_internal_exons):
                 continue
             l_m_r = {}
             for index, row in species_bed.iterrows():
-                x = re.search(r"\d+_\d+_(.+)",row["name"])
+                x = re.search(r"\d+_\d+_\d+_(.+)",row["name"])
                 try:
                     l_m_r[x.group(1)] = row
                 except:
@@ -280,18 +280,19 @@ def create_exon_data_sets(filtered_internal_exons):
 
             if exon["row"]["strand"] == l_m_r["left"]["strand"]:
                 left_stop = l_m_r["left"]["stop"]
-                middle_start = l_m_r["middle"]["start"]
-                middle_end = l_m_r["middle"]["stop"]
                 right_start = l_m_r["right"]["start"]
             else:
                 left_stop = l_m_r["right"]["start"]
-                middle_start = l_m_r["middle"]["stop"]
-                middle_end = l_m_r["middle"]["start"]
                 right_start = l_m_r["left"]["stop"]
+            middle_start = l_m_r["middle"]["start"]
+            middle_stop = l_m_r["middle"]["stop"]
 
-            assert left_stop < middle_start, "left_stop > middle_start"
-            assert middle_start < middle_stop, "middle_start > middle_stop"
-            assert middle_stop < right_start, "middle_stop > right_start"
+            if left_stop < middle_start:
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_left_greater_middle.bed")
+                continue
+            if middle_stop < right_start:
+                os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_right_less_middle.bed")
+                continue
 
             # exit when this is in a different order of magnitude than len_of_seq_substring_in_human
             len_of_seq_substring_in_single_species = right_start - left_stop
