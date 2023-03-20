@@ -297,10 +297,10 @@ def create_exon_data_sets(filtered_internal_exons):
             middle_start = l_m_r["middle"]["start"]
             middle_stop = l_m_r["middle"]["stop"]
 
-            if left_stop < middle_start:
+            if left_stop >= middle_start:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_left_greater_middle.bed")
                 continue
-            if middle_stop < right_start:
+            if middle_stop >= right_start:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_right_less_middle.bed")
                 continue
 
