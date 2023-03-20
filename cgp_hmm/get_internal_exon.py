@@ -25,6 +25,7 @@ parser.add_argument('-n', type = int, help = 'limit the number of exons to n')
 parser.add_argument('-v', action = 'store_true', help = 'verbose')
 parser.add_argument('--use_old_bed', action = 'store_true', help = 'use the old bed files and dont calculate new ones')
 parser.add_argument('--use_old_fasta', action = 'store_true', help = 'use the old fasta files and dont calculate new ones')
+parser.add_argument('--discard_multiple_bed_hits', action = 'store_true', help = 'sometimes, halLiftover maps a single coordinate to 2 or more, if this flag is passed, the species is discarded, otherwise the largest of the hits is selected')
 args = parser.parse_args()
 
 assert args.len_of_left_to_be_lifted < args.min_left_neighbour_exon_len, "len_of_left_to_be_lifted > min_left_neighbour_exon_len"
@@ -255,18 +256,25 @@ def create_exon_data_sets(filtered_internal_exons):
 
             species_bed = pd.read_csv(bed_file_path, delimiter = "\t", header = None)
             species_bed.columns = ["seq", "start", "stop", "name", "score", "strand"]
-            if len(species_bed.index) != 3:
+            if len(species_bed.index) != 3 and args.discard_multiple_bed_hits:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_more_than_3_lines.bed")
                 continue
             l_m_r = {}
             for index, row in species_bed.iterrows():
                 x = re.search(r"\d+_\d+_\d+_(.+)",row["name"])
                 try:
-                    l_m_r[x.group(1)] = row
+                    if (y := x.group(1)) in l_m_r: # y = left, right or middle
+                        len_of_previous_bed_hit = l_m_r[y]["stop"] - l_m_r[y]["start"]
+                        len_of_current_bed_hit = row["stop"] - row["start"]
+                        if len_of_current_bed_hit > len_of_previous_bed_hit:
+                            l_m_r[y] = row
+                    else:
+                        l_m_r[y] = row
                 except:
                     print("l_m_r[x.group(1)] didnt work")
                     print("row['name']", row["name"])
                     exit()
+
             if len(l_m_r) != 3:
                 os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_not_all_l_m_r.bed")
                 continue
@@ -282,8 +290,10 @@ def create_exon_data_sets(filtered_internal_exons):
                 left_stop = l_m_r["left"]["stop"]
                 right_start = l_m_r["right"]["start"]
             else:
-                left_stop = l_m_r["right"]["start"]
-                right_start = l_m_r["left"]["stop"]
+                # i think        [left_start, left_stop] ... [middle_start, middle_stop] ... [right_start, right_stop]
+                # gets mapped to [right_start, right_stop] ... [middle_start, middle_stop] ... [left_start, left_stop]
+                left_stop = l_m_r["right"]["stop"]
+                right_start = l_m_r["left"]["start"]
             middle_start = l_m_r["middle"]["start"]
             middle_stop = l_m_r["middle"]["stop"]
 
