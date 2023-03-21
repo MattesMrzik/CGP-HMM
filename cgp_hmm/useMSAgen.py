@@ -45,7 +45,8 @@ sequences, posDict = MSAgen.generate_sequences(num_sequences = int(num_seqs), # 
                                                seqlen = int(seqlen), # length of each sequence (in bp)
                                                genelen = int(genlen), # length of the gene in each sequence (in bp, can be 0), without start and stop
                                                coding_dist = args.coding_dist, # branch length of the underlying tree for simulated gene evolution
-                                               noncoding_dist = args.noncoding_dist) # branch length for flanking regions
+                                               noncoding_dist = args.noncoding_dist,
+                                               internal_exon = True) # branch length for flanking regions
 
 if not os.path.exists(f"{args.path}/output/{nCodons}codons/"):
     os.makedirs(f"{args.path}/output/{nCodons}codons/")

@@ -32,17 +32,18 @@ import time
 #
 #     return seqs
 
+
 def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False):
     start = time.perf_counter()
     run_id = randint(0,100)
     append_time_ram_stamp_to_file(f"read_data_one_hot_with_Ns_spread_str() start {run_id}", config.bench_path, start)
     seqs = []
-    base_to_id_dict = dict([(base, id) for id, base in enumerate("ACGT")])
+    base_to_id_dict = dict([(base, id) for id, base in enumerate("ACGTI")])
     def base_to_id(b):
         try:
             return base_to_id_dict[b]
         except:
-            return 4
+            return 5
     with open(config.fasta_path,"r") as handle:
         for record in SeqIO.parse(handle,"fasta"):
             seq = record.seq
@@ -51,7 +52,7 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
             for i, base in enumerate(seq):
                 t = (last_bases + [base_to_id(base)])
                 matching_ids = [] # t might contain N, so more that one id match to this tuple
-                allowd_bases = [[0,1,2,3] if b == 4 else [b] for b in t]
+                allowd_bases = [[0,1,2,3] if b == 5 else [b] for b in t]
                 # TODO hier sind dann ja auch stop codons erlaubt
                 # B hat dann aber an der position einfach ein null, sodass die
                 # wkeiten der restlichen 3 emisioionenn genommen werden
