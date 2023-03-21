@@ -96,6 +96,8 @@ class Config():
         self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.AB}_call_type.log"
         if not self.fasta_path:
             self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
+        else:
+            self.generate_new_seqs = False
 
         self.generate_new_seqs = not self.dont_generate_new_seqs
         self.dtype = tf.float64 if self.dtype64 else tf.float32
@@ -121,10 +123,15 @@ class Config():
             from My_internes_exon_model import My_Model
             my_model = My_Model(self)
             self.model = my_model
+        elif self.msa_model:
+            from Felix_hard_coded_model import My_Model
+            my_model = My_Model(self)
+            self.model = my_model
         else:
             from My_Model import My_Model
             my_model = My_Model(self)
             self.model = my_model
+
 
     def prepare_before_main_programm(self):
         paths = [f"{self.src_path}/output/{self.nCodons}codons/", \
@@ -315,6 +322,7 @@ class Config():
         self.add_arg_main('--use_constant_initializer', action='store_true', help = 'init weights with all ones')
         self.add_arg_main('--manual_forward', action = 'store_true', help = 'gets mean likelihood of with manual loop')
         self.add_arg_main('--autograph_verbose', action = 'store_true', help = 'set tf.autograph.set_verbosity(3, True)')
+        self.add_arg_main('--msa_model', action = "store_true", help = "use a hard coded felix msa model with nucleodite emission to check if i can produce NaN, bc felix doesnt get NaN even for long seqs")
 
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""
