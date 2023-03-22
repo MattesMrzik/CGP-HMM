@@ -97,6 +97,7 @@ class Config():
         if not self.fasta_path:
             self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
         else:
+            self.manual_passed_fasta = True
             self.generate_new_seqs = False
 
         self.generate_new_seqs = not self.dont_generate_new_seqs

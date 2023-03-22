@@ -319,7 +319,7 @@ def create_exon_data_sets(filtered_internal_exons):
                 command = f"time hal2fasta {args.hal} {single_species} --start {left_stop} --length {len_of_seq_substring_in_single_species} --sequence {l_m_r['left']['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
                 print("running:", command)
                 os.system(command)
-                os.system(f"head {out_fa_path}q	")
+                os.system(f"head {out_fa_path}")
 
                 # checking if fasta out only contains one seq
                 # if strand is -, convert to reverse_complement
@@ -342,6 +342,8 @@ def create_exon_data_sets(filtered_internal_exons):
         # gather all usable fasta seqs in a single file
         output_file =f"{exon_dir}/combined.fasta"
         input_files = [f"{stripped_seqs_dir}/{f}" for f in os.listdir(stripped_seqs_dir) if f.endswith(".fa")]
+        input_files = sorted(input_files, key = lambda x: 0 if re.search("Homo_sapiens", x) else 1)
+        assert re.search("Homo_sapiens", input_files[0]), "homo sapiens not in first pos of combined.fasta"
 
         with open(output_file, "w") as out:
             for input_file in input_files:

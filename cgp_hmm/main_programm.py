@@ -76,16 +76,18 @@ def main(config):
         import Viterbi
 
         Viterbi.run_cc_viterbi(config)
+        if config.manual_passed_fasta:
+            print("you passed --manual_passed_fasta so viterbi guess isnt checked against generated seqs")
+        if not config.manual_passed_fasta:
+            viterbi_guess = Viterbi.load_viterbi_guess(config)
 
-        viterbi_guess = Viterbi.load_viterbi_guess(config)
+            true_state_seqs = Viterbi.get_true_state_seqs_from_true_MSA(config)
 
-        true_state_seqs = Viterbi.get_true_state_seqs_from_true_MSA(config)
+            Viterbi.compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
 
-        Viterbi.compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
+            Viterbi.write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
 
-        Viterbi.write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
-
-        Viterbi.eval_start_stop(config, viterbi_guess)
+            Viterbi.eval_start_stop(config, viterbi_guess)
 
 
 

@@ -155,6 +155,7 @@ int main(int argc, char *argv[]) {
         ("b_path", po::value<std::string>(), "b file name")
         ("parallel_seqs", "calculate seqs in parallel instead of Ms")
 
+        ("only_first_seq", "calculate only the first seq")
         ("nThreads,j", po::value<int>(), "n threads")
         ("nCodons,c", po::value<int>(), "n codons")
         ;
@@ -185,6 +186,8 @@ int main(int argc, char *argv[]) {
         std::cout << "using only 1 thread. consider --j" << '\n';
         return 1;
     }
+////////////////////////////////////////////////////////////////////////////////
+    bool only_first_seq = vm.count("only_first_seq");
 ////////////////////////////////////////////////////////////////////////////////
     std::string seq_path;
     if (vm.count("seq_path")) seq_path = vm["input-file"].as<std::string>();
@@ -240,9 +243,11 @@ int main(int argc, char *argv[]) {
     for (size_t j = 0; j < seqs.size(); ++j) {
         state_seqs.push_back({});
     }
-    std::cout << "reading done " << '\n';
 
     if (vm.count("parallel_seqs")) {
+        if (only_first_seq) {
+            std::cout << "discading option --only_first_seq since you passed --parallel_seqs" << '\n';
+        }
         for (size_t low = 0; low < seqs.size(); low += nThreads) {
             std::vector<std::future<std::vector<size_t> > > threads;
             size_t now_using = 0;
@@ -263,6 +268,10 @@ int main(int argc, char *argv[]) {
     }
     else {
         for (size_t seq_id = 0; seq_id < seqs.size(); seq_id++) {
+            if (only_first_seq && seq_id > 0) {
+                std::cout << "calculated only first seq. check whether the result has the same len as desired fasta len" << '\n';
+                break;
+            }
             state_seqs[seq_id] = viterbi(i_v, a_v, b_v, seqs_v[seq_id], seq_id, nThreads);
             std::cout << "done with seq " << seq_id << '\n';
         }
@@ -276,7 +285,8 @@ int main(int argc, char *argv[]) {
     //     std::cout << '\n';
     // }
 
-    std::string out_path = "output/" + std::to_string(nCodons) + "codons/viterbi.json";
+    std::string out_path = "output/" + std::to_string(nCodons) + "codons/viterbi_cc_output.json";
+    std::cout << "viterbi out path for json " << out_path << '\n';
     std::ofstream f_out(out_path);
     f_out << json(state_seqs);
     f_out.close();

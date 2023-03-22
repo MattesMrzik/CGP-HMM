@@ -5,7 +5,7 @@ class Model(ABC):
 
     def __init__(self, config):
         self.config = config
-
+        
 
     # kernel sizes
     @abstractmethod

@@ -9,7 +9,7 @@ def run_cc_viterbi(config):
     import multiprocessing
     start = time.perf_counter()
     print("starting viterbi")
-    os.system(f"{config.src_path}/Viterbi " + str(config.nCodons) + " " + str(multiprocessing.cpu_count()-1))
+    os.system(f"{config.src_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1}")
     print("done viterbi. it took ", time.perf_counter() - start)
 
 def get_true_state_seqs_from_true_MSA(config):
@@ -67,7 +67,7 @@ def get_true_state_seqs_from_true_MSA(config):
     return true_state_seqs
 
 def load_viterbi_guess(config):
-    viterbi_file = open(f"{config.src_path}/output/{config.nCodons}codons/viterbi.json", "r")
+    viterbi_file = open(f"{config.src_path}/output/{config.nCodons}codons/viterbi_cc_output.json", "r")
     viterbi = json.load(viterbi_file)
     return viterbi
 
@@ -96,6 +96,9 @@ def write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi):
                 splitted = re.split("[_|,]",config.model.state_id_to_str(state))
                 s += splitted[0] + (splitted[1] + (" " if len(splitted[1]) < 2 else ""))[:2]
         return s
+
+    # state_str      555ATGc0 STP33
+    # msa_seq_str ---ATCATGCTATAGTA-----
     def expand_nice_states_str_to_fit_msa(state_str, msa_seq_str):
         id_in_state_str = 0
         new_str = ""
@@ -113,15 +116,19 @@ def write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi):
 
     with open(f"{config.src_path}/output/{config.nCodons}codons/trueMSA.txt","r") as msa:
         with open(f"{config.src_path}/output/{config.nCodons}codons/trueMSA_viterbi.txt","w") as out:
-            for i, line in enumerate(msa):
+            for i, msa_seq_str in enumerate(msa):
                 seq_id = i - 1
                 if seq_id < 0:
-                    out.write(line)
+                    out.write("# first line is msa state seq. the first of the 3 tuple is aligned seq, second is true state seq, third is viterbi guess\n")
+                    out.write(msa_seq_str)
                     continue
                 else:
-                    out.write(line) # ----TTATGTTCTAATCGGTT from useMSAgen trueMSA
-                    out.write(expand_nice_states_str_to_fit_msa(state_seq_to_nice_str(true_state_seqs[seq_id]), line))
-                    out.write(expand_nice_states_str_to_fit_msa(state_seq_to_nice_str(viterbi[seq_id]), line))
+                    out.write(msa_seq_str) # ----TTATGTTCTAATCGGTT from useMSAgen trueMSA
+                    add_one_terminal_symbol = True
+                    one = 1 if add_one_terminal_symbol else 0
+                    assert len(viterbi[seq_id]) - one == len(true_state_seqs[seq_id]), f"length if viterbi {viterbi[seq_id]} and true state seq {true_state_seqs[seq_id]} differ, check if parallel computing works as intended"
+                    out.write(expand_nice_states_str_to_fit_msa(state_seq_to_nice_str(true_state_seqs[seq_id]), msa_seq_str))
+                    out.write(expand_nice_states_str_to_fit_msa(state_seq_to_nice_str(viterbi[seq_id]), msa_seq_str))
                 out.write("\n")
 
 def eval_start_stop(config, viterbi):
@@ -233,9 +240,11 @@ if __name__ == "__main__":
         config.model.B_as_dense_to_json_file(B_out_path + ".json", weights_B)
 
     if os.path.exists(f"{config.src_path}/output/{config.nCodons}codons/viterbi.json"):
-        print("viterbi already exists. If you want to rerun it, then delete viterbi.json")
-    else:
-        run_cc_viterbi(config)
+        print("viterbi already exists. rerun? y/n")
+        while (x:=input()) not in ["y","n"]:
+            pass
+        if x == "y":
+            run_cc_viterbi(config)
 
     viterbi_guess = load_viterbi_guess(config)
 

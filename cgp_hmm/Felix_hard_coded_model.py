@@ -673,12 +673,14 @@ class My_Model(Model):
             json.dump(self.I(weights).numpy().tolist(), out_file)
 
     # TODO: or do i want to have these functions in the cell, such that i dont have to pass the weights?
-    def A_as_dense_to_str(self, weights, with_description = False):
+    def A_as_dense_to_str(self, weights, with_description = False, sep = " "):
         A = self.A(weights) if self.A_is_dense else tf.sparse.to_dense(self.A(weights))
         result = ""
         if with_description:
             result += " "
             for to_state in range(self.number_of_states):
+                if sep in self.state_id_to_str(to_state):
+                    print(f"sep '{sep}' is contained in self.state_id_to_str(to_state) '{self.state_id_to_str(to_state)}'")
                 result += self.state_id_to_str(to_state)
                 result += " "
             result += "\n"
@@ -700,22 +702,26 @@ class My_Model(Model):
             A = self.A(weights) if self.A_is_dense else tf.sparse.to_dense(self.A(weights))
             json.dump(A.numpy().tolist(), out_file)
 
-    def B_as_dense_to_str(self, weights, with_description = False):
+    def B_as_dense_to_str(self, weights, with_description = False, sep = " "):
         B = self.B(weights) if self.B_is_dense else tf.sparse.to_dense(self.B(weights))
         result = ""
         if with_description:
-            result += " "
+            result += sep
             for to_state in range(self.number_of_states):
+                if sep in self.state_id_to_str(to_state):
+                    print(f"sep '{sep}' is contained in self.state_id_to_str(to_state) '{self.state_id_to_str(to_state)}'")
                 result += self.state_id_to_str(to_state)
-                result += " "
+                result += sep
             result += "\n"
 
         for emission_id, row in enumerate(B):
             if with_description:
-                result += self.emission_id_to_str(emission_id) + " "
+                if sep in self.emission_id_to_str(emission_id)
+                    print(f"sep '{sep}' is contained in self.emission_id_to_str(emission_id) '{self.emission_id_to_str(emission_id)}'")
+                result += self.emission_id_to_str(emission_id) + sep
             for entry in row:
                 result += str(entry.numpy())
-                result += " "
+                result += sep
             result += "\n"
         return result
 

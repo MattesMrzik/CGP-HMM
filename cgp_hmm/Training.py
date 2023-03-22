@@ -17,6 +17,7 @@ from CgpHmmLayer import CgpHmmLayer
 from ReadData import read_data_with_order
 # from ReadData import read_data_one_hot_with_Ns_spread
 from ReadData import read_data_one_hot_with_Ns_spread_str
+from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
 from tensorflow.python.client import device_lib
 
 import time
@@ -129,6 +130,11 @@ def make_dataset(config):
 
     # TODO: shuffle dataset?
     dataset = dataset.repeat()
+
+    if config.viterbi:
+        seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
+        with open(f"{config.fasta_path}.json", "w") as out_file:
+            json.dump(seqs_out, out_file)
 
     append_time_ram_stamp_to_file(f"Training.make_dataset() end   {run_id}", config.bench_path, start)
     return dataset, seqs

@@ -33,7 +33,6 @@ class My_Model(Model):
         self.A_indices_continue_inserts
         self.A_indices_deletes
 
-
         self.I_indices = self.I_indices()
 
         self.A_indices_for_weights = self.A_indices_for_weights()

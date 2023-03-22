@@ -119,7 +119,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
     # of the seq is processed
     # but using this bool didnt work, bc it was always set to False
     # in the first call, before the actual graph is executed
-
 ################################################################################
     @property
     def I(self):
