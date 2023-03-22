@@ -78,7 +78,7 @@ def get_call_backs(config, model):
                                                                A_dense = A, \
                                                                B_dense = B)
 
-            model.save_weights(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_weights", overwrite=True, save_format="h5") #todo also try tf as save format
+            model.save_weights(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/weights.h5", overwrite=True, save_format="h5") #todo also try tf as save format
 
 
     class get_the_gradient(tf.keras.callbacks.Callback):

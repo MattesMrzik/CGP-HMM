@@ -149,10 +149,11 @@ int main(int argc, char *argv[]) {
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
-        ("seq_path", po::value<std::string>(), "input file name")
+        ("seqs_path", po::value<std::string>(), "input file name")
         ("i_path", po::value<std::string>(), "i file name")
         ("a_path", po::value<std::string>(), "a file name")
         ("b_path", po::value<std::string>(), "b file name")
+        ("out_path", po::value<std::string>(), "out file name")
         ("parallel_seqs", "calculate seqs in parallel instead of Ms")
 
         ("only_first_seq", "calculate only the first seq")
@@ -174,7 +175,7 @@ int main(int argc, char *argv[]) {
         nCodons = vm["nCodons"].as<int>();
     }
     else {
-        std::cout << "you must pass --c" << '\n';
+        std::cout << "you must pass -c" << '\n';
         return 1;
     }
 ////////////////////////////////////////////////////////////////////////////////
@@ -183,33 +184,35 @@ int main(int argc, char *argv[]) {
         nThreads = vm["nThreads"].as<int>();
     }
     else {
-        std::cout << "using only 1 thread. consider --j" << '\n';
-        return 1;
+        std::cout << "using only 1 thread. consider -j" << '\n';
     }
 ////////////////////////////////////////////////////////////////////////////////
     bool only_first_seq = vm.count("only_first_seq");
 ////////////////////////////////////////////////////////////////////////////////
-    std::string seq_path;
-    if (vm.count("seq_path")) seq_path = vm["seq_path"].as<std::string>();
-    else seq_path = "output/" + std::to_string(nCodons) + "codons/out.seqs." + std::to_string(nCodons) + "codons.fa.json";
+    std::string seqs_path;
+    if (vm.count("seqs_path")) seqs_path = vm["seqs_path"].as<std::string>();
+    else seqs_path = "output/" + std::to_string(nCodons) + "codons/seqs.fa.json";
 ////////////////////////////////////////////////////////////////////////////////
     std::string i_path;
     if (vm.count("i_path")) i_path = vm["i_path"].as<std::string>();
-    else i_path = "output/" + std::to_string(nCodons) + "codons/I." + std::to_string(nCodons) + "codons.csv.json";
+    else i_path = "output/" + std::to_string(nCodons) + "codons/after_fit_matrices/I.json";
 ////////////////////////////////////////////////////////////////////////////////
     std::string a_path;
     if (vm.count("a_path")) a_path = vm["a_path"].as<std::string>();
-    else a_path = "output/" + std::to_string(nCodons) + "codons/A." + std::to_string(nCodons) + "codons.csv.json";
+    else a_path = "output/" + std::to_string(nCodons) + "codons/after_fit_matrices/A.json";
 ////////////////////////////////////////////////////////////////////////////////
     std::string b_path;
     if (vm.count("b_path")) b_path = vm["b_path"].as<std::string>();
-    else b_path = "output/" + std::to_string(nCodons) + "codons/B." + std::to_string(nCodons) + "codons.csv.json";
-
+    else b_path = "output/" + std::to_string(nCodons) + "codons/after_fit_matrices/B.json";
 ////////////////////////////////////////////////////////////////////////////////
+    std::string out_path;
+    if (vm.count("out_path")) out_path = vm["out_path"].as<std::string>();
+    else out_path = "output/" + std::to_string(nCodons) + "codons/viterbi_cc_output.json";
+
 
     // [nSeqs, seq_len, emissions_alphabet_size]
-    std::ifstream f_seq(seq_path);
-    is_empty(f_seq, seq_path);
+    std::ifstream f_seq(seqs_path);
+    is_empty(f_seq, seqs_path);
     json seqs;
     f_seq >> seqs;
     std::vector<std::vector<std::vector<float>>> seqs_v = seqs.get<std::vector<std::vector<std::vector<float>>>>();
@@ -285,8 +288,6 @@ int main(int argc, char *argv[]) {
     //     std::cout << '\n';
     // }
 
-    std::string out_path = "output/" + std::to_string(nCodons) + "codons/viterbi_cc_output.json";
-    std::cout << "viterbi out path for json " << out_path << '\n';
     std::ofstream f_out(out_path);
     if (only_first_seq) {
         std::vector<std::vector<size_t>> first_seq_wrapped;

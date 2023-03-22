@@ -152,7 +152,7 @@ def eval_start_stop(config, viterbi):
              "stop_correct" : 0,\
              "stop_too_late" : 0}
 
-    start_stop = pd.read_csv(f"{config.src_path}/output/{config.nCodons}codons/out.start_stop_pos.{config.nCodons}codons.txt", sep=";", header=None)
+    start_stop = pd.read_csv(f"{config.src_path}/output/{config.nCodons}codons/start_stop_pos.txt", sep=";", header=None)
     stA_id = config.model.str_to_state_id("stA")
     stop1_id = config.model.str_to_state_id("stop1")
     for i, state_seq in enumerate(viterbi):
@@ -225,34 +225,38 @@ if __name__ == "__main__":
     import numpy as np
     config = Config("main_programm_dont_interfere")
 
-    I_out_path =f"{config.src_path}/output/{config.nCodons}codons/I.{config.nCodons}codons.csv"
-    A_out_path =f"{config.src_path}/output/{config.nCodons}codons/A.{config.nCodons}codons.csv"
-    B_out_path =f"{config.src_path}/output/{config.nCodons}codons/B.{config.nCodons}codons.csv"
+    dir_path = f"{config.src_path}/output/{config.nCodons}codons/after_fit_matrices"
+
+    I_path =f"{dir_path}/I.json"
+    A_path =f"{dir_path}/A.json"
+    B_path =f"{dir_path}/B.json"
 
     if not os.path.exists(A_out_path):
         # from cell.py
-        path = f"{config.src_path}/output/{config.nCodons}codons/after_fit_kernels/"
-        def read_weights_from_file(path):
-            with open(f"{path}/I_kernel.json") as file:
-                weights_I = np.array(json.load(file))
-            with open(f"{path}/A_kernel.json") as file:
-                weights_A = np.array(json.load(file))
-            with open(f"{path}/B_kernel.json") as file:
-                weights_B = np.array(json.load(file))
-            return weights_I, weights_A, weights_B
+        def read_weights_from_file(kernel_dir):
+            with open(f"{kernel_dir}/I_kernel.json") as file:
+                I_kernel = np.array(json.load(file))
+            with open(f"{kernel_dir}/A_kernel.json") as file:
+                A_kernel = np.array(json.load(file))
+            with open(f"{kernel_dir}/B_kernel.json") as file:
+                B_kernel = np.array(json.load(file))
+            return I_kernel, A_kernel, B_kernel
 
-        weights_I, weights_A, weights_B = read_weights_from_file(path)
+        kernel_dir = f"{config.src_kernel_dir}/output/{config.nCodons}codons/after_fit_kernels/"
+        I_kernel, A_kernel, B_kernel = read_weights_from_file(kernel_dir)
 
-        config.model.I_as_dense_to_json_file(I_out_path + ".json", weights_I)
-        config.model.A_as_dense_to_json_file(A_out_path + ".json", weights_A)
-        config.model.B_as_dense_to_json_file(B_out_path + ".json", weights_B)
+        config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
+        config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
+        config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)
 
-    if os.path.exists(f"{config.src_path}/output/{config.nCodons}codons/viterbi.json"):
+    if os.path.exists(f"{config.src_path}/output/{config.nCodons}codons/viterbi_cc_output.json"):
         print("viterbi already exists. rerun? y/n")
         while (x:=input()) not in ["y","n"]:
             pass
         if x == "y":
             run_cc_viterbi(config)
+    else:
+        run_cc_viterbi(config)
 
     viterbi_guess = load_viterbi_guess(config)
 

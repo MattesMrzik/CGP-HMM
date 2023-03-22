@@ -165,14 +165,15 @@ with open(f"{args.path}/output/{nCodons}codons/trueMSA.txt", "w") as file:
 run(f"head {args.path}/output/{nCodons}codons/trueMSA.txt")
 
 # fasta file
-with open(f"{args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa","w") as file:
+fasta_path = f"{args.path}/output/{nCodons}codons/seqs.fa"
+with open(fasta_path,"w") as file:
     # SeqIO.write(sequences, file, "fasta")
     for i, seq in enumerate(sequences):
         #                                 index of seq in batch
         file.write(">" + seq.id + "000" + str(i%32) + "\n")
         file.write(re.sub("iii|ddd", "", str(seq.seq)) + "\n")
 
-run(f"head {args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa")
+run(f"head {fasta_path}")
 
 # profile of coding seq
 # with open(f"{args.path}/output/{nCodons}codons/profile.{nCodons}codons.txt", "w") as file:
@@ -187,7 +188,8 @@ run(f"head {args.path}/output/{nCodons}codons/out.seqs.{nCodons}codons.fa")
 # run(f"head {args.path}/output/{nCodons}codons/profile.{nCodons}codons.txt")
 
 # start and stop positions
-with open(f"{args.path}/output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt","w") as file:
+start_stop_pos_path = f"{args.path}/output/{nCodons}codons/start_stop_pos.txt"
+with open(start_stop_pos_path,"w") as file:
     for seq in sequences:
         file.write(">" + seq.id)
         file.write(";")
@@ -200,4 +202,4 @@ with open(f"{args.path}/output/{nCodons}codons/out.start_stop_pos.{nCodons}codon
 # run(f"head output/{nCodons}codons/out.seqs.{nCodons}codons.align.fa")
 
 
-run(f"head {args.path}/output/{nCodons}codons/out.start_stop_pos.{nCodons}codons.txt")
+# run(f"head {start_stop_pos_path}")

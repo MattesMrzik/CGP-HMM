@@ -99,7 +99,7 @@ class Config():
         self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.AB}_call_type.log"
         if not self.fasta_path:
             self.manual_passed_fasta = False
-            self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
+            self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/seqs.fa"
         else:
             self.manual_passed_fasta = True
             self.generate_new_seqs = False
