@@ -8,8 +8,11 @@ import time
 def run_cc_viterbi(config):
     import multiprocessing
     start = time.perf_counter()
-    print("starting viterbi")
-    os.system(f"{config.src_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1}")
+    seq_path = f"--seq_path {config.fasta_path}.json" if config.manual_passed_fasta else ""
+    only_first_seq = f"--only_first_seq" if config.only_first_seq else ""
+    command = f"{config.src_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq}"
+    print("starting", command)
+    os.system(command)
     print("done viterbi. it took ", time.perf_counter() - start)
 
 def get_true_state_seqs_from_true_MSA(config):
@@ -126,6 +129,11 @@ def write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi):
                     out.write(msa_seq_str) # ----TTATGTTCTAATCGGTT from useMSAgen trueMSA
                     add_one_terminal_symbol = True
                     one = 1 if add_one_terminal_symbol else 0
+                    try:
+                        x = viterbi[seq_id]
+                    except:
+                        print("for this seq_id there is no viterbi guess")
+                        break
                     assert len(viterbi[seq_id]) - one == len(true_state_seqs[seq_id]), f"length if viterbi {viterbi[seq_id]} and true state seq {true_state_seqs[seq_id]} differ, check if parallel computing works as intended"
                     out.write(expand_nice_states_str_to_fit_msa(state_seq_to_nice_str(true_state_seqs[seq_id]), msa_seq_str))
                     out.write(expand_nice_states_str_to_fit_msa(state_seq_to_nice_str(viterbi[seq_id]), msa_seq_str))

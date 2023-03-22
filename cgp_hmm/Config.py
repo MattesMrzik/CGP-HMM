@@ -83,6 +83,9 @@ class Config():
             assert not self.dont_generate_new_seqs, "using fasta path, so nothig should get generated"
             assert not self.use_simple_seq_gen, "using fasta path, so nothig should get generated"
 
+        if self.only_first_seq:
+            assert self.viterbi, "if you pass only_first_seq you need to run viterbi"
+
     def add_attribtes(self):
         import tensorflow as tf
 
@@ -95,6 +98,7 @@ class Config():
 
         self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.AB}_call_type.log"
         if not self.fasta_path:
+            self.manual_passed_fasta = False
             self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/out.seqs.{self.nCodons}codons.fa"
         else:
             self.manual_passed_fasta = True
@@ -238,7 +242,8 @@ class Config():
         self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [SDG]')
         self.add_arg_main('--epochs', default = 2, type = int, help = 'how many epochs [2]')
         self.add_arg_main('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
-        self.add_arg_main('--viterbi', action='store_true', help ="viterbi")
+        self.add_arg_main('--viterbi', action='store_true', help = 'viterbi')
+        self.add_arg_main('--only_first_seq', action = 'store_true', help = 'run viterbi only for the first seq')
         self.add_arg_main('--intron_model', action='store_true', help = 'use my model that includes introns')
         self.add_arg_main('--fasta_path', help = 'path to fasta file where the traning seqs are')
 

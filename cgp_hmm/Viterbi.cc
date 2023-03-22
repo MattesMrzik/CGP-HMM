@@ -288,7 +288,14 @@ int main(int argc, char *argv[]) {
     std::string out_path = "output/" + std::to_string(nCodons) + "codons/viterbi_cc_output.json";
     std::cout << "viterbi out path for json " << out_path << '\n';
     std::ofstream f_out(out_path);
-    f_out << json(state_seqs);
+    if (only_first_seq) {
+        std::vector<std::vector<size_t>> first_seq_wrapped;
+        first_seq_wrapped.push_back(state_seqs[0]);
+        f_out << json(first_seq_wrapped);
+    }
+    else {
+        f_out << json(state_seqs);
+    }
     f_out.close();
 
 }
