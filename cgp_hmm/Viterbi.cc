@@ -190,7 +190,7 @@ int main(int argc, char *argv[]) {
     bool only_first_seq = vm.count("only_first_seq");
 ////////////////////////////////////////////////////////////////////////////////
     std::string seq_path;
-    if (vm.count("seq_path")) seq_path = vm["input-file"].as<std::string>();
+    if (vm.count("seq_path")) seq_path = vm["seq_path"].as<std::string>();
     else seq_path = "output/" + std::to_string(nCodons) + "codons/out.seqs." + std::to_string(nCodons) + "codons.fa.json";
 ////////////////////////////////////////////////////////////////////////////////
     std::string i_path;

@@ -33,7 +33,7 @@ import time
 #     return seqs
 
 def convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs):
-    return seqs_out = list(map(lambda l: [[float(x) for x in i.split("_")] for i in l], seqs))
+    return list(map(lambda l: [[float(x) for x in i.split("_")] for i in l], seqs))
 
 def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False):
     start = time.perf_counter()
