@@ -52,7 +52,7 @@ def make_dataset(config):
     run_id = randint(0,100)
     append_time_ram_stamp_to_file(f"Training.make_dataset() start {run_id}", config.bench_path, start)
 
-    if config.generate_new_seqs:
+    if config.generate_new_seqs and not config.manual_passed_fasta:
         if config.use_simple_seq_gen:
             from generate_seqs import generate_simple
             generate_simple()

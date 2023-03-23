@@ -337,6 +337,16 @@ def create_exon_data_sets(filtered_internal_exons):
                 # if strand is -, convert to reverse_complement
                 for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
                     assert i == 0, f"found more than one seq in fasta file {out_fa_path}"
+
+                    # write coordinates in genome to seq description
+                    with open(out_fa_path, "w") as out_file:
+                        start_in_genome = left_stop
+                        stop_in_genome = left_stop + len_of_seq_substring_in_single_species
+                        assert len(record.seq) == stop_in_genome - start_in_genome, "non stripped: actual seq len and calculated coordinate len differ"
+                        record.description = f"{left_stop}, {left_stop + len_of_seq_substring_in_single_species}"
+                        SeqIO.write(record, out_file, "fasta")
+
+                    # reverse complement if on reverse strand
                     if l_m_r["left"]["strand"] == "-":
                         reverse_seq = record.seq.reverse_complement()
                         record.seq = reverse_seq
@@ -348,7 +358,13 @@ def create_exon_data_sets(filtered_internal_exons):
                 for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
                     stripped_fa_path = re.sub("non_stripped","stripped",out_fa_path)
                     with open(stripped_fa_path, "w") as stripped_seq_file:
-                        record.seq = record.seq[int(args.min_left_neighbour_exon_len /2) : - int(args.min_right_neighbour_exon_len/2)]
+                        left_strip_len = int(args.min_left_neighbour_exon_len /2)
+                        right_strip_len = int(args.min_right_neighbour_exon_len/2)
+                        record.seq = record.seq[left_strip_len : - right_strip_len]
+                        start_in_genome = left_stop + left_strip_len
+                        stop_in_genome = start_in_genome + len_of_seq_substring_in_single_species - left_strip_len - right_strip_len
+                        assert stop_in_genome - start_in_genome == len(record.seq), "stripped: actual seq len and calculated coordinate len differ"
+                        record.description = f"{start_in_genome}, {stop_in_genome}"
                         SeqIO.write(record, stripped_seq_file, "fasta")
 
         # gather all usable fasta seqs in a single file

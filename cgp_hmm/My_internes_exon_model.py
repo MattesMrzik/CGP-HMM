@@ -747,10 +747,8 @@ class My_Model(Model):
             B = self.B(weights) if self.B_is_dense else tf.sparse.to_dense(self.B(weights))
             json.dump(B.numpy().tolist(), out_file)
 
-
 if __name__ == '__main__':
     from Config import Config
-    config = Config("main_programm")
-    f = My_Model(config)
+    config = Config("main_programm_dont_interfere")
+    model = My_Model(config)
     import numpy as np
-    print(f.A(np.ones(13)))

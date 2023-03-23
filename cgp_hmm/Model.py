@@ -65,6 +65,24 @@ class Model(ABC):
     def find_indices_of_zeros():
         pass
 
+    def json_state_seq_to_description(self, path):
+        try:
+            file = open(path)
+        except:
+            print("could not open", file)
+        try:
+            data = json.load(file)
+        except:
+            print("json could not parse", file)
+        if type(data[0]) is list: #[[0,1,2],[0,0,1],[1,2,3,4,5]]
+            for seq_id, seq in enumerate(data):
+                print("seq_id", seq_id)
+                for nth_state, state in enumerate(seq):
+                    print(nth_state, self.state_id_to_str(state))
+        else: # [0,0,0,01,2,3,4,4,4,4]
+            for nth_state, state in enumerate(data):
+                print(nth_state, self.state_id_to_str(state))
+
     def export_to_dot_and_png(self, A_weights, B_weights, out_path = "this is still hard coded"):
         # TODO: add I parameters???
         n_labels = self.number_of_emissions ** (self.config.order + 1)
