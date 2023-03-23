@@ -10,6 +10,7 @@
 #include <boost/program_options.hpp>
 #include <future>
 #include <thread>
+#include <chrono>
 using json = nlohmann::json;
 
 std::tuple<float, float> get_M_and_emission_prob_for_q(const std::vector<std::vector<float>> & A,
@@ -43,7 +44,7 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
                             const std::vector<std::vector<float>> & A,
                             const std::vector<std::vector<float>> & B,
                             const std::vector<std::vector<float>> & Y,
-                            int id, size_t nThreads) {
+                            int id, size_t nThreads, bool only_first) {
 
     // TODO maybe also pass the results vector x by ref
     size_t nStates = A.size();
@@ -55,6 +56,13 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
     size_t n = Y.size();
     size_t emission_size = B.size();
 
+
+    std::ofstream eta_file;
+    if (only_first) {
+        eta_file.open("viterbi_eta.txt");
+        eta_file << "start" << "\n";
+    }
+
     // i, state
     std::vector<std::vector<float>> dp_g;
     std::vector<std::vector<size_t>> dp_g_pointer_to_max;
@@ -63,6 +71,7 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
     std::vector<size_t> icolumn_max(nStates);
     // for different states this could be split across multiple jobs
 
+    // O(|Q| * |E|) , normal viterbi doenst have E, but i have multi hot
     for (size_t state = 0; state < nStates; state++) {
         float emission_prob = 0;
         for (size_t emission_id = 0; emission_id < emission_size; emission_id++) {
@@ -78,7 +87,19 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
     // dp_g_pointer_to_max.push_back(icolumn_max);
     // icolumn_max.clear();
 
+    if (only_first) {
+        eta_file << "init column done" << "\n";
+    }
+
+    int bar_size = 50;
+    // O (n * |Q| * (|Q| + |E|)/nThreads)
+    auto start = std::chrono::high_resolution_clock::now();
     for (size_t i = 1; i < n; i++) {
+        if (nThreads != 1) { // bc if it one, then seqs might get computed in parallel which would mess with the print
+            std::string done(i*bar_size/n, '#');
+            std::string not_done(bar_size - i*bar_size/n, ' ');
+            std::cout << "[" << done << not_done << "]" << '\r';
+        }
         for (size_t q = 0; q < nStates;   ) {
             float M, emission_prob;
             if (nThreads == 1) {
@@ -101,11 +122,28 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
         }
         dp_g.push_back(icolumn);
         icolumn.clear();
+
+        if (only_first) {
+            auto stop = std::chrono::high_resolution_clock::now();
+            auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
+            auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
+            auto eta = duration.count() * 1.0d / i * (n - i);
+            auto eta_seconds = eta * 1.0d/1000000000;
+            auto eta_minutes = eta_seconds/60;
+
+            eta_file << i<< "/" << n << ",\teta in seconds =  " << eta * 1.0d/1000000000 << ",\teta in minutes = " << eta_minutes << "\n";
+        }
+
+
+        // auto duration_sec = duration.count()/1000;
         // dp_g_pointer_to_max.push_back(icolumn_max);
         // icolumn_max.clear();
     }
 
+
     // backtracking
+
+    // O(|Q|)
     std::vector<size_t> x;
     size_t last_state = 0;
     float max_prob_last_state = std::log(0);
@@ -117,6 +155,8 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
     }
     x.push_back(last_state);
 
+
+    // O(n * |Q|)
     int n_as_int = static_cast<int>(n);
     for (int i = n_as_int-2; i != -1; i--) {
         int max_state = 0;
@@ -131,6 +171,9 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
         x.push_back(max_state);
     }
     std::reverse(x.begin(), x.end());
+    std::string all_done(bar_size, '#');
+    std::cout << "[" << all_done << "]" << '\r';
+    std::cout << '\n';
     return x;
 }
 
@@ -261,7 +304,7 @@ int main(int argc, char *argv[]) {
                 now_using = seqs.size() - low;
             }
             for (size_t j = 0; j < now_using; j++) {
-                threads.push_back(std::async(std::launch::async, viterbi, i_v,a_v,b_v, seqs_v[low + j], low + j, 1));
+                threads.push_back(std::async(std::launch::async, viterbi, i_v,a_v,b_v, seqs_v[low + j], low + j, 1, only_first_seq));
             }
             for (size_t j = 0; j < now_using; j++) {
                 auto result = threads[j].get();
@@ -275,7 +318,7 @@ int main(int argc, char *argv[]) {
                 std::cout << "calculated only first seq. check whether the result has the same len as desired fasta len" << '\n';
                 break;
             }
-            state_seqs[seq_id] = viterbi(i_v, a_v, b_v, seqs_v[seq_id], seq_id, nThreads);
+            state_seqs[seq_id] = viterbi(i_v, a_v, b_v, seqs_v[seq_id], seq_id, nThreads, only_first_seq);
             std::cout << "done with seq " << seq_id << '\n';
         }
     }
