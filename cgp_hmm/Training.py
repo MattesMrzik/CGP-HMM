@@ -132,9 +132,18 @@ def make_dataset(config):
     dataset = dataset.repeat()
 
     if config.viterbi:
-        seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
-        with open(f"{config.fasta_path}.json", "w") as out_file:
-            json.dump(seqs_out, out_file)
+        seqs_json_path = f"{config.fasta_path}.json"
+        export_seqs_json = True
+        if os.path.exists(seqs_json_path):
+            if config.manual_passed_fasta:
+                export_seqs_json = False
+            # not manual passed fasta
+            if config.dont_generate_new_seqs:
+                export_seqs_json = False
+        if export_seqs_json:
+            seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
+            with open(seqs_json_path, "w") as out_file:
+                json.dump(seqs_out, out_file)
 
     append_time_ram_stamp_to_file(f"Training.make_dataset() end   {run_id}", config.bench_path, start)
     return dataset, seqs

@@ -180,10 +180,12 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
 
 void is_empty(std::ifstream& pFile, std::string & s) {
     if (!pFile) {
-        std::cout << s << " is not open" << '\n';
+        std::cerr << s << " is not open" << '\n';
+        exit (1);
     }
     if (pFile.peek() == std::ifstream::traits_type::eof()) {
-        std::cout << s << " is empty" << '\n';
+        std::cerr << s << " is empty" << '\n';
+        exit (1);
     }
 }
 

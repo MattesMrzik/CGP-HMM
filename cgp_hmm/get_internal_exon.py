@@ -239,6 +239,18 @@ def create_exon_data_sets(filtered_internal_exons):
                 bed_file.write("0" + "\t")
                 bed_file.write(exon["row"]["strand"] + "\n")
 
+                # TOTOTOTOTOTOTOTOTOTO
+                # TOTOTOTOTOTOTOTOTOTO
+                # TOTOTOTOTOTOTOTOTOTO
+                # TOTOTOTOTOTOTOTOTOTO
+                # TOTOTOTOTOTOTOTOTOTO
+                # TOTOTOTOTOTOTOTOTOTO
+                # TOTOTOTOTOTOTOTOTOTO
+                # TOTOTOTOTOTOTOTOTOTO
+                # TOTOTOTOTOTOTOTOTOTO
+                # TOTOTOTOTOTOTOTOTOTO
+                # hier auch noch den anfang und das ende des middle exons liften und vielleicht mal eng um das middle exon die fasta holen
+
         for single_species in all_species:
             bed_file_path = f"{bed_output_dir}/{single_species}.bed"
             if not args.use_old_bed:
