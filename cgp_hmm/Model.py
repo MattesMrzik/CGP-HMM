@@ -110,8 +110,7 @@ class Model(ABC):
                 description = self.state_id_to_str(state)
                 l.append((state,description))
 
-        coords = json.loads(re.search("{.*}", human_fasta.description).group(1))
-
+        coords = json.loads(re.search("(){.*})", human_fasta.description).group(1))
 
 ################################################################################
         viterbi_as_fasta = ""
@@ -131,11 +130,20 @@ class Model(ABC):
             else:
                 viterbi_as_fasta += "-"
 
+        # removing terminal
+        viterbi_as_fasta = viterbi_as_fasta[:-1]
+
         viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
 ################################################################################
-        true_seq = "l" * (coords["exon_start_in_human_genome_cd_strand"] - coords["seq_start_in_genome_cd_strand"])
-        true_seq += "E" * (coords["exon_stop_in_human_genome_cd_strand"] - coords["exon_start_in_human_genome_cd_strand"])
-        true_seq += "r" * (coords["seq_stop_in_genome_cd_strand"] - coords["exon_stop_in_human_genome_cd_strand"])
+        on_reverse_strand = coords["exon_start_in_human_genome_cd_strand"] != coords["exon_start_in_human_genome_+_strand"]
+        if not on_reverse_strand:
+            true_seq = "l" * (coords["seq_start_in_genome_cd_strand"] - coords["exon_start_in_human_genome_cd_strand"])
+            true_seq += "E" * (coords["exon_start_in_human_genome_cd_strand"] - coords["exon_stop_in_human_genome_cd_strand"])
+            true_seq += "r" * (coords["exon_stop_in_human_genome_cd_strand"] - coords["seq_stop_in_genome_cd_strand"])
+        else:
+            true_seq = "l" * (coords["exon_start_in_human_genome_+_strand"] - coords["seq_start_in_genome_+_strand"])
+            true_seq += "E" * (coords["exon_stop_in_human_genome_+_strand"] - coords["exon_start_in_human_genome_+_strand"])
+            true_seq += "r" * (coords["seq_stop_in_genome_+_strand"] - coords["exon_stop_in_human_genome_+_strand"])
         true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
 ################################################################################
         len_of_line_in_clw = 50
@@ -146,23 +154,24 @@ class Model(ABC):
                 numerate_line += "|"
             else:
                 numerate_line += " "
+
         numerate_line_record =  SeqRecord(seq = Seq(numerate_line), id = "numerate_line")
 ################################################################################
-        on_reverse_strand = coords["exon_start_in_human_genome_cd_strand"] != coords["exon_start_in_human_genome_+_strand"]
         coords_fasta = ""
-        if not on_reverse_strand:
-            for line_id in range(len(viterbi_as_fasta)//len_of_line_in_clw)
+        for line_id in range(len(viterbi_as_fasta)//len_of_line_in_clw):
+            if not on_reverse_strand:
                 in_fasta = line_id*len_of_line_in_clw
-                coords_line = f"in this fasta {in_fasta}, in genome {in_fasta + coords["seq_start_in_genome_+_strand"]}"
-            # TODO print also for last line which might not be complete
-        else:
-            for line_id in range(len(viterbi_as_fasta)//len_of_line_in_clw)
-                in_fasta = line_id*len_of_line_in_clw
-                coords_line = f"in this fasta {in_fasta}, in genome { coords["seq_stop_in_genome_+_strand"]- in_fasta}"
+                if not on_reverse_strand:
+                    coords_line = f"in this fasta {in_fasta}, in genome {in_fasta + coords['seq_start_in_genome_+_strand']}"
+                else:
+                    coords_line = f"in this fasta {in_fasta}, in genome {coords['seq_start_in_genome_cd_strand']- in_fasta}"
+                coords_fasta += coords_line + "." * len_of_line_in_clw - len(coords_line)
 
+            # TODO print also for last line which might not be complete
+        coords_fasta_record = SeqRecord(seq = Seq(coords_fasta), id = "coords_fasta")
 
 ################################################################################
-        records = [coords_fasta, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
+        records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
         alignment = MultipleSeqAlignment(records)
         with open("alignment.clw", "w") as output_handle:
             AlignIO.write(alignment, output_handle, "clustal")
