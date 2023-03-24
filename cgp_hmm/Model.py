@@ -70,7 +70,11 @@ class Model(ABC):
         # assumes viterbi only contains prediction for human
 
         from Bio import SeqIO, AlignIO
+        from Bio.Align import MultipleSeqAlignment
+        from Bio.Seq import Seq
+        from Bio.SeqRecord import SeqRecord
         import re
+
         l = []
         try:
             file = open(viterbi_path)
@@ -106,11 +110,10 @@ class Model(ABC):
                 description = self.state_id_to_str(state)
                 l.append((state,description))
 
-        coords = json.loads(human_fasta.description)
-        from Bio.Seq import Seq
-        from Bio.SeqRecord import SeqRecord
+        coords = json.loads(re.search("{.*}", human_fasta.description).group(1))
 
-        # Create a DNA sequence
+
+################################################################################
         viterbi_as_fasta = ""
         for state_id, description in l[0]:
             if description == "left_intron":
@@ -128,16 +131,41 @@ class Model(ABC):
             else:
                 viterbi_as_fasta += "-"
 
-        viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta, id = "viterbi_guess")
+        viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
+################################################################################
+        true_seq = "l" * (coords["exon_start_in_human_genome_cd_strand"] - coords["seq_start_in_genome_cd_strand"])
+        true_seq += "E" * (coords["exon_stop_in_human_genome_cd_strand"] - coords["exon_start_in_human_genome_cd_strand"])
+        true_seq += "r" * (coords["seq_stop_in_genome_cd_strand"] - coords["exon_stop_in_human_genome_cd_strand"])
+        true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
+################################################################################
+        len_of_line_in_clw = 50
+        numerate_line = ""
+        for i in range(len(viterbi_as_fasta)):
+            i_line = i % len_of_line_in_clw
+            if i_line % 10 == 0:
+                numerate_line += "|"
+            else:
+                numerate_line += " "
+        numerate_line_record =  SeqRecord(seq = Seq(numerate_line), id = "numerate_line")
+################################################################################
+        on_reverse_strand = coords["exon_start_in_human_genome_cd_strand"] != coords["exon_start_in_human_genome_+_strand"]
+        coords_fasta = ""
+        if not on_reverse_strand:
+            for line_id in range(len(viterbi_as_fasta)//len_of_line_in_clw)
+                in_fasta = line_id*len_of_line_in_clw
+                coords_line = f"in this fasta {in_fasta}, in genome {in_fasta + coords["seq_start_in_genome_+_strand"]}"
+            # TODO print also for last line which might not be complete
+        else:
+            for line_id in range(len(viterbi_as_fasta)//len_of_line_in_clw)
+                in_fasta = line_id*len_of_line_in_clw
+                coords_line = f"in this fasta {in_fasta}, in genome { coords["seq_stop_in_genome_+_strand"]- in_fasta}"
 
-        true_seq = "l" * (coords["exon_start_in_human_genome"] - coords["seq_start_in_genome"])
-        true_seq += "e" * (coords["exon_end_in_human_genome"] - coords["exon_start_in_human_genome"])
-        true_seq += "r" * (coords["stop_in_genome"] - coords["exon_end_in_human_genome"])
 
-        true_seq_record = SeqRecord(seq = Seq(true_seq, id = "true_seq"))
-
+################################################################################
+        records = [coords_fasta, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
+        alignment = MultipleSeqAlignment(records)
         with open("alignment.clw", "w") as output_handle:
-            AlignIO.write([human_fasta, true_seq_record, viterbi_record], output_handle, "clustal")
+            AlignIO.write(alignment, output_handle, "clustal")
 
         return l
 
