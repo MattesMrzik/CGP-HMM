@@ -65,23 +65,81 @@ class Model(ABC):
     def find_indices_of_zeros():
         pass
 
-    def json_state_seq_to_description(self, path):
+    def json_state_seq_to_description(self, viterbi_path, fasta_path):
+
+        # assumes viterbi only contains prediction for human
+
+        from Bio import SeqIO, AlignIO
+        import re
+        l = []
         try:
-            file = open(path)
+            file = open(viterbi_path)
         except:
             print("could not open", file)
+            return
         try:
-            data = json.load(file)
+            json_data = json.load(file)
         except:
             print("json could not parse", file)
-        if type(data[0]) is list: #[[0,1,2],[0,0,1],[1,2,3,4,5]]
-            for seq_id, seq in enumerate(data):
-                print("seq_id", seq_id)
+            return
+
+        try:
+            fasta_data = SeqIO.parse(fasta_path, "fasta")
+            for record in fasta_data:
+                if re.search("Homo_sapiens", record.id):
+                    human_fasta = record
+            # if nothing is found this will call except block
+            human_fasta.id
+        except:
+            print("seqIO could not parse", file)
+            return
+
+        if type(json_data[0]) is list: #[[0,1,2],[0,0,1],[1,2,3,4,5]]
+            description_seq = []
+            for seq_id, seq in enumerate(json_data):
                 for nth_state, state in enumerate(seq):
-                    print(nth_state, self.state_id_to_str(state))
+                    description = self.state_id_to_str(state)
+                    description_seq.append((state,description))
+                l.append(description_seq)
         else: # [0,0,0,01,2,3,4,4,4,4]
-            for nth_state, state in enumerate(data):
-                print(nth_state, self.state_id_to_str(state))
+            for nth_state, state in enumerate(json_data):
+                description = self.state_id_to_str(state)
+                l.append((state,description))
+
+        coords = json.loads(human_fasta.description)
+        from Bio.Seq import Seq
+        from Bio.SeqRecord import SeqRecord
+
+        # Create a DNA sequence
+        viterbi_as_fasta = ""
+        for state_id, description in l[0]:
+            if description == "left_intron":
+                viterbi_as_fasta += "l"
+            elif description == "right_intron":
+                viterbi_as_fasta += "r"
+            elif description == "A":
+                viterbi_as_fasta += "A"
+            elif description == "AG":
+                viterbi_as_fasta += "G"
+            elif description == "G":
+                viterbi_as_fasta += "G"
+            elif description == "GT":
+                viterbi_as_fasta += "T"
+            else:
+                viterbi_as_fasta += "-"
+
+        viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta, id = "viterbi_guess")
+
+        true_seq = "l" * (coords["exon_start_in_human_genome"] - coords["seq_start_in_genome"])
+        true_seq += "e" * (coords["exon_end_in_human_genome"] - coords["exon_start_in_human_genome"])
+        true_seq += "r" * (coords["stop_in_genome"] - coords["exon_end_in_human_genome"])
+
+        true_seq_record = SeqRecord(seq = Seq(true_seq, id = "true_seq"))
+
+        with open("alignment.clw", "w") as output_handle:
+            AlignIO.write([human_fasta, true_seq_record, viterbi_record], output_handle, "clustal")
+
+        return l
 
     def export_to_dot_and_png(self, A_weights, B_weights, out_path = "this is still hard coded"):
         # TODO: add I parameters???

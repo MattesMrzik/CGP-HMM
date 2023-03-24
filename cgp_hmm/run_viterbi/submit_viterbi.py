@@ -40,7 +40,7 @@ with open(submission_file_name, "w") as file:
     file.write("#SBATCH --mail-type=end\n")
     file.write("#SBATCH --mail-type=end\n")
     # oder ist anzahl der processe liever mpi, oder mpi mal n?
-    file.write(f"/home/s-mamrzi/CGP-HMM/cgp_hmm/Viterbi -c {args.c} -j {args.n} --seqs_path {args.seqs_path} --i_path {args.i_path} --a_path {args.a_path} --b_path {args.b_path} --out_path {args.out_path}\n")
+    file.write(f"/home/s-mamrzi/CGP-HMM/cgp_hmm/Viterbi -c {args.c} -j {args.n} --seqs_path {args.seqs_path} --i_path {args.i_path} --a_path {args.a_path} --b_path {args.b_path} --out_path {args.out_path} {'--only_first_seq' if args.only_first_seq else ''} \n")
     # file.write("touch job_done")
 
 os.system("echo -------------------------------")

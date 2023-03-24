@@ -343,7 +343,11 @@ def create_exon_data_sets(filtered_internal_exons):
                         start_in_genome = left_stop
                         stop_in_genome = left_stop + len_of_seq_substring_in_single_species
                         assert len(record.seq) == stop_in_genome - start_in_genome, "non stripped: actual seq len and calculated coordinate len differ"
-                        record.description = f"{left_stop}, {left_stop + len_of_seq_substring_in_single_species}"
+                        description = {"seq_start_in_genome" : left_stop, \
+                                       "seq_stop_in_genome" : left_stop + len_of_seq_substring_in_single_species, \
+                                       "exon_start_in_human_genome": exon['start_in_genome'], \
+                                       "exon_end_in_human_genome" : exon['stop_in_genome']}
+                        record.description = json.dumps(description)
                         SeqIO.write(record, out_file, "fasta")
 
                     # reverse complement if on reverse strand
@@ -364,7 +368,11 @@ def create_exon_data_sets(filtered_internal_exons):
                         start_in_genome = left_stop + left_strip_len
                         stop_in_genome = start_in_genome + len_of_seq_substring_in_single_species - left_strip_len - right_strip_len
                         assert stop_in_genome - start_in_genome == len(record.seq), "stripped: actual seq len and calculated coordinate len differ"
-                        record.description = f"{start_in_genome}, {stop_in_genome}"
+                        description = {"seq_start_in_genome" : start_in_genome, \
+                                       "seq_stop_in_genome" : stop_in_genome, \
+                                       "exon_start_in_human_genome": exon['start_in_genome'], \
+                                       "exon_end_in_human_genome" : exon['stop_in_genome']}
+                        record.description = json.dumps(description)
                         SeqIO.write(record, stripped_seq_file, "fasta")
 
         # gather all usable fasta seqs in a single file
