@@ -9,9 +9,9 @@ from Bio import SeqIO
 import math
 
 parser = argparse.ArgumentParser(description='Config module description')
-parser.add_argument('--hg38', required = True, help = 'path to hg38-refseq.bed')
-parser.add_argument('--hal', required = True, help = 'path to the .hal file')
-parser.add_argument('--species', required = True, help = 'path to species file, which are the target of liftover from human')
+parser.add_argument('--hg38', help = 'path to hg38-refseq.bed')
+parser.add_argument('--hal', help = 'path to the .hal file')
+parser.add_argument('--species', help = 'path to species file, which are the target of liftover from human')
 parser.add_argument('--min_left_neighbour_exon_len', type = int, default = 20, help = 'min_left_neighbour_exon_len')
 parser.add_argument('--min_left_neighbour_intron_len', type = int, default = 20, help = 'min_left_neighbour_intron_len')
 parser.add_argument('--min_right_neighbour_exon_len', type = int, default = 20, help = 'min_right_neighbour_exon_len')
@@ -26,6 +26,7 @@ parser.add_argument('-v', action = 'store_true', help = 'verbose')
 parser.add_argument('--use_old_bed', action = 'store_true', help = 'use the old bed files and dont calculate new ones')
 parser.add_argument('--use_old_fasta', action = 'store_true', help = 'use the old fasta files and dont calculate new ones')
 parser.add_argument('--discard_multiple_bed_hits', action = 'store_true', help = 'sometimes, halLiftover maps a single coordinate to 2 or more, if this flag is passed, the species is discarded, otherwise the largest of the hits is selected')
+parser.add_argument('--stats_table', nargs = '?', const = True, help ='instead of getting all the exon data, get stats table of existing data. Specified path, or pass hg38, hal and species and same n')
 args = parser.parse_args()
 
 assert args.len_of_left_to_be_lifted < args.min_left_neighbour_exon_len, "len_of_left_to_be_lifted > min_left_neighbour_exon_len"
@@ -33,39 +34,46 @@ assert args.len_of_right_to_be_lifted < args.min_right_neighbour_exon_len, "len_
 assert args.len_of_exon_middle_to_be_lifted < args.min_exon_len, "len_of_exon_middle_to_be_lifted > min_exon_len"
 # TODO im using the above also for the start and end of th middle exon, not only the middle of the middle/current exon
 
+if not args.stats_table:
+    assert args.hg38 and args.hal and args.species, "you must pass path to hg38, hal and species.lst"
+    lengths_config_str = str(args.min_left_neighbour_exon_len)
+    lengths_config_str += "_" + str(args.len_of_left_to_be_lifted)
+    lengths_config_str += "_" + str(args.min_left_neighbour_intron_len)
+    lengths_config_str += "_" + str(args.min_exon_len)
+    lengths_config_str += "_" + str(args.len_of_exon_middle_to_be_lifted)
+    lengths_config_str += "_" + str(args.min_right_neighbour_intron_len)
+    lengths_config_str += "_" + str(args.len_of_right_to_be_lifted)
+    lengths_config_str += "_" + str(args.min_right_neighbour_exon_len)
 
-lengths_config_str = str(args.min_left_neighbour_exon_len)
-lengths_config_str += "_" + str(args.len_of_left_to_be_lifted)
-lengths_config_str += "_" + str(args.min_left_neighbour_intron_len)
-lengths_config_str += "_" + str(args.min_exon_len)
-lengths_config_str += "_" + str(args.len_of_exon_middle_to_be_lifted)
-lengths_config_str += "_" + str(args.min_right_neighbour_intron_len)
-lengths_config_str += "_" + str(args.len_of_right_to_be_lifted)
-lengths_config_str += "_" + str(args.min_right_neighbour_exon_len)
+    # dirs
+    output_dir = f"{args.path}/out_{'' if not args.n else str(args.n) + 'Exons_'}{args.species.split('/')[-1]}_{lengths_config_str}_{args.hal.split('/')[-1]}"
+    if not os.path.exists(output_dir):
+        os.system(f"mkdir -p {output_dir}")
 
-# dirs
-output_dir = f"{args.path}/out_{'' if not args.n else str(args.n) + 'Exons_'}{args.species.split('/')[-1]}_{lengths_config_str}_{args.hal.split('/')[-1]}"
-if not os.path.exists(output_dir):
-    os.system(f"mkdir -p {output_dir}")
-
-# files
-json_path = f"{output_dir}/filtered_internal_exons.json"
+        # files
+        json_path = f"{output_dir}/filtered_internal_exons.json"
 
 
-args.overwrite = False
-if os.path.exists(json_path):
-        print("There exists a file with previously exported filtered_internal_exons with same config")
-        print("do you want to overwrite it? [y/n] ", end = "")
-        while True:
-            x = input().strip()
-            if x == "y":
-                args.overwrite = True
-                break
-            elif x == "n":
-                args.overwrite = False
-                break
-            else:
-                print("your answer must be either y or n")
+        args.overwrite = False
+        if os.path.exists(json_path):
+            print("There exists a file with previously exported filtered_internal_exons with same config")
+            print("do you want to overwrite it? [y/n] ", end = "")
+            while True:
+                x = input().strip()
+                if x == "y":
+                    args.overwrite = True
+                    break
+                elif x == "n":
+                    args.overwrite = False
+                    break
+                else:
+                    print("your answer must be either y or n")
+else:
+    if not os.path.isdir(args.stats_table):
+        assert args.hg38 and args.hal and args.species, "you must pass path to hg38, hal and species.lst or path to the dir of which the stats table should get created"
+
+
+
 
 def load_hg38_refseq_bed():
     start = time.perf_counter()
@@ -198,9 +206,6 @@ def get_to_be_lifted_exons(hg38_refseq_bed):
     if args.n:
         filtered_internal_exons = filtered_internal_exons[:args.n]
     return filtered_internal_exons
-
-hg38_refseq_bed = load_hg38_refseq_bed()
-filtered_internal_exons = get_to_be_lifted_exons(hg38_refseq_bed)
 
 def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterbi_path = None, out_dir_path = "."):
     # TODO: maybe also implement model.state_id_to_description_single_letter()
@@ -543,7 +548,8 @@ def create_exon_data_sets(filtered_internal_exons):
                         SeqIO.write(record, stripped_seq_file, "fasta")
 
             # create alignment of fasta and true splice sites
-            fasta_true_state_seq_and_optional_viterbi_guess_alignment(stripped_fa_path, out_dir_path = exon_dir)
+            if single_species == "Homo_sapiens":
+                fasta_true_state_seq_and_optional_viterbi_guess_alignment(stripped_fa_path, out_dir_path = exon_dir)
 
 
 
@@ -558,7 +564,54 @@ def create_exon_data_sets(filtered_internal_exons):
                 for seq_record in SeqIO.parse(input_file, "fasta"):
                     SeqIO.write(seq_record, out, "fasta")
 
+def make_stats_table():
+    import pandas as pd
+    import numpy as np
 
-create_exon_data_sets(filtered_internal_exons)
+    df = pd.DataFrame(columns = ["path", "exon", "exon_len", "human_seq_len", \
+                                 "exon_len_to_human_len_ratio", "median_len", \
+                                 "exon_len_to_median_len_ratio","average_len", \
+                                 "exon_len_to_average_len", "num_seqs"])
+    dir = output_dir if args.hal else args.stats_table
+    for exon in os.listdir(dir):
+        exon_dir = os.path.join(dir, exon)
+        if os.path.isdir(exon_dir):
+            print("exon", exon)
+            exon_coords = list(map(int, exon.split("_")[2:]))
+            exon_len = exon_coords[1] - exon_coords[0]
+            lens = []
+            for record in SeqIO.parse(f"{exon_dir}/combined.fasta","fasta"):
+                lens.append(len(record.seq))
+                if record.id.startswith("Homo_sapiens"):
+                    human_len = len(record.seq)
+
+            median_len =  np.median(lens)
+            average_len = np.average(lens)
+
+            new_row_dict = {"path" : exon_dir, \
+                            "exon" : exon, \
+                            "exon_len" : exon_len, \
+                            "human_seq_len" : human_len, \
+                            "exon_len_to_human_len_ratio" : exon_len/human_len, \
+                            "median_len" :median_len,\
+                            "exon_len_to_median_len_ratio" : exon_len/median_len, \
+                            "average_len" : average_len, \
+                            "exon_len_to_average_len" : exon_len/average_len, \
+                            "num_seqs" : len(lens)}
+
+            df.loc[len(df)] = new_row_dict
+    pd.set_option('display.max_columns', None)
+    # pd.set_option('display.max_rows', None)
+    df.to_csv(f'{dir}/stats_table.csv', index=True, header=True, line_terminator='\n', sep=";")
+    return df
+
+if not args.stats_table:
+    hg38_refseq_bed = load_hg38_refseq_bed()
+    filtered_internal_exons = get_to_be_lifted_exons(hg38_refseq_bed)
+    create_exon_data_sets(filtered_internal_exons)
+    make_stats_table()
+else:
+    make_stats_table()
+
 # time halLiftover /nas-hs/projs/CGP200/data/msa/241-mammalian-2020v2.hal Homo_sapiens human_exon_to_be_lifted.bed Solenodon_paradoxus Solenodon_paradoxus.bed
 # time hal2fasta /nas-hs/projs/CGP200/data/msa/241-mammalian-2020v2.hal Macaca_mulatta --start 66848804 --sequence CM002977.3 --length 15 --ucscSequenceNames > maxaxa_exon_left_seq.fa
