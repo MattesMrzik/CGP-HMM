@@ -65,7 +65,7 @@ class Model(ABC):
     def find_indices_of_zeros():
         pass
 
-    def json_state_seq_to_description(self, viterbi_path, fasta_path):
+    def fasta_true_state_seq_and_optional_viterbi_guess_alignment(self, fasta_path, viterbi_path = None):
 
         # assumes viterbi only contains prediction for human
 
@@ -75,75 +75,81 @@ class Model(ABC):
         from Bio.SeqRecord import SeqRecord
         import re
 
-        l = []
-        try:
-            file = open(viterbi_path)
-        except:
-            print("could not open", file)
-            return
-        try:
-            json_data = json.load(file)
-        except:
-            print("json could not parse", file)
-            return
-
         try:
             fasta_data = SeqIO.parse(fasta_path, "fasta")
             for record in fasta_data:
                 if re.search("Homo_sapiens", record.id):
                     human_fasta = record
-            # if nothing is found this will call except block
-            human_fasta.id
+                    # if nothing is found this will call except block
+                    human_fasta.id
         except:
             print("seqIO could not parse", file)
             return
 
-        if type(json_data[0]) is list: #[[0,1,2],[0,0,1],[1,2,3,4,5]]
-            description_seq = []
-            for seq_id, seq in enumerate(json_data):
-                for nth_state, state in enumerate(seq):
-                    description = self.state_id_to_str(state)
-                    description_seq.append((state,description))
-                l.append(description_seq)
-        else: # [0,0,0,01,2,3,4,4,4,4]
-            for nth_state, state in enumerate(json_data):
-                description = self.state_id_to_str(state)
-                l.append((state,description))
+        coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
 
-        coords = json.loads(re.search("(){.*})", human_fasta.description).group(1))
+        l = []
+        if viterbi_path != None:
+            try:
+                file = open(viterbi_path)
+            except:
+                print("could not open", file)
+                return
+            try:
+                json_data = json.load(file)
+            except:
+                print("json could not parse", file)
+                return
+
+            if type(json_data[0]) is list: #[[0,1,2],[0,0,1],[1,2,3,4,5]]
+                description_seq = []
+                for seq_id, seq in enumerate(json_data):
+                    for nth_state, state in enumerate(seq):
+                        description = self.state_id_to_str(state)
+                        description_seq.append((state,description))
+                    l.append(description_seq)
+            else: # [0,0,0,01,2,3,4,4,4,4]
+                for nth_state, state in enumerate(json_data):
+                    description = self.state_id_to_str(state)
+                    l.append((state,description))
+
 
 ################################################################################
         viterbi_as_fasta = ""
-        for state_id, description in l[0]:
-            if description == "left_intron":
-                viterbi_as_fasta += "l"
-            elif description == "right_intron":
-                viterbi_as_fasta += "r"
-            elif description == "A":
-                viterbi_as_fasta += "A"
-            elif description == "AG":
-                viterbi_as_fasta += "G"
-            elif description == "G":
-                viterbi_as_fasta += "G"
-            elif description == "GT":
-                viterbi_as_fasta += "T"
-            else:
-                viterbi_as_fasta += "-"
+        if fasta_path == None:
+            viterbi_as_fasta = " " * len(human_fasta.seq)
+        else:
+            for state_id, description in l[0]:
+                if description == "left_intron":
+                    viterbi_as_fasta += "l"
+                elif description == "right_intron":
+                    viterbi_as_fasta += "r"
+                elif description == "A":
+                    viterbi_as_fasta += "A"
+                elif description == "AG":
+                    viterbi_as_fasta += "G"
+                elif description == "G":
+                    viterbi_as_fasta += "G"
+                elif description == "GT":
+                    viterbi_as_fasta += "T"
+                else:
+                    viterbi_as_fasta += "-"
 
-        # removing terminal
-        viterbi_as_fasta = viterbi_as_fasta[:-1]
+            # removing terminal
+            viterbi_as_fasta = viterbi_as_fasta[:-1]
+            assert l[0][-1][1] == "ter", "Model.py last not terminal"
 
         viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
 ################################################################################
         on_reverse_strand = coords["exon_start_in_human_genome_cd_strand"] != coords["exon_start_in_human_genome_+_strand"]
         if not on_reverse_strand:
-            true_seq = "l" * (coords["seq_start_in_genome_cd_strand"] - coords["exon_start_in_human_genome_cd_strand"])
-            true_seq += "E" * (coords["exon_start_in_human_genome_cd_strand"] - coords["exon_stop_in_human_genome_cd_strand"])
-            true_seq += "r" * (coords["exon_stop_in_human_genome_cd_strand"] - coords["seq_stop_in_genome_cd_strand"])
-        else:
             true_seq = "l" * (coords["exon_start_in_human_genome_+_strand"] - coords["seq_start_in_genome_+_strand"])
             true_seq += "E" * (coords["exon_stop_in_human_genome_+_strand"] - coords["exon_start_in_human_genome_+_strand"])
             true_seq += "r" * (coords["seq_stop_in_genome_+_strand"] - coords["exon_stop_in_human_genome_+_strand"])
+        else:
+            true_seq = "l" * (coords["seq_start_in_genome_cd_strand"] - coords["exon_start_in_human_genome_cd_strand"])
+            true_seq += "E" * (coords["exon_start_in_human_genome_cd_strand"] - coords["exon_stop_in_human_genome_cd_strand"])
+            true_seq += "r" * (coords["exon_stop_in_human_genome_cd_strand"] - coords["seq_stop_in_genome_cd_strand"])
         true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
 ################################################################################
         len_of_line_in_clw = 50
@@ -159,25 +165,31 @@ class Model(ABC):
 ################################################################################
         coords_fasta = ""
         for line_id in range(len(viterbi_as_fasta)//len_of_line_in_clw):
+            in_fasta = line_id*len_of_line_in_clw
             if not on_reverse_strand:
-                in_fasta = line_id*len_of_line_in_clw
-                if not on_reverse_strand:
-                    coords_line = f"in this fasta {in_fasta}, in genome {in_fasta + coords['seq_start_in_genome_+_strand']}"
-                else:
-                    coords_line = f"in this fasta {in_fasta}, in genome {coords['seq_start_in_genome_cd_strand']- in_fasta}"
-                coords_fasta += coords_line + "." * len_of_line_in_clw - len(coords_line)
+                coords_line = f"in this fasta {in_fasta}, in genome {in_fasta + coords['seq_start_in_genome_+_strand']}"
+            else:
+                coords_line = f"in this fasta {in_fasta}, in genome {coords['seq_start_in_genome_cd_strand']- in_fasta}"
+            coords_fasta += coords_line + " " * (len_of_line_in_clw - len(coords_line))
 
-            # TODO print also for last line which might not be complete
+        last_line_len = len(viterbi_as_fasta) - len(coords_fasta)
+        coords_fasta += " " * last_line_len
+
         coords_fasta_record = SeqRecord(seq = Seq(coords_fasta), id = "coords_fasta")
 
 ################################################################################
         records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
         alignment = MultipleSeqAlignment(records)
-        with open("alignment.clw", "w") as output_handle:
+
+        alignment_out_path = f"{os.path.dirname(viterbi_path)}/true_alignment.txt" if viterbi_path != None else f"{os.path.dirname(fasta_path)}/true_alignment.txt"
+        with open(alignment_out_path, "w") as output_handle:
             AlignIO.write(alignment, output_handle, "clustal")
-
+        print("wrote alignment to", alignment_out_path)
+        
         return l
-
+################################################################################
+################################################################################
+################################################################################
     def export_to_dot_and_png(self, A_weights, B_weights, out_path = "this is still hard coded"):
         # TODO: add I parameters???
         n_labels = self.number_of_emissions ** (self.config.order + 1)

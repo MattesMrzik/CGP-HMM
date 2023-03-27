@@ -357,11 +357,10 @@ def create_exon_data_sets(filtered_internal_exons):
                                        "seq_stop_in_genome_+_strand" : stop_in_genome, \
                                        "exon_start_in_human_genome_+_strand": exon['start_in_genome'], \
                                        "exon_stop_in_human_genome_+_strand" : exon['stop_in_genome'], \
-                                       \
                                        "seq_start_in_genome_cd_strand" : start_in_genome if not on_reverse_strand else stop_in_genome, \
                                        "seq_stop_in_genome_cd_strand" : start_in_genome if on_reverse_strand else stop_in_genome, \
                                        "exon_start_in_human_genome_cd_strand" : exon["start_in_genome"] if not on_reverse_strand else exon["stop_in_genome"], \
-                                       "exon_stop_in_human_genome_cd_strand" : exon["stop_in_genome"] if not on_reverse_strand else exon["start_in_genome"])}
+                                       "exon_stop_in_human_genome_cd_strand" : exon["stop_in_genome"] if not on_reverse_strand else exon["start_in_genome"]}
                         record.description = json.dumps(description)
                         SeqIO.write(record, out_file, "fasta")
 
@@ -390,7 +389,7 @@ def create_exon_data_sets(filtered_internal_exons):
                                        "seq_start_in_genome_cd_strand" : start_in_genome if not on_reverse_strand else stop_in_genome, \
                                        "seq_stop_in_genome_cd_strand" : start_in_genome if on_reverse_strand else stop_in_genome, \
                                        "exon_start_in_human_genome_cd_strand" : exon["start_in_genome"] if not on_reverse_strand else exon["stop_in_genome"], \
-                                       "exon_stop_in_human_genome_cd_strand" : exon["stop_in_genome"] if not on_reverse_strand else exon["start_in_genome"])}
+                                       "exon_stop_in_human_genome_cd_strand" : exon["stop_in_genome"] if not on_reverse_strand else exon["start_in_genome"]}
                         record.description = json.dumps(description)
                         record.description = json.dumps(description)
                         SeqIO.write(record, stripped_seq_file, "fasta")
