@@ -31,6 +31,8 @@ args = parser.parse_args()
 assert args.len_of_left_to_be_lifted < args.min_left_neighbour_exon_len, "len_of_left_to_be_lifted > min_left_neighbour_exon_len"
 assert args.len_of_right_to_be_lifted < args.min_right_neighbour_exon_len, "len_of_right_to_be_lifted > min_right_neighbour_exon_len"
 assert args.len_of_exon_middle_to_be_lifted < args.min_exon_len, "len_of_exon_middle_to_be_lifted > min_exon_len"
+# TODO im using the above also for the start and end of th middle exon, not only the middle of the middle/current exon
+
 
 lengths_config_str = str(args.min_left_neighbour_exon_len)
 lengths_config_str += "_" + str(args.len_of_left_to_be_lifted)
@@ -143,6 +145,8 @@ def filter_and_choose_exon_neighbours(all_internal_exons):
             if row["blockSizes"][exon_id + 1] < args.min_right_neighbour_exon_len:
                 continue
 
+
+
             # getting coordinates from rightmost end of left exon that will be lifted to the other genomes
             # getting coordinates from leftmost end of right exon that will be lifted to the other genome
             left_lift_start = key[1] - left_intron_len - args.len_of_left_to_be_lifted
@@ -216,11 +220,11 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
             if re.search("Homo_sapiens", record.id):
                 human_fasta = record
                 # if nothing is found this will call except block
-                try:
-                    human_fasta.id
-                except:
-                    print("no human id found")
-                    return
+            try:
+                human_fasta.id
+            except:
+                print("no human id found")
+                return
     except:
         print("seqIO could not parse", fasta_path)
         return
@@ -321,15 +325,22 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
         records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record]
     else:
         records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
+
+    exon_contains_ambiguous_bases = ""
+    for base, e_or_i in zip(human_fasta.seq, true_seq_record.seq):
+        if e_or_i == "E" and base in "acgtnN":
+            exon_contains_ambiguous_bases = "_exon_contains_ambiguous_bases"
     alignment = MultipleSeqAlignment(records)
 
-    alignment_out_path = f"{os.path.dirname(viterbi_path)}/true_alignment.txt" if viterbi_path != None else f"{out_dir_path}/true_alignment.txt"
+    alignment_out_path = f"{os.path.dirname(viterbi_path)}/true_alignment{exon_contains_ambiguous_bases}.txt" if viterbi_path != None else f"{out_dir_path}/true_alignment{exon_contains_ambiguous_bases}.txt"
     with open(alignment_out_path, "w") as output_handle:
         AlignIO.write(alignment, output_handle, "clustal")
     print("wrote alignment to", alignment_out_path)
 
     return l
-
+################################################################################
+################################################################################
+################################################################################
 def create_exon_data_sets(filtered_internal_exons):
     def get_all_species():
         with open(args.species, "r") as species_file:
@@ -355,33 +366,38 @@ def create_exon_data_sets(filtered_internal_exons):
         # seq     start           stop            name    score   strand
         # chr1    67093589        67093604        left    0       -
         with open(human_exon_to_be_lifted_path, "w") as bed_file:
-                for left_or_right in ["left","right"]:
-                    bed_file.write(exon["seq"] + "\t")
-                    bed_file.write(str(exon[f"{left_or_right}_lift_start"]) + "\t")
-                    bed_file.write(str(exon[f"{left_or_right}_lift_end"]) + "\t")
-                    bed_file.write(f"exon_{exon['start_in_genome']}_{exon['stop_in_genome']}_{exon['exon_id']}_{left_or_right}" + "\t")
-                    bed_file.write("0" + "\t")
-                    bed_file.write(exon["row"]["strand"] + "\n")
-                bed_file.write(exon["seq"] + "\t")
-                left_middle = (exon["stop_in_genome"] + exon['start_in_genome'] - args.len_of_exon_middle_to_be_lifted)//2
-                right_middle = left_middle + args.len_of_exon_middle_to_be_lifted # this index does not part of the area to be lifted
-                bed_file.write(str(left_middle) + "\t")
-                bed_file.write(str(right_middle) + "\t")
-                bed_file.write(f"exon_{exon['start_in_genome']}_{exon['stop_in_genome']}_{exon['exon_id']}_middle" + "\t")
-                bed_file.write("0" + "\t")
-                bed_file.write(exon["row"]["strand"] + "\n")
+            def add_bed_line(seq = exon["seq"], start = None, stop = None, name = None, score = "0", strand = exon["row"]["strand"]):
+                bed_file.write(seq + "\t")
+                bed_file.write(start + "\t")
+                bed_file.write(stop + "\t")
+                bed_file.write(name + "\t")
+                bed_file.write(score + "\t")
+                bed_file.write(strand + "\n")
 
-                # TOTOTOTOTOTOTOTOTOTO
-                # TOTOTOTOTOTOTOTOTOTO
-                # TOTOTOTOTOTOTOTOTOTO
-                # TOTOTOTOTOTOTOTOTOTO
-                # TOTOTOTOTOTOTOTOTOTO
-                # TOTOTOTOTOTOTOTOTOTO
-                # TOTOTOTOTOTOTOTOTOTO
-                # TOTOTOTOTOTOTOTOTOTO
-                # TOTOTOTOTOTOTOTOTOTO
-                # TOTOTOTOTOTOTOTOTOTO
-                # hier auch noch den anfang und das ende des middle exons liften und vielleicht mal eng um das middle exon die fasta holen
+            base_name = f"exon_{exon['start_in_genome']}_{exon['stop_in_genome']}_{exon['exon_id']}"
+
+            # left and right neighbouring exon
+            for left_or_right in ["left","right"]:
+                add_bed_line(start = str(exon[f"{left_or_right}_lift_start"]), \
+                             stop = str(exon[f"{left_or_right}_lift_end"]), \
+                             name = f"{base_name}_{left_or_right}")
+
+            # middle of exon
+            left_middle = (exon["stop_in_genome"] + exon['start_in_genome'] - args.len_of_exon_middle_to_be_lifted)//2
+            right_middle = left_middle + args.len_of_exon_middle_to_be_lifted # this index does not part of the area to be lifted
+            add_bed_line(start = str(left_middle), \
+                         stop = str(right_middle), \
+                         name = f"{base_name}_middle")
+
+            # start and stop of exon
+
+            # add_bed_line(start = str(exon["start_in_genome"]), \
+            #              stop = str(exon["start_in_genome"] + args.len_of_exon_middle_to_be_lifted), \
+            #              name = f"{base_name}_exonstart")
+            # add_bed_line(start = str(exon["stop_in_genome"] -  args.len_of_exon_middle_to_be_lifted), \
+            #              stop = str(exon["stop_in_genome"]), \
+            #              name = f"{base_name}_exonend")
+
 
         for single_species in all_species:
             bed_file_path = f"{bed_output_dir}/{single_species}.bed"
