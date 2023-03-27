@@ -65,10 +65,12 @@ class Model(ABC):
     def find_indices_of_zeros():
         pass
 
-    def fasta_true_state_seq_and_optional_viterbi_guess_alignment(self, fasta_path, viterbi_path = None):
+    def fasta_true_state_seq_and_optional_viterbi_guess_alignment(self, fasta_path, viterbi_path = None, out_dir_path = "."):
+        # TODO: maybe also implement model.state_id_to_description_single_letter()
 
         # assumes viterbi only contains prediction for human
 
+        import os
         from Bio import SeqIO, AlignIO
         from Bio.Align import MultipleSeqAlignment
         from Bio.Seq import Seq
@@ -81,9 +83,13 @@ class Model(ABC):
                 if re.search("Homo_sapiens", record.id):
                     human_fasta = record
                     # if nothing is found this will call except block
-                    human_fasta.id
+                    try:
+                        human_fasta.id
+                    except:
+                        print("no human id found")
+                        return
         except:
-            print("seqIO could not parse", file)
+            print("seqIO could not parse", fasta_path)
             return
 
         coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
@@ -116,7 +122,7 @@ class Model(ABC):
 
 ################################################################################
         viterbi_as_fasta = ""
-        if fasta_path == None:
+        if viterbi_path == None:
             viterbi_as_fasta = " " * len(human_fasta.seq)
         else:
             for state_id, description in l[0]:
@@ -178,14 +184,17 @@ class Model(ABC):
         coords_fasta_record = SeqRecord(seq = Seq(coords_fasta), id = "coords_fasta")
 
 ################################################################################
-        records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
+        if viterbi_path == None:
+            records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record]
+        else:
+            records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
         alignment = MultipleSeqAlignment(records)
 
-        alignment_out_path = f"{os.path.dirname(viterbi_path)}/true_alignment.txt" if viterbi_path != None else f"{os.path.dirname(fasta_path)}/true_alignment.txt"
+        alignment_out_path = f"{os.path.dirname(viterbi_path)}/true_alignment.txt" if viterbi_path != None else f"{out_dir_path}/true_alignment.txt"
         with open(alignment_out_path, "w") as output_handle:
             AlignIO.write(alignment, output_handle, "clustal")
         print("wrote alignment to", alignment_out_path)
-        
+
         return l
 ################################################################################
 ################################################################################

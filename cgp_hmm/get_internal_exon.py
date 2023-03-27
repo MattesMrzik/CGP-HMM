@@ -394,6 +394,14 @@ def create_exon_data_sets(filtered_internal_exons):
                         record.description = json.dumps(description)
                         SeqIO.write(record, stripped_seq_file, "fasta")
 
+            # create alignment of fasta and true splice sites
+            from Config import Config
+            config = Config("main_programm_dont_interfere")
+            model = My_Model(config)
+            model.fasta_true_state_seq_and_optional_viterbi_guess_alignment(stripped_fa_path, out_dir_path = exon_dir)
+
+
+
         # gather all usable fasta seqs in a single file
         output_file =f"{exon_dir}/combined.fasta"
         input_files = [f"{stripped_seqs_dir}/{f}" for f in os.listdir(stripped_seqs_dir) if f.endswith(".fa")]
