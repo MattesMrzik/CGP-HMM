@@ -198,6 +198,138 @@ def get_to_be_lifted_exons(hg38_refseq_bed):
 hg38_refseq_bed = load_hg38_refseq_bed()
 filtered_internal_exons = get_to_be_lifted_exons(hg38_refseq_bed)
 
+def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterbi_path = None, out_dir_path = "."):
+    # TODO: maybe also implement model.state_id_to_description_single_letter()
+
+    # assumes viterbi only contains prediction for human
+
+    import os
+    from Bio import SeqIO, AlignIO
+    from Bio.Align import MultipleSeqAlignment
+    from Bio.Seq import Seq
+    from Bio.SeqRecord import SeqRecord
+    import re
+
+    try:
+        fasta_data = SeqIO.parse(fasta_path, "fasta")
+        for record in fasta_data:
+            if re.search("Homo_sapiens", record.id):
+                human_fasta = record
+                # if nothing is found this will call except block
+                try:
+                    human_fasta.id
+                except:
+                    print("no human id found")
+                    return
+    except:
+        print("seqIO could not parse", fasta_path)
+        return
+
+    coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
+
+    l = []
+    if viterbi_path != None:
+        try:
+            file = open(viterbi_path)
+        except:
+            print("could not open", file)
+            return
+        try:
+            json_data = json.load(file)
+        except:
+            print("json could not parse", file)
+            return
+
+        if type(json_data[0]) is list: #[[0,1,2],[0,0,1],[1,2,3,4,5]]
+            description_seq = []
+            for seq_id, seq in enumerate(json_data):
+                for nth_state, state in enumerate(seq):
+                    description = self.state_id_to_str(state)
+                    description_seq.append((state,description))
+                l.append(description_seq)
+        else: # [0,0,0,01,2,3,4,4,4,4]
+            for nth_state, state in enumerate(json_data):
+                description = self.state_id_to_str(state)
+                l.append((state,description))
+
+
+################################################################################
+    viterbi_as_fasta = ""
+    if viterbi_path == None:
+        viterbi_as_fasta = " " * len(human_fasta.seq)
+    else:
+        for state_id, description in l[0]:
+            if description == "left_intron":
+                viterbi_as_fasta += "l"
+            elif description == "right_intron":
+                viterbi_as_fasta += "r"
+            elif description == "A":
+                viterbi_as_fasta += "A"
+            elif description == "AG":
+                viterbi_as_fasta += "G"
+            elif description == "G":
+                viterbi_as_fasta += "G"
+            elif description == "GT":
+                viterbi_as_fasta += "T"
+            else:
+                viterbi_as_fasta += "-"
+
+        # removing terminal
+        viterbi_as_fasta = viterbi_as_fasta[:-1]
+        assert l[0][-1][1] == "ter", "Model.py last not terminal"
+
+    viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
+################################################################################
+    on_reverse_strand = coords["exon_start_in_human_genome_cd_strand"] != coords["exon_start_in_human_genome_+_strand"]
+    if not on_reverse_strand:
+        true_seq = "l" * (coords["exon_start_in_human_genome_+_strand"] - coords["seq_start_in_genome_+_strand"])
+        true_seq += "E" * (coords["exon_stop_in_human_genome_+_strand"] - coords["exon_start_in_human_genome_+_strand"])
+        true_seq += "r" * (coords["seq_stop_in_genome_+_strand"] - coords["exon_stop_in_human_genome_+_strand"])
+    else:
+        true_seq = "l" * (coords["seq_start_in_genome_cd_strand"] - coords["exon_start_in_human_genome_cd_strand"])
+        true_seq += "E" * (coords["exon_start_in_human_genome_cd_strand"] - coords["exon_stop_in_human_genome_cd_strand"])
+        true_seq += "r" * (coords["exon_stop_in_human_genome_cd_strand"] - coords["seq_stop_in_genome_cd_strand"])
+    true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
+################################################################################
+    len_of_line_in_clw = 50
+    numerate_line = ""
+    for i in range(len(viterbi_as_fasta)):
+        i_line = i % len_of_line_in_clw
+        if i_line % 10 == 0:
+            numerate_line += "|"
+        else:
+            numerate_line += " "
+
+    numerate_line_record =  SeqRecord(seq = Seq(numerate_line), id = "numerate_line")
+################################################################################
+    coords_fasta = ""
+    for line_id in range(len(viterbi_as_fasta)//len_of_line_in_clw):
+        in_fasta = line_id*len_of_line_in_clw
+        if not on_reverse_strand:
+            coords_line = f"in this fasta {in_fasta}, in genome {in_fasta + coords['seq_start_in_genome_+_strand']}"
+        else:
+            coords_line = f"in this fasta {in_fasta}, in genome {coords['seq_start_in_genome_cd_strand']- in_fasta}"
+        coords_fasta += coords_line + " " * (len_of_line_in_clw - len(coords_line))
+
+    last_line_len = len(viterbi_as_fasta) - len(coords_fasta)
+    coords_fasta += " " * last_line_len
+
+    coords_fasta_record = SeqRecord(seq = Seq(coords_fasta), id = "coords_fasta")
+
+################################################################################
+    if viterbi_path == None:
+        records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record]
+    else:
+        records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
+    alignment = MultipleSeqAlignment(records)
+
+    alignment_out_path = f"{os.path.dirname(viterbi_path)}/true_alignment.txt" if viterbi_path != None else f"{out_dir_path}/true_alignment.txt"
+    with open(alignment_out_path, "w") as output_handle:
+        AlignIO.write(alignment, output_handle, "clustal")
+    print("wrote alignment to", alignment_out_path)
+
+    return l
+
 def create_exon_data_sets(filtered_internal_exons):
     def get_all_species():
         with open(args.species, "r") as species_file:
@@ -327,6 +459,7 @@ def create_exon_data_sets(filtered_internal_exons):
             # getting the seq, from humand: [left exon    [litfed]] [intron] [exon] [intron] [[lifted]right exon]
             # the corresponding seq of [intron] [exon] [intron] in other species
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
+            on_reverse_strand = l_m_r["left"]["strand"] == "-"
             if not args.use_old_fasta:
                 command = f"time hal2fasta {args.hal} {single_species} --start {left_stop} --length {len_of_seq_substring_in_single_species} --sequence {l_m_r['left']['seq']} --ucscSequenceNames --outFaPath {out_fa_path}"
                 print("running:", command)
@@ -338,7 +471,6 @@ def create_exon_data_sets(filtered_internal_exons):
                 for i, record in enumerate(SeqIO.parse(out_fa_path, "fasta")):
                     assert i == 0, f"found more than one seq in fasta file {out_fa_path}"
 
-                    on_reverse_strand = l_m_r["left"]["strand"] == "-"
                     # write coordinates in genome to seq description
                     with open(out_fa_path, "w") as out_file:
                         start_in_genome = left_stop
@@ -395,10 +527,7 @@ def create_exon_data_sets(filtered_internal_exons):
                         SeqIO.write(record, stripped_seq_file, "fasta")
 
             # create alignment of fasta and true splice sites
-            from Config import Config
-            config = Config("main_programm_dont_interfere")
-            model = My_Model(config)
-            model.fasta_true_state_seq_and_optional_viterbi_guess_alignment(stripped_fa_path, out_dir_path = exon_dir)
+            fasta_true_state_seq_and_optional_viterbi_guess_alignment(stripped_fa_path, out_dir_path = exon_dir)
 
 
 
