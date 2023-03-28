@@ -27,7 +27,7 @@ args.n = 1
 args.out_path = "viterbi_cc_output.json"
 
 submission_file_name = "submission_file.sh"
-os.system("rm {submission_file_name}")
+os.system(f"rm {submission_file_name}")
 os.system("rm err* out*")
 
 with open(submission_file_name, "w") as file:

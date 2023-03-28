@@ -86,8 +86,8 @@ class My_Model(Model):
         states += ["right_intron"]
 
         states += ["ter"]
-        for i, state in enumerate(states):
-            print(i, state)
+        # for i, state in enumerate(states):
+        #     print(i, state)
 
         state_to_id = dict(zip(states, range(len(states))))
         id_to_state = dict(zip(range(len(states)), states))
@@ -204,6 +204,8 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
     def A_indices_and_initial_weights(self):
+
+        single_high_prob_kernel = self.config.single_high_prob_kernel
         # für weights die trainable sind und gleich viele einer ähnlichen art sind,
         # die in eine separate methode auslagen, damit ich leichter statistiken
         # dafür ausarbeiten kann
@@ -252,7 +254,7 @@ class My_Model(Model):
         append_transition("AG", "c_0,1")
         append_transition("AG", "c_0,2")
 
-        append_transition(l = self.A_indices_enter_next_codon, initial_weights = [3] * len(self.A_indices_enter_next_codon) )
+        append_transition(l = self.A_indices_enter_next_codon, initial_weights = [single_high_prob_kernel] * len(self.A_indices_enter_next_codon) )
 
         for i in range(self.config.nCodons):
             append_transition(f"c_{i},0", f"c_{i},1", trainable = False) # TODO: do i want these trainable if i pass deletes after/before intron?
@@ -263,11 +265,13 @@ class My_Model(Model):
         for i in range(self.insert_low, self.insert_high):
             append_transition(f"i_{i},0", f"i_{i},1", trainable = False)
             append_transition(f"i_{i},1", f"i_{i},2", trainable = False)
-        append_transition(l = self.A_indices_end_inserts, initial_weights = [3] * len(self.A_indices_end_inserts))
+        append_transition(l = self.A_indices_end_inserts, initial_weights = [single_high_prob_kernel] * len(self.A_indices_end_inserts))
         append_transition(l = self.A_indices_continue_inserts)
 
         # deletes
-        append_transition(l = self.A_indices_normal_deletes, initial_weights = [-j/2 for j in range(len(self.A_indices_normal_deletes))])
+        A_indices_normal_deletes, A_init_weights_normal_deletes = self.A_indices_and_init_weights_normal_deletes
+        print("A_init_weights_normal_deletes", A_init_weights_normal_deletes)
+        append_transition(l = A_indices_normal_deletes, initial_weights = A_init_weights_normal_deletes)
         if self.config.deletes_after_intron_to_codon:
             append_transition(l = self.A_indices_deletes_after_intron_to_codon)
         if self.config.deletes_after_codon_to_intron:
@@ -296,13 +300,13 @@ class My_Model(Model):
         append_transition("right_intron", "ter", trainable = not self.config.right_intron_const, initial_weights = self.config.right_intron_const)
         append_transition("ter", "ter")
 
-        print("trainable")
-        for index in indices_for_trainable_parameters:
-            print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
-
-        print("const")
-        for index in indicies_for_constant_parameters:
-            print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
+        # print("trainable")
+        # for index in indices_for_trainable_parameters:
+        #     print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
+        #
+        # print("const")
+        # for index in indicies_for_constant_parameters:
+        #     print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
 
         initial_weights_for_trainable_parameters = np.array(initial_weights_for_trainable_parameters, dtype = np.float32)
         initial_weights_for_consts = np.array(initial_weights_for_consts, dtype = np.float32)
@@ -317,13 +321,15 @@ class My_Model(Model):
 
     # deletes
     @property
-    def A_indices_normal_deletes(self):
+    def A_indices_and_init_weights_normal_deletes(self):
         indices = []
+        init_weights = []
         # from codons
         for after_codon in range(self.config.nCodons):
             for to_codon in range(after_codon + 2, self.config.nCodons):
                 indices += [[self.str_to_state_id(f"c_{after_codon},2"), self.str_to_state_id(f"c_{to_codon},0")]]
-        return indices
+                init_weights += [-(to_codon - after_codon)/self.config.diminishing_factor]
+        return indices, init_weights
 
     @property
     def A_indices_deletes_after_intron_to_codon(self):
@@ -635,57 +641,56 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
 ################################################################################
-    def export_to_dot_and_png(self, A_weights, B_weights, out_path = "this is still hard coded"):
-        # TODO: add I parameters???
-        import numpy as np
-        n_labels = self.number_of_emissions ** (self.config.order + 1)
-        nCodons = self.config.nCodons
-
-        A = self.A(A_weights) if self.A_is_dense else tf.sparse.to_dense(self.A(A_weights))
-        B = self.B(B_weights) if self.B_is_dense else tf.sparse.to_dense(self.B(B_weights))
-
-        B_reshaped = tf.reshape(B, shape = (-1, self.config.alphabet_size, self.number_of_states))
-        B_argmax = np.argmax(B_reshaped, axis = 1)
-
-        id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
-        with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
-            graph.write("DiGraph G{\nrankdir=LR;\n")
-            # graph.write("nodesep=0.5; splines=polyline;")
-            for from_state, row in enumerate(A):
-                from_state_str = self.state_id_to_str(from_state)
-                write_B = False
-                graph.write("\"" + from_state_str + "\"\n") #  this was to_state before
-                if write_B:
-
-                    graph.write("[\n")
-                    graph.write("\tshape = none\n")
-                    graph.write("\tlabel = <<table border=\"0\" cellspacing=\"0\"> \n")
-                    try:
-                        color = {"c_":"teal", "i_": "crimson"}[from_state_str[0:2]]
-                    except:
-                        color = "white"
-
-                    graph.write(f"\t\t<tr><td port=\"port1\" border=\"1\" bgcolor=\"{color}\">" + from_state_str + "</td></tr>\n")
-
-                    for k, most_likely_index in enumerate(B_argmax[:,from_state]):
-                        emission_id = most_likely_index + k * self.config.alphabet_size
-                        emission_str = self.emission_id_to_str(emission_id)
-                        emi_prob = str(np.round(B[emission_id, from_state].numpy(),4))
-                        graph.write(f"\t\t<tr><td port=\"port{k+2}\" border=\"1\">({emission_str + ' ' +emi_prob})</td></tr>\n" )
-                    graph.write("\t </table>>\n")
-                    graph.write("]\n")
-
-                for to_state, prob in enumerate(row):
-                    to_state_str = self.state_id_to_str(to_state)
-                    if prob > 0:
-                        prob = prob.numpy()
-                        graph.write(f"\"{from_state_str}\" -> \"{to_state_str}\" [label = {str(np.round(prob, 4))[:6]} fontsize=\"{30*prob + 5}pt\"]\n")
-
-            graph.write("}")
-        # run(f"cat graph.{nCodons}codons.gv")
-        from Utility import run
-        run(f"dot -Tpng output/{nCodons}codons/graph.{nCodons}codons.gv -o output/{nCodons}codons/graph.{nCodons}codons.png")
-
+    # def export_to_dot_and_png(self, A_weights, B_weights, out_path = "this is still hard coded"):
+    #     # TODO: add I parameters???
+    #     import numpy as np
+    #     n_labels = self.number_of_emissions ** (self.config.order + 1)
+    #     nCodons = self.config.nCodons
+    #
+    #     A = self.A(A_weights) if self.A_is_dense else tf.sparse.to_dense(self.A(A_weights))
+    #     B = self.B(B_weights) if self.B_is_dense else tf.sparse.to_dense(self.B(B_weights))
+    #
+    #     B_reshaped = tf.reshape(B, shape = (-1, self.config.alphabet_size, self.number_of_states))
+    #     B_argmax = np.argmax(B_reshaped, axis = 1)
+    #
+    #     id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
+    #     with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
+    #         graph.write("DiGraph G{\nrankdir=LR;\n")
+    #         # graph.write("nodesep=0.5; splines=polyline;")
+    #         for from_state, row in enumerate(A):
+    #             from_state_str = self.state_id_to_str(from_state)
+    #             write_B = False
+    #             graph.write("\"" + from_state_str + "\"\n") #  this was to_state before
+    #             if write_B:
+    #
+    #                 graph.write("[\n")
+    #                 graph.write("\tshape = none\n")
+    #                 graph.write("\tlabel = <<table border=\"0\" cellspacing=\"0\"> \n")
+    #                 try:
+    #                     color = {"c_":"teal", "i_": "crimson"}[from_state_str[0:2]]
+    #                 except:
+    #                     color = "white"
+    #
+    #                 graph.write(f"\t\t<tr><td port=\"port1\" border=\"1\" bgcolor=\"{color}\">" + from_state_str + "</td></tr>\n")
+    #
+    #                 for k, most_likely_index in enumerate(B_argmax[:,from_state]):
+    #                     emission_id = most_likely_index + k * self.config.alphabet_size
+    #                     emission_str = self.emission_id_to_str(emission_id)
+    #                     emi_prob = str(np.round(B[emission_id, from_state].numpy(),4))
+    #                     graph.write(f"\t\t<tr><td port=\"port{k+2}\" border=\"1\">({emission_str + ' ' +emi_prob})</td></tr>\n" )
+    #                 graph.write("\t </table>>\n")
+    #                 graph.write("]\n")
+    #
+    #             for to_state, prob in enumerate(row):
+    #                 to_state_str = self.state_id_to_str(to_state)
+    #                 if prob > 0:
+    #                     prob = prob.numpy()
+    #                     graph.write(f"\"{from_state_str}\" -> \"{to_state_str}\" [label = {str(np.round(prob, 4))[:6]} fontsize=\"{30*prob + 5}pt\"]\n")
+    #
+    #         graph.write("}")
+    #     # run(f"cat graph.{nCodons}codons.gv")
+    #     from Utility import run
+    #     run(f"dot -Tpng output/{nCodons}codons/graph.{nCodons}codons.gv -o output/{nCodons}codons/graph.{nCodons}codons.png")
 
     def I_as_dense_to_json_file(self, path, weights):
         with open(path, "w") as out_file:

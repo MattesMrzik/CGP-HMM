@@ -60,7 +60,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             if self.config.init_weights_from_after_fit:
                 path = f"{self.config.src_path}/output/{self.config.nCodons}codons/after_fit_kernels/"
             else:
-                path = f"{self.config.src_path}/output/{self.config.nCodons}codons/initial_weights_from_callback/"
+                path = f"{self.config.src_path}/output/{self.config.nCodons}codons/initial_weights_and_matrices_from_callback/"
             weights = self.read_weights_from_file(path)
 
             I_initializer = tf.constant_initializer(weights[0])

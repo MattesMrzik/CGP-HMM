@@ -86,6 +86,7 @@ class Config():
         if self.only_first_seq:
             assert self.viterbi, "if you pass only_first_seq you need to run viterbi"
 
+
     def add_attribtes(self):
         import tensorflow as tf
 
@@ -124,8 +125,8 @@ class Config():
             from My_Model_with_introns import My_Model
             my_model = My_Model(self)
             self.model = my_model
-        elif self.internes_exon_model:
-            from My_internes_exon_model import My_Model
+        elif self.internal_exon_model:
+            from My_internal_exon_model import My_Model
             my_model = My_Model(self)
             self.model = my_model
         elif self.msa_model:
@@ -246,8 +247,9 @@ class Config():
         self.add_arg_main('--only_first_seq', action = 'store_true', help = 'run viterbi only for the first seq')
         self.add_arg_main('--intron_model', action='store_true', help = 'use my model that includes introns')
         self.add_arg_main('--fasta_path', help = 'path to fasta file where the traning seqs are')
+        self.add_arg_main('--in_viterbi_path', help = 'path to viterbi file which is then written to the alignment')
 
-        self.add_arg_main('--internes_exon_model', action = 'store_true', help = 'finde ein exon welches von zwei introns begrenzt ist')
+        self.add_arg_main('--internal_exon_model', action = 'store_true', help = 'finde ein exon welches von zwei introns begrenzt ist')
         self.add_arg_main('--inserts_at_intron_borders', action = 'store_true', help = 'inserts can come right after and before intron')
         self.add_arg_main('--akzeptor_pattern_len', type = int, default = 3, help = 'akzeptor_pattern_len before AG')
         self.add_arg_main('--donor_pattern_len', type = int, default = 3, help = 'donor_pattern_len after GT')
@@ -290,6 +292,10 @@ class Config():
         self.add_arg_main('--pattern_length_before_intron_loop', type = int, default = 2, help = 'number of states before intron loop')
         self.add_arg_main('--pattern_length_after_intron_loop', type = int, default = 2, help = 'number of states after intron loop')
         self.add_arg_main('--deletions_and_insertions_not_only_between_codons', action = 'store_true', help = 'deletions_and_insertions_not_only_between_codons. ie not after insertion or intron')
+        self.add_arg_main('--my_initial_guess_for_parameters', action='store_true', help = 'init A weights with my initial guess')
+        self.add_arg_main('--single_high_prob_kernel', type = float, default = 4, help = 'if my_initial_guess_for_parameters, this value is for high prob transitions, all other transitions get kernel weight 1')
+        self.add_arg_main('--diminishing_factor', type = float, default = 2, help = 'deletes get initialized with [[-(to_codon - from_codon)/self.config.diminishing_factor]]')
+
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
         self.add_arg_main('--dont_use_mirrored_strategy', action='store_true', help ="dont_use_mirrored_strategy")
@@ -307,7 +313,7 @@ class Config():
         self.add_arg_main('--print_batch_id', action='store_true', help = 'prints the batch id via on_train_batch_begin callback')
         self.add_arg_main('--write_matrices_after_fit', action ='store_true', help ='after fit write matrices to file')
         self.add_arg_main('--write_parameters_after_fit', action = 'store_true', help = 'after fit write kernels to file')
-        self.add_arg_main('--write_initial_weights_to_file', action='store_true', help = 'before fit write kernels to file')
+        self.add_arg_main('--write_initial_weights_and_matrices_to_file', action='store_true', help = 'before fit write kernels to file')
 
         # debugging
         self.add_arg_main('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
@@ -319,7 +325,6 @@ class Config():
         self.add_arg_main('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
         self.add_arg_main('--init_weights_from_before_fit', action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --batch_begin_write_weights__layer_call_write_inputs was passed')
         self.add_arg_main('--init_weights_from_after_fit' , action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --write_parameters_after_fit was passed')
-        self.add_arg_main('--my_initial_guess_for_parameters', action='store_true', help = 'init A weights with my initial guess')
         self.add_arg_main('--add_noise_to_initial_weights', action = 'store_true', help = 'add noise to my initial guess for weights ')
         self.add_arg_main('--no_deletes', action='store_true', help = 'the delete transitions in A are removed')
         self.add_arg_main('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
