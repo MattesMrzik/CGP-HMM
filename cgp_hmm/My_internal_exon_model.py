@@ -269,8 +269,8 @@ class My_Model(Model):
         append_transition(l = self.A_indices_continue_inserts)
 
         # deletes
-        A_indices_normal_deletes, A_init_weights_normal_deletes = self.A_indices_and_init_weights_normal_deletes
-        print("A_init_weights_normal_deletes", A_init_weights_normal_deletes)
+        A_indices_normal_deletes, A_init_weights_normal_deletes = self.A_indqices_and_init_weights_normal_deletes
+        # print("A_init_weights_normal_deletes", A_init_weights_normal_deletes)
         append_transition(l = A_indices_normal_deletes, initial_weights = A_init_weights_normal_deletes)
         if self.config.deletes_after_intron_to_codon:
             append_transition(l = self.A_indices_deletes_after_intron_to_codon)

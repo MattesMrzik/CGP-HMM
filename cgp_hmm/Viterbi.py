@@ -9,16 +9,6 @@ from Bio.Align import MultipleSeqAlignment
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 
-def run_cc_viterbi(config):
-    import multiprocessing
-    start = time.perf_counter()
-    seq_path = f"--seq_path {config.fasta_path}.json" if config.manual_passed_fasta else ""
-    only_first_seq = f"--only_first_seq" if config.only_first_seq else ""
-    command = f"{config.src_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq}"
-    print("starting", command)
-    os.system(command)
-    print("done viterbi. it took ", time.perf_counter() - start)
-
 def get_true_state_seqs_from_true_MSA(config):
     # calc true state seq from true MSA
     true_state_seqs = []
@@ -384,18 +374,42 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
 ################################################################################
 ################################################################################
 ################################################################################
+def run_cc_viterbi(config):
+    import multiprocessing
+    start = time.perf_counter()
+    seq_path = f"--seq_path {config.fasta_path}.json" if config.manual_passed_fasta else ""
+    only_first_seq = f"--only_first_seq" if config.only_first_seq else ""
+    if config.manual_passed_fasta:
+        out_dir_path = os.path.dirname(config.fasta_path)
+        out_path = f"{out_dir_path}/viterbi_cc_output.json
+    command = f"{config.src_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq}"
+    print("starting", command)
+    os.system(command)
+    print("done viterbi. it took ", time.perf_counter() - start)
+################################################################################
 
 if __name__ == "__main__":
     from Config import Config
     import numpy as np
     config = Config("main_programm_dont_interfere")
 
-    if not config.in_viterbi_path:
-        dir_path = f"{config.src_path}/output/{config.nCodons}codons/after_fit_matrices"
+    # check if matrices exists, if not convert kernels
+    matr_dir = f"{config.src_path}/output/{config.nCodons}codons/after_fit_matrices"
+    if not path.exists(f"{matr_dir}/A.json"):
         convert_kernel_files_to_matrices_files(dir_path)
 
-        # running viterbi
-        if os.path.exists(f"{config.src_path}/output/{config.nCodons}codons/viterbi_cc_output.json"):
+
+    out_dir_path = os.path.dirname(config.fasta_path) # for viterbi_cc and alignment
+    if config.manual_passed_fasta:
+        out_viterbi_file_path = f"{out_dir_path}/viterbi_cc_output.json"
+    else:
+        out_viterbi_file_path = f"{config.src_path}/output/{config.nCodons}codons/viterbi_cc_output.json"
+
+    if config.in_viterbi_path:
+        assert config.manual_passed_fasta, "when viterbi.py and --in_viterbi_path also pass --fasta"
+        fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, config.in_viterbi_path, config.model, out_dir_path = out_dir_path)
+    if not config.in_viterbi_path:
+        if os.path.exists(out_viterbi_file_path):
             print("viterbi already exists. rerun? y/n")
             while (x:=input()) not in ["y","n"]:
                 pass
@@ -404,16 +418,12 @@ if __name__ == "__main__":
         else:
             run_cc_viterbi(config)
 
-        viterbi_guess = load_viterbi_guess(config)
+        if config.manual_passed_fasta:
+            fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, out_viterbi_file_path, config.model, out_dir_path = out_dir_path)
 
-        true_state_seqs = get_true_state_seqs_from_true_MSA(config)
-
-        compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
-
-        write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
-
-        eval_start_stop(config, viterbi_guess)
-
-    if config.manual_passed_fasta:
-        out_dir_path = os.path.dirname(config.fasta_path)
-        fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, config.in_viterbi_path, config.model, out_dir_path = out_dir_path)
+        if not config.manual_passed_fasta:
+            viterbi_guess = load_viterbi_guess(config)
+            true_state_seqs = get_true_state_seqs_from_true_MSA(config)
+            compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
+            write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
+            eval_start_stop(config, viterbi_guess)
