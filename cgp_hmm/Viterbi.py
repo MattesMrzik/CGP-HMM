@@ -269,7 +269,7 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
         try:
             file = open(viterbi_path)
         except:
-            print("could not open", file)
+            print("could not open", viterbi_path)
             return
         try:
             json_data = json.load(file)
@@ -377,12 +377,15 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
 def run_cc_viterbi(config):
     import multiprocessing
     start = time.perf_counter()
-    seq_path = f"--seq_path {config.fasta_path}.json" if config.manual_passed_fasta else ""
+    seq_path = f"--seqs_path {config.fasta_path}.json" if config.manual_passed_fasta else ""
     only_first_seq = f"--only_first_seq" if config.only_first_seq else ""
     if config.manual_passed_fasta:
         out_dir_path = os.path.dirname(config.fasta_path)
-        out_path = f"{out_dir_path}/viterbi_cc_output.json
-    command = f"{config.src_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq}"
+        out_path = f"--out_path {out_dir_path}/viterbi_cc_output.json"
+    else:
+        out_path = ""
+    # command = f"{config.src_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq} {out_path}"
+    command = f"{config.src_path}/Viterbi -c {config.nCodons} -j 1 {seq_path} {only_first_seq} {out_path}"
     print("starting", command)
     os.system(command)
     print("done viterbi. it took ", time.perf_counter() - start)
@@ -395,7 +398,7 @@ if __name__ == "__main__":
 
     # check if matrices exists, if not convert kernels
     matr_dir = f"{config.src_path}/output/{config.nCodons}codons/after_fit_matrices"
-    if not path.exists(f"{matr_dir}/A.json"):
+    if not os.path.exists(f"{matr_dir}/A.json"):
         convert_kernel_files_to_matrices_files(dir_path)
 
 

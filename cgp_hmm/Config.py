@@ -57,9 +57,6 @@ class Config():
         if self.ig5_const_transition:
             assert not self.use_weights_for_consts, "if --ig5_const_transition then --use_weights_for_consts cant be used"
 
-        if self.viterbi:
-            assert self.write_matrices_after_fit, "if you run viterbi you must pass --write_matrices_after_fit bc viterbi.cc uses those files"
-
         if self.simulate_insertions or self.simulate_deletions:
             assert not self.use_simple_seq_gen, "indels only work with MSAgen"
             assert not self.dont_generate_new_seqs, "simulate indels option isnt applied if you dont generate new seqs"
@@ -75,16 +72,12 @@ class Config():
             assert not self.scale_with_const, "my_scale_epsilon was passed, so you must not use --scale_with_const"
             assert not self.scale_with_conditional_const, "my_scale_epsilon was passed, so you must not use --scale_with_conditional_const"
 
-
         if self.manual_forward:
             assert self.AB == "dd", "manula forward only works with dense matrices, so pass -AB dd"
 
         if self.fasta_path:
             assert not self.dont_generate_new_seqs, "using fasta path, so nothig should get generated"
             assert not self.use_simple_seq_gen, "using fasta path, so nothig should get generated"
-
-        if self.only_first_seq:
-            assert self.viterbi, "if you pass only_first_seq you need to run viterbi"
 
 
     def add_attribtes(self):
