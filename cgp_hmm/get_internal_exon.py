@@ -176,21 +176,21 @@ def create_bed_file_to_be_lifted(exon = None, out_path = None):
             stop = str(exon[f"{left_or_right}_lift_end"]), \
             name = f"{base_name}_{left_or_right}")
 
-            # middle of exon
-            left_middle = (exon["stop_in_genome"] + exon['start_in_genome'] - args.len_of_exon_middle_to_be_lifted)//2
-            right_middle = left_middle + args.len_of_exon_middle_to_be_lifted # this index does not part of the area to be lifted
-            add_bed_line(start = str(left_middle), \
-            stop = str(right_middle), \
-            name = f"{base_name}_middle")
+        # middle of exon
+        left_middle = (exon["stop_in_genome"] + exon['start_in_genome'] - args.len_of_exon_middle_to_be_lifted)//2
+        right_middle = left_middle + args.len_of_exon_middle_to_be_lifted # this index does not part of the area to be lifted
+        add_bed_line(start = str(left_middle), \
+        stop = str(right_middle), \
+        name = f"{base_name}_middle")
 
-            # start and stop of exon
+        # start and stop of exon
 
-            # add_bed_line(start = str(exon["start_in_genome"]), \
-            #              stop = str(exon["start_in_genome"] + args.len_of_exon_middle_to_be_lifted), \
-            #              name = f"{base_name}_exonstart")
-            # add_bed_line(start = str(exon["stop_in_genome"] -  args.len_of_exon_middle_to_be_lifted), \
-            #              stop = str(exon["stop_in_genome"]), \
-            #              name = f"{base_name}_exonend")
+        # add_bed_line(start = str(exon["start_in_genome"]), \
+        #              stop = str(exon["start_in_genome"] + args.len_of_exon_middle_to_be_lifted), \
+        #              name = f"{base_name}_exonstart")
+        # add_bed_line(start = str(exon["stop_in_genome"] -  args.len_of_exon_middle_to_be_lifted), \
+        #              stop = str(exon["stop_in_genome"]), \
+        #              name = f"{base_name}_exonend")
 ################################################################################
 def get_new_or_old_species_bed(human_exon_to_be_lifted_path = None, species_name = None, out_dir = None):
     ''' either creates new lifted over bed file and returns path to it
@@ -203,15 +203,20 @@ def get_new_or_old_species_bed(human_exon_to_be_lifted_path = None, species_name
         os.system(command)
         return 1
     else:
-        bed_files = [f for f in os.listdir(bed_output_dir) if f.endswith(".bed")]
+        bed_files = [f for f in os.listdir(out_dir) if f.endswith(".bed")]
         for bed_file in bed_files:
             # if bed_file.startswith(single_species):
-            #     return f"{bed_output_dir}/{bed_file}"
+            #     return f"{out_dir}/{bed_file}"
             if bed_file == f"{species_name}.bed":
                 return 1
 ################################################################################
 def extract_info_and_check_bed_file(bed_dir = None, species_name = None, extra_seq_data = None, extra_exon_data = None):
     bed_file_path = f"{bed_dir}/{species_name}.bed"
+
+    if os.path.getsize(bed_file_path) == 0:
+        os.system(f"mv {bed_file_path} {bed_dir}/{species_name}_errorcode_empty.bed")
+        return False
+
     species_bed = pd.read_csv(bed_file_path, delimiter = "\t", header = None)
     species_bed.columns = ["seq", "start", "stop", "name", "score", "strand"]
     if len(species_bed.index) != 3 and args.discard_multiple_bed_hits:
@@ -243,8 +248,8 @@ def extract_info_and_check_bed_file(bed_dir = None, species_name = None, extra_s
         os.system(f"mv {bed_dir}/{species_name}.bed {bed_dir}/{species_name}_errorcode_unequal_seqs.bed")
         return False
 
-    # if strand is opposite to human left and right swap
-    if exon["row"]["strand"] == l_m_r["left"]["strand"]:
+    # if strand is opposite to human, left and right swap
+    if extra_exon_data["human_strand"] == l_m_r["left"]["strand"]:
         extra_seq_data["seq_start_in_genome"] = l_m_r["left"]["stop"]
         extra_seq_data["seq_stop_in_genome"] = l_m_r["right"]["start"]
     else:
@@ -255,10 +260,10 @@ def extract_info_and_check_bed_file(bed_dir = None, species_name = None, extra_s
     extra_seq_data["middle_of_exon_start"] = l_m_r["middle"]["start"]
     extra_seq_data["middle_of_exon_stop"] = l_m_r["middle"]["stop"]
 
-    if left_stop >= middle_start:
+    if extra_seq_data["seq_start_in_genome"] >= extra_seq_data["middle_of_exon_start"]:
         os.system(f"mv {bed_dir}/{species_name}.bed {bed_dir}/{species_name}_errorcode_left_greater_middle.bed")
         return False
-    if middle_stop >= right_start:
+    if extra_seq_data["middle_of_exon_stop"] >= extra_seq_data["seq_stop_in_genome"]:
         os.system(f"mv {bed_dir}/{species_name}.bed {bed_dir}/{species_name}_errorcode_right_less_middle.bed")
         return False
 
@@ -270,7 +275,7 @@ def extract_info_and_check_bed_file(bed_dir = None, species_name = None, extra_s
     l1 = extra_seq_data["len_of_seq_substring_in_single_species"]
     l2 = extra_exon_data["len_of_seq_substring_in_human"]
     if abs(math.log10(l1) - math.log10(l2)) >= threshold:
-        os.system(f"mv {bed_output_dir}/{single_species}.bed {bed_output_dir}/{single_species}_errorcode_lengths_differ_substantially .bed")
+        os.system(f"mv {bed_dir}/{species_name}.bed {bed_dir}/{species_name}_errorcode_lengths_differ_substantially.bed")
         return False
 
     return True
@@ -281,7 +286,7 @@ def write_extra_data_to_fasta_description_and_reverse_complement(fa_path = None,
 
         # write coordinates in genome to seq description
         with open(fa_path, "w") as out_file:
-            assert len(record.seq) == stop_in_genome - start_in_genome, "non stripped: actual seq len and calculated coordinate len differ"
+            assert len(record.seq) == extra_seq_data["seq_stop_in_genome"] - extra_seq_data["seq_start_in_genome"], "non stripped: actual seq len and calculated coordinate len differ"
 
             # if exon is on - strand
             # extracetd fasta is from + strand
@@ -309,7 +314,7 @@ def run_hal_2_fasta(species_name = None, start = None, len = None, seq = None, o
     command = f"time hal2fasta {args.hal} {species_name} --start {start} --length {len} --sequence {seq} --ucscSequenceNames --outFaPath {outpath}"
     print("running:", command)
     os.system(command)
-    os.system(f"head {out_fa_path}")
+    os.system(f"head {outpath}")
 ################################################################################
 # TODO: can I maybe use the old fasta description such that i dont have to pass extra_seq_data
 def strip_seqs(fasta_file = None, exon = None, out_path = None, extra_seq_data = None):
@@ -343,10 +348,10 @@ def convert_short_acgt_to_ACGT(outpath, input_files, threshold):
     with open(outpath, "w") as out:
         for input_file in input_files:
             for seq_record in SeqIO.parse(input_file, "fasta"):
-                seq_record.seq = capitalize_lowercase_subseqs(seq_record.seq, threshold)
+                seq_record.seq = capitalize_lowercase_subseqs(str(seq_record.seq), threshold)
                 SeqIO.write(seq_record, out, "fasta")
 ################################################################################
-def get_inout_files_with_human_at_0(from_path = None):
+def get_input_files_with_human_at_0(from_path = None):
     input_files = [f"{from_path}/{f}" for f in os.listdir(from_path) if f.endswith(".fa")]
     input_files = sorted(input_files, key = lambda x: 0 if re.search("Homo_sapiens", x) else 1)
     assert re.search("Homo_sapiens", input_files[0]), "homo sapiens not in first pos of combined.fasta"
@@ -374,20 +379,25 @@ def create_exon_data_sets(filtered_internal_exons):
         capitalzed_subs_seqs_dir = f"{exon_dir}/combined_fast_capitalized_{args.convert_short_acgt_to_ACGT}"
         extra_exon_data = {}
 
-        for d in [exon_dir, bed_output_dir, seqs_dir, non_stripped_seqs_dir, stripped_seqs_dir]:
+        for d in [exon_dir, bed_output_dir, seqs_dir, non_stripped_seqs_dir, stripped_seqs_dir, capitalzed_subs_seqs_dir]:
             if not os.path.exists(d):
                 os.system(f"mkdir -p {d}")
 
         human_exon_to_be_lifted_path = f"{exon_dir}/human_exons.bed"
 
         extra_exon_data["len_of_seq_substring_in_human"] = exon["right_lift_start"] - exon["left_lift_end"]
+        extra_exon_data["human_strand"] = exon["row"]["strand"]
 
         create_bed_file_to_be_lifted(exon = exon, out_path = human_exon_to_be_lifted_path)
 
         for single_species in all_species:
             extra_seq_data = {}
 
-            if not get_new_or_old_species_bed():
+            if not get_new_or_old_species_bed(
+                human_exon_to_be_lifted_path = human_exon_to_be_lifted_path,
+                species_name = single_species,
+                out_dir = bed_output_dir
+            ):
                 continue
 
             if not extract_info_and_check_bed_file(
@@ -404,7 +414,7 @@ def create_exon_data_sets(filtered_internal_exons):
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
             if not args.use_old_fasta:
                 run_hal_2_fasta(species_name = single_species, \
-                                start = extra_seq_data["start"], \
+                                start = extra_seq_data["seq_start_in_genome"], \
                                 len = extra_seq_data["len_of_seq_substring_in_single_species"], \
                                 seq = extra_seq_data["seq_name"], \
                                 outpath = out_fa_path)
@@ -414,7 +424,7 @@ def create_exon_data_sets(filtered_internal_exons):
                                                       exon = exon)
 
             stripped_fasta_file_path = re.sub("non_stripped","stripped", out_fa_path)
-            strip_seqs(non_stripped_fasta_file_path = out_fa_path, \
+            strip_seqs(fasta_file = out_fa_path, \
                        exon = exon, \
                        out_path = stripped_fasta_file_path, \
                        extra_seq_data = extra_seq_data)
@@ -422,7 +432,7 @@ def create_exon_data_sets(filtered_internal_exons):
             # create alignment of fasta and true splice sites
             if single_species == "Homo_sapiens":
                 from Viterbi import fasta_true_state_seq_and_optional_viterbi_guess_alignment
-                fasta_true_state_seq_and_optional_viterbi_guess_alignment(stripped_fa_path, out_dir_path = exon_dir)
+                fasta_true_state_seq_and_optional_viterbi_guess_alignment(stripped_fasta_file_path, out_dir_path = exon_dir)
 
         # gather all usable fasta seqs in a single file
         input_files = get_input_files_with_human_at_0(from_path = stripped_seqs_dir)
@@ -442,7 +452,7 @@ def make_stats_table():
                                  "exon_len_to_human_len_ratio", "median_len", \
                                  "exon_len_to_median_len_ratio","average_len", \
                                  "exon_len_to_average_len", "num_seqs", "ambiguous"])
-    dir = output_dir if args.hal else args.stats_table
+    dir = get_output_dir() if args.hal else args.stats_table
     for exon in os.listdir(dir):
         exon_dir = os.path.join(dir, exon)
         if os.path.isdir(exon_dir):
@@ -457,9 +467,9 @@ def make_stats_table():
             median_len =  np.median(lens)
             average_len = np.average(lens)
 
-            if os.path.exists(f"{exon_dir}/true_alignment_exon_contains_ambiguous_bases.txt"):
+            if os.path.exists(f"{exon_dir}/true_alignment_exon_contains_ambiguous_bases.clw"):
                 ambiguous = 1
-            elif os.path.exists(f"{exon_dir}/true_alignment.txt"):
+            elif os.path.exists(f"{exon_dir}/true_alignment.clw"):
                 ambiguous = -1
             else:
                 ambiguous = 0
