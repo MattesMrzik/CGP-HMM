@@ -40,7 +40,7 @@ def get_all_internal_exons(hg38_refseq_bed):
     print("started get_all_internal_exons()")
     internal_exons = {} # key is chromosom, start and stop of exon in genome, value is list of rows that mapped to this exon range
     for index, row in hg38_refseq_bed.iterrows():
-        if args.n and index > args.n * 100: # cant just break at args.n since, exons arg filtered in an additional step. So i have to build some more here, such that after filtering sufficiently many remain.
+        if args.n and index > args.n * 100: # cant just break at args.n since, exons are filtered in an additional step. So i have to build some more here, such that after filtering sufficiently many remain.
             break
         if row["blockCount"] < 3:
             continue
@@ -344,12 +344,22 @@ def convert_short_acgt_to_ACGT(outpath, input_files, threshold):
         def repl(match):
             return match.group(1).upper()
         result = re.sub(pattern, repl, seq)
-        return result
-    with open(outpath, "w") as out:
+        return str(result)
+    with open(outpath, "w") as output_handle:
         for input_file in input_files:
-            for seq_record in SeqIO.parse(input_file, "fasta"):
-                seq_record.seq = capitalize_lowercase_subseqs(str(seq_record.seq), threshold)
-                SeqIO.write(seq_record, out, "fasta")
+            with open(outpath, "a") as output_handle, open(input_file, "r") as in_file_handle:
+                for i, record in enumerate(SeqIO.parse(in_file_handle, "fasta")):
+                    assert i == 0, f"convert_short_acgt_to_ACGT found more than one seq in fasta file {input_file}"
+                    new_seq = capitalize_lowercase_subseqs(str(record.seq), threshold)
+                    output_handle.write(f">{record.id} {record.description}\n")
+                    output_handle.write(f"{new_seq}\n")
+                    # new_record = record.__class__(seq = "ACGT", id="homo", name="name", description="description")
+                    # SeqIO.write(new_record, output_handle, "fasta")
+                    # this produced
+                    # File "/usr/lib/python3/dist-packages/Bio/File.py", line 72, in as_handle
+                    # with open(handleish, mode, **kwargs) as fp:
+
+
 ################################################################################
 def get_input_files_with_human_at_0(from_path = None):
     input_files = [f"{from_path}/{f}" for f in os.listdir(from_path) if f.endswith(".fa")]
@@ -362,6 +372,7 @@ def combine_fasta_files(output_file = None, input_files = None):
         for input_file in input_files:
             for seq_record in SeqIO.parse(input_file, "fasta"):
                 SeqIO.write(seq_record, out, "fasta")
+    out.close()
 ################################################################################
 def create_exon_data_sets(filtered_internal_exons):
     def get_all_species():
