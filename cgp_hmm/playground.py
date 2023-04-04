@@ -1,7 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.8
 import numpy as np
 import pandas as pd
+import re
+import os
+
+
+# os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
 # import tensorflow as tf
+
 
 # b = tf.reshape(tf.constant([i for i in range(50)]),(10,5))
 # r = tf.reshape(tf.constant([i for i in range(1,51)]),(10,5))
@@ -72,9 +78,7 @@ import pandas as pd
 ################################################################################
 ################################################################################
 ################################################################################
-import os
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'  # or any {'0', '1', '2'}
-import tensorflow as tf
+
 #
 #
 # q = 3
@@ -157,6 +161,272 @@ import tensorflow as tf
 ################################################################################
 ################################################################################
 ################################################################################
-d = {1:"a", 2:"b"}
-l = [1,2,2]
-print(list(map(d, l)))
+
+#kernprof -l -v playground.py
+
+# import argparse
+#
+# parser = argparse.ArgumentParser(
+#     description='description')
+# parser.add_argument('-x', '--xx',
+#                     help='xx')
+# args = parser.parse_args()
+#
+# if not args.xx:
+#     args.xx = 7
+#
+# import time
+# start = time.perf_counter()
+# import tracemalloc
+# tracemalloc.start()
+#
+# import random
+#
+# from resource import getrusage
+#
+# memory = True
+# if memory:
+#     from memory_profiler import profile
+#
+# # @profile
+# def f(cap = float("inf")):
+#     l = list(range(10**min(int(args.xx), cap))) + [random.randint(10,100)]
+#     print("inf f getrusage(RUSAGE_SELF) =", getrusage(RUSAGE_SELF).ru_maxrss)
+#     return l
+#
+# l1 = f()
+# print("l1 getrusage(RUSAGE_SELF) =", getrusage(RUSAGE_SELF).ru_maxrss)
+# del(l1)
+# print("l1 del getrusage(RUSAGE_SELF) =", getrusage(RUSAGE_SELF).ru_maxrss)
+#
+# l2 = f(1)
+# print("l2 getrusage(RUSAGE_SELF) =", getrusage(RUSAGE_SELF).ru_maxrss)
+#
+# print("sleeping")
+# time.sleep(10)
+# print("awakening")
+#
+# snapshot = True
+# if snapshot:
+#     snapshot = tracemalloc.take_snapshot()
+#
+#     top_stats = snapshot.statistics('lineno')
+#
+#     print("[ Top 10 ]")
+#     for stat in top_stats[:10]:
+#         print(stat)
+#
+# trace = tracemalloc.get_traced_memory()
+# print("trace =", trace)
+# with open("tracemalloc.log","a") as file:
+#     file.write(f"{args.xx},{trace}\n")
+# tracemalloc.stop()
+#
+# print("l2 getrusage(RUSAGE_SELF) =", getrusage(RUSAGE_SELF).ru_maxrss)
+
+################################################################################
+################################################################################
+################################################################################
+# import tensorflow as tf
+# parameter1 = tf.Variable(4.0)
+# parameter2 = tf.Variable(4.0)
+#
+# with tf.GradientTape() as tape:
+#     tape.watch([parameter1, parameter2])
+#     y = parameter1**2 * tf.math.sqrt(parameter2)
+# dy_dx = tape.gradient(y, [parameter1, parameter2])
+# print("dy_dx =", dy_dx)
+#
+# @tf.function
+# def example():
+#   a = tf.constant(0.)
+#   b = 2 * a
+#   return tf.gradients(a**2 + b, [a, b], stop_gradients=[a, b])
+# e = example()
+# print(e)
+################################################################################
+################################################################################
+################################################################################
+
+# n =
+# batchsize = 32
+# low = 0
+# high = min(batchsize, n)
+# for epoch in range(3):
+#     for step in range(5):
+#         print(f"batch {low}, {high}")
+#         low = low + batchsize if low + batchsize < n else 0
+#         # TODO: does batchsize instead of min also work? if batch_size + high == n
+#         if high == n:
+#             high = min(batchsize, n)
+#         elif high + batchsize > n:
+#             high = n
+#         else:
+#             high += batchsize
+
+################################################################################
+################################################################################
+################################################################################
+# import numpy as np
+# import math
+# def LSE(x): # x is vectory
+#     s = sum(np.exp(x))
+#     print(f"s in LSE = {s}")
+#     try:
+#         result = math.log(s)
+#         return result
+#     except:
+#         print("log(0)")
+# x = np.array([-1001,-1000])
+# print("LSE =",LSE(x))
+#
+# def logLSE(x):
+#     m = max(x)
+#     return m + LSE(x-m)
+#
+# print("logLSE =", logLSE(x))
+
+################################################################################
+################################################################################
+################################################################################
+#
+# x = np.random.choice([0,1], size = 10)
+# print(x)
+# a = 0
+# b = 0
+# best = 0
+# current = 0
+# potential_start = 0
+# for i in range(len(x)):
+#     if x[i] == 0:
+#         current -=1
+#     else:
+#         current += 1
+#     if current < 0:
+#         potential_start = i+1
+#         current = 0
+#     if current > best:
+#         a = potential_start
+#         b = i
+#         best = current
+# print(x)
+# print(x[a:b+1])
+# print(f"a = {a}, b = {b}, best = {best}")
+
+################################################################################
+################################################################################
+################################################################################
+
+# class A():
+#     @classmethod
+#     def foo(cls):
+#         print("foo")
+#
+#     def bar(self):
+#         self.foo()
+#
+# a = A()
+# a.bar()
+# a.foo()
+
+################################################################################
+################################################################################
+################################################################################
+# import tensorflow as tf
+# state_size = 3
+# emissions_state_size = 2
+# alphabet_size = 4
+# m = tf.cast(tf.constant(np.arange(state_size * emissions_state_size * alphabet_size)), dtype=tf.float32)
+# mask = tf.constant([0,0] * int((state_size * emissions_state_size * alphabet_size)/2))
+# m = tf.reshape(m, (emissions_state_size * alphabet_size,-1))
+# mask = tf.reshape(mask, (emissions_state_size * alphabet_size,-1))
+# print(m, mask)
+# m = tf.reshape(m, (-1, alphabet_size, state_size))
+# mask = tf.reshape(mask, (-1, alphabet_size, state_size))
+# print(m, mask)
+# # m = tf.nn.softmax(tf.cast(m, dtype = tf.float32)/10, axis = 1)
+# layer = tf.keras.layers.Softmax(axis = 1)
+# m = layer(m, mask)
+# print(m, mask)
+# m = tf.reshape(m, (emissions_state_size * alphabet_size,-1))
+# print(m, mask)
+
+################################################################################
+################################################################################
+################################################################################
+
+# find epsilons for logspace
+# import tensorflow as tf
+# import numpy as np
+# import datetime
+# emissions_state_size = 8
+# state_size = 5
+# batch_size = 4
+# seqlen = 20
+# batch = np.random.randint(emissions_state_size, size = (batch_size, seqlen))
+# batch = tf.one_hot(batch, emissions_state_size)
+# print("batch =", batch)
+#
+# optimizer = tf.keras.optimizers.SGD()
+#
+# np.set_printoptions(linewidth=100000)
+#
+#
+# I_ker = tf.cast([1] + [0] * (state_size -1), dtype = tf.float32)
+# A_ker = tf.cast(tf.constant(np.random.rand(state_size, state_size)), dtype = tf.float32)
+# B_ker = tf.cast(tf.constant(np.random.rand(emissions_state_size, state_size)), dtype = tf.float32)
+#
+# epsilon = 1e-2
+# for step in range(400):
+#     with tf.GradientTape() as tape:
+#         tape.watch([A_ker,B_ker])
+#
+#         A = tf.nn.softmax(A_ker) # + epsilon didnt help
+#         B = tf.nn.softmax(B_ker)
+#         # print(f"\n\nA =\n{A},\nB =\n{B}")
+#
+#         alpha = tf.math.log(tf.matmul(batch[:,0,:], B)) + tf.math.log(I_ker)
+#         for i in range(1, seqlen):
+#             m_alpha = tf.reduce_max(alpha, axis = 1, keepdims = True)
+#             # print("alpha =", alpha)
+#             # print("m_alpha =", m_alpha)
+#             E = tf.math.log(tf.matmul(batch[:,i,:], B))
+#             R =  tf.math.log(tf.matmul(tf.math.exp(alpha - m_alpha), A)) + m_alpha
+#             alpha = E + R
+#
+#         # loglike = tf.math.reduce_logsumexp(alpha + epsilon, axis=1)
+#         m_alpha = tf.reduce_max(alpha, axis = 1, keepdims = True)
+#         loglike = tf.math.log(tf.reduce_sum(tf.math.exp(alpha - m_alpha) + epsilon, axis=1, keepdims = True))
+#         mean_loglike = tf.reduce_mean(loglike)
+#
+#         true_loglike = tf.math.log(tf.reduce_sum(tf.math.exp(alpha - m_alpha), axis=1, keepdims = True))
+#         true_mean_loglik =  tf.reduce_mean(true_loglike)
+#
+#     print(f"mean_loglike = {mean_loglike}, error = {true_mean_loglik - mean_loglike}")
+#
+#     log_dir = "logs/playground/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+#     grad = tape.gradient(mean_loglike, [A,B])
+#     assert tf.reduce_all(tf.math.is_finite(grad[0])), f"grad {grad[0]} for A is not finite"
+#     assert tf.reduce_all(tf.math.is_finite(grad[1])), f"grad {grad[1]} for B is not finite"
+#
+#     # optimizer.apply_gradients(zip(grad, [A_ker,B_ker]))
+#
+#     A_ker += grad[0] * 0.01
+#     B_ker += grad[1] * 0.01
+#
+
+################################################################################
+################################################################################
+################################################################################
+
+class Klasse():
+    def foo(self):
+        a = 1
+        l = []
+        def bar():
+            print(a,l)
+        bar()
+    def call_foo(self):
+        self.foo()
+c = Klasse()
+c.call_foo()

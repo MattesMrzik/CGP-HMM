@@ -23,7 +23,7 @@ def get_call_backs(config, model):
         def on_train_batch_end(self, batch, logs = None):
             # das vielleicht rein ins callback, da ja exit und der code hier dann ja gar nicht mehr erreicht wird
             # if config.verbose and config.exit_after_first_batch:
-            #     Utility.transform_verbose_txt_to_csv(f"{config.src_path}/verbose/{config.nCodons}codons.txt", config.nCodons)
+            #     Utility.transform_verbose_txt_to_csv(f"{config.out_path}/verbose/{config.nCodons}codons.txt", config.nCodons)
             exit(1)
 
     class exit_after_loglik_is_nan(tf.keras.callbacks.Callback):
@@ -37,7 +37,7 @@ def get_call_backs(config, model):
 
     class remove_verbose_at_batch_begin(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
-            os.system(f"rm {config.src_path}/verbose/{config.nCodons}codons.txt")
+            os.system(f"rm {config.out_path}/verbose/{config.nCodons}codons.txt")
 
     class assert_kernels_at_batch_begin(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
@@ -56,7 +56,7 @@ def get_call_backs(config, model):
             if epoch == 0:
                 start = time.perf_counter()
                 print("Starting callback write_initial_weights_and_matrices_to_file")
-                path = f"{config.src_path}/output/{config.nCodons}codons/initial_weights_and_matrices_from_callback/"
+                path = f"{config.out_path}/output/{config.nCodons}codons/initial_weights_and_matrices_from_callback/"
                 cell = model.get_layer("cgp_hmm_layer").C
                 cell.write_weights_to_file(path)
                 if config.nCodons < 20:
@@ -78,7 +78,7 @@ def get_call_backs(config, model):
             # TODO: why can i access config here?
 
             if batch == 0:
-                path = f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"
+                path = f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"
 
                 model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
@@ -88,7 +88,7 @@ def get_call_backs(config, model):
                                                                A_dense = A, \
                                                                B_dense = B)
 
-            model.save_weights(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/weights.h5", overwrite=True, save_format="h5") #todo also try tf as save format
+            model.save_weights(f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/weights.h5", overwrite=True, save_format="h5") #todo also try tf as save format
 
 
     class get_the_gradient(tf.keras.callbacks.Callback):

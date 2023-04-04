@@ -27,13 +27,13 @@ def main(config):
     # model.save("my_saved_model")
 
     # writng the loss history to file
-    with open(f"{config.src_path}/output/{config.nCodons}codons/loss.log", "w") as file:
+    with open(f"{config.out_path}/output/{config.nCodons}codons/loss.log", "w") as file:
         for loss in history.history['loss']:
             file.write(str(loss) + " " + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
             file.write("\n")
 
     plt.plot(history.history['loss'])
-    plt.savefig(f"{config.src_path}/progress.png")
+    plt.savefig(f"{config.out_path}/progress.png")
 
     I_kernel, A_kernel, B_kernel = model.get_weights()
 
@@ -42,7 +42,7 @@ def main(config):
         start = time.perf_counter()
         print("starting to write model")
 
-        dir_path = f"{config.src_path}/output/{config.nCodons}codons/after_fit_matrices"
+        dir_path = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
         if not os.path.exists(dir_path):
             os.system(f"mkdir -p {dir_path}")
         # in human readalbe format
@@ -59,7 +59,7 @@ def main(config):
         print("done write model. it took ", time.perf_counter() - start)
 
     if config.write_parameters_after_fit:
-        path = f"{config.src_path}/output/{config.nCodons}codons/after_fit_kernels"
+        path = f"{config.out_path}/output/{config.nCodons}codons/after_fit_kernels"
         model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
     if config.nCodons < 10:

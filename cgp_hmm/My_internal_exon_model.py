@@ -30,6 +30,9 @@ class My_Model(Model):
         self.B_is_dense = config.B_is_dense
         self.B_is_sparse = config.B_is_sparse
 
+        from load_priors import Prior
+        self.prior = Prior("/home/mattes/Documents/cgp_data/priors/human/")
+
         # I
         self.I_indices = self.I_indices()
 
@@ -54,15 +57,44 @@ class My_Model(Model):
         # self.A_consts = self.get_A_consts()
 
         # B
-        self.B_indices_for_weights, self.B_indices_for_constants = self.B_indices_for_weights_and_consts()
-        self.B_indices = self.B_indices_for_weights + self.B_indices_for_constants
 
-        if config.use_weights_for_consts:
-            self.B_indices = sorted(self.B_indices)
+        self.make_preparations_for_B()
 
         shape = (self.number_of_emissions, self.number_of_states)
         B_indices_complement = tf.where(tf.ones(shape, dtype = tf.float32) - tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), shape = shape))
         self.B_indices_complement = tf.cast(B_indices_complement, dtype = tf.int32)
+
+        self.B_weight_index_tuple_to_id_conversion_dict = self.get_index_tuple_to_id_conversion_dict(self.B_indices_for_trainable_parameters)
+        self.B_const_index_tuple_to_id_conversion_dict = self.get_index_tuple_to_id_conversion_dict(self.B_indices_for_constant_parameters)
+
+        self.B_initial_parameters_for_weights, \
+        self.B_initial_parameters_for_constants = self.make_B_initial_weights()
+
+        if self.config.nCodons < 20:
+            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/init_parameters_after_conversion"
+            import os
+            if not os.path.exists(dir_name):
+                os.mkdir(dir_name)
+            self.B_as_dense_to_file(f"{dir_name}/B.csv", self.B_initial_parameters_for_weights, with_description = True)
+
+
+        if config.use_weights_for_consts:
+            self.B_indices = sorted(self.B_indices)
+
+       
+
+################################################################################
+    def B_weight_tuple_id(self, tuple):
+        return self.B_weight_index_tuple_to_id_conversion_dict[tuple]
+    def B_const_tuple_id(self, tuple):
+        return self.B_const_index_tuple_to_id_conversion_dict[tuple]
+
+################################################################################
+    def get_index_tuple_to_id_conversion_dict(self, list_of_indices):
+        tuple_to_id = {}
+        for i, indi in enumerate(list_of_indices):
+            tuple_to_id[tuple(indi)] = i
+        return tuple_to_id
 
     # =================> states <===============================================
     def get_number_of_states(self):
@@ -185,7 +217,7 @@ class My_Model(Model):
     def B_kernel_size(self):
         if self.config.use_weights_for_consts:
             return len(self.B_indices_for_weights) + len(self.B_indices_for_constants)
-        return len(self.B_indices_for_weights)
+        return len(self.B_indices_for_trainable_parameters)
 ################################################################################
 ################################################################################
 ################################################################################
@@ -519,49 +551,89 @@ class My_Model(Model):
 
         return allowed_ho_emissions
 ################################################################################
-    def get_indices_for_emission_and_state(self, indices, state, mask, x_bases_must_preceed):
+    def prior_and_initial_parameter_for_state_and_emission(self, state, emission):
+        # state and emission should be string
+        prior = -1.0
+        initial_parameter = -1.0
+        if state == "left_intron" and emission[0] != "I":
+            norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
+            prior = self.prior.get_intron_prob(emission) / norm
+            initial_parameter = prior
+        if state[0] == "c":
+            if state[2] not in ["0", str(self.config.nCodons - 1)]:
+                norm = sum([self.prior.get_exon_prob(emission[:-1] + base, window = int(state[-1])) for base in "ACGT"])
+                prior = self.prior.get_exon_prob(emission, window = int(state[-1])) / norm
+                initial_parameter = prior
+           
+        # from prior and initial parameter the initial weights are computed.
+        # if -1 is passed then the prob is split amoung the parameters
+        # assert that if prob is split there is still something left to be split
+        # and if it it greater than 1 then norm it and send allert to user
+        return prior, initial_parameter
+
+################################################################################
+    def get_indices_for_emission_and_state(self, state, mask, x_bases_must_preceed, trainable = None):
+        state_id = self.str_to_state_id(state)
         # if self.order_transformed_input and emissions[-1] == "X":
+        indices = self.B_indices_for_trainable_parameters if trainable else self.B_indices_for_constant_parameters
+        initial_parameters = self.B_initial_trainalbe_para_setting if trainable else self.B_initial_constant_para_setting
         if mask[-1] == "X":
-            indices += [[self.emission_tuple_to_id("X"), state]]
+            indices += [[self.emission_tuple_to_id("X"), state_id]]
+            initial_parameters.append(1.0)
             return
 
-        for ho_emission in self.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state):
-            indices += [[self.emission_tuple_to_id(ho_emission), state]]
+        for ho_emission in self.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state_id):
+            p,i =  self.prior_and_initial_parameter_for_state_and_emission(state, self.emission_tuple_to_str(ho_emission))
+            initial_parameters.append(i)
+            if i != -1:
+                self.B_priors.append(i)
+            indices += [[self.emission_tuple_to_id(ho_emission), state_id]]
 ################################################################################
-    def B_indices_for_weights_and_consts(self):
-        nCodons = self.config.nCodons
-        indices_for_trainable_parameters = []
-        indicies_for_constant_parameters = []
+    def make_preparations_for_B(self):
+        self.B_indices_for_trainable_parameters = []
+        self.B_indices_for_constant_parameters = []
         states_which_are_already_added = []
-        def append_emission(state, mask = "N", x_bases_must_preceed = self.config.order, trainable = True):
+        self.B_priors = []
+        self.B_initial_trainalbe_para_setting = []
+        self.B_initial_constant_para_setting = []
+        def append_emission(state,
+                            mask = "N",
+                            x_bases_must_preceed = self.config.order,
+                            trainable = True,
+        ):
             states_which_are_already_added.append(state)
-            if trainable:
-                self.get_indices_for_emission_and_state(indices_for_trainable_parameters, self.str_to_state_id(state), mask, x_bases_must_preceed)
-            else:
-                self.get_indices_for_emission_and_state(indicies_for_constant_parameters, self.str_to_state_id(state), mask, x_bases_must_preceed)
+            self.get_indices_for_emission_and_state(state, 
+                                                    mask, 
+                                                    x_bases_must_preceed,
+                                                    trainable = trainable)
 
         # here i add states + their emissions if a want to enforce a mask or want to make them not trainable, or x bases must preceed
         append_emission("left_intron","N", 0)
-        append_emission("A", "A", self.config.order)
-        append_emission("AG", "AG", self.config.order)
+        # TODO these can be non trainable
+        append_emission("A", "A", self.config.order, trainable = False)
+        append_emission("AG", "AG", self.config.order, trainable = False)
 
         append_emission("c_0,0", "AGN")
         # for c_0,1 and c_0,2 i cant force AG to be emitted before, since the exon can be entered in phase 1 or 2
 
-        append_emission("G","G")
-        append_emission("GT","GT")
+        # TODO these can be non trainable
+        append_emission("G","G", trainable = False)
+        append_emission("GT","GT", trainable = False)
 
         for i in range(self.config.donor_pattern_len):
             append_emission(f"do_{i}", "GT" + "N"*(i+1))
 
-        append_emission("ter", "X")
+        append_emission("ter", "X",  trainable = False)
 
         states_that_werent_added_yet = set(self.state_to_id.keys()).difference(states_which_are_already_added)
         states_that_werent_added_yet = sorted(states_that_werent_added_yet)
         for state in states_that_werent_added_yet:
             append_emission(state)
 
-        return indices_for_trainable_parameters, indicies_for_constant_parameters
+        self.B_indices = self.B_indices_for_trainable_parameters + self.B_indices_for_constant_parameters
+        
+
+
 ################################################################################
 ################################################################################
 ################################################################################
@@ -597,12 +669,66 @@ class My_Model(Model):
 
         return transition_matrix
 ################################################################################
+    # TODO falls dieses nicht get cann ich vielleicht tf dont convert machen
+    def make_B_initial_weights(self):
+        initial_parameters_for_weights = np.zeros(len(self.B_indices_for_trainable_parameters))
+        initial_parameters_for_consts = np.zeros(len(self.B_indices_for_constant_parameters))
+
+        concated_init_para_settings = tf.concat([self.B_initial_trainalbe_para_setting, self.B_initial_constant_para_setting], axis = 0)
+
+        dense_shape = [self.number_of_emissions, self.number_of_states]
+        emission_matrix = tf.scatter_nd(self.B_indices, concated_init_para_settings, dense_shape)
+
+        if self.config.nCodons < 20:
+            import os
+            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/init_parameters_before_conversion"
+            if not os.path.exists(dir_name):
+                os.mkdir(dir_name)
+            self.B_as_dense_to_file(f"{dir_name}/B.csv", self.B_initial_trainalbe_para_setting, with_description = True, B = emission_matrix)
+
+
+        for state in range(tf.shape(emission_matrix)[1]):
+            for emission_id_4 in range(0,tf.shape(emission_matrix)[0], self.config.alphabet_size):
+                sum_with_out_zeros_and_negatives_ones = 0.0
+                found_negative_ones = 0.0
+                for emission_id in range(emission_id_4, emission_id_4 + self.config.alphabet_size):
+                    if emission_matrix[emission_id, state] != -1:
+                        sum_with_out_zeros_and_negatives_ones += tf.cast(emission_matrix[emission_id, state], tf.float32)
+                    else:
+                        found_negative_ones += 1
+                # epsilon = 1e-5
+                # if not found_negative_ones:
+                #     assert abs(sum_with_out_zeros_and_negatives_ones - 1) < epsilon, f"sum of probs state {state}, emission_id_4 {emission_id_4} is not equal to one (={sum_with_out_zeros_and_negatives_ones})"
+                    
+                # if found_negative_ones:
+                #     assert 1 - sum_with_out_zeros_and_negatives_ones > epsilon
+
+                for emission_id in range(emission_id_4, emission_id_4 + self.config.alphabet_size):
+                    if emission_matrix[emission_id, state] == -1:
+                        weight = tf.math.log((1-sum_with_out_zeros_and_negatives_ones)/found_negative_ones)
+                    else:
+                        weight = tf.math.log(tf.cast(emission_matrix[emission_id, state], tf.float32))
+                    indx = (emission_id, state)
+                    if list(indx) in self.B_indices_for_trainable_parameters:
+                        initial_parameters_for_weights[self.B_weight_tuple_id(indx)] = weight
+                    elif list(indx) in self.B_indices_for_constant_parameters:
+                        initial_parameters_for_consts[self.B_const_tuple_id(indx)] = weight
+                    # else:
+                    #     print(f"index {indx} not found in make_B_initial_weights()")
+                    #     exit()
+        initial_parameters_for_weights = tf.cast(initial_parameters_for_weights, self.config.dtype)
+        initial_parameters_for_consts = tf.cast(initial_parameters_for_consts, self.config.dtype)
+        return initial_parameters_for_weights, initial_parameters_for_consts
+
+################################################################################
+
     def B(self, weights):
-        if self.config.use_weights_for_consts:
-            values = weights
-        else:
-            consts = tf.cast([1.0] * len(self.B_indices_for_constants), dtype = self.config.dtype)
-            values = tf.concat([weights, consts], axis = 0)
+        # consts = tf.cast([1.0] * len(self.B_indices_for_constants), dtype = self.config.dtype)
+        try:
+            consts = self.B_initial_parameters_for_constants
+        except:
+            consts = self.B_initial_constant_para_setting
+        values = tf.concat([weights, consts], axis = 0)
         dense_shape = [self.number_of_emissions, \
                        self.number_of_states]
 
@@ -724,8 +850,9 @@ class My_Model(Model):
             A = self.A(weights) if self.A_is_dense else tf.sparse.to_dense(self.A(weights))
             json.dump(A.numpy().tolist(), out_file)
 
-    def B_as_dense_to_str(self, weights, with_description = False):
-        B = self.B(weights) if self.B_is_dense else tf.sparse.to_dense(self.B(weights))
+    def B_as_dense_to_str(self, weights, with_description = False, B = None):
+        if B == None:
+            B = self.B(weights) if self.B_is_dense else tf.sparse.to_dense(self.B(weights))
         result = ""
         if with_description:
             result += " "
@@ -743,9 +870,9 @@ class My_Model(Model):
             result += "\n"
         return result
 
-    def B_as_dense_to_file(self, path, weights, with_description = False):
+    def B_as_dense_to_file(self, path, weights, with_description = False, B = None):
         with open(path, "w") as out_file:
-            out_file.write(self.B_as_dense_to_str(weights, with_description))
+            out_file.write(self.B_as_dense_to_str(weights, with_description, B = B))
 
     def B_as_dense_to_json_file(self, path, weights):
         with open(path, "w") as out_file:

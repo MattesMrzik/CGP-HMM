@@ -79,7 +79,7 @@ class Model(ABC):
         B_argmax = np.argmax(B_reshaped, axis = 1)
 
         id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
-        with open(f"output/{nCodons}codons/graph.gv", "w") as graph:
+        with open(f"{self.config.out_path}/output/{nCodons}codons/graph.gv", "w") as graph:
             graph.write("DiGraph G{\nrankdir=LR;\n")
             # graph.write("nodesep=0.5; splines=polyline;")
             for from_state, row in enumerate(A):
@@ -113,4 +113,4 @@ class Model(ABC):
             graph.write("}")
         # run(f"cat graph.{nCodons}codons.gv")
         from Utility import run
-        run(f"dot -Tpng output/{nCodons}codons/graph.gv -o output/{nCodons}codons/graph.png")
+        run(f"dot -Tpng {self.config.out_path}/output/{nCodons}codons/graph.gv -o output/{nCodons}codons/graph.png")

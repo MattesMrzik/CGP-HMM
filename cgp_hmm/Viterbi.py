@@ -13,7 +13,7 @@ def get_true_state_seqs_from_true_MSA(config):
     # calc true state seq from true MSA
     true_state_seqs = []
     msa_state_seq = ""
-    with open(f"{config.src_path}/output/{config.nCodons}codons/trueMSA.txt","r") as msa:
+    with open(f"{config.out_path}/output/{config.nCodons}codons/trueMSA.txt","r") as msa:
         for j, line in enumerate(msa):
             true_state_seq = []
             if j == 0:
@@ -64,7 +64,7 @@ def get_true_state_seqs_from_true_MSA(config):
     return true_state_seqs
 
 def load_viterbi_guess(config):
-    viterbi_file = open(f"{config.src_path}/output/{config.nCodons}codons/viterbi_cc_output.json", "r")
+    viterbi_file = open(f"{config.out_path}/output/{config.nCodons}codons/viterbi_cc_output.json", "r")
     viterbi = json.load(viterbi_file)
     return viterbi
 
@@ -111,8 +111,8 @@ def write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi):
                 id_in_state_str += 1
         return new_str
 
-    with open(f"{config.src_path}/output/{config.nCodons}codons/trueMSA.txt","r") as msa:
-        with open(f"{config.src_path}/output/{config.nCodons}codons/trueMSA_viterbi.txt","w") as out:
+    with open(f"{config.out_path}/output/{config.nCodons}codons/trueMSA.txt","r") as msa:
+        with open(f"{config.out_path}/output/{config.nCodons}codons/trueMSA_viterbi.txt","w") as out:
             for i, msa_seq_str in enumerate(msa):
                 seq_id = i - 1
                 if seq_id < 0:
@@ -146,7 +146,7 @@ def eval_start_stop(config, viterbi):
              "stop_correct" : 0,\
              "stop_too_late" : 0}
 
-    start_stop = pd.read_csv(f"{config.src_path}/output/{config.nCodons}codons/start_stop_pos.txt", sep=";", header=None)
+    start_stop = pd.read_csv(f"{config.out_path}/output/{config.nCodons}codons/start_stop_pos.txt", sep=";", header=None)
     stA_id = config.model.str_to_state_id("stA")
     stop1_id = config.model.str_to_state_id("stop1")
     for i, state_seq in enumerate(viterbi):
@@ -190,7 +190,7 @@ def eval_start_stop(config, viterbi):
             stats["stop_too_late"] += 1/nSeqs
 
 
-    with open(f"{config.src_path}/output/{config.nCodons}codons/statistics.json", "w") as file:
+    with open(f"{config.out_path}/output/{config.nCodons}codons/statistics.json", "w") as file:
         json.dump(stats, file)
 
     for key, value in stats.items():
@@ -384,8 +384,8 @@ def run_cc_viterbi(config):
         out_path = f"--out_path {out_dir_path}/viterbi_cc_output.json"
     else:
         out_path = ""
-    # command = f"{config.src_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq} {out_path}"
-    command = f"{config.src_path}/Viterbi -c {config.nCodons} -j 1 {seq_path} {only_first_seq} {out_path}"
+    # command = f"{config.out_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq} {out_path}"
+    command = f"{config.out_path}/Viterbi -c {config.nCodons} -j 1 {seq_path} {only_first_seq} {out_path}"
     print("starting", command)
     os.system(command)
     print("done viterbi. it took ", time.perf_counter() - start)
@@ -397,7 +397,7 @@ if __name__ == "__main__":
     config = Config("main_programm_dont_interfere")
 
     # check if matrices exists, if not convert kernels
-    matr_dir = f"{config.src_path}/output/{config.nCodons}codons/after_fit_matrices"
+    matr_dir = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
     if not os.path.exists(f"{matr_dir}/A.json"):
         convert_kernel_files_to_matrices_files(dir_path)
 
@@ -406,7 +406,7 @@ if __name__ == "__main__":
     if config.manual_passed_fasta:
         out_viterbi_file_path = f"{out_dir_path}/viterbi_cc_output.json"
     else:
-        out_viterbi_file_path = f"{config.src_path}/output/{config.nCodons}codons/viterbi_cc_output.json"
+        out_viterbi_file_path = f"{config.out_path}/output/{config.nCodons}codons/viterbi_cc_output.json"
 
     if config.in_viterbi_path:
         assert config.manual_passed_fasta, "when viterbi.py and --in_viterbi_path also pass --fasta"

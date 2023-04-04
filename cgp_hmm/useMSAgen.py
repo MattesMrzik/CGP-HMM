@@ -18,16 +18,14 @@ parser.add_argument('-n', '--num_seqs', type = int, help='length os seq is lengt
 parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist')
 parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist')
 parser.add_argument('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks")
-parser.add_argument('-p', '--path', help = 'path to src')
+parser.add_argument('--MSAgen_dir', default = "../MSAgen", help = 'path_to_MSAgen_dir')
+parser.add_argument('--out_path', default = "../../cgp_data/", help = 'out_path')
 parser.add_argument('--insertions', action = 'store_true', help = 'simulate inserions at random positions in seqs selected by random')
 parser.add_argument('--deletions', action = 'store_true', help = 'simulate deletions at random positions in seqs selected by random')
 
 args = parser.parse_args()
 
-if not args.path:
-    args.path = "."
-
-sys.path.insert(0, f"{args.path}/../MSAgen")
+sys.path.insert(0, args.MSAgen_dir)
 
 import MSAgen
 
@@ -47,11 +45,11 @@ sequences, posDict = MSAgen.generate_sequences(num_sequences = int(num_seqs), # 
                                                coding_dist = args.coding_dist, # branch length of the underlying tree for simulated gene evolution
                                                noncoding_dist = args.noncoding_dist) # branch length for flanking regions
 
-if not os.path.exists(f"{args.path}/output/{nCodons}codons/"):
-    os.makedirs(f"{args.path}/output/{nCodons}codons/")
+if not os.path.exists(f"{args.out_path}/output/{nCodons}codons/"):
+    os.makedirs(f"{args.out_path}/output/{nCodons}codons/")
 
 # MSAgen output
-with open(f"{args.path}/output/{nCodons}codons/MSAgen.out","w") as file:
+with open(f"{args.out_path}/output/{nCodons}codons/MSAgen.out","w") as file:
     for seq in sequences:
         file.write(">" + seq.id + "\n")
         file.write(str(seq.seq) + "\n")
@@ -124,7 +122,7 @@ if strip_flanks:
         seq.stopPos     = seq.stopPos - strip_5flank_len
 
 # write true MSA to file:
-with open(f"{args.path}/output/{nCodons}codons/trueMSA.txt", "w") as file:
+with open(f"{args.out_path}/output/{nCodons}codons/trueMSA.txt", "w") as file:
     # landmarks = ""
     # for i in range(seqlen):
     #     if i%10 == 0:
@@ -162,10 +160,11 @@ with open(f"{args.path}/output/{nCodons}codons/trueMSA.txt", "w") as file:
         file.write(str(seq.seq))
         file.write("-" * (len(first_line) -1 - len(str(seq.seq)) - posDict["5flank_len"] + seq.startATGPos))
         file.write("\n")
-run(f"head {args.path}/output/{nCodons}codons/trueMSA.txt")
+run(f"head {args.out_path}/output/{nCodons}codons/trueMSA.txt")
 
 # fasta file
-fasta_path = f"{args.path}/output/{nCodons}codons/seqs.fa"
+fasta_path = f"{args.out_path}/output/{nCodons}codons/seqs.fa"
+
 with open(fasta_path,"w") as file:
     # SeqIO.write(sequences, file, "fasta")
     for i, seq in enumerate(sequences):
@@ -176,7 +175,7 @@ with open(fasta_path,"w") as file:
 run(f"head {fasta_path}")
 
 # profile of coding seq
-# with open(f"{args.path}/output/{nCodons}codons/profile.{nCodons}codons.txt", "w") as file:
+# with open(f"{args.out_path}/output/{nCodons}codons/profile.{nCodons}codons.txt", "w") as file:
 #     for i in range(len(coding_seqs[0])):
 #         profile = {"A":0, "C":0, "G":0, "T":0}
 #         for seq in coding_seqs:
@@ -185,10 +184,10 @@ run(f"head {fasta_path}")
 #             file.write(str(int(profile[c]*100)/100))
 #             file.write("\t")
 #         file.write("\n")
-# run(f"head {args.path}/output/{nCodons}codons/profile.{nCodons}codons.txt")
+# run(f"head {args.out_path}/output/{nCodons}codons/profile.{nCodons}codons.txt")
 
 # start and stop positions
-start_stop_pos_path = f"{args.path}/output/{nCodons}codons/start_stop_pos.txt"
+start_stop_pos_path = f"{args.out_path}/output/{nCodons}codons/start_stop_pos.txt"
 with open(start_stop_pos_path,"w") as file:
     for seq in sequences:
         file.write(">" + seq.id)

@@ -58,9 +58,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         # setting the initilizers
         if self.config.get_gradient_for_current_txt or self.config.init_weights_from_before_fit or self.config.init_weights_from_after_fit:
             if self.config.init_weights_from_after_fit:
-                path = f"{self.config.src_path}/output/{self.config.nCodons}codons/after_fit_kernels/"
+                path = f"{self.config.out_path}/output/{self.config.nCodons}codons/after_fit_kernels/"
             else:
-                path = f"{self.config.src_path}/output/{self.config.nCodons}codons/initial_weights_and_matrices_from_callback/"
+                path = f"{self.config.out_path}/output/{self.config.nCodons}codons/initial_weights_and_matrices_from_callback/"
             weights = self.read_weights_from_file(path)
 
             I_initializer = tf.constant_initializer(weights[0])
@@ -109,7 +109,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         visualize_after_build = False
         if visualize_after_build:
-            config.model.export_to_dot_and_png(A_kernel, B_kernel)
+            self.config.model.export_to_dot_and_png(self.A_kernel, self.B_kernel)
             exit()
         append_time_ram_stamp_to_file(f"Cell.build() end   {run_id}", self.config.bench_path, start)
 
@@ -327,7 +327,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def verbose_beginning_of_call(self, run_id, inputs, old_forward, old_loglik):
         if self.config.verbose:
             if self.config.print_to_file:
-                outstream = f"file://{self.config.src_path}/verbose/{self.nCodons}codons.txt"
+                outstream = f"file://{self.config.out_path}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
                 outstream = sys.stdout
@@ -347,7 +347,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def verbose_end_of_call(self, run_id, E, R, alpha, loglik):
         if self.config.verbose:
             if self.config.print_to_file:
-                outstream = f"file://{self.config.src_path}/verbose/{self.nCodons}codons.txt"
+                outstream = f"file://{self.config.out_path}/verbose/{self.nCodons}codons.txt"
             else:
                 import sys
                 outstream = sys.stdout

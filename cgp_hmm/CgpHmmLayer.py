@@ -78,12 +78,12 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             scale_count_state = result[2]
 
         if self.config.batch_begin_write_weights__layer_call_write_inputs:
-            # os.system(f"rm {self.config['src_path']}/output/{self.config['nCodons']}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
+            # os.system(f"rm {self.config['out_path']}/output/{self.config['nCodons']}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
             # also remove the file at beginning of batch
             # out_inputs = tf.argmax(inputs, axis = 2)
             # out_inputs = [[int(base) for base in seq]for seq in out_inputs]
             # tf.print(json.dumps(out_inputs, outstream))
-            current_inputs = f"{self.config.src_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt"
+            current_inputs = f"{self.config.out_path}/output/{self.config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt"
             current_inputs_temp = f"{current_inputs}.temp"
 
             os.system(f"mv {current_inputs_txt_temp} {current_inputs}")

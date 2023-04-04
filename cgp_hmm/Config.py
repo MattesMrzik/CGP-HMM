@@ -90,10 +90,10 @@ class Config():
         self.alphabet_size = 4
         self.write_return_sequnces = False
 
-        self.bench_path = f"{self.src_path}/bench/{self.nCodons}codons/{self.AB}_call_type.log"
+        self.bench_path = f"{self.out_path}/bench/{self.nCodons}codons/{self.AB}_call_type.log"
         if not self.fasta_path:
             self.manual_passed_fasta = False
-            self.fasta_path = f"{self.src_path}/output/{self.nCodons}codons/seqs.fa"
+            self.fasta_path = f"{self.out_path}/output/{self.nCodons}codons/seqs.fa"
         else:
             self.manual_passed_fasta = True
             self.generate_new_seqs = False
@@ -133,14 +133,14 @@ class Config():
 
 
     def prepare_before_main_programm(self):
-        paths = [f"{self.src_path}/output/{self.nCodons}codons/", \
-                 f"{self.src_path}/verbose"]
+        paths = [f"{self.out_path}/output/{self.nCodons}codons/", \
+                 f"{self.out_path}/verbose"]
         for path in paths:
             if not os.path.exists(path):
                 os.system(f"mkdir -p {path}")
         if self.verbose:
-            os.system(f"rm {self.src_path}/verbose/{self.nCodons}codons.txt")
-        os.system(f"rm {self.src_path}/{self.bench_path}")
+            os.system(f"rm {self.out_path}/verbose/{self.nCodons}codons.txt")
+        os.system(f"rm {self.out_path}/{self.bench_path}")
 
     def determine_attributes(self):
         pass
@@ -232,7 +232,8 @@ class Config():
         self.add_arg_main('-c', '--nCodons', type = int, default = 1, help='number of codons')
         self.add_arg_main('-AB', default = 'sd', help = '[sd (default), ds, sd, ss] specify the sparse or denseness of A and B')
         self.add_arg_main('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
-        self.add_arg_main('-p', '--src_path', default = ".", help='path to src')
+        self.add_arg_main('-p', '--out_path', default = "../../cgp_data/", help='path to paranet output dir')
+        self.add_arg_main('--path_to_MSAgen_dir', default= "../MSAgen", help = 'path to MSAgen_dir')
         self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [SDG]')
         self.add_arg_main('--epochs', default = 2, type = int, help = 'how many epochs [2]')
         self.add_arg_main('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')

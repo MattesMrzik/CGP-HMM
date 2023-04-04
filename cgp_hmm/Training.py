@@ -57,13 +57,13 @@ def make_dataset(config):
             from generate_seqs import generate_simple
             generate_simple()
         else:
-            command = f"python3 {config.src_path}/useMSAgen.py -c {config.nCodons} \
+            command = f"python3 ./useMSAgen.py -c {config.nCodons} \
                           {'-n 100'} \
                           {'-l' + str(config.seq_len)} \
                           {'-cd ' + str(config.coding_dist) if config.coding_dist else ''} \
                           {'-ncd ' + str(config.noncoding_dist) if config.noncoding_dist else ''}\
                           {'--dont_strip_flanks' if config.dont_strip_flanks else ''} \
-                          {'-p ' + config.src_path if config.src_path else ''} \
+                          {'--MSAgen_dir ' + config.path_to_MSAgen_dir} \
                           {'--insertions ' if config.simulate_insertions else ''} \
                           {'--deletions ' if config.simulate_deletions else ''}"
 
@@ -190,7 +190,7 @@ def fit_model(config):
         model, cgp_hmm_layer = make_model(config)
         model.compile(optimizer = optimizer)
         if config.get_gradient_from_saved_model_weights:
-            model.load_weights(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_weights")
+            model.load_weights(f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_weights")
             # config["model"] = model
             # print('config["model"]', config["model"])
             config.weights = model.get_weights()
@@ -200,7 +200,7 @@ def fit_model(config):
         layer.C.build(None)
         import ReadData
         # assuming that inputs are formatted in shape batch, seq_len, one_hot_dim = 32, l, 126
-        input = ReadData.get_batch_input_from_tf_printed_file(f"{config.src_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
+        input = ReadData.get_batch_input_from_tf_printed_file(f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
         with tf.GradientTape() as tape:
             y, alpha_seq = layer(input) # eventuell wird hier die cell nochmal gebaut und das weight setzen davor bringt nichts
 
@@ -424,11 +424,11 @@ def fit_model(config):
                     ak = [float(x) for x in gradient[1]]
                     bk = [float(x) for x in gradient[2]]
 
-                    # with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_ik_for_alpha{config.alpha_i_gradient}.txt","w") as file:
+                    # with open(f"{config.out_path}/output/{config.nCodons}codons/gradient_ik_for_alpha{config.alpha_i_gradient}.txt","w") as file:
                     #     json.dump(ik, file)
-                    with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_ak_for_alpha{config.alpha_i_gradient}.txt","w") as file:
+                    with open(f"{config.out_path}/output/{config.nCodons}codons/gradient_ak_for_alpha{config.alpha_i_gradient}.txt","w") as file:
                         json.dump(ak, file)
-                    with open(f"{config.src_path}/output/{config.nCodons}codons/gradient_bk_for_alpha{config.alpha_i_gradient}.txt","w") as file:
+                    with open(f"{config.out_path}/output/{config.nCodons}codons/gradient_bk_for_alpha{config.alpha_i_gradient}.txt","w") as file:
                         json.dump(bk, file)
 
                     # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I", summarize = config.assert_summarize)
