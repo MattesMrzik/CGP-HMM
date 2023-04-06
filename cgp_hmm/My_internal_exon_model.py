@@ -31,7 +31,7 @@ class My_Model(Model):
         self.B_is_sparse = config.B_is_sparse
 
         from load_priors import Prior
-        self.prior = Prior("/home/mattes/Documents/cgp_data/priors/human/")
+        self.prior = Prior(config, "/home/mattes/Documents/cgp_data/priors/human/")
 
         # I
         self.I_indices = self.I_indices()
@@ -71,11 +71,11 @@ class My_Model(Model):
         self.B_initial_parameters_for_constants = self.make_B_initial_weights()
 
         if self.config.nCodons < 20:
-            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/init_parameters_after_conversion"
+            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/"
             import os
             if not os.path.exists(dir_name):
                 os.mkdir(dir_name)
-            self.B_as_dense_to_file(f"{dir_name}/B.csv", self.B_initial_parameters_for_weights, with_description = True)
+            self.B_as_dense_to_file(f"{dir_name}/B_init_parameters_after_conversion.csv", self.B_initial_parameters_for_weights, with_description = True)
 
 
         if config.use_weights_for_consts:
@@ -293,6 +293,7 @@ class My_Model(Model):
             append_transition(f"c_{i},1", f"c_{i},2", trainable = False)
 
         # inserts
+        #i dont have inserts right after or before splice site
         append_transition(l = self.A_indices_begin_inserts)
         for i in range(self.insert_low, self.insert_high):
             append_transition(f"i_{i},0", f"i_{i},1", trainable = False)
@@ -528,7 +529,7 @@ class My_Model(Model):
 ################################################################################
     def state_is_third_pos_in_frame(self, state):
         s = self.state_id_to_str(state)
-        if s [-1] == "2" and s != "stop2" and s != "ter2":
+        if s[-1] == "2" and s != "stop2" and s != "ter2" and s[0] in "ic":
             return True
         return False
 ################################################################################
@@ -552,18 +553,91 @@ class My_Model(Model):
         return allowed_ho_emissions
 ################################################################################
     def prior_and_initial_parameter_for_state_and_emission(self, state, emission):
+        emission = emission.lower()
         # state and emission should be string
+
+        # TODO i think i dont have to norm left_intron and codon and insert since they should already be normed in the file
         prior = -1.0
         initial_parameter = -1.0
-        if state == "left_intron" and emission[0] != "I":
+        if state in ["left_intron", "right_intron"] and emission[0] != "i":
             norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
+            assert abs(norm - 1 ) < 1e-4, f"norm is {norm} but should be one"
             prior = self.prior.get_intron_prob(emission) / norm
             initial_parameter = prior
-        if state[0] == "c":
-            if state[2] not in ["0", str(self.config.nCodons - 1)]:
+        if state[0] == "c": # c_0,2   c_12,1
+            codon_id = int(re.search(r"c_(\d+),\d+", state).group(1))
+            if codon_id not in [0, self.config.nCodons - 1]:
                 norm = sum([self.prior.get_exon_prob(emission[:-1] + base, window = int(state[-1])) for base in "ACGT"])
+                assert abs(norm - 1 ) < 1e-3, f"norm is {norm} but should be one"
                 prior = self.prior.get_exon_prob(emission, window = int(state[-1])) / norm
                 initial_parameter = prior
+            if codon_id == 0:
+                assert self.config.ass_end == 2, " self.config.ass_end == 2 is assumed for the following code, but it is set to a different value"
+                if state[-1] == "0":
+                    pattern = f".{{{self.config.ass_start}}}AG{emission[-1]}.{{{self.config.ass_end-1}}}"
+                    norm_pattern = f".{{{self.config.ass_start}}}AG.{{{self.config.ass_end}}}"
+                    unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = pattern)
+                    norm = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = norm_pattern)
+                    assert norm != 0, f"norm is zero in state {state} and emission {emission}, with pattern {pattern}"
+                    prior = unscaled_prob/norm
+                    initial_parameter = prior
+                if state[-1] == "1":
+                    pattern = f".{{{self.config.ass_start}}}AG{emission[1:]}.{{{self.config.ass_end-2}}}"
+                    norm_pattern = f".{{{self.config.ass_start}}}AG{emission[1]}.{{{self.config.ass_end-1}}}"
+                    unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = pattern)
+                    norm = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = norm_pattern)
+                    assert norm != 0, f"norm is zero in state {state} and emission {emission}, with pattern {pattern}"
+                    prior = unscaled_prob/norm
+                    initial_parameter = prior
+
+
+        if state[0] == "i":
+            codon_id = int(re.search(r"i_(\d+),\d+", state).group(1))
+            if codon_id not in [0, self.config.nCodons]:
+                norm = sum([self.prior.get_exon_prob(emission[:-1] + base, window = int(state[-1])) for base in "ACGT"])
+                assert abs(norm - 1 ) < 1e-3, f"norm is {norm} but should be one"
+                prior = self.prior.get_exon_prob(emission, window = int(state[-1])) / norm
+                initial_parameter = prior
+
+        if state.startswith("ak_"):
+            ak_id = int(state[-1])
+            how_many_states_before_A = self.config.akzeptor_pattern_len - ak_id
+            # = 1 if state is right before A, = 2 if there is one more state before A
+            start_in_prior_pattern = self.config.ass_start - how_many_states_before_A - self.config.order
+            fits_in_prior_pattern = start_in_prior_pattern >= 0
+            if fits_in_prior_pattern:
+                before_emission = f".{{{self.config.ass_start - how_many_states_before_A - self.config.order}}}"
+                after_emission = f".{{{how_many_states_before_A-1}}}AG.*"
+                pattern = f"{before_emission}{emission}{after_emission}"
+                unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = pattern)
+                norm_pattern = f"{before_emission}{emission[:-1]}.{after_emission}"
+                norm = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = norm_pattern)
+                assert norm != 0, "norm in ak is zero 0923htui4"
+                prior = unscaled_prob/norm
+                initial_parameter = prior
+                # TODO if prior is zero maybe dont set initial para to zero
+                # TODO are pseudo count also added to non occuring patterns?
+
+        if state.startswith("do_"):
+            assert self.config.donor_pattern_len < 10, "donor pattern len >=10 gubi2t9w0gurz8"
+            if state[-1] == "0":
+                pattern = f".{{{self.config.dss_start}}}GT{emission[-1]}.{{{self.config.dss_end-1}}}"
+                norm_pattern = f".{{{self.config.dss_start}}}GT.{{{self.config.dss_end}}}"
+                unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = pattern)
+                norm = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = norm_pattern)
+                assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
+                prior = unscaled_prob/norm
+                initial_parameter = prior
+            if state[-1] == "1":
+                pattern = f".{{{self.config.dss_start}}}GT{emission[1:]}.{{{self.config.dss_end-2}}}"
+                norm_pattern = f".{{{self.config.dss_start}}}GT{emission[1]}.{{{self.config.dss_end-1}}}"
+                unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = pattern)
+                norm = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = norm_pattern)
+                assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
+                prior = unscaled_prob/norm
+                initial_parameter = prior
+        
+        
            
         # from prior and initial parameter the initial weights are computed.
         # if -1 is passed then the prob is split amoung the parameters
@@ -585,6 +659,7 @@ class My_Model(Model):
         for ho_emission in self.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state_id):
             p,i =  self.prior_and_initial_parameter_for_state_and_emission(state, self.emission_tuple_to_str(ho_emission))
             initial_parameters.append(i)
+            # TODO rather than just appending i could add them to a dict with key (state, emission)
             if i != -1:
                 self.B_priors.append(i)
             indices += [[self.emission_tuple_to_id(ho_emission), state_id]]
@@ -681,10 +756,10 @@ class My_Model(Model):
 
         if self.config.nCodons < 20:
             import os
-            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/init_parameters_before_conversion"
+            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/"
             if not os.path.exists(dir_name):
                 os.mkdir(dir_name)
-            self.B_as_dense_to_file(f"{dir_name}/B.csv", self.B_initial_trainalbe_para_setting, with_description = True, B = emission_matrix)
+            self.B_as_dense_to_file(f"{dir_name}/B_init_parameters_before_conversion.csv", self.B_initial_trainalbe_para_setting, with_description = True, B = emission_matrix)
 
 
         for state in range(tf.shape(emission_matrix)[1]):
