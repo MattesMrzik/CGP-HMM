@@ -126,7 +126,7 @@ def make_dataset(config):
         dataset = dataset.map(lambda x: x.to_tensor()) # bc it is ragged
         np.set_printoptions(linewidth=200)
 
-        print_data_set(dataset, "ds_str")
+        # print_data_set(dataset, "ds_str")
 
     # TODO: shuffle dataset?
     dataset = dataset.repeat()

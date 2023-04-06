@@ -79,6 +79,10 @@ class Config():
             assert not self.dont_generate_new_seqs, "using fasta path, so nothig should get generated"
             assert not self.use_simple_seq_gen, "using fasta path, so nothig should get generated"
 
+        assert self.akzeptor_pattern_len < 10, "akzeptor_pattern_len >= 10, setting priors uses the str rep of a state and only work with single diget number, this might not be the only place where this is required"
+        assert self.donor_pattern_len < 10, "donor_pattern_len >= 10, setting priors uses the str rep of a state and only work with single diget number, this might not be the only place where this is required"
+
+
 
     def add_attribtes(self):
         import tensorflow as tf
@@ -289,6 +293,10 @@ class Config():
         self.add_arg_main('--my_initial_guess_for_parameters', action='store_true', help = 'init A weights with my initial guess')
         self.add_arg_main('--single_high_prob_kernel', type = float, default = 4, help = 'if my_initial_guess_for_parameters, this value is for high prob transitions, all other transitions get kernel weight 1')
         self.add_arg_main('--diminishing_factor', type = float, default = 2, help = 'deletes get initialized with [[-(to_codon - from_codon)/self.config.diminishing_factor]]')
+        self.add_arg_main('--ass_start', type = int, default = 5, help = 'len of prior pattern before AG ASS splice site')
+        self.add_arg_main('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
+        self.add_arg_main('--dss_start', type = int, default = 5, help = 'len of prior pattern before GT DSS splice site')
+        self.add_arg_main('--dss_end', type = int, default = 2, help = 'len of prior pattern after GT DSS splice site')
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
