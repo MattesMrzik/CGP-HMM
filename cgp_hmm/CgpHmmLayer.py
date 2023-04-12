@@ -153,6 +153,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             self.add_metric(reg, "reg")
             alpha = 1
             self.add_loss(tf.squeeze(-loglik_mean - alpha * reg))
+
+            # TODO norm likelihood by batchsize, 
+            # norm prior by number of inout seqs
+        elif self.config.prior:
+            prior = self.config.model.get_log_prior(self.C.B_kernel) * self.config.prior
+            self.add_metric(prior, "prior")
+            self.add_loss(tf.squeeze(-loglik_mean - prior))
         else:
             self.add_loss(tf.squeeze(-loglik_mean))
 

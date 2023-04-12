@@ -57,8 +57,8 @@ class My_Model(Model):
         # self.A_consts = self.get_A_consts()
 
         # B
-
         self.make_preparations_for_B()
+        self.get_B_prior_matrix()
 
         shape = (self.number_of_emissions, self.number_of_states)
         B_indices_complement = tf.where(tf.ones(shape, dtype = tf.float32) - tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), shape = shape))
@@ -644,6 +644,18 @@ class My_Model(Model):
         # assert that if prob is split there is still something left to be split
         # and if it it greater than 1 then norm it and send allert to user
         return prior, initial_parameter
+    
+    def get_B_prior_matrix(self):
+        dense_shape = [self.number_of_emissions, self.number_of_states]
+        self.B_prior_matrix = tf.scatter_nd(self.B_prior_indices, self.B_priors, shape = dense_shape)
+        self.B_prior_matrix = tf.cast(self.B_prior_matrix, dtype = self.config.dtype)
+
+    def get_log_prior(self, B_kernel):
+        alphas = self.B_prior_matrix - 1
+        log_prior = tf.math.log(self.B(B_kernel) + 1e-12)
+        before_reduce_sum = (alphas * log_prior) 
+        return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.B_prior_indices))
+
 
 ################################################################################
     def get_indices_for_emission_and_state(self, state, mask, x_bases_must_preceed, trainable = None):
@@ -659,16 +671,19 @@ class My_Model(Model):
         for ho_emission in self.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state_id):
             p,i =  self.prior_and_initial_parameter_for_state_and_emission(state, self.emission_tuple_to_str(ho_emission))
             initial_parameters.append(i)
-            # TODO rather than just appending i could add them to a dict with key (state, emission)
-            if i != -1:
-                self.B_priors.append(i)
-            indices += [[self.emission_tuple_to_id(ho_emission), state_id]]
+            index = [self.emission_tuple_to_id(ho_emission), state_id]
+            if p != -1:
+                self.B_priors.append(p)
+                self.B_prior_indices.append(index)
+
+            indices += [index]
 ################################################################################
     def make_preparations_for_B(self):
         self.B_indices_for_trainable_parameters = []
         self.B_indices_for_constant_parameters = []
         states_which_are_already_added = []
         self.B_priors = []
+        self.B_prior_indices = []
         self.B_initial_trainalbe_para_setting = []
         self.B_initial_constant_para_setting = []
         def append_emission(state,

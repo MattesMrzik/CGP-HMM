@@ -82,11 +82,11 @@ def get_call_backs(config, model):
 
                 model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
-            if config.check_for_zeros:
-                Utility.find_indices_in_sparse_A_that_are_zero(config = config, \
-                                                               I_dense = I, \
-                                                               A_dense = A, \
-                                                               B_dense = B)
+            # if config.check_for_zeros:
+            #     Utility.find_indices_in_sparse_A_that_are_zero(config = config, \
+            #                                                    I_dense = I, \
+            #                                                    A_dense = A, \
+            #                                                    B_dense = B)
 
             model.save_weights(f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/weights.h5", overwrite=True, save_format="h5") #todo also try tf as save format
 

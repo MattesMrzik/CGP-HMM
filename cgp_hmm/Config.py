@@ -144,7 +144,7 @@ class Config():
                 os.system(f"mkdir -p {path}")
         if self.verbose:
             os.system(f"rm {self.out_path}/verbose/{self.nCodons}codons.txt")
-        os.system(f"rm {self.out_path}/{self.bench_path}")
+        os.system(f"rm {self.bench_path}")
 
     def determine_attributes(self):
         pass
@@ -257,6 +257,7 @@ class Config():
         self.add_arg_main('--deletes_after_codon_to_intron', action = 'store_true', help = 'dark green: deletes_after_codon_to_intron')
         self.add_arg_main('--deletes_after_insert_to_codon', action = 'store_true', help = 'red: deletes_after_insert_to_codon')
         self.add_arg_main('--deletes_after_codon_to_insert', action = 'store_true', help = 'pink: deletes_after_codon_to_insert')
+        self.add_arg_main('--prior', type = float, default = 0, help = 'use prior reg or scale it')
 
         # fine tune algo
         self.add_arg_main('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
