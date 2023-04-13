@@ -5,6 +5,7 @@ from itertools import product
 import tensorflow as tf
 import json
 import numpy as np
+import os
 
 class My_Model(Model):
 
@@ -42,6 +43,7 @@ class My_Model(Model):
         self.A_initial_weights_for_trainable_parameters, \
         self.A_initial_weights_for_constants = self.A_indices_and_initial_weights()
         self.A_indices = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
+        self.get_A_prior_matrix()
 
         if config.use_weights_for_consts:
 
@@ -236,7 +238,6 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
     def A_indices_and_initial_weights(self):
-
         single_high_prob_kernel = self.config.single_high_prob_kernel
         # für weights die trainable sind und gleich viele einer ähnlichen art sind,
         # die in eine separate methode auslagen, damit ich leichter statistiken
@@ -246,8 +247,10 @@ class My_Model(Model):
         initial_weights_for_consts = []
         initial_weights_for_trainable_parameters = []
 
+        self.A_prior_indices =[]
+
         # etwas zufälligkeit auf die initial parameter addieren?
-        def append_transition(s1 = None, s2 = None, l = None, trainable = True, initial_weights = None):
+        def append_transition(s1 = None, s2 = None, l = None, trainable = True, initial_weights = None, use_as_prior = False):
             if l == None: # -> make l and list containing single weight
                 assert s1 != None and s2 != None, "s1 and s2 must be != None if l = None"
                 if initial_weights == None:
@@ -259,7 +262,11 @@ class My_Model(Model):
                 initial_weights = [0] * len(l)
             assert type(initial_weights) == list, "if you pass a list of transitions, you must pass either no initial weights or list of ints or floats"
             assert len(l) == len(initial_weights), "list of indices must be the same length as list of initial parameters"
+            if use_as_prior:
+                assert trainable, "if you pass use_as_prior to append_transition() you must also pass trainable = True"
             for entry, weight in zip(l, initial_weights):
+                if use_as_prior:
+                    self.A_prior_indices.append(entry)
                 if self.config.add_noise_to_initial_weights:
                     weight += "small variance random normal"
                 if trainable:
@@ -286,7 +293,7 @@ class My_Model(Model):
         append_transition("AG", "c_0,1")
         append_transition("AG", "c_0,2")
 
-        append_transition(l = self.A_indices_enter_next_codon, initial_weights = [single_high_prob_kernel] * len(self.A_indices_enter_next_codon) )
+        append_transition(l = self.A_indices_enter_next_codon, initial_weights = [single_high_prob_kernel] * len(self.A_indices_enter_next_codon), use_as_prior=True)
 
         for i in range(self.config.nCodons):
             append_transition(f"c_{i},0", f"c_{i},1", trainable = False) # TODO: do i want these trainable if i pass deletes after/before intron?
@@ -294,17 +301,17 @@ class My_Model(Model):
 
         # inserts
         #i dont have inserts right after or before splice site
-        append_transition(l = self.A_indices_begin_inserts)
+        append_transition(l = self.A_indices_begin_inserts, use_as_prior=True)
         for i in range(self.insert_low, self.insert_high):
             append_transition(f"i_{i},0", f"i_{i},1", trainable = False)
             append_transition(f"i_{i},1", f"i_{i},2", trainable = False)
-        append_transition(l = self.A_indices_end_inserts, initial_weights = [single_high_prob_kernel] * len(self.A_indices_end_inserts))
-        append_transition(l = self.A_indices_continue_inserts)
+        append_transition(l = self.A_indices_end_inserts, initial_weights = [single_high_prob_kernel] * len(self.A_indices_end_inserts), use_as_prior=True)
+        append_transition(l = self.A_indices_continue_inserts, use_as_prior=True)
 
         # deletes
         A_indices_normal_deletes, A_init_weights_normal_deletes = self.A_indices_and_init_weights_normal_deletes
         # print("A_init_weights_normal_deletes", A_init_weights_normal_deletes)
-        append_transition(l = A_indices_normal_deletes, initial_weights = A_init_weights_normal_deletes)
+        append_transition(l = A_indices_normal_deletes, initial_weights = A_init_weights_normal_deletes, use_as_prior=True)
         if self.config.deletes_after_intron_to_codon:
             append_transition(l = self.A_indices_deletes_after_intron_to_codon)
         if self.config.deletes_after_codon_to_intron:
@@ -341,8 +348,9 @@ class My_Model(Model):
         # for index in indicies_for_constant_parameters:
         #     print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
 
-        initial_weights_for_trainable_parameters = np.array(initial_weights_for_trainable_parameters, dtype = np.float32)
+        
         initial_weights_for_consts = np.array(initial_weights_for_consts, dtype = np.float32)
+
         return indices_for_trainable_parameters, indicies_for_constant_parameters, initial_weights_for_trainable_parameters, initial_weights_for_consts
 
     @property
@@ -644,19 +652,68 @@ class My_Model(Model):
         # assert that if prob is split there is still something left to be split
         # and if it it greater than 1 then norm it and send allert to user
         return prior, initial_parameter
-    
+################################################################################
+################################################################################
+################################################################################
+    ''' Getting priors'''
+
     def get_B_prior_matrix(self):
         dense_shape = [self.number_of_emissions, self.number_of_states]
         self.B_prior_matrix = tf.scatter_nd(self.B_prior_indices, self.B_priors, shape = dense_shape)
         self.B_prior_matrix = tf.cast(self.B_prior_matrix, dtype = self.config.dtype)
 
-    def get_log_prior(self, B_kernel):
+        if self.config.nCodons < 10:
+            outpath = f"{self.config.out_path}/output/{self.config.nCodons}codons/B_prior_matrix.csv"
+            self.B_as_dense_to_file(outpath, "dummy weight parameter", B = self.B_prior_matrix, with_description = self.config.nCodons < 20)
+################################################################################
+    def get_B_log_prior(self, B_kernel):
         alphas = self.B_prior_matrix - 1
-        log_prior = tf.math.log(self.B(B_kernel) + 1e-12)
+        log_prior = tf.math.log(self.B(B_kernel) + self.config.log_prior_epsilon)
         before_reduce_sum = (alphas * log_prior) 
         return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.B_prior_indices))
+################################################################################
+    def get_A_prior_matrix(self):
+        # TODO rather than dense calculation use sparse ones
 
+        # A with initial parameters
+        dense_shape = [self.number_of_states, self.number_of_states]
+        values = tf.concat([self.A_initial_weights_for_trainable_parameters, self.A_initial_weights_for_constants], axis = 0)
+        A_init = tf.scatter_nd(self.A_indices, \
+                                    values, \
+                                    dense_shape)
+        # A mask for all parameters
+        A_mask = tf.scatter_nd(self.A_indices, \
+                               [1] * len(self.A_indices), \
+                               dense_shape)
+        # softmax
+        softmax_layer = tf.keras.layers.Softmax()
+        A_init_stochastic = softmax_layer(A_init, A_mask)
 
+        # A mask for priors
+        self.A_prior_indices = tf.cast(self.A_prior_indices, tf.int32)
+        prior_mask = tf.scatter_nd(self.A_prior_indices, \
+                                   [1.0] * len(self.A_prior_indices), \
+                                   dense_shape)
+        
+        # extract prior probs for init matrix
+        self.A_prior_matrix = A_init_stochastic * prior_mask
+
+        # write results to file for inspection
+        if self.config.nCodons < 10:
+            dir_path = f"{self.config.out_path}/output/{self.config.nCodons}codons/prior_calculation"
+            self.A_as_dense_to_file(f"{dir_path}/A_init.csv", "dummy weight parameter", A = A_init, with_description = self.config.nCodons < 20)
+            self.A_as_dense_to_file(f"{dir_path}/A_init_stochastic.csv", "dummy weight parameter", A = A_init_stochastic, with_description = self.config.nCodons < 20)
+            self.A_as_dense_to_file(f"{dir_path}/A_prior_mask.csv", "dummy weight parameter", A = prior_mask, with_description = self.config.nCodons < 20)
+            self.A_as_dense_to_file(f"{dir_path}/A_prior_matrix.csv", "dummy weight parameter", A = self.A_prior_matrix, with_description = self.config.nCodons < 20)
+    ################################################################################
+    def get_A_log_prior(self, A_kernel):
+        self.A_prior_matrix = tf.cast(self.A_prior_matrix, dtype = self.config.dtype)
+        alphas = self.A_prior_matrix - 1
+        log_prior = tf.math.log(tf.sparse.to_dense(self.A(A_kernel)) + tf.cast(self.config.log_prior_epsilon, self.config.dtype))
+        before_reduce_sum = (alphas * log_prior) 
+        return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.A_prior_indices))
+################################################################################
+################################################################################
 ################################################################################
     def get_indices_for_emission_and_state(self, state, mask, x_bases_must_preceed, trainable = None):
         state_id = self.str_to_state_id(state)
@@ -913,8 +970,9 @@ class My_Model(Model):
             json.dump(self.I(weights).numpy().tolist(), out_file)
 
     # TODO: or do i want to have these functions in the cell, such that i dont have to pass the weights?
-    def A_as_dense_to_str(self, weights, with_description = False):
-        A = self.A(weights) if self.A_is_dense else tf.sparse.to_dense(self.A(weights))
+    def A_as_dense_to_str(self, weights, with_description = False, A = None):
+        if A == None:
+            A = self.A(weights) if self.A_is_dense else tf.sparse.to_dense(self.A(weights))
         result = ""
         if with_description:
             result += " "
@@ -931,11 +989,15 @@ class My_Model(Model):
             result += "\n"
         return result
 
-    def A_as_dense_to_file(self, path, weights, with_description = False):
+    def A_as_dense_to_file(self, path, weights, with_description = False, A = None):
+        if not os.path.exists(os.path.dirname(path)):
+            os.mkdir(os.path.dirname(path))
         with open(path, "w") as out_file:
-            out_file.write(self.A_as_dense_to_str(weights, with_description))
+            out_file.write(self.A_as_dense_to_str(weights, with_description, A = A))
 
     def A_as_dense_to_json_file(self, path, weights):
+        if not os.path.exists(os.path.dirname(path)):
+            os.mkdir(os.path.dirname(path))
         with open(path, "w") as out_file:
             A = self.A(weights) if self.A_is_dense else tf.sparse.to_dense(self.A(weights))
             json.dump(A.numpy().tolist(), out_file)
@@ -961,10 +1023,17 @@ class My_Model(Model):
         return result
 
     def B_as_dense_to_file(self, path, weights, with_description = False, B = None):
+        # TODO does this use the option -p??
+        if not os.path.exists(os.path.dirname(path)):
+            os.mkdir(os.path.dirname(path))
+
         with open(path, "w") as out_file:
             out_file.write(self.B_as_dense_to_str(weights, with_description, B = B))
 
     def B_as_dense_to_json_file(self, path, weights):
+        if not os.path.exists(os.path.dirname(path)):
+            os.mkdir(os.path.dirname(path))
+
         with open(path, "w") as out_file:
             B = self.B(weights) if self.B_is_dense else tf.sparse.to_dense(self.B(weights))
             json.dump(B.numpy().tolist(), out_file)

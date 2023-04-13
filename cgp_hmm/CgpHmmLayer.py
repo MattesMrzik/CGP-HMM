@@ -157,9 +157,13 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             # TODO norm likelihood by batchsize, 
             # norm prior by number of inout seqs
         elif self.config.prior:
-            prior = self.config.model.get_log_prior(self.C.B_kernel) * self.config.prior
-            self.add_metric(prior, "prior")
-            self.add_loss(tf.squeeze(-loglik_mean - prior))
+            A_prior = self.config.model.get_A_log_prior(self.C.A_kernel) * self.config.prior
+            self.add_metric(A_prior, "A_prior")
+
+            B_prior = self.config.model.get_B_log_prior(self.C.B_kernel) * self.config.prior
+            self.add_metric(B_prior, "B_prior")
+
+            self.add_loss(tf.squeeze(-loglik_mean - B_prior - A_prior))
         else:
             self.add_loss(tf.squeeze(-loglik_mean))
 

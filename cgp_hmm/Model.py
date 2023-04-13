@@ -113,4 +113,4 @@ class Model(ABC):
             graph.write("}")
         # run(f"cat graph.{nCodons}codons.gv")
         from Utility import run
-        run(f"dot -Tpng {self.config.out_path}/output/{nCodons}codons/graph.gv -o output/{nCodons}codons/graph.png")
+        run(f"dot -Tpng {self.config.out_path}/output/{nCodons}codons/graph.gv -o {self.config.out_path}/output/{nCodons}codons/graph.png")

@@ -84,7 +84,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
             B_initializer = tf.constant_initializer(1)
         elif self.config.my_initial_guess_for_parameters:
             I_initializer = tf.constant_initializer(1)
-            A_initializer = tf.constant_initializer(self.config.model.A_initial_weights_for_trainable_parameters)
+            initial_weights_for_trainable_parameters = np.array(self.config.model.A_initial_weights_for_trainable_parameters, dtype = np.float32)
+            A_initializer = tf.constant_initializer(initial_weights_for_trainable_parameters)
             B_initializer = tf.constant_initializer(1)
         else:
             I_initializer="random_normal"

@@ -111,6 +111,14 @@ class Config():
         self.B_is_dense = self.AB[1] == "d"
         self.B_is_sparse = not self.B_is_dense
 
+
+        if self.global_log_epsilon:
+            self.E_epsilon = self.global_log_epsilon
+            self.R_epsilon = self.global_log_epsilon
+            self.l_epsilon = self.global_log_epsilon
+            self.log_prior_epsilon = self.global_log_epsilon
+
+
         self.gen_len = 3 * self.nCodons
 
         self.seq_len = self.parsed_args.seq_len if self.parsed_args.seq_len else ((self.nCodons * 3 + 6 + 2) * 2)
@@ -275,9 +283,11 @@ class Config():
         self.add_arg_main('--scale_with_conditional_const', action = "store_true", help = 'scale the forward variables with constant if they are too small')
         self.add_arg_main('--felix', action='store_true',  help = 'use felix forward version')
         self.add_arg_main('--logsumexp', action = "store_true", help = "logsumexp")
+        self.add_arg_main('--global_log_epsilon', type = float, default = 0, help = 'set l_, R_, E_ and prior_log_epsilon to this value')
         self.add_arg_main('--l_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + self.config.epsilon_l, axis = 1, keepdims = True)) + m_alpha')
         self.add_arg_main('--R_epsilon', type = float, default = 0, help = '[0] R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.epsilon_R, self.A)) + m_alpha')
         self.add_arg_main('--E_epsilon', type = float, default = 0, help = '[0] unscaled_alpha = tf.math.log(E + self.config.epsilon_E) + R')
+        self.add_arg_main('--log_prior_epsilon', type = float, default = 0, help = '[0] log_prior = tf.math.log(self.B(B_kernel) + prior_log_epsilon)')
         self.add_arg_main('--my_scale_log_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.epsilon_my_scale), name = "loglik")')
         self.add_arg_main('--my_scale_alpha_epsilon', type = float, default = 0, help = '[0] scaled_alpha = unscaled_alpha / (scale_helper self.config.epsilon_my_scale_alpha)')
         self.add_arg_main('--conditional_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True) + self.config.epsilon_conditional) - scale_helper * tf.math.log(10.0)')
