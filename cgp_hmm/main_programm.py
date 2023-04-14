@@ -37,29 +37,29 @@ def main(config):
 
     I_kernel, A_kernel, B_kernel = model.get_weights()
 
-    if config.write_matrices_after_fit:
+    # if config.write_matrices_after_fit:
 
-        start = time.perf_counter()
-        print("starting to write model")
+    start = time.perf_counter()
+    print("starting to write model")
 
-        dir_path = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
-        if not os.path.exists(dir_path):
-            os.system(f"mkdir -p {dir_path}")
-        # in human readalbe format
-        # config.model.A_as_dense_to_file(f"{dir_path}/A.csv", A_kernel, with_description = False)
-        config.model.A_as_dense_to_file(f"{dir_path}/A.with_description.csv", A_kernel, with_description = True)
-        # config.model.B_as_dense_to_file(f"{dir_path}/B.csv", B_kernel, with_description = False)
-        config.model.B_as_dense_to_file(f"{dir_path}/B.with_description.csv", B_kernel, with_description = True)
-        # json format
-        # config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
-        config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
-        config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)
+    dir_path = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
+    if not os.path.exists(dir_path):
+        os.system(f"mkdir -p {dir_path}")
+    # in human readalbe format
+    # config.model.A_as_dense_to_file(f"{dir_path}/A.csv", A_kernel, with_description = False)
+    config.model.A_as_dense_to_file(f"{dir_path}/A.with_description.csv", A_kernel, with_description = True)
+    # config.model.B_as_dense_to_file(f"{dir_path}/B.csv", B_kernel, with_description = False)
+    config.model.B_as_dense_to_file(f"{dir_path}/B.with_description.csv", B_kernel, with_description = True)
+    # json format
+    # config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
+    config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
+    config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)
 
-        print("done write model. it took ", time.perf_counter() - start)
+    print("done write model. it took ", time.perf_counter() - start)
 
-    if config.write_parameters_after_fit:
-        path = f"{config.out_path}/output/{config.nCodons}codons/after_fit_kernels"
-        model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
+    # if config.write_parameters_after_fit:
+    path = f"{config.out_path}/output/{config.nCodons}codons/after_fit_kernels"
+    model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
     if config.nCodons < 10:
         config.model.export_to_dot_and_png(A_kernel, B_kernel)
