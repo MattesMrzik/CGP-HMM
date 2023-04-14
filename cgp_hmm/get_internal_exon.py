@@ -51,11 +51,11 @@ def get_all_internal_exons(hg38_refseq_bed):
         # print(row)
         for exon_id, (exon_len, exon_start) in enumerate(zip(row["blockSizes"][1:-1], row["blockStarts"][1:-1])):
 
-            if exon_start <= row["thickStart"]:
-                print("skipping exon bc exon_start >= thickStart with id", exon_id, "in", dict(row))
+            if row["chromStart"] + exon_start <= row["thickStart"]:
+                print("skipping exon bc exon_start <= thickStart with id", exon_id, "in", dict(row))
                 continue
 
-            if exon_start + exon_len >= row["thickEnd"]:
+            if row["chromStart"] + exon_start + exon_len >= row["thickEnd"]:
                 print("skipping exon bc exon_end >= thickEnd with id", exon_id, "in", dict(row))
                 continue
 
