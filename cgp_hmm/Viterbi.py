@@ -378,7 +378,6 @@ def run_cc_viterbi(config):
     import multiprocessing
     start = time.perf_counter()
     seq_path = f"--seqs_path {config.fasta_path}.json" if config.manual_passed_fasta else ""
-    print("seqpath", seq_path)
     only_first_seq = f"--only_first_seq" if config.only_first_seq else ""
     if config.manual_passed_fasta:
         out_dir_path = os.path.dirname(config.fasta_path)
@@ -404,7 +403,14 @@ if __name__ == "__main__":
         convert_kernel_files_to_matrices_files(matr_dir)
     out_dir_path = os.path.dirname(config.fasta_path) # for viterbi_cc and alignment
 
-
+    seqs_json_path = f"{config.fasta_path}.json"
+    if not os.path.exists(seqs_json_path):
+        from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
+        from ReadData import read_data_one_hot_with_Ns_spread_str
+        seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
+        seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
+        with open(seqs_json_path, "w") as out_file:
+            json.dump(seqs_out, out_file)
     if config.manual_passed_fasta:
         out_viterbi_file_path = f"{out_dir_path}/viterbi_cc_output.json"
     else:
