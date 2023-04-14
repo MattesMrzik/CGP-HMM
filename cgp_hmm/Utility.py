@@ -89,6 +89,29 @@ def find_indices_in_sparse_A_that_are_zero(config = None, \
 ################################################################################
 ################################################################################
 ################################################################################
+def from_before_and_after_json_matrices_calc_diff_and_write_csv(config = None):
+    dir_before_fit = f"{config.out_path}/output/{config.nCodons}codons/initial_weights_and_matrices_from_callback"
+    dir_after_fit = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
+    dir_after_fit = f"{config.out_path}/output/{config.nCodons}codons/before_after_diff_matrices"
+
+    with open(f"{dir_before_fit}/A.json", "r") as before_file:
+        before = json.load(before_file)
+    with open(f"{dir_after_fit}/A.json", "r") as after_file:
+        after = json.load(after_file)
+    diff = np.array(before) - np.array(after)
+    # diff_2d_list = [[float(entry) for entry in col] for col in diff]
+    config.model.A_as_dense_to_file(f"{dir_after_fit}/A.json", "dummy_weights", with_description = True, A = diff)
+
+    with open(f"{dir_before_fit}/B.json", "r") as before_file:
+        before = json.load(before_file)
+    with open(f"{dir_after_fit}/B.json", "r") as after_file:
+        after = json.load(after_file)
+    diff = np.array(before) - np.array(after)
+    # diff_2d_list = [[float(entry) for entry in col] for col in diff]
+    config.model.B_as_dense_to_file(f"{dir_after_fit}/B.json", "dummy_weights", with_description = True, B = diff)
+
+
+################################################################################
 def get_A_for_viewing_parameters(before_fit = False, after_fit = False):
     assert not (before_fit and after_fit), "you cant take both"
     assert before_fit or after_fit, "you must choose one"
@@ -1006,4 +1029,4 @@ def create_layer_without_recursive_call():
 ################################################################################
 if __name__ == "__main__":
     from Config import Config
-    config = Config("main_programm_dont_interfere")
+    config = Config("without_priors")

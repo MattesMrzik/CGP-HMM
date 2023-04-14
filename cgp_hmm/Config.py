@@ -7,7 +7,7 @@ class Config():
 
     def __init__(self, for_which_program):
         self.parser = argparse.ArgumentParser(description='Config module description')
-        self.manuall_arg_lists = {"small_bench" : [], "main_programm" : []}
+        self.manuall_arg_lists = {"small_bench" : [], "main_programm" : [], "without_priors": []}
         if for_which_program == "small_bench":
             self.add_small_bench()
             self.parsed_args = self.parser.parse_args()
@@ -30,6 +30,17 @@ class Config():
             self.add_attribtes()
             self.determine_attributes()
             self.apply_args()
+
+        if for_which_program == "without_priors":
+            self.add_main_programm()
+            self.parsed_args = self.parser.parse_args()
+
+            self.asserts()
+            self.without_priors = True
+            self.add_attribtes()
+            self.determine_attributes()
+            self.apply_args()
+
 
     def asserts(self):
         if self.check_for_zeros:

@@ -395,22 +395,26 @@ if __name__ == "__main__":
     from Config import Config
     import numpy as np
     config = Config("main_programm_dont_interfere")
-    config.viterbi_py_run = True
+    
 
     # check if matrices exists, if not convert kernels
     matr_dir = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
     if not os.path.exists(f"{matr_dir}/A.json"):
+        print("start converting kernels to matrices")
         convert_kernel_files_to_matrices_files(matr_dir)
+        print("done with converting kernels")
     out_dir_path = os.path.dirname(config.fasta_path) # for viterbi_cc and alignment
 
     seqs_json_path = f"{config.fasta_path}.json"
     if not os.path.exists(seqs_json_path):
+        print("fa.json doesnt exists, so it it calculated")
         from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
         from ReadData import read_data_one_hot_with_Ns_spread_str
         seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
         seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
         with open(seqs_json_path, "w") as out_file:
             json.dump(seqs_out, out_file)
+        print("finished calculating fa.json")
     if config.manual_passed_fasta:
         out_viterbi_file_path = f"{out_dir_path}/viterbi_cc_output.json"
     else:

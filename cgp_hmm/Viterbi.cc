@@ -95,7 +95,7 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
     // O (n * |Q| * (|Q| + |E|)/nThreads)
     auto start = std::chrono::high_resolution_clock::now();
     for (size_t i = 1; i < n; i++) {
-        if (nThreads != 1) { // bc if it one, then seqs might get computed in parallel which would mess with the print
+        if (nThreads != 1 || only_first) { // bc if it one, then seqs might get computed in parallel, which would mess with the print
             std::string done(i*bar_size/n, '#');
             std::string not_done(bar_size - i*bar_size/n, ' ');
             std::cout << "[" << done << not_done << "]" << '\r';

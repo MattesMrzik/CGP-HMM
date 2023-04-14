@@ -33,8 +33,8 @@ class My_Model(Model):
 
 
         try:
-            config.viterbi_py_run
-            print("called model from Viterbi.py")
+            config.without_priors
+            print("called model without_priors")
             return
         except:
             pass
@@ -700,9 +700,9 @@ class My_Model(Model):
 
         # A mask for priors
         self.A_prior_indices = tf.cast(self.A_prior_indices, tf.int32)
-        # tf.print("self.A_prior_indices", self.A_prior_indices, summarize = -1)
-        # tf.print("len self.A_prior_indices", len(self.A_prior_indices), summarize = -1)
-        # tf.print("[1.0] * len(self.A_prior_indices)", [1.0] * len(self.A_prior_indices), summarize = -1)
+        tf.print("self.A_prior_indices", self.A_prior_indices, summarize = -1)
+        tf.print("len self.A_prior_indices", len(self.A_prior_indices), summarize = -1)
+        tf.print("[1.0] * len(self.A_prior_indices)", [1.0] * len(self.A_prior_indices), summarize = -1)
 
         prior_mask = tf.scatter_nd(self.A_prior_indices, \
                                    [1.0] * len(self.A_prior_indices), \

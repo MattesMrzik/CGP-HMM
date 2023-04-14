@@ -46,13 +46,12 @@ def main(config):
         if not os.path.exists(dir_path):
             os.system(f"mkdir -p {dir_path}")
         # in human readalbe format
-        if config.nCodons < 20:
-            config.model.A_as_dense_to_file(f"{dir_path}/A.csv", A_kernel, with_description = False)
-            config.model.A_as_dense_to_file(f"{dir_path}/A.with_description.csv", A_kernel, with_description = True)
-            config.model.B_as_dense_to_file(f"{dir_path}/B.csv", B_kernel, with_description = False)
-            config.model.B_as_dense_to_file(f"{dir_path}/B.with_description.csv", B_kernel, with_description = True)
+        # config.model.A_as_dense_to_file(f"{dir_path}/A.csv", A_kernel, with_description = False)
+        config.model.A_as_dense_to_file(f"{dir_path}/A.with_description.csv", A_kernel, with_description = True)
+        # config.model.B_as_dense_to_file(f"{dir_path}/B.csv", B_kernel, with_description = False)
+        config.model.B_as_dense_to_file(f"{dir_path}/B.with_description.csv", B_kernel, with_description = True)
         # json format
-        config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
+        # config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
         config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
         config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)
 
