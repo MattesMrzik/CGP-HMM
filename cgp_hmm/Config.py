@@ -266,6 +266,7 @@ class Config():
         self.add_arg_main('--deletes_after_insert_to_codon', action = 'store_true', help = 'red: deletes_after_insert_to_codon')
         self.add_arg_main('--deletes_after_codon_to_insert', action = 'store_true', help = 'pink: deletes_after_codon_to_insert')
         self.add_arg_main('--prior', type = float, default = 0, help = 'use prior reg or scale it')
+        self.add_arg_main('--prior_path', default = "/home/mattes/Documents/cgp_data/priors/human/", help = ' path to the dir containing exon and intron .pbl')
 
         # fine tune algo
         self.add_arg_main('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
@@ -302,8 +303,8 @@ class Config():
         self.add_arg_main('--pattern_length_after_intron_loop', type = int, default = 2, help = 'number of states after intron loop')
         self.add_arg_main('--deletions_and_insertions_not_only_between_codons', action = 'store_true', help = 'deletions_and_insertions_not_only_between_codons. ie not after insertion or intron')
         self.add_arg_main('--my_initial_guess_for_parameters', action='store_true', help = 'init A weights with my initial guess')
-        self.add_arg_main('--single_high_prob_kernel', type = float, default = 4, help = 'if my_initial_guess_for_parameters, this value is for high prob transitions, all other transitions get kernel weight 1')
-        self.add_arg_main('--diminishing_factor', type = float, default = 2, help = 'deletes get initialized with [[-(to_codon - from_codon)/self.config.diminishing_factor]]')
+        self.add_arg_main('--single_high_prob_kernel', type = float, default = 3, help = 'if my_initial_guess_for_parameters, this value is for high prob transitions, all other transitions get kernel weight 1')
+        self.add_arg_main('--diminishing_factor', type = float, default = 4, help = 'deletes get initialized with [[-(to_codon - from_codon)/self.config.diminishing_factor]]')
         self.add_arg_main('--ass_start', type = int, default = 5, help = 'len of prior pattern before AG ASS splice site')
         self.add_arg_main('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
         self.add_arg_main('--dss_start', type = int, default = 5, help = 'len of prior pattern before GT DSS splice site')

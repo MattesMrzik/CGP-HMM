@@ -3,7 +3,8 @@ import pandas as pd
 import re
 
 class Prior():
-    def __init__(self, config, prios_dir_path):
+    def __init__(self, config):
+        prios_dir_path = config.prior_path
         self.exon_prior_df = self.load_priors_exon_priors(f"{prios_dir_path}/human_exon_probs.pbl")
         self.ASS_df = self.load_priors_splice_site(f"{prios_dir_path}/human_intron_probs.dss_start5_ass_start5.pbl", description="ASS", left_pattern_len=config.ass_start, right_patterh_len=config.ass_end)
         self.DSS_df = self.load_priors_splice_site(f"{prios_dir_path}/human_intron_probs.dss_start5_ass_start5.pbl", description="DSS", left_pattern_len=config.dss_start, right_patterh_len=config.dss_end)

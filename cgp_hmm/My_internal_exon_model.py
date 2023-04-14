@@ -32,7 +32,7 @@ class My_Model(Model):
         self.B_is_sparse = config.B_is_sparse
 
         from load_priors import Prior
-        self.prior = Prior(config, "/home/mattes/Documents/cgp_data/priors/human/")
+        self.prior = Prior(config)
 
         # I
         self.I_indices = self.I_indices()
@@ -73,7 +73,7 @@ class My_Model(Model):
         self.B_initial_parameters_for_constants = self.make_B_initial_weights()
 
         if self.config.nCodons < 20:
-            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/"
+            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/prior_calculation"
             import os
             if not os.path.exists(dir_name):
                 os.mkdir(dir_name)
@@ -350,7 +350,7 @@ class My_Model(Model):
 
         
         initial_weights_for_consts = np.array(initial_weights_for_consts, dtype = np.float32)
-
+        initial_weights_for_trainable_parameters = np.array(initial_weights_for_trainable_parameters, dtype = np.float32)
         return indices_for_trainable_parameters, indicies_for_constant_parameters, initial_weights_for_trainable_parameters, initial_weights_for_consts
 
     @property
@@ -657,27 +657,14 @@ class My_Model(Model):
 ################################################################################
     ''' Getting priors'''
 
-    def get_B_prior_matrix(self):
-        dense_shape = [self.number_of_emissions, self.number_of_states]
-        self.B_prior_matrix = tf.scatter_nd(self.B_prior_indices, self.B_priors, shape = dense_shape)
-        self.B_prior_matrix = tf.cast(self.B_prior_matrix, dtype = self.config.dtype)
-
-        if self.config.nCodons < 10:
-            outpath = f"{self.config.out_path}/output/{self.config.nCodons}codons/B_prior_matrix.csv"
-            self.B_as_dense_to_file(outpath, "dummy weight parameter", B = self.B_prior_matrix, with_description = self.config.nCodons < 20)
-################################################################################
-    def get_B_log_prior(self, B_kernel):
-        alphas = self.B_prior_matrix - 1
-        log_prior = tf.math.log(self.B(B_kernel) + self.config.log_prior_epsilon)
-        before_reduce_sum = (alphas * log_prior) 
-        return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.B_prior_indices))
-################################################################################
     def get_A_prior_matrix(self):
         # TODO rather than dense calculation use sparse ones
 
         # A with initial parameters
         dense_shape = [self.number_of_states, self.number_of_states]
         values = tf.concat([self.A_initial_weights_for_trainable_parameters, self.A_initial_weights_for_constants], axis = 0)
+        # values = tf.cast(values, tf.float32)
+
         A_init = tf.scatter_nd(self.A_indices, \
                                     values, \
                                     dense_shape)
@@ -687,7 +674,12 @@ class My_Model(Model):
                                dense_shape)
         # softmax
         softmax_layer = tf.keras.layers.Softmax()
-        A_init_stochastic = softmax_layer(A_init, A_mask)
+
+        # A = tf.scatter_nd([[1,0],[0,1]],[1,3], shape = [2,2])
+        # mask = tf.scatter_nd([[1,0],[0,1],[1,1]],[1,1,1], shape = [2,2])
+        # print(softmax_layer(A,mask))
+
+        A_init_stochastic = softmax_layer(A_init, tf.cast(A_mask, tf.int32))
 
         # A mask for priors
         self.A_prior_indices = tf.cast(self.A_prior_indices, tf.int32)
@@ -712,6 +704,21 @@ class My_Model(Model):
         log_prior = tf.math.log(tf.sparse.to_dense(self.A(A_kernel)) + tf.cast(self.config.log_prior_epsilon, self.config.dtype))
         before_reduce_sum = (alphas * log_prior) 
         return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.A_prior_indices))
+################################################################################
+    def get_B_prior_matrix(self):
+        dense_shape = [self.number_of_emissions, self.number_of_states]
+        self.B_prior_matrix = tf.scatter_nd(self.B_prior_indices, self.B_priors, shape = dense_shape)
+        self.B_prior_matrix = tf.cast(self.B_prior_matrix, dtype = self.config.dtype)
+
+        if self.config.nCodons < 10:
+            dir_path = f"{self.config.out_path}/output/{self.config.nCodons}codons/prior_calculation"
+            self.B_as_dense_to_file(f"{dir_path}/B_prior_matrix.csv", "dummy weight parameter", B = self.B_prior_matrix, with_description = self.config.nCodons < 20)
+################################################################################
+    def get_B_log_prior(self, B_kernel):
+        alphas = self.B_prior_matrix - 1
+        log_prior = tf.math.log(self.B(B_kernel) + self.config.log_prior_epsilon)
+        before_reduce_sum = (alphas * log_prior) 
+        return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.B_prior_indices))
 ################################################################################
 ################################################################################
 ################################################################################
@@ -828,7 +835,7 @@ class My_Model(Model):
 
         if self.config.nCodons < 20:
             import os
-            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/"
+            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/prior_calculation"
             if not os.path.exists(dir_name):
                 os.mkdir(dir_name)
             self.B_as_dense_to_file(f"{dir_name}/B_init_parameters_before_conversion.csv", self.B_initial_trainalbe_para_setting, with_description = True, B = emission_matrix)

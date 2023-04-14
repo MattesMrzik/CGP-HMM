@@ -520,7 +520,7 @@ if __name__ == "__main__":
     parser.add_argument('--len_of_exon_middle_to_be_lifted', type = int, default = 15, help = 'the middle of the exon is also lifted, to check whether it is between left and right if target .bed')
     parser.add_argument('--len_of_left_to_be_lifted', type = int, default = 15, help = 'len_of_left_to_be_lifted')
     parser.add_argument('--len_of_right_to_be_lifted', type = int, default = 15, help = 'len_of_right_to_be_lifted')
-    parser.add_argument('--path', default = ".", help = 'working directory')
+    parser.add_argument('--path', default = "../../cgp_data", help = 'working directory')
     parser.add_argument('-n', type = int, help = 'limit the number of exons to n')
     parser.add_argument('-v', action = 'store_true', help = 'verbose')
     parser.add_argument('--use_old_bed', action = 'store_true', help = 'use the old bed files and dont calculate new ones')
