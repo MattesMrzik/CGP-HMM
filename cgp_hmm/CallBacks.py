@@ -56,14 +56,18 @@ def get_call_backs(config, model):
             if epoch == 0:
                 start = time.perf_counter()
                 print("Starting callback write_initial_weights_and_matrices_to_file")
-                path = f"{config.out_path}/output/{config.nCodons}codons/initial_weights_and_matrices_from_callback/"
+
+                # weights
+                path = f"{config.out_path}/output/{config.nCodons}codons/before_fit_matrices/"
                 cell = model.get_layer("cgp_hmm_layer").C
                 cell.write_weights_to_file(path)
-                    # dense human readable space and newline seprateded
+
+                # dense human readable space and newline seprateded
                 # config.model.A_as_dense_to_file(f"{path}/A.csv", cell.A_kernel, with_description = False)
                 config.model.A_as_dense_to_file(f"{path}/A.with_description.csv", cell.A_kernel, with_description = True)
                 # config.model.B_as_dense_to_file(f"{path}/B.csv", cell.B_kernel, with_description = False)
                 config.model.B_as_dense_to_file(f"{path}/B.with_description.csv", cell.B_kernel, with_description = True)
+                
                 # json format dense matrices
                 config.model.A_as_dense_to_json_file(f"{path}/A.json", cell.A_kernel)
                 config.model.B_as_dense_to_json_file(f"{path}/B.json", cell.B_kernel)
