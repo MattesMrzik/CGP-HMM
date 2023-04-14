@@ -91,8 +91,8 @@ def find_indices_in_sparse_A_that_are_zero(config = None, \
 ################################################################################
 def from_before_and_after_json_matrices_calc_diff_and_write_csv(config = None):
     dir_before_fit = f"{config.out_path}/output/{config.nCodons}codons/initial_weights_and_matrices_from_callback"
-    dir_after_fit = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
-    dir_after_fit = f"{config.out_path}/output/{config.nCodons}codons/before_after_diff_matrices"
+    dir_after_fit  = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
+    out_dir  = f"{config.out_path}/output/{config.nCodons}codons/before_after_diff_matrices"
 
     with open(f"{dir_before_fit}/A.json", "r") as before_file:
         before = json.load(before_file)
@@ -100,7 +100,7 @@ def from_before_and_after_json_matrices_calc_diff_and_write_csv(config = None):
         after = json.load(after_file)
     diff = np.array(before) - np.array(after)
     # diff_2d_list = [[float(entry) for entry in col] for col in diff]
-    config.model.A_as_dense_to_file(f"{dir_after_fit}/A.json", "dummy_weights", with_description = True, A = diff)
+    config.model.A_as_dense_to_file(f"{out_dir}/A.json", "dummy_weights", with_description = True, A = diff)
 
     with open(f"{dir_before_fit}/B.json", "r") as before_file:
         before = json.load(before_file)
@@ -108,7 +108,7 @@ def from_before_and_after_json_matrices_calc_diff_and_write_csv(config = None):
         after = json.load(after_file)
     diff = np.array(before) - np.array(after)
     # diff_2d_list = [[float(entry) for entry in col] for col in diff]
-    config.model.B_as_dense_to_file(f"{dir_after_fit}/B.json", "dummy_weights", with_description = True, B = diff)
+    config.model.B_as_dense_to_file(f"{out_dir}/B.json", "dummy_weights", with_description = True, B = diff)
 
 
 ################################################################################
