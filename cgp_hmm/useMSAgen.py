@@ -160,7 +160,7 @@ with open(f"{args.out_path}/output/{nCodons}codons/trueMSA.txt", "w") as file:
         file.write(str(seq.seq))
         file.write("-" * (len(first_line) -1 - len(str(seq.seq)) - posDict["5flank_len"] + seq.startATGPos))
         file.write("\n")
-run(f"head {args.out_path}/output/{nCodons}codons/trueMSA.txt")
+# run(f"head {args.out_path}/output/{nCodons}codons/trueMSA.txt")
 
 # fasta file
 fasta_path = f"{args.out_path}/output/{nCodons}codons/seqs.fa"
@@ -172,7 +172,7 @@ with open(fasta_path,"w") as file:
         file.write(">" + seq.id + "000" + str(i%32) + "\n")
         file.write(re.sub("iii|ddd", "", str(seq.seq)) + "\n")
 
-run(f"head {fasta_path}")
+# run(f"head {fasta_path}")
 
 # profile of coding seq
 # with open(f"{args.out_path}/output/{nCodons}codons/profile.{nCodons}codons.txt", "w") as file:

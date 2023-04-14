@@ -45,8 +45,20 @@ def get_all_internal_exons(hg38_refseq_bed):
         if row["blockCount"] < 3:
             continue
 
+        if not row["name"].startswith("NM_"):
+            continue
+
         # print(row)
         for exon_id, (exon_len, exon_start) in enumerate(zip(row["blockSizes"][1:-1], row["blockStarts"][1:-1])):
+
+            if exon_start <= row["thickStart"]:
+                print("skipping exon bc exon_start >= thickStart with id", exon_id, "in", dict(row))
+                continue
+
+            if exon_start + exon_len >= row["thickEnd"]:
+                print("skipping exon bc exon_end >= thickEnd with id", exon_id, "in", dict(row))
+                continue
+
             assert row["chromStart"] <= row["chromEnd"], 'row["chromStart"] <= row["chromEnd"]'
             assert row["thickStart"] <= row["thickEnd"], 'row["thickStart"] <= row["thickEnd"]'
             chromosom = row["chrom"]

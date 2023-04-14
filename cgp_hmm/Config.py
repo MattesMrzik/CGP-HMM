@@ -6,6 +6,7 @@ import os
 class Config():
 
     def __init__(self, for_which_program):
+        print("start init of config")
         self.parser = argparse.ArgumentParser(description='Config module description')
         self.manuall_arg_lists = {"small_bench" : [], "main_programm" : [], "without_priors": []}
         if for_which_program == "small_bench":
@@ -40,7 +41,7 @@ class Config():
             self.add_attribtes()
             self.determine_attributes()
             self.apply_args()
-
+        print("done init of config")
 
     def asserts(self):
         if self.check_for_zeros:
@@ -141,6 +142,8 @@ class Config():
         #                                     start and stop, i want at least one ig 3' and 5'
         assert self.seq_len >= self.gen_len + 6               + 2, f"self.seq_len ({self.seq_len}) < self.gen_len ({self.gen_len}) + 6 + 2"
 
+
+        print("start getting model")
         if self.intron_model:
             from My_Model_with_introns import My_Model
             my_model = My_Model(self)
@@ -157,6 +160,7 @@ class Config():
             from My_Model import My_Model
             my_model = My_Model(self)
             self.model = my_model
+        print("done getting model")
 
 
     def prepare_before_main_programm(self):
