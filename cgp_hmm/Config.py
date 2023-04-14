@@ -83,6 +83,10 @@ class Config():
         assert self.donor_pattern_len < 10, "donor_pattern_len >= 10, setting priors uses the str rep of a state and only work with single diget number, this might not be the only place where this is required"
 
 
+        if self.prior and self.internal_exon_model:
+            assert self.nCodons > 1, "when using prior and internal model you must use more than 1 codon since for 1 codon there are no priors for the transition matrix"
+
+
 
     def add_attribtes(self):
         import tensorflow as tf

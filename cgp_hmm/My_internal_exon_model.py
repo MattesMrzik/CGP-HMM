@@ -31,8 +31,17 @@ class My_Model(Model):
         self.B_is_dense = config.B_is_dense
         self.B_is_sparse = config.B_is_sparse
 
-        from load_priors import Prior
-        self.prior = Prior(config)
+
+        try:
+            config.viterbi_py_run
+            print("called model from Viterbi.py")
+            return
+        except:
+            pass
+
+        if self.config.prior:
+            from load_priors import Prior
+            self.prior = Prior(config)
 
         # I
         self.I_indices = self.I_indices()
@@ -43,7 +52,9 @@ class My_Model(Model):
         self.A_initial_weights_for_trainable_parameters, \
         self.A_initial_weights_for_constants = self.A_indices_and_initial_weights()
         self.A_indices = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
-        self.get_A_prior_matrix()
+
+        if self.config.prior:
+            self.get_A_prior_matrix()
 
         if config.use_weights_for_consts:
 
@@ -60,7 +71,8 @@ class My_Model(Model):
 
         # B
         self.make_preparations_for_B()
-        self.get_B_prior_matrix()
+        if self.config.prior:
+            self.get_B_prior_matrix()
 
         shape = (self.number_of_emissions, self.number_of_states)
         B_indices_complement = tf.where(tf.ones(shape, dtype = tf.float32) - tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), shape = shape))
@@ -567,6 +579,11 @@ class My_Model(Model):
         # TODO i think i dont have to norm left_intron and codon and insert since they should already be normed in the file
         prior = -1.0
         initial_parameter = -1.0
+
+        if not self.config.prior:
+            return prior, initial_parameter
+        
+
         if state in ["left_intron", "right_intron"] and emission[0] != "i":
             norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
             assert abs(norm - 1 ) < 1e-4, f"norm is {norm} but should be one"
@@ -683,6 +700,10 @@ class My_Model(Model):
 
         # A mask for priors
         self.A_prior_indices = tf.cast(self.A_prior_indices, tf.int32)
+        # tf.print("self.A_prior_indices", self.A_prior_indices, summarize = -1)
+        # tf.print("len self.A_prior_indices", len(self.A_prior_indices), summarize = -1)
+        # tf.print("[1.0] * len(self.A_prior_indices)", [1.0] * len(self.A_prior_indices), summarize = -1)
+
         prior_mask = tf.scatter_nd(self.A_prior_indices, \
                                    [1.0] * len(self.A_prior_indices), \
                                    dense_shape)

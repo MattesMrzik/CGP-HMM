@@ -181,10 +181,12 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
 void is_empty(std::ifstream& pFile, std::string & s) {
     if (!pFile) {
         std::cerr << s << " is not open" << '\n';
+        std::cerr <<"\n\n\n\n\n\n\n\n\n\n\n"
         exit (1);
     }
     if (pFile.peek() == std::ifstream::traits_type::eof()) {
         std::cerr << s << " is empty" << '\n';
+        std::cerr <<"\n\n\n\n\n\n\n\n\n\n\n"
         exit (1);
     }
 }
@@ -236,23 +238,23 @@ int main(int argc, char *argv[]) {
 ////////////////////////////////////////////////////////////////////////////////
     std::string seqs_path;
     if (vm.count("seqs_path")) seqs_path = vm["seqs_path"].as<std::string>();
-    else seqs_path = "output/" + std::to_string(nCodons) + "codons/seqs.fa.json";
+    else seqs_path = "../../cgp_data/output/" + std::to_string(nCodons) + "codons/seqs.fa.json";
 ////////////////////////////////////////////////////////////////////////////////
     std::string i_path;
     if (vm.count("i_path")) i_path = vm["i_path"].as<std::string>();
-    else i_path = "output/" + std::to_string(nCodons) + "codons/after_fit_matrices/I.json";
+    else i_path = "../../cgp_data/output/" + std::to_string(nCodons) + "codons/after_fit_matrices/I.json";
 ////////////////////////////////////////////////////////////////////////////////
     std::string a_path;
     if (vm.count("a_path")) a_path = vm["a_path"].as<std::string>();
-    else a_path = "output/" + std::to_string(nCodons) + "codons/after_fit_matrices/A.json";
+    else a_path = "../../cgp_data/output/" + std::to_string(nCodons) + "codons/after_fit_matrices/A.json";
 ////////////////////////////////////////////////////////////////////////////////
     std::string b_path;
     if (vm.count("b_path")) b_path = vm["b_path"].as<std::string>();
-    else b_path = "output/" + std::to_string(nCodons) + "codons/after_fit_matrices/B.json";
+    else b_path = "../../cgp_data/output/" + std::to_string(nCodons) + "codons/after_fit_matrices/B.json";
 ////////////////////////////////////////////////////////////////////////////////
     std::string out_path;
     if (vm.count("out_path")) out_path = vm["out_path"].as<std::string>();
-    else out_path = "output/" + std::to_string(nCodons) + "codons/viterbi_cc_output.json";
+    else out_path = "../../cgp_data/output/" + std::to_string(nCodons) + "codons/viterbi_cc_output.json";
 
 
     // [nSeqs, seq_len, emissions_alphabet_size]

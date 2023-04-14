@@ -378,6 +378,7 @@ def run_cc_viterbi(config):
     import multiprocessing
     start = time.perf_counter()
     seq_path = f"--seqs_path {config.fasta_path}.json" if config.manual_passed_fasta else ""
+    print("seqpath", seq_path)
     only_first_seq = f"--only_first_seq" if config.only_first_seq else ""
     if config.manual_passed_fasta:
         out_dir_path = os.path.dirname(config.fasta_path)
@@ -385,7 +386,7 @@ def run_cc_viterbi(config):
     else:
         out_path = ""
     # command = f"{config.out_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq} {out_path}"
-    command = f"{config.out_path}/Viterbi -c {config.nCodons} -j 1 {seq_path} {only_first_seq} {out_path}"
+    command = f"./Viterbi -c {config.nCodons} -j 1 {seq_path} {only_first_seq} {out_path}"
     print("starting", command)
     os.system(command)
     print("done viterbi. it took ", time.perf_counter() - start)
@@ -395,14 +396,15 @@ if __name__ == "__main__":
     from Config import Config
     import numpy as np
     config = Config("main_programm_dont_interfere")
+    config.viterbi_py_run = True
 
     # check if matrices exists, if not convert kernels
     matr_dir = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
     if not os.path.exists(f"{matr_dir}/A.json"):
-        convert_kernel_files_to_matrices_files(dir_path)
-
-
+        convert_kernel_files_to_matrices_files(matr_dir)
     out_dir_path = os.path.dirname(config.fasta_path) # for viterbi_cc and alignment
+
+
     if config.manual_passed_fasta:
         out_viterbi_file_path = f"{out_dir_path}/viterbi_cc_output.json"
     else:
