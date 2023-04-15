@@ -49,8 +49,18 @@ def get_all_internal_exons(hg38_refseq_bed):
             continue
 
         # print(row)
-        for exon_id, (exon_len, exon_start) in enumerate(zip(row["blockSizes"][1:-1], row["blockStarts"][1:-1])):
 
+
+        # for exon_id, (exon_len, exon_start) in enumerate(zip(row["blockSizes"][1:-1], row["blockStarts"][1:-1])):
+        # this was under the assumption that the first exons contains ATG and the last one STOP
+        # but it could be the case that the first or last exons are in UTR
+        for exon_id, (exon_len, exon_start) in enumerate(zip(row["blockSizes"], row["blockStarts"])):
+
+            # getting exons that are actually between ATG and Stop
+            # these might still include the exons with start and stop codon
+            # these still need to be exluded in the filtering step
+            # (i require exonstart > thickstart
+            # there might not be the necessity to filter them further)
             if row["chromStart"] + exon_start <= row["thickStart"]:
                 print("skipping exon bc exon_start <= thickStart with id", exon_id, "in", dict(row))
                 continue
@@ -59,8 +69,8 @@ def get_all_internal_exons(hg38_refseq_bed):
                 print("skipping exon bc exon_end >= thickEnd with id", exon_id, "in", dict(row))
                 continue
 
-            assert row["chromStart"] <= row["chromEnd"], 'row["chromStart"] <= row["chromEnd"]'
-            assert row["thickStart"] <= row["thickEnd"], 'row["thickStart"] <= row["thickEnd"]'
+            assert row["chromStart"] <= row["chromEnd"], 'row["chromStart"] > row["chromEnd"]'
+            assert row["thickStart"] <= row["thickEnd"], 'row["thickStart"] > row["thickEnd"]'
             chromosom = row["chrom"]
             exon_start_in_genome = row["chromStart"] + exon_start
             exon_end_in_genome = row["chromStart"] + exon_start + exon_len # the end id is not included
