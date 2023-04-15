@@ -81,15 +81,15 @@ class My_Model(Model):
         self.B_weight_index_tuple_to_id_conversion_dict = self.get_index_tuple_to_id_conversion_dict(self.B_indices_for_trainable_parameters)
         self.B_const_index_tuple_to_id_conversion_dict = self.get_index_tuple_to_id_conversion_dict(self.B_indices_for_constant_parameters)
 
-        self.B_initial_parameters_for_weights, \
-        self.B_initial_parameters_for_constants = self.make_B_initial_weights()
+        self.B_initial_weights_for_trainable_parameters, \
+        self.B_initial_weights_for_constant_parameters = self.make_B_initial_weights()
 
         if self.config.nCodons < 20:
             dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/prior_calculation"
             import os
             if not os.path.exists(dir_name):
                 os.mkdir(dir_name)
-            self.B_as_dense_to_file(f"{dir_name}/B_init_parameters_after_conversion.csv", self.B_initial_parameters_for_weights, with_description = True)
+            self.B_as_dense_to_file(f"{dir_name}/B_init_parameters_after_conversion.csv", self.B_initial_weights_for_trainable_parameters, with_description = True)
 
 
         if config.use_weights_for_consts:
@@ -700,9 +700,9 @@ class My_Model(Model):
 
         # A mask for priors
         self.A_prior_indices = tf.cast(self.A_prior_indices, tf.int32)
-        tf.print("self.A_prior_indices", self.A_prior_indices, summarize = -1)
-        tf.print("len self.A_prior_indices", len(self.A_prior_indices), summarize = -1)
-        tf.print("[1.0] * len(self.A_prior_indices)", [1.0] * len(self.A_prior_indices), summarize = -1)
+        # tf.print("self.A_prior_indices", self.A_prior_indices, summarize = -1)
+        # tf.print("len self.A_prior_indices", len(self.A_prior_indices), summarize = -1)
+        # tf.print("[1.0] * len(self.A_prior_indices)", [1.0] * len(self.A_prior_indices), summarize = -1)
 
         prior_mask = tf.scatter_nd(self.A_prior_indices, \
                                    [1.0] * len(self.A_prior_indices), \
@@ -891,8 +891,8 @@ class My_Model(Model):
                     # else:
                     #     print(f"index {indx} not found in make_B_initial_weights()")
                     #     exit()
-        initial_parameters_for_weights = tf.cast(initial_parameters_for_weights, self.config.dtype)
-        initial_parameters_for_consts = tf.cast(initial_parameters_for_consts, self.config.dtype)
+        initial_parameters_for_weights = np.array(initial_parameters_for_weights, np.float32)
+        initial_parameters_for_consts = np.array(initial_parameters_for_consts, np.float32)
         return initial_parameters_for_weights, initial_parameters_for_consts
 
 ################################################################################
@@ -900,7 +900,7 @@ class My_Model(Model):
     def B(self, weights):
         # consts = tf.cast([1.0] * len(self.B_indices_for_constants), dtype = self.config.dtype)
         try:
-            consts = self.B_initial_parameters_for_constants
+            consts = self.B_initial_weights_for_constant_parameters
         except:
             consts = self.B_initial_constant_para_setting
         values = tf.concat([weights, consts], axis = 0)
