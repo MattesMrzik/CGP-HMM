@@ -309,20 +309,34 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
                 viterbi_as_fasta += "G"
             elif description == "GT":
                 viterbi_as_fasta += "T"
-            elif description.startwith("i_"):
-                insert_id += re.search(r"i_(d+),", description).group(1)
+            elif description.startswith("i_"):
+                insert_id = re.search(r"i_(\d+),", description).group(1)
                 if len(insert_id) > 2:
                     viterbi_as_fasta += "I" # this indicates that insert id is larger than 100, bc only the last two digits can be displayed 
                 else:
                     viterbi_as_fasta += "i"
-                viterbi_as_fasta += insert_id[-2:]
-            elif description.startwith("c_"):
-                insert_id += re.search(r"c_(d+),", description).group(1)
+                if l[0][i+1][1] == "G":
+                    i-=2 # -2 bc adding 2 and 1 anyways
+                elif l[0][i+2][1] == "G":
+                    viterbi_as_fasta += " "                    
+                    i-=1
+                else:     
+                    viterbi_as_fasta += (" " + insert_id)[-2:]
+                i+=2
+            elif description.startswith("c_"):
+                insert_id = re.search(r"c_(\d+),", description).group(1)
                 if len(insert_id) > 2:
                     viterbi_as_fasta += "C" # this indicates that insert id is larger than 100, bc only the last two digits can be displayed 
                 else:
                     viterbi_as_fasta += "c"
-                viterbi_as_fasta += insert_id[-2:]
+                if l[0][i+1][1] == "G":
+                    i-=2
+                elif l[0][i+2][1] == "G":
+                    viterbi_as_fasta += " "
+                    i-=1
+                else:     
+                    viterbi_as_fasta += (" " + insert_id)[-2:]
+                i+=2
             else:
                 viterbi_as_fasta += "-"
 
@@ -330,6 +344,7 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
 
         # removing terminal
         viterbi_as_fasta = viterbi_as_fasta[:-1]
+        print("viterbi_as_fasta", viterbi_as_fasta)
 
         assert l[0][-1][1] == "ter", "Model.py last not terminal"
 
@@ -414,7 +429,7 @@ if __name__ == "__main__":
     import numpy as np
 
     print("started making config in viterbi.py")
-    config = Config("main_programm_dont_interfere")
+    config = Config("without_priors")
     print("done with making config in vertbi.py")
 
     # check if matrices exists, if not convert kernels
