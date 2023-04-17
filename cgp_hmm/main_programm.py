@@ -60,6 +60,10 @@ def main(config):
 
     print("done write model. it took ", time.perf_counter() - start)
 
+    if config.internal_exon_model:
+        from Utility import from_before_and_after_json_matrices_calc_diff_and_write_csv
+        from_before_and_after_json_matrices_calc_diff_and_write_csv(config)
+
     # if config.write_parameters_after_fit:
 
     if config.nCodons < 10:

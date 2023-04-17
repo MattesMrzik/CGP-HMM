@@ -419,14 +419,49 @@ import os
 ################################################################################
 ################################################################################
 
-class Klasse():
-    def foo(self):
-        a = 1
-        l = []
-        def bar():
-            print(a,l)
-        bar()
-    def call_foo(self):
-        self.foo()
-c = Klasse()
-c.call_foo()
+# class Klasse():
+#     def foo(self):
+#         a = 1
+#         l = []
+#         def bar():
+#             print(a,l)
+#         bar()
+#     def call_foo(self):
+#         self.foo()
+# c = Klasse()
+# c.call_foo()
+
+################################################################################
+################################################################################
+################################################################################
+
+# what is the max of the derichlet density
+
+import tensorflow as tf
+import tensorflow_probability as tfp
+
+w = tf.Variable([0.5,0.5,0.5])
+alpha = tf.constant([0.5,0.2,0.3])
+dirichlet = tfp.distributions.Dirichlet(alpha)
+iterations = 100
+for i in range(iterations):
+    with tf.GradientTape() as tape:
+        tape.watch(w)
+        p = tf.nn.softmax(w)
+        print("p", p.numpy())
+        print("p sum", tf.math.reduce_sum(p).numpy())
+
+        y = -tf.reduce_prod(p**(alpha-1))
+        derichlet_prob = dirichlet.prob(p).numpy()
+        frac = y/derichlet_prob
+        print("frac", frac.numpy())
+        print("y", y.numpy())
+    grad = tape.gradient(y,p)
+    print("dy_dx =", [d.numpy() for d in grad])
+    grad = grad / tf.linalg.norm(grad)
+    w.assign_sub(0.1 * grad)
+    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(w)), [w])
+    print()
+
+max_value = 1 / (tf.exp(tf.math.lbeta(alpha)) * tf.reduce_prod(alpha - 1))
+print("max_value", max_value)

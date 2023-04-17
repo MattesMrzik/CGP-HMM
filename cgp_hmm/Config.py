@@ -284,7 +284,8 @@ class Config():
         self.add_arg_main('--deletes_after_codon_to_intron', action = 'store_true', help = 'dark green: deletes_after_codon_to_intron')
         self.add_arg_main('--deletes_after_insert_to_codon', action = 'store_true', help = 'red: deletes_after_insert_to_codon')
         self.add_arg_main('--deletes_after_codon_to_insert', action = 'store_true', help = 'pink: deletes_after_codon_to_insert')
-        self.add_arg_main('--prior', type = float, default = 0, help = 'use prior reg or scale it')
+        self.add_arg_main('--prior', type = float, default = 0, help = 'use prior and scale the alphas')
+        self.add_arg_main('--scale_prior', type = float, default = 1, help = "scale the prior loss with this. bc it is not yet scaled by 1/m")
         self.add_arg_main('--prior_path', default = "/home/mattes/Documents/cgp_data/priors/human/", help = ' path to the dir containing exon and intron .pbl')
 
         # fine tune algo

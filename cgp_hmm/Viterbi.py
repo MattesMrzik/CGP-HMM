@@ -294,7 +294,9 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
     if viterbi_path == None:
         viterbi_as_fasta = " " * len(human_fasta.seq)
     else:
-        for state_id, description in l[0]:
+        i = 0
+        while i < len(l[0]):
+            state_id, description = l[0][i]
             if description == "left_intron":
                 viterbi_as_fasta += "l"
             elif description == "right_intron":
@@ -307,8 +309,24 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
                 viterbi_as_fasta += "G"
             elif description == "GT":
                 viterbi_as_fasta += "T"
+            elif description.startwith("i_"):
+                insert_id += re.search(r"i_(d+),", description).group(1)
+                if len(insert_id) > 2:
+                    viterbi_as_fasta += "I" # this indicates that insert id is larger than 100, bc only the last two digits can be displayed 
+                else:
+                    viterbi_as_fasta += "i"
+                viterbi_as_fasta += insert_id[-2:]
+            elif description.startwith("c_"):
+                insert_id += re.search(r"c_(d+),", description).group(1)
+                if len(insert_id) > 2:
+                    viterbi_as_fasta += "C" # this indicates that insert id is larger than 100, bc only the last two digits can be displayed 
+                else:
+                    viterbi_as_fasta += "c"
+                viterbi_as_fasta += insert_id[-2:]
             else:
                 viterbi_as_fasta += "-"
+
+            i += 1
 
         # removing terminal
         viterbi_as_fasta = viterbi_as_fasta[:-1]
@@ -394,16 +412,23 @@ def run_cc_viterbi(config):
 if __name__ == "__main__":
     from Config import Config
     import numpy as np
+
+    print("started making config in viterbi.py")
     config = Config("main_programm_dont_interfere")
-    
+    print("done with making config in vertbi.py")
 
     # check if matrices exists, if not convert kernels
-    matr_dir = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
+    print("viterbi with after_fit_matrices or before_fit_matrices [a/b]")
+    while (a_or_b := input()) not in "ab":
+        pass
+    
+    a_or_b = "after_fit_matrices" if a_or_b == "a" else "before_fit_matrices"
+    matr_dir = f"{config.out_path}/output/{config.nCodons}codons/{a_or_b}"
     if not os.path.exists(f"{matr_dir}/A.json"):
         print("start converting kernels to matrices")
         convert_kernel_files_to_matrices_files(matr_dir)
         print("done with converting kernels")
-    out_dir_path = os.path.dirname(config.fasta_path) # for viterbi_cc and alignment
+    out_dir_path = os.path.dirname(config.fasta_path) # for viterbi_cc and alignment (to fasta file not the json version)
 
     seqs_json_path = f"{config.fasta_path}.json"
     if not os.path.exists(seqs_json_path):
