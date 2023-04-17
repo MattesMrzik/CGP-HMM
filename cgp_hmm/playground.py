@@ -441,14 +441,16 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 
 w = tf.Variable([0.5,0.5,0.5])
-alpha = tf.constant([0.5,0.2,0.3])
+alpha = tf.constant([0.2,2,0.8])/5
 dirichlet = tfp.distributions.Dirichlet(alpha)
-iterations = 100
+iterations = 300
 for i in range(iterations):
     with tf.GradientTape() as tape:
         tape.watch(w)
         p = tf.nn.softmax(w)
-        print("p", p.numpy())
+        formatted_arr = list(map(lambda x: "{:.5f}".format(x), p))
+        output_str = ", ".join(formatted_arr)
+        print("p", output_str)
         print("p sum", tf.math.reduce_sum(p).numpy())
 
         y = -tf.reduce_prod(p**(alpha-1))
@@ -463,5 +465,4 @@ for i in range(iterations):
     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(w)), [w])
     print()
 
-max_value = 1 / (tf.exp(tf.math.lbeta(alpha)) * tf.reduce_prod(alpha - 1))
-print("max_value", max_value)
+print("alpha means", alpha / tf.math.reduce_sum(alpha))

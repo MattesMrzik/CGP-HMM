@@ -99,7 +99,7 @@ def from_before_and_after_json_matrices_calc_diff_and_write_csv(config = None):
         before = json.load(before_file)
     with open(f"{dir_after_fit}/A.json", "r") as after_file:
         after = json.load(after_file)
-    diff = np.array(before) - np.array(after)
+    diff = np.array(after) - np.array(before)
     diff = tf.constant(diff)
     # diff_2d_list = [[float(entry) for entry in col] for col in diff]
     config.model.A_as_dense_to_file(f"{out_dir}/A_diff.csv", "dummy_weights", with_description = True, A = diff)
@@ -109,7 +109,7 @@ def from_before_and_after_json_matrices_calc_diff_and_write_csv(config = None):
         before = json.load(before_file)
     with open(f"{dir_after_fit}/B.json", "r") as after_file:
         after = json.load(after_file)
-    diff = np.array(before) - np.array(after)
+    diff = np.array(after) - np.array(before)
     diff = tf.constant(diff)
     # diff_2d_list = [[float(entry) for entry in col] for col in diff]
     config.model.B_as_dense_to_file(f"{out_dir}/B_diff.csv", "dummy_weights", with_description = True, B = diff)

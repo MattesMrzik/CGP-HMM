@@ -1,5 +1,4 @@
 import argparse
-import Utility
 import re
 from Utility import run
 import os

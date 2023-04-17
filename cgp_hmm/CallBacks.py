@@ -69,6 +69,7 @@ def get_call_backs(config, model):
                 config.model.B_as_dense_to_file(f"{path}/B.with_description.csv", cell.B_kernel, with_description = True)
                 
                 # json format dense matrices
+                config.model.I_as_dense_to_json_file(f"{path}/I.json", cell.I_kernel)
                 config.model.A_as_dense_to_json_file(f"{path}/A.json", cell.A_kernel)
                 config.model.B_as_dense_to_json_file(f"{path}/B.json", cell.B_kernel)
                 print("done with callback write_initial_weights_and_matrices_to_file, it took:",  time.perf_counter() - start)

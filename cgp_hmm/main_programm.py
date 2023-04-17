@@ -51,7 +51,7 @@ def main(config):
     # config.model.B_as_dense_to_file(f"{dir_path}/B.csv", B_kernel, with_description = False)
     config.model.B_as_dense_to_file(f"{dir_path}/B.with_description.csv", B_kernel, with_description = True)
     # json format
-    # config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
+    config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
     config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
     config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)
     

@@ -210,7 +210,7 @@ class My_Model(Model):
         try:
             return self.emission_tuple_to_str(self.emission_id_to_tuple(id))
         except:
-            return "-1"
+            return f"no_str_for_id_{id}"
 
     def str_to_emission_tuple(self, s):
         pass
