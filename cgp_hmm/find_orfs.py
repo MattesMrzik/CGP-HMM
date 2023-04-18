@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-import re
-import pandas as pd
-from Bio import SeqIO
 import argparse
+from Bio import SeqIO
+import pandas as pd
+
 
 def find_ag_gt_pairs(sequence, min_distance, max_distance):
     ag_gt_pairs = []
-    pattern = re.compile(r"AG.{%d,%d}GT" % (min_distance, max_distance))
-    matches = pattern.finditer(sequence)
-    for match in matches:
-        ag_gt_pairs.append((match.start(), match.end()-2, match.end()-match.start()-4))
+    for i in range(len(sequence)-1):
+        if sequence[i:i+2] == "AG":
+            for j in range(i+2, min(i+max_distance+1, len(sequence)-1)):
+                if sequence[j:j+2] == "GT":
+                    separation = j-i-2
+                    if separation >= min_distance and separation < max_distance:
+                        ag_gt_pairs.append((i, j, separation))
     return ag_gt_pairs
 
 parser = argparse.ArgumentParser()
@@ -20,9 +23,11 @@ args = parser.parse_args()
 
 ag_gt_pairs = []
 for sequence in SeqIO.parse(args.fasta_file, "fasta"):
+    seq = sequence.seq
     pairs = find_ag_gt_pairs(str(sequence.seq), args.min_distance, args.max_distance)
     for pair in pairs:
-        ag_gt_pairs.append({"seq_id" : sequence.id, "AG_id": pair[0], "GT_id": pair[1], "separation": pair[2]})
+        ag_gt_pairs.append({"AG_id": pair[0], "GT_id": pair[1], "separation": pair[2]})
 
 df = pd.DataFrame(ag_gt_pairs)
+pd.set_option("display.max_rows", None)
 print(df)
