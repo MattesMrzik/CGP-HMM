@@ -418,7 +418,7 @@ def run_cc_viterbi(config):
     else:
         out_path = ""
     # command = f"{config.out_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq} {out_path}"
-    command = f"./Viterbi -c {config.nCodons} -j 1 {seq_path} {only_first_seq} {out_path}"
+    command = f"./Viterbi -c {config.nCodons} -j {config.viterbi_threads} {seq_path} {only_first_seq} {out_path}"
     print("starting", command)
     os.system(command)
     print("done viterbi. it took ", time.perf_counter() - start)
@@ -447,7 +447,7 @@ if __name__ == "__main__":
 
     seqs_json_path = f"{config.fasta_path}.json"
     if not os.path.exists(seqs_json_path):
-        print("fa.json doesnt exists, so it it calculated")
+        print("fa.json doesnt exist, so it it calculated")
         from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
         from ReadData import read_data_one_hot_with_Ns_spread_str
         seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)

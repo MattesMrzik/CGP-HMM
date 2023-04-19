@@ -264,70 +264,89 @@ class Config():
         self.add_arg_main('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
         self.add_arg_main('-p', '--out_path', default = "../../cgp_data/", help='path to paranet output dir')
         self.add_arg_main('--path_to_MSAgen_dir', default= "../MSAgen", help = 'path to MSAgen_dir')
+        self.add_arg_main('--fasta_path', help = 'path to fasta file where the traning seqs are')
+
+        # learning
         self.add_arg_main('--optimizer', default = "SGD", help = 'Adam, Adadelta, Adagrad, Adamax, Ftrl , Nadam, RMSprop, SGD [SDG]')
         self.add_arg_main('--epochs', default = 2, type = int, help = 'how many epochs [2]')
         self.add_arg_main('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
+        self.add_arg_main('-d', '--dtype64', action='store_true', help='using dytpe tf.float64')
+        self.add_arg_main('--batch_size', type = int, default = 32, help = 'the batch_size, default si 32')
+        self.add_arg_main('--no_learning', help ="learning_rate is set to 0", action='store_true')
+        self.add_arg_main('--learning_rate', help ="learning_rate", type = float, default = 0.05)
+        self.add_arg_main('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
+        self.add_arg_main('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
+
+        # viterbi
         self.add_arg_main('--viterbi', action='store_true', help = 'viterbi')
         self.add_arg_main('--only_first_seq', action = 'store_true', help = 'run viterbi only for the first seq')
-        self.add_arg_main('--intron_model', action='store_true', help = 'use my model that includes introns')
-        self.add_arg_main('--fasta_path', help = 'path to fasta file where the traning seqs are')
         self.add_arg_main('--in_viterbi_path', help = 'path to viterbi file which is then written to the alignment')
-
+        self.add_arg_main('--viterbi_threads', type = int, default = 1, help = 'how many threads for viterbi.cc')
+       
+        # what model
         self.add_arg_main('--internal_exon_model', action = 'store_true', help = 'finde ein exon welches von zwei introns begrenzt ist')
         self.add_arg_main('--inserts_at_intron_borders', action = 'store_true', help = 'inserts can come right after and before intron')
         self.add_arg_main('--akzeptor_pattern_len', type = int, default = 3, help = 'akzeptor_pattern_len before AG')
         self.add_arg_main('--donor_pattern_len', type = int, default = 3, help = 'donor_pattern_len after GT')
-        self.add_arg_main('--left_intron_const',  type = float, default = 0, help = 'uses const transition [float] from left_intron -> left_intron and left_intron -> ak_0 [weight = 1]')
-        self.add_arg_main('--right_intron_const',  type = float, default = 0, help = 'uses const transition [float] from right_intron -> right_intron and right_intron -> ter [weight = 1]')
+        self.add_arg_main('--left_intron_const', action = 'store_true', help = 'uses const transition left_intron loop')
+        self.add_arg_main('--right_intron_const', action = 'store_true', help = 'uses const transition right_intron loop')
+        self.add_arg_main('--left_intron_init_para', type = float, default=4, help = 'weight for left -> left, the para for leaving left is 0')
+        self.add_arg_main('--right_intron_init_para', type = float, default=4, help = 'weight for right -> right, the para for leaving right is 0')
         self.add_arg_main('--deletes_after_intron_to_codon', action = 'store_true', help = 'light green: deletes_after_intron_to_codon')
         self.add_arg_main('--deletes_after_codon_to_intron', action = 'store_true', help = 'dark green: deletes_after_codon_to_intron')
         self.add_arg_main('--deletes_after_insert_to_codon', action = 'store_true', help = 'red: deletes_after_insert_to_codon')
         self.add_arg_main('--deletes_after_codon_to_insert', action = 'store_true', help = 'pink: deletes_after_codon_to_insert')
+        self.add_arg_main('--pattern_length_before_intron_loop', type = int, default = 2, help = 'number of states before intron loop')
+        self.add_arg_main('--pattern_length_after_intron_loop', type = int, default = 2, help = 'number of states after intron loop')
+        self.add_arg_main('--deletions_and_insertions_not_only_between_codons', action = 'store_true', help = 'deletions_and_insertions_not_only_between_codons. ie not after insertion or intron')
+        
+        self.add_arg_main('--intron_model', action='store_true', help = 'use my model that includes introns')
+
+        self.add_arg_main('--msa_model', action = "store_true", help = "use a hard coded felix msa model with nucleodite emission to check if i can produce NaN, bc felix doesnt get NaN even for long seqs")
+
+        # prior
         self.add_arg_main('--prior', type = float, default = 0, help = 'use prior and scale the alphas')
         self.add_arg_main('--scale_prior', type = float, default = 1, help = "scale the prior loss with this. bc it is not yet scaled by 1/m")
         self.add_arg_main('--prior_path', default = "/home/mattes/Documents/cgp_data/priors/human/", help = ' path to the dir containing exon and intron .pbl')
+        self.add_arg_main('--ass_start', type = int, default = 5, help = 'len of prior pattern before AG ASS splice site')
+        self.add_arg_main('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
+        self.add_arg_main('--dss_start', type = int, default = 5, help = 'len of prior pattern before GT DSS splice site')
+        self.add_arg_main('--dss_end', type = int, default = 2, help = 'len of prior pattern after GT DSS splice site')
+        self.add_arg_main('--log_prior_epsilon', type = float, default = 0, help = '[0] log_prior = tf.math.log(self.B(B_kernel) + prior_log_epsilon)')
 
-        # fine tune algo
-        self.add_arg_main('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
-        self.add_arg_main('-d', '--dtype64', action='store_true', help='using dytpe tf.float64')
-        self.add_arg_main('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
-        self.add_arg_main('--learning_rate', help ="learning_rate", type = float, default = 0.05)
-        self.add_arg_main('--no_learning', help ="learning_rate is set to 0", action='store_true')
-        self.add_arg_main('--seq_len', type = int, help = 'lenght of output seqs before the optional stripping of flanks, must be at least 3*nCodons + 8')
-        self.add_arg_main('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen (just random seqs) and not MSAgen")
-        self.add_arg_main('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist for MSAgen')
-        self.add_arg_main('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist for MSAgen')
-        self.add_arg_main('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks ie all seqs have the same length")
-        self.add_arg_main('--batch_size', type = int, default = 32, help = 'the batch_size, default si 32')
-        self.add_arg_main('--scale_with_const', type = float, default = 0, help = 'scale the forward variables with constant float')
-        self.add_arg_main('--scale_with_conditional_const', action = "store_true", help = 'scale the forward variables with constant if they are too small')
+        # prior and initial weights 
+        self.add_arg_main('--my_initial_guess_for_parameters', action='store_true', help = 'init A weights with my initial guess and B with priors')
+        self.add_arg_main('--single_high_prob_kernel', type = float, default = 3, help = 'if my_initial_guess_for_parameters, this value is for high prob transitions, all other transitions get kernel weight 1')
+        self.add_arg_main('--diminishing_factor', type = float, default = 4, help = 'deletes get initialized with [[-(to_codon - from_codon)/self.config.diminishing_factor]]')
+        self.add_arg_main('--add_noise_to_initial_weights', action = 'store_true', help = 'add noise to my initial guess for weights ')
+        
+        # what forward
         self.add_arg_main('--felix', action='store_true',  help = 'use felix forward version')
+        
         self.add_arg_main('--logsumexp', action = "store_true", help = "logsumexp")
         self.add_arg_main('--global_log_epsilon', type = float, default = 0, help = 'set l_, R_, E_ and prior_log_epsilon to this value')
         self.add_arg_main('--l_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + self.config.epsilon_l, axis = 1, keepdims = True)) + m_alpha')
         self.add_arg_main('--R_epsilon', type = float, default = 0, help = '[0] R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.epsilon_R, self.A)) + m_alpha')
         self.add_arg_main('--E_epsilon', type = float, default = 0, help = '[0] unscaled_alpha = tf.math.log(E + self.config.epsilon_E) + R')
-        self.add_arg_main('--log_prior_epsilon', type = float, default = 0, help = '[0] log_prior = tf.math.log(self.B(B_kernel) + prior_log_epsilon)')
+
+        self.add_arg_main('--scale_with_const', type = float, default = 0, help = 'scale the forward variables with constant float')
+
+        self.add_arg_main('--scale_with_conditional_const', action = "store_true", help = 'scale the forward variables with constant if they are too small')
+        self.add_arg_main('--conditional_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True) + self.config.epsilon_conditional) - scale_helper * tf.math.log(10.0)')
+
+        s = "my forward algo is default case if no other args is specified"
         self.add_arg_main('--my_scale_log_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.epsilon_my_scale), name = "loglik")')
         self.add_arg_main('--my_scale_alpha_epsilon', type = float, default = 0, help = '[0] scaled_alpha = unscaled_alpha / (scale_helper self.config.epsilon_my_scale_alpha)')
-        self.add_arg_main('--conditional_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True) + self.config.epsilon_conditional) - scale_helper * tf.math.log(10.0)')
-        self.add_arg_main('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
-        self.add_arg_main('--ig3_const_transition', type = float, default = 0, help = "uses const transition from ig3 -> ig3 (weight = --ig3) and ig3 -> terminal (weight = 1) and softmax applied")
-        self.add_arg_main('--regularize', action= 'store_true', help = 'regularize the parameters')
-        self.add_arg_main('--inserts_punish_factor', type = float, default = 1, help = 'inserts_punish_factor')
-        self.add_arg_main('--deletes_punish_factor', type = float, default = 1, help = 'deletes_punish_factor')
+
+        # seq gen
+        self.add_arg_main('--seq_len', type = int, help = 'lenght of output seqs before the optional stripping of flanks, must be at least 3*nCodons + 8')
+        self.add_arg_main('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen (just random seqs) and not MSAgen")
+        self.add_arg_main('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist for MSAgen')
+        self.add_arg_main('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist for MSAgen')
+        self.add_arg_main('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks ie all seqs have the same length")
+        self.add_arg_main('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
         self.add_arg_main('--simulate_insertions', action='store_true', help = 'simulate insertion when using MSAgen')
         self.add_arg_main('--simulate_deletions', action='store_true', help = 'simulate deletions when using MSAgen')
-        self.add_arg_main('--pattern_length_before_intron_loop', type = int, default = 2, help = 'number of states before intron loop')
-        self.add_arg_main('--pattern_length_after_intron_loop', type = int, default = 2, help = 'number of states after intron loop')
-        self.add_arg_main('--deletions_and_insertions_not_only_between_codons', action = 'store_true', help = 'deletions_and_insertions_not_only_between_codons. ie not after insertion or intron')
-        self.add_arg_main('--my_initial_guess_for_parameters', action='store_true', help = 'init A weights with my initial guess')
-        self.add_arg_main('--single_high_prob_kernel', type = float, default = 3, help = 'if my_initial_guess_for_parameters, this value is for high prob transitions, all other transitions get kernel weight 1')
-        self.add_arg_main('--diminishing_factor', type = float, default = 4, help = 'deletes get initialized with [[-(to_codon - from_codon)/self.config.diminishing_factor]]')
-        self.add_arg_main('--ass_start', type = int, default = 5, help = 'len of prior pattern before AG ASS splice site')
-        self.add_arg_main('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
-        self.add_arg_main('--dss_start', type = int, default = 5, help = 'len of prior pattern before GT DSS splice site')
-        self.add_arg_main('--dss_end', type = int, default = 2, help = 'len of prior pattern after GT DSS splice site')
 
         # hardware
         self.add_arg_main('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
@@ -351,14 +370,12 @@ class Config():
         # debugging
         self.add_arg_main('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
         self.add_arg_main('-n', '--exit_after_loglik_is_nan', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
-        self.add_arg_main('--dont_generate_new_seqs', action='store_true', help ="dont_generate_new_seqs, but use the ones that were created before")
         self.add_arg_main('--manual_training_loop', action='store_true', help ="manual_training_loop")
         self.add_arg_main('--check_assert', action='store_true', help ="check_assert")
         self.add_arg_main('--run_eagerly', action='store_true', help ='run model.fit in eager execution')
         self.add_arg_main('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
         self.add_arg_main('--init_weights_from_before_fit', action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --batch_begin_write_weights__layer_call_write_inputs was passed')
         self.add_arg_main('--init_weights_from_after_fit' , action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --write_parameters_after_fit was passed')
-        self.add_arg_main('--add_noise_to_initial_weights', action = 'store_true', help = 'add noise to my initial guess for weights ')
         self.add_arg_main('--no_deletes', action='store_true', help = 'the delete transitions in A are removed')
         self.add_arg_main('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
         self.add_arg_main('--forced_gene_structure', action='store_true', help = 'TGs in igs and ACs in coding, ie the state seq is determinded by emission seq')
@@ -366,7 +383,12 @@ class Config():
         self.add_arg_main('--use_constant_initializer', action='store_true', help = 'init weights with all ones')
         self.add_arg_main('--manual_forward', action = 'store_true', help = 'gets mean likelihood of with manual loop')
         self.add_arg_main('--autograph_verbose', action = 'store_true', help = 'set tf.autograph.set_verbosity(3, True)')
-        self.add_arg_main('--msa_model', action = "store_true", help = "use a hard coded felix msa model with nucleodite emission to check if i can produce NaN, bc felix doesnt get NaN even for long seqs")
+
+        # self.add_arg_main('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
+        # self.add_arg_main('--ig3_const_transition', type = float, default = 0, help = "uses const transition from ig3 -> ig3 (weight = --ig3) and ig3 -> terminal (weight = 1) and softmax applied")
+        # self.add_arg_main('--regularize', action= 'store_true', help = 'regularize the parameters')
+        # self.add_arg_main('--inserts_punish_factor', type = float, default = 1, help = 'inserts_punish_factor')
+        # self.add_arg_main('--deletes_punish_factor', type = float, default = 1, help = 'deletes_punish_factor')
 
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""

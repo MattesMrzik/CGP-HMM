@@ -288,7 +288,7 @@ class My_Model(Model):
                     indicies_for_constant_parameters.append(entry)
                     initial_weights_for_consts.append(weight)
 
-        append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const, initial_weights = self.config.left_intron_const)
+        append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const, initial_weights = self.config.left_intron_init_para)
 
         if self.config.akzeptor_pattern_len == 0:
             append_transition("left_intron", "A", trainable = not self.config.left_intron_const, initial_weights = 0)
@@ -348,7 +348,7 @@ class My_Model(Model):
                 append_transition(f"do_{i}", f"do_{i+1}", trainable = False)
             append_transition(f"do_{self.config.donor_pattern_len-1}", "right_intron", trainable = False)
 
-        append_transition("right_intron", "right_intron", trainable = not self.config.right_intron_const, initial_weights = self.config.right_intron_const)
+        append_transition("right_intron", "right_intron", trainable = not self.config.right_intron_const, initial_weights = self.config.right_intron_init_para)
         append_transition("right_intron", "ter", trainable = not self.config.right_intron_const, initial_weights = 0)
         append_transition("ter", "ter")
 
