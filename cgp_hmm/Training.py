@@ -64,6 +64,7 @@ def make_dataset(config):
                           {'-ncd ' + str(config.noncoding_dist) if config.noncoding_dist else ''}\
                           {'--dont_strip_flanks' if config.dont_strip_flanks else ''} \
                           {'--MSAgen_dir ' + config.path_to_MSAgen_dir} \
+                          {'--out_path ' + config.current_run_dir} \
                           {'--insertions ' if config.simulate_insertions else ''} \
                           {'--deletions ' if config.simulate_deletions else ''}"
 
@@ -145,6 +146,8 @@ def make_dataset(config):
             with open(seqs_json_path, "w") as out_file:
                 json.dump(seqs_out, out_file)
 
+    config.nSeqs = len(seqs)
+
     append_time_ram_stamp_to_file(f"Training.make_dataset() end   {run_id}", config.bench_path, start)
     return dataset, seqs
 
@@ -185,12 +188,13 @@ def fit_model(config):
 
 ################################################################################
     if config.get_gradient_for_current_txt or config.get_gradient_from_saved_model_weights:
-
+        print("get_gradient_for_current_txt, get_gradient_from_saved_model_weights is decrepated")
+        exit()
         # when accessing config["model"] in cell.call -> recursion error
         model, cgp_hmm_layer = make_model(config)
         model.compile(optimizer = optimizer)
         if config.get_gradient_from_saved_model_weights:
-            model.load_weights(f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_weights")
+            model.load_weights(f"{config.current_run_dir}/batch_begin_write_weights__layer_call_write_inputs/current_weights")
             # config["model"] = model
             # print('config["model"]', config["model"])
             config.weights = model.get_weights()
@@ -250,7 +254,6 @@ def fit_model(config):
     elif config.manual_forward:
 
             layer = CgpHmmLayer(config)
-
 
             layer.build(None)
             layer.C.build(None)
@@ -426,9 +429,9 @@ def fit_model(config):
 
                     # with open(f"{config.out_path}/output/{config.nCodons}codons/gradient_ik_for_alpha{config.alpha_i_gradient}.txt","w") as file:
                     #     json.dump(ik, file)
-                    with open(f"{config.out_path}/output/{config.nCodons}codons/gradient_ak_for_alpha{config.alpha_i_gradient}.txt","w") as file:
+                    with open(f"{config.current_run_dir}/gradient_ak_for_alpha{config.alpha_i_gradient}.txt","w") as file:
                         json.dump(ak, file)
-                    with open(f"{config.out_path}/output/{config.nCodons}codons/gradient_bk_for_alpha{config.alpha_i_gradient}.txt","w") as file:
+                    with open(f"{config.current_run_dir}/gradient_bk_for_alpha{config.alpha_i_gradient}.txt","w") as file:
                         json.dump(bk, file)
 
                     # tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(gradient[0])), [gradient[0], gradient[1], gradient[2]], name = "gradient_for_I", summarize = config.assert_summarize)

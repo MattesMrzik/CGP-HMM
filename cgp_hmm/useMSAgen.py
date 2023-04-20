@@ -19,7 +19,7 @@ parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='c
 parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist')
 parser.add_argument('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks")
 parser.add_argument('--MSAgen_dir', default = "../MSAgen", help = 'path_to_MSAgen_dir')
-parser.add_argument('--out_path', default = "../../cgp_data/", help = 'out_path')
+parser.add_argument('--out_path', required = True, help = 'out_path')
 parser.add_argument('--insertions', action = 'store_true', help = 'simulate inserions at random positions in seqs selected by random')
 parser.add_argument('--deletions', action = 'store_true', help = 'simulate deletions at random positions in seqs selected by random')
 
@@ -45,11 +45,11 @@ sequences, posDict = MSAgen.generate_sequences(num_sequences = int(num_seqs), # 
                                                coding_dist = args.coding_dist, # branch length of the underlying tree for simulated gene evolution
                                                noncoding_dist = args.noncoding_dist) # branch length for flanking regions
 
-if not os.path.exists(f"{args.out_path}/output/{nCodons}codons/"):
-    os.makedirs(f"{args.out_path}/output/{nCodons}codons/")
+if not os.path.exists(args.out_path):
+    os.makedirs(args.out_path)
 
 # MSAgen output
-with open(f"{args.out_path}/output/{nCodons}codons/MSAgen.out","w") as file:
+with open(f"{args.out_path}/MSAgen.out","w") as file:
     for seq in sequences:
         file.write(">" + seq.id + "\n")
         file.write(str(seq.seq) + "\n")
@@ -122,7 +122,7 @@ if strip_flanks:
         seq.stopPos     = seq.stopPos - strip_5flank_len
 
 # write true MSA to file:
-with open(f"{args.out_path}/output/{nCodons}codons/trueMSA.txt", "w") as file:
+with open(f"{args.out_path}/trueMSA.txt", "w") as file:
     # landmarks = ""
     # for i in range(seqlen):
     #     if i%10 == 0:
@@ -163,7 +163,7 @@ with open(f"{args.out_path}/output/{nCodons}codons/trueMSA.txt", "w") as file:
 # run(f"head {args.out_path}/output/{nCodons}codons/trueMSA.txt")
 
 # fasta file
-fasta_path = f"{args.out_path}/output/{nCodons}codons/seqs.fa"
+fasta_path = f"{args.out_path}/seqs.fa"
 
 with open(fasta_path,"w") as file:
     # SeqIO.write(sequences, file, "fasta")
@@ -187,7 +187,7 @@ with open(fasta_path,"w") as file:
 # run(f"head {args.out_path}/output/{nCodons}codons/profile.{nCodons}codons.txt")
 
 # start and stop positions
-start_stop_pos_path = f"{args.out_path}/output/{nCodons}codons/start_stop_pos.txt"
+start_stop_pos_path = f"{args.out_path}/start_stop_pos.txt"
 with open(start_stop_pos_path,"w") as file:
     for seq in sequences:
         file.write(">" + seq.id)

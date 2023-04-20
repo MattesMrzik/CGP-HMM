@@ -31,7 +31,6 @@ class My_Model(Model):
         self.B_is_dense = config.B_is_dense
         self.B_is_sparse = config.B_is_sparse
 
-
         try:
             config.without_priors
             print("called model without_priors")
@@ -39,7 +38,7 @@ class My_Model(Model):
         except:
             pass
 
-        if self.config.prior:
+        if self.config.priorB:
             from load_priors import Prior
             self.prior = Prior(config)
 
@@ -53,7 +52,7 @@ class My_Model(Model):
         self.A_initial_weights_for_constants = self.A_indices_and_initial_weights()
         self.A_indices = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
 
-        if self.config.prior:
+        if self.config.priorA:
             self.get_A_prior_matrix()
 
         if config.use_weights_for_consts:
@@ -71,7 +70,7 @@ class My_Model(Model):
 
         # B
         self.make_preparations_for_B()
-        if self.config.prior:
+        if self.config.priorB:
             self.get_B_prior_matrix()
 
         shape = (self.number_of_emissions, self.number_of_states)
@@ -288,7 +287,10 @@ class My_Model(Model):
                     indicies_for_constant_parameters.append(entry)
                     initial_weights_for_consts.append(weight)
 
-        append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const, initial_weights = self.config.left_intron_init_para)
+
+        append_transition("left_intron", "right_intron", trainable = self.config.exon_skip_const, initial_weights = self.config.exon_skip_init_weight)
+
+        append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const, initial_weights = self.config.left_intron_init_weight)
 
         if self.config.akzeptor_pattern_len == 0:
             append_transition("left_intron", "A", trainable = not self.config.left_intron_const, initial_weights = 0)
@@ -348,7 +350,7 @@ class My_Model(Model):
                 append_transition(f"do_{i}", f"do_{i+1}", trainable = False)
             append_transition(f"do_{self.config.donor_pattern_len-1}", "right_intron", trainable = False)
 
-        append_transition("right_intron", "right_intron", trainable = not self.config.right_intron_const, initial_weights = self.config.right_intron_init_para)
+        append_transition("right_intron", "right_intron", trainable = not self.config.right_intron_const, initial_weights = self.config.right_intron_init_weight)
         append_transition("right_intron", "ter", trainable = not self.config.right_intron_const, initial_weights = 0)
         append_transition("ter", "ter")
 
@@ -580,7 +582,7 @@ class My_Model(Model):
         prior = -1.0
         initial_parameter = -1.0
 
-        if not self.config.prior:
+        if not self.config.priorB:
             return prior, initial_parameter
         
 
@@ -721,7 +723,7 @@ class My_Model(Model):
     ################################################################################
     def get_A_log_prior(self, A_kernel):
         self.A_prior_matrix = tf.cast(self.A_prior_matrix, dtype = self.config.dtype)
-        alphas = self.A_prior_matrix * self.config.prior - 1
+        alphas = self.A_prior_matrix * self.config.priorA - 1
         log_prior = tf.math.log(tf.sparse.to_dense(self.A(A_kernel)) + tf.cast(self.config.log_prior_epsilon, self.config.dtype))
         before_reduce_sum = (alphas * log_prior) 
         return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.A_prior_indices))
@@ -736,7 +738,7 @@ class My_Model(Model):
             self.B_as_dense_to_file(f"{dir_path}/B_prior_matrix.csv", "dummy weight parameter", B = self.B_prior_matrix, with_description = self.config.nCodons < 20)
 ################################################################################
     def get_B_log_prior(self, B_kernel):
-        alphas = self.B_prior_matrix * self.config.prior - 1
+        alphas = self.B_prior_matrix * self.config.priorB - 1
         log_prior = tf.math.log(self.B(B_kernel) + self.config.log_prior_epsilon)
         before_reduce_sum = (alphas * log_prior) 
         return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.B_prior_indices))

@@ -1,6 +1,6 @@
 import argparse
 import re
-from Utility import run
+import json
 import os
 class Config():
 
@@ -13,16 +13,6 @@ class Config():
             self.parsed_args = self.parser.parse_args()
 
         if for_which_program == "main_programm":
-            self.add_main_programm()
-            self.parsed_args = self.parser.parse_args()
-
-            self.asserts()
-            self.add_attribtes()
-            self.prepare_before_main_programm()
-            self.determine_attributes()
-            self.apply_args()
-
-        if for_which_program == "main_programm_dont_interfere":
             self.add_main_programm()
             self.parsed_args = self.parser.parse_args()
 
@@ -65,8 +55,8 @@ class Config():
             assert not self.scale_with_const, "felix is on, so not scale with const"
             assert not self.scale_with_conditional_const, "felix is on, so not scale with conditional_const"
 
-        if self.ig5_const_transition:
-            assert not self.use_weights_for_consts, "if --ig5_const_transition then --use_weights_for_consts cant be used"
+        # if self.ig5_const_transition:
+        #     assert not self.use_weights_for_consts, "if --ig5_const_transition then --use_weights_for_consts cant be used"
 
         if self.simulate_insertions or self.simulate_deletions:
             assert not self.use_simple_seq_gen, "indels only work with MSAgen"
@@ -94,7 +84,7 @@ class Config():
         assert self.donor_pattern_len < 10, "donor_pattern_len >= 10, setting priors uses the str rep of a state and only work with single diget number, this might not be the only place where this is required"
 
 
-        if self.prior and self.internal_exon_model:
+        if (self.priorA or self.priorB) and self.internal_exon_model:
             assert self.nCodons > 1, "when using prior and internal model you must use more than 1 codon since for 1 codon there are no priors for the transition matrix"
 
 
@@ -109,10 +99,27 @@ class Config():
         self.alphabet_size = 4
         self.write_return_sequnces = False
 
-        self.bench_path = f"{self.out_path}/bench/{self.nCodons}codons/{self.AB}_call_type.log"
+        # date and time, ncodons, what fasta
+        from datetime import datetime
+
+        now = datetime.now()
+        date_string = now.strftime("%Y-%m-%d_%H-%M")
+        fasta_name = "generated"
+        if self.fasta_path:
+            try:
+                fasta_name = re.search("exon_().*?\d+_\d+)").group(1)
+            except:
+                fasta_name ="no-exon-name-found"
+
+
+        self.current_run_dir = f"{self.out_path}/{date_string}_{fasta_name}_{self.nCodons}"
+        if not os.path.exists(self.current_run_dir):
+            os.system(f"mkdir -p {self.current_run_dir}")
+
+        self.bench_path = f"{self.current_run_dir}/bench.log"
         if not self.fasta_path:
             self.manual_passed_fasta = False
-            self.fasta_path = f"{self.out_path}/output/{self.nCodons}codons/seqs.fa"
+            self.fasta_path = f"{self.current_run_dir}/seqs.fa"
         else:
             self.manual_passed_fasta = True
             self.generate_new_seqs = False
@@ -162,15 +169,6 @@ class Config():
         print("done getting model")
 
 
-    def prepare_before_main_programm(self):
-        paths = [f"{self.out_path}/output/{self.nCodons}codons/", \
-                 f"{self.out_path}/verbose"]
-        for path in paths:
-            if not os.path.exists(path):
-                os.system(f"mkdir -p {path}")
-        if self.verbose:
-            os.system(f"rm {self.out_path}/verbose/{self.nCodons}codons.txt")
-        os.system(f"rm {self.bench_path}")
 
     def determine_attributes(self):
         pass
@@ -245,6 +243,16 @@ class Config():
 
         print(s)
 
+    
+    def write_all_attributes_to_file(self, dir_path = None):
+        if dir_path is None:
+            dir_path = self.current_run_dir
+        if not os.path.exists(dir_path):
+            os.system(f"mkdir -p {dir_path}")
+        att = sorted(self.parsed_args.__dict__.items())
+        with open(f"{dir_path}/config_att.json", "w") as file:
+            json.dump(att, file)
+
 
     def __getattr__(self, name):
         return self.parsed_args.__dict__[name]
@@ -262,7 +270,7 @@ class Config():
         self.add_arg_main('-c', '--nCodons', type = int, default = 1, help='number of codons')
         self.add_arg_main('-AB', default = 'sd', help = '[sd (default), ds, sd, ss] specify the sparse or denseness of A and B')
         self.add_arg_main('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
-        self.add_arg_main('-p', '--out_path', default = "../../cgp_data/", help='path to paranet output dir')
+        self.add_arg_main('-p', '--out_path', default = "../../cgp_data", help='path to paranet output dir')
         self.add_arg_main('--path_to_MSAgen_dir', default= "../MSAgen", help = 'path to MSAgen_dir')
         self.add_arg_main('--fasta_path', help = 'path to fasta file where the traning seqs are')
 
@@ -284,14 +292,16 @@ class Config():
         self.add_arg_main('--viterbi_threads', type = int, default = 1, help = 'how many threads for viterbi.cc')
        
         # what model
+        self.add_arg_main('--intron_model', action='store_true', help = 'use my model that includes introns')
+
+        self.add_arg_main('--msa_model', action = "store_true", help = "use a hard coded felix msa model with nucleodite emission to check if i can produce NaN, bc felix doesnt get NaN even for long seqs")
+
         self.add_arg_main('--internal_exon_model', action = 'store_true', help = 'finde ein exon welches von zwei introns begrenzt ist')
         self.add_arg_main('--inserts_at_intron_borders', action = 'store_true', help = 'inserts can come right after and before intron')
         self.add_arg_main('--akzeptor_pattern_len', type = int, default = 3, help = 'akzeptor_pattern_len before AG')
         self.add_arg_main('--donor_pattern_len', type = int, default = 3, help = 'donor_pattern_len after GT')
         self.add_arg_main('--left_intron_const', action = 'store_true', help = 'uses const transition left_intron loop')
         self.add_arg_main('--right_intron_const', action = 'store_true', help = 'uses const transition right_intron loop')
-        self.add_arg_main('--left_intron_init_para', type = float, default=4, help = 'weight for left -> left, the para for leaving left is 0')
-        self.add_arg_main('--right_intron_init_para', type = float, default=4, help = 'weight for right -> right, the para for leaving right is 0')
         self.add_arg_main('--deletes_after_intron_to_codon', action = 'store_true', help = 'light green: deletes_after_intron_to_codon')
         self.add_arg_main('--deletes_after_codon_to_intron', action = 'store_true', help = 'dark green: deletes_after_codon_to_intron')
         self.add_arg_main('--deletes_after_insert_to_codon', action = 'store_true', help = 'red: deletes_after_insert_to_codon')
@@ -299,13 +309,11 @@ class Config():
         self.add_arg_main('--pattern_length_before_intron_loop', type = int, default = 2, help = 'number of states before intron loop')
         self.add_arg_main('--pattern_length_after_intron_loop', type = int, default = 2, help = 'number of states after intron loop')
         self.add_arg_main('--deletions_and_insertions_not_only_between_codons', action = 'store_true', help = 'deletions_and_insertions_not_only_between_codons. ie not after insertion or intron')
-        
-        self.add_arg_main('--intron_model', action='store_true', help = 'use my model that includes introns')
-
-        self.add_arg_main('--msa_model', action = "store_true", help = "use a hard coded felix msa model with nucleodite emission to check if i can produce NaN, bc felix doesnt get NaN even for long seqs")
-
+        self.add_arg_main('--exon_skip_const', action = 'store_true', help = 'transition from left intron to rigth intron is not learend')
+      
         # prior
-        self.add_arg_main('--prior', type = float, default = 0, help = 'use prior and scale the alphas')
+        self.add_arg_main('--priorB', type = float, default = 0, help = 'use prior for B and scale the alphas')
+        self.add_arg_main('--priorA', type = float, default = 0, help = 'use prior for A and scale the alphas')
         self.add_arg_main('--scale_prior', type = float, default = 1, help = "scale the prior loss with this. bc it is not yet scaled by 1/m")
         self.add_arg_main('--prior_path', default = "/home/mattes/Documents/cgp_data/priors/human/", help = ' path to the dir containing exon and intron .pbl')
         self.add_arg_main('--ass_start', type = int, default = 5, help = 'len of prior pattern before AG ASS splice site')
@@ -319,6 +327,17 @@ class Config():
         self.add_arg_main('--single_high_prob_kernel', type = float, default = 3, help = 'if my_initial_guess_for_parameters, this value is for high prob transitions, all other transitions get kernel weight 1')
         self.add_arg_main('--diminishing_factor', type = float, default = 4, help = 'deletes get initialized with [[-(to_codon - from_codon)/self.config.diminishing_factor]]')
         self.add_arg_main('--add_noise_to_initial_weights', action = 'store_true', help = 'add noise to my initial guess for weights ')
+        self.add_arg_main('--left_intron_init_weight', type = float, default = 4, help = 'weight for left -> left, the para for leaving left is 0')
+        self.add_arg_main('--right_intron_init_weight', type = float, default = 4, help = 'weight for right -> right, the para for leaving right is 0')
+        self.add_arg_main('--exon_skip_init_weight', type = float, default = -1, help = 'initparameter for exon strip')
+
+        s = "else case to no model passed, ie the ATG CCC CCC STP model without introns"
+        self.add_arg_main('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
+        self.add_arg_main('--ig3_const_transition', type = float, default = 0, help = "uses const transition from ig3 -> ig3 (weight = --ig3) and ig3 -> terminal (weight = 1) and softmax applied")
+        self.add_arg_main('--regularize', action= 'store_true', help = 'regularize the parameters')
+        self.add_arg_main('--inserts_punish_factor', type = float, default = 1, help = 'inserts_punish_factor')
+        self.add_arg_main('--deletes_punish_factor', type = float, default = 1, help = 'deletes_punish_factor')
+
         
         # what forward
         self.add_arg_main('--felix', action='store_true',  help = 'use felix forward version')
@@ -384,12 +403,7 @@ class Config():
         self.add_arg_main('--manual_forward', action = 'store_true', help = 'gets mean likelihood of with manual loop')
         self.add_arg_main('--autograph_verbose', action = 'store_true', help = 'set tf.autograph.set_verbosity(3, True)')
 
-        # self.add_arg_main('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
-        # self.add_arg_main('--ig3_const_transition', type = float, default = 0, help = "uses const transition from ig3 -> ig3 (weight = --ig3) and ig3 -> terminal (weight = 1) and softmax applied")
-        # self.add_arg_main('--regularize', action= 'store_true', help = 'regularize the parameters')
-        # self.add_arg_main('--inserts_punish_factor', type = float, default = 1, help = 'inserts_punish_factor')
-        # self.add_arg_main('--deletes_punish_factor', type = float, default = 1, help = 'deletes_punish_factor')
-
+        
     def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
         s = ""
         for key in self.manuall_arg_lists[for_what]:

@@ -126,49 +126,51 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #    return 0.01 * tf.math.reduce_sum(tf.math.abs(weight_matrix))
 
 
-        # TODO: move the reg also to the model
+        # if self.config.regularize:
+        #     start = time.perf_counter()
+        #     run_id = randint(0,100)
+        #     append_time_ram_stamp_to_file(f"Layer.call() REG get indices and A_dense start {run_id}", self.config.bench_path, start)
+        #     A_indices_begin_inserts = self.config.model.A_indices_begin_inserts
+        #     A_indices_continue_inserts = self.config.model.A_indices_continue_inserts
+        #     A_indices_deletes = self.config.model.A_indices_deletes
+        #     A_dense = self.C.A_dense
+        #     append_time_ram_stamp_to_file(f"Layer.call() REG get indices end {run_id}", self.config.bench_path, start)
 
+        #     start = time.perf_counter()
+        #     run_id = randint(0,100)
+        #     append_time_ram_stamp_to_file(f"Layer.call() REG start {run_id}", self.config.bench_path, start)
 
-        if self.config.regularize:
-            start = time.perf_counter()
-            run_id = randint(0,100)
-            append_time_ram_stamp_to_file(f"Layer.call() REG get indices and A_dense start {run_id}", self.config.bench_path, start)
-            A_indices_begin_inserts = self.config.model.A_indices_begin_inserts
-            A_indices_continue_inserts = self.config.model.A_indices_continue_inserts
-            A_indices_deletes = self.config.model.A_indices_deletes
-            A_dense = self.C.A_dense
-            append_time_ram_stamp_to_file(f"Layer.call() REG get indices end {run_id}", self.config.bench_path, start)
+        #     reg = 0
+        #     reg += tf.reduce_sum(self.config.inserts_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_begin_inserts)))
+        #     reg += tf.reduce_sum(self.config.inserts_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_continue_inserts)))
+        #     reg += tf.reduce_sum(self.config.deletes_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_deletes)))
+        #     append_time_ram_stamp_to_file(f"Layer.call() REG end {run_id}", self.config.bench_path, start)
 
-            start = time.perf_counter()
-            run_id = randint(0,100)
-            append_time_ram_stamp_to_file(f"Layer.call() REG start {run_id}", self.config.bench_path, start)
+        # # TODO: sollte der reg term normalisert werden auf die anzahl der regularisierten terme?
+        #     self.add_metric(reg, "reg")
+        #     alpha = 1
+        #     self.add_loss(tf.squeeze(-loglik_mean - alpha * reg))
 
-            reg = 0
-            reg += tf.reduce_sum(self.config.inserts_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_begin_inserts)))
-            reg += tf.reduce_sum(self.config.inserts_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_continue_inserts)))
-            reg += tf.reduce_sum(self.config.deletes_punish_factor * tf.math.log(1 - tf.gather_nd(A_dense, A_indices_deletes)))
-            append_time_ram_stamp_to_file(f"Layer.call() REG end {run_id}", self.config.bench_path, start)
+        #    
+        #     # norm prior by number of inout seqs
+        if self.config.priorB or self.config.priorA:
 
-        # TODO: sollte der reg term normalisert werden auf die anzahl der regularisierten terme?
-            self.add_metric(reg, "reg")
-            alpha = 1
-            self.add_loss(tf.squeeze(-loglik_mean - alpha * reg))
-
-            # TODO norm likelihood by batchsize, 
-            # norm prior by number of inout seqs
-        elif self.config.prior:
-
+            m = self.config.nSeqs
             self.add_metric(-loglik_mean, "-loglik_mean")
-            A_prior = self.config.model.get_A_log_prior(self.C.A_kernel) * self.config.scale_prior
-            self.add_metric(A_prior, "A_prior")
+            loss = -loglik_mean # normed likelihood by batchsize
+            if self.config.priorA:
+                A_prior = self.config.model.get_A_log_prior(self.C.A_kernel) * self.config.scale_prior
+                A_prior /= m
+                self.add_metric(A_prior, "A_prior")
+                loss -= A_prior
+            if self.config.priorB:
 
-            B_prior = self.config.model.get_B_log_prior(self.C.B_kernel) * self.config.scale_prior
-            self.add_metric(B_prior, "B_prior")
+                B_prior = self.config.model.get_B_log_prior(self.C.B_kernel) * self.config.scale_prior
+                B_prior /= m
+                self.add_metric(B_prior, "B_prior")
+                loss -= B_prior
 
-            # self.add_loss(tf.squeeze(-loglik_mean + B_prior + A_prior))
-            # with - prior it learns much
-            # not as much but still not nothing
-            self.add_loss(tf.squeeze(-loglik_mean - B_prior - A_prior))
+            self.add_loss(tf.squeeze(loss))
         else:
             self.add_loss(tf.squeeze(-loglik_mean))
 

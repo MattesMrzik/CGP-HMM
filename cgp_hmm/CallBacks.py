@@ -58,7 +58,7 @@ def get_call_backs(config, model):
                 print("Starting callback write_initial_weights_and_matrices_to_file")
 
                 # weights
-                path = f"{config.out_path}/output/{config.nCodons}codons/before_fit_matrices/"
+                path = f"{config.current_run_dir}/before_fit_para/"
                 cell = model.get_layer("cgp_hmm_layer").C
                 cell.write_weights_to_file(path)
 
@@ -74,25 +74,32 @@ def get_call_backs(config, model):
                 config.model.B_as_dense_to_json_file(f"{path}/B.json", cell.B_kernel)
                 print("done with callback write_initial_weights_and_matrices_to_file, it took:",  time.perf_counter() - start)
 
+    class init_png(tf.keras.callbacks.Callback):
+        def on_epoch_begin(self, epoch, logs = None):
+            if epoch == 0:
+                print("starting init model to dot")
+                cell = model.get_layer("cgp_hmm_layer").C
+                config.model.export_to_dot_and_png(cell.A_kernel, cell.B_kernel, name = "before_fit", to_png = config.nCodons < 10)
+                print("done with init model to dot")
+                
+    # class batch_begin_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):
+    #     # layer call write inputs -> the code is located in layer.py
+    #     # and is activated by same flag as this callback
+    #     def on_train_batch_begin(self, batch, logs = None):
+    #         # TODO: why can i access config here?
 
-    class batch_begin_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):
-        # layer call write inputs -> the code is located in layer.py
-        # and is activated by same flag as this callback
-        def on_train_batch_begin(self, batch, logs = None):
-            # TODO: why can i access config here?
+    #         if batch == 0:
+    #             path = f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"
 
-            if batch == 0:
-                path = f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/"
+    #             model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
-                model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
+    #         # if config.check_for_zeros:
+    #         #     Utility.find_indices_in_sparse_A_that_are_zero(config = config, \
+    #         #                                                    I_dense = I, \
+    #         #                                                    A_dense = A, \
+    #         #                                                    B_dense = B)
 
-            # if config.check_for_zeros:
-            #     Utility.find_indices_in_sparse_A_that_are_zero(config = config, \
-            #                                                    I_dense = I, \
-            #                                                    A_dense = A, \
-            #                                                    B_dense = B)
-
-            model.save_weights(f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/weights.h5", overwrite=True, save_format="h5") #todo also try tf as save format
+    #         model.save_weights(f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/weights.h5", overwrite=True, save_format="h5") #todo also try tf as save format
 
 
     class get_the_gradient(tf.keras.callbacks.Callback):
@@ -139,6 +146,8 @@ def get_call_backs(config, model):
         callbacks += [batch_begin_write_weights__layer_call_write_inputs()]
     if config.write_initial_weights_and_matrices_to_file or True:
         callbacks += [write_initial_weights_and_matrices_to_file()]
+    if True:
+        callbacks += [init_png()]
 
     # callbacks += [tensorboard_callback]
 

@@ -13,6 +13,7 @@
 #include <chrono>
 using json = nlohmann::json;
 
+
 std::tuple<float, float> get_M_and_emission_prob_for_q(const std::vector<std::vector<float>> & A,
                                     const std::vector<std::vector<float>> & B,
                                     const std::vector<std::vector<float>> & Y,
@@ -127,11 +128,11 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
             auto stop = std::chrono::high_resolution_clock::now();
             auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
             auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
-            auto eta = duration.count() * 1.0d / i * (n - i);
-            auto eta_seconds = eta * 1.0d/1000000000;
+            auto eta = duration.count() * 1.0/ i * (n - i);
+            auto eta_seconds = eta * 1.0/1000000000;
             auto eta_minutes = eta_seconds/60;
 
-            eta_file << i<< "/" << n << ",\teta in seconds =  " << eta * 1.0d/1000000000 << ",\teta in minutes = " << eta_minutes << "\n";
+            eta_file << i<< "/" << n << ",\teta in seconds =  " << eta * 1.0/1000000000 << ",\teta in minutes = " << eta_minutes << "\n";
         }
 
 
@@ -334,6 +335,7 @@ int main(int argc, char *argv[]) {
     //     }
     //     std::cout << '\n';
     // }
+
 
     std::ofstream f_out(out_path);
     if (only_first_seq) {

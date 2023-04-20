@@ -13,7 +13,7 @@ def get_true_state_seqs_from_true_MSA(config):
     # calc true state seq from true MSA
     true_state_seqs = []
     msa_state_seq = ""
-    with open(f"{config.out_path}/output/{config.nCodons}codons/trueMSA.txt","r") as msa:
+    with open(f"{config.current_run_dir}/trueMSA.txt","r") as msa:
         for j, line in enumerate(msa):
             true_state_seq = []
             if j == 0:
@@ -64,7 +64,7 @@ def get_true_state_seqs_from_true_MSA(config):
     return true_state_seqs
 
 def load_viterbi_guess(config):
-    viterbi_file = open(f"{config.out_path}/output/{config.nCodons}codons/viterbi_cc_output.json", "r")
+    viterbi_file = open(f"{config.current_run_dir}/viterbi_cc_output.json", "r")
     viterbi = json.load(viterbi_file)
     return viterbi
 
@@ -111,8 +111,8 @@ def write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi):
                 id_in_state_str += 1
         return new_str
 
-    with open(f"{config.out_path}/output/{config.nCodons}codons/trueMSA.txt","r") as msa:
-        with open(f"{config.out_path}/output/{config.nCodons}codons/trueMSA_viterbi.txt","w") as out:
+    with open(f"{config.current_run_dir}/trueMSA.txt","r") as msa:
+        with open(f"{config.current_run_dir}/trueMSA_viterbi.txt","w") as out:
             for i, msa_seq_str in enumerate(msa):
                 seq_id = i - 1
                 if seq_id < 0:
@@ -146,7 +146,7 @@ def eval_start_stop(config, viterbi):
              "stop_correct" : 0,\
              "stop_too_late" : 0}
 
-    start_stop = pd.read_csv(f"{config.out_path}/output/{config.nCodons}codons/start_stop_pos.txt", sep=";", header=None)
+    start_stop = pd.read_csv(f"{config.current_run_dir}/start_stop_pos.txt", sep=";", header=None)
     stA_id = config.model.str_to_state_id("stA")
     stop1_id = config.model.str_to_state_id("stop1")
     for i, state_seq in enumerate(viterbi):
@@ -190,7 +190,7 @@ def eval_start_stop(config, viterbi):
             stats["stop_too_late"] += 1/nSeqs
 
 
-    with open(f"{config.out_path}/output/{config.nCodons}codons/statistics.json", "w") as file:
+    with open(f"{config.current_run_dir}/statistics.json", "w") as file:
         json.dump(stats, file)
 
     for key, value in stats.items():
@@ -231,7 +231,7 @@ def convert_kernel_files_to_matrices_files(dir_path):
                 B_kernel = np.array(json.load(file))
             return I_kernel, A_kernel, B_kernel
 
-        kernel_dir = f"{config.src_kernel_dir}/output/{config.nCodons}codons/after_fit_kernels/"
+        kernel_dir = f"{config.current_run_dir}/after_fit_para/"
         I_kernel, A_kernel, B_kernel = read_weights_from_file(kernel_dir)
 
         config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
@@ -412,11 +412,12 @@ def run_cc_viterbi(config):
     start = time.perf_counter()
     seq_path = f"--seqs_path {config.fasta_path}.json" if config.manual_passed_fasta else ""
     only_first_seq = f"--only_first_seq" if config.only_first_seq else ""
-    if config.manual_passed_fasta:
-        out_dir_path = os.path.dirname(config.fasta_path)
-        out_path = f"--out_path {out_dir_path}/viterbi_cc_output.json"
-    else:
-        out_path = ""
+    # if config.manual_passed_fasta:
+    #     out_dir_path = os.path.dirname(config.fasta_path)
+    #     out_path = f"--out_path {out_dir_path}/viterbi_cc_output.json"
+    # else:
+    #     out_path = ""
+    out_path = f"--out_path {config.current_run_dir}/viterbi_cc_output.json"
     # command = f"{config.out_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq} {out_path}"
     command = f"./Viterbi -c {config.nCodons} -j {config.viterbi_threads} {seq_path} {only_first_seq} {out_path}"
     print("starting", command)
@@ -438,7 +439,7 @@ if __name__ == "__main__":
         pass
     
     a_or_b = "after_fit_matrices" if a_or_b == "a" else "before_fit_matrices"
-    matr_dir = f"{config.out_path}/output/{config.nCodons}codons/{a_or_b}"
+    matr_dir = f"{config.current_run_dir}/{a_or_b}"
     if not os.path.exists(f"{matr_dir}/A.json"):
         print("start converting kernels to matrices")
         convert_kernel_files_to_matrices_files(matr_dir)
@@ -458,7 +459,7 @@ if __name__ == "__main__":
     if config.manual_passed_fasta:
         out_viterbi_file_path = f"{out_dir_path}/viterbi_cc_output.json"
     else:
-        out_viterbi_file_path = f"{config.out_path}/output/{config.nCodons}codons/viterbi_cc_output.json"
+        out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output.json"
 
     if config.in_viterbi_path:
         assert config.manual_passed_fasta, "when viterbi.py and --in_viterbi_path also pass --fasta"

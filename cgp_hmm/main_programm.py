@@ -1,20 +1,8 @@
 #!/usr/bin/env python3
-import argparse
-
 def main(config):
-
-    config.print()
-
     import tensorflow as tf
     import matplotlib.pyplot as plt
     from Training import fit_model
-    import Utility
-    import numpy as np
-    from Bio import SeqIO
-    import WriteData
-    import re
-    import json
-    import pandas as pd
     import time
     import os
     import datetime
@@ -27,13 +15,13 @@ def main(config):
     # model.save("my_saved_model")
 
     # writng the loss history to file
-    with open(f"{config.out_path}/output/{config.nCodons}codons/loss.log", "w") as file:
+    with open(f"{config.current_run_dir}/loss.log", "w") as file:
         for loss in history.history['loss']:
             file.write(str(loss) + " " + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
             file.write("\n")
 
     plt.plot(history.history['loss'])
-    plt.savefig(f"{config.out_path}/progress.png")
+    plt.savefig(f"{config.current_run_dir}/loss.png")
 
     I_kernel, A_kernel, B_kernel = model.get_weights()
 
@@ -42,7 +30,7 @@ def main(config):
     start = time.perf_counter()
     print("starting to write model")
 
-    dir_path = f"{config.out_path}/output/{config.nCodons}codons/after_fit_matrices"
+    dir_path = f"{config.current_run_dir}/after_fit_para"
     if not os.path.exists(dir_path):
         os.system(f"mkdir -p {dir_path}")
     # in human readalbe format
@@ -55,7 +43,7 @@ def main(config):
     config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
     config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)
     
-    path = f"{config.out_path}/output/{config.nCodons}codons/after_fit_kernels"
+    path = f"{config.current_run_dir}/after_fit_para"
     model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
     print("done write model. it took ", time.perf_counter() - start)
@@ -66,8 +54,7 @@ def main(config):
 
     # if config.write_parameters_after_fit:
 
-    if config.nCodons < 10:
-        config.model.export_to_dot_and_png(A_kernel, B_kernel)
+    config.model.export_to_dot_and_png(A_kernel, B_kernel, name = "after_fit", to_png = config.nCodons < 10)
 
 
     if config.viterbi:
@@ -90,7 +77,14 @@ def main(config):
 
             Viterbi.eval_start_stop(config, viterbi_guess)
 
+    
 
+    config.write_all_attributes_to_file()
+
+    most_recent_call_dir = f"{config.current_run_dir}/../most_recent_call_dir"
+    if not os.path.exists(most_recent_call_dir):
+        os.makedirs(most_recent_call_dir)
+    os.system(f"cp -r {config.current_run_dir} {most_recent_call_dir}")
 
 if __name__ == '__main__':
     from Config import Config
