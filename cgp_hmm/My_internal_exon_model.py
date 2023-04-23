@@ -13,34 +13,28 @@ class My_Model(Model):
     def __init__(self, config):
         Model.__init__(self, config)
 
+    def prepare_model(self):
         self.insert_low = 0 if self.config.inserts_at_intron_borders else 1
         self.insert_high = self.config.nCodons + 1 if self.config.inserts_at_intron_borders else self.config.nCodons
+
         # =================> states <============================================
         self.id_to_state, self.state_to_id = self.get_state_id_description_dicts()
         self.number_of_states = self.get_number_of_states()
-
-
         # =================> emissions <========================================
         self.emissions_state_size = self.get_emissions_state_size()
         self.number_of_emissions = self.get_number_of_emissions()
         self.emi_to_id, self.id_to_emi = self.get_dicts_for_emission_tuple_and_id_conversion() # these are dicts
+        self.A_is_dense = self.config.A_is_dense
+        self.A_is_sparse = self.config.A_is_sparse
+        self.B_is_dense = self.config.B_is_dense
+        self.B_is_sparse = self.config.B_is_sparse
 
 
-        self.A_is_dense = config.A_is_dense
-        self.A_is_sparse = config.A_is_sparse
-        self.B_is_dense = config.B_is_dense
-        self.B_is_sparse = config.B_is_sparse
-
-        try:
-            config.without_priors
-            print("called model without_priors")
-            return
-        except:
-            pass
+    def make_model(self):
 
         if self.config.priorB:
             from load_priors import Prior
-            self.prior = Prior(config)
+            self.prior = Prior(self.config)
 
         # I
         self.I_indices = self.I_indices()
@@ -55,7 +49,7 @@ class My_Model(Model):
         if self.config.priorA:
             self.get_A_prior_matrix()
 
-        if config.use_weights_for_consts:
+        if self.config.use_weights_for_consts:
 
             self.A_indices_for_weights = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
             self.A_indices_for_constants = []
@@ -83,6 +77,8 @@ class My_Model(Model):
         self.B_initial_weights_for_trainable_parameters, \
         self.B_initial_weights_for_constant_parameters = self.make_B_initial_weights()
 
+
+        # write prior parameters to file
         if self.config.nCodons < 20:
             dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/prior_calculation"
             import os
@@ -90,11 +86,8 @@ class My_Model(Model):
                 os.mkdir(dir_name)
             self.B_as_dense_to_file(f"{dir_name}/B_init_parameters_after_conversion.csv", self.B_initial_weights_for_trainable_parameters, with_description = True)
 
-
-        if config.use_weights_for_consts:
+        if self.config.use_weights_for_consts:
             self.B_indices = sorted(self.B_indices)
-
-       
 
 ################################################################################
     def B_weight_tuple_id(self, tuple):
@@ -362,7 +355,7 @@ class My_Model(Model):
         # for index in indicies_for_constant_parameters:
         #     print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
 
-        
+
         initial_weights_for_consts = np.array(initial_weights_for_consts, dtype = np.float32)
         initial_weights_for_trainable_parameters = np.array(initial_weights_for_trainable_parameters, dtype = np.float32)
         return indices_for_trainable_parameters, indicies_for_constant_parameters, initial_weights_for_trainable_parameters, initial_weights_for_consts
@@ -584,7 +577,7 @@ class My_Model(Model):
 
         if not self.config.priorB:
             return prior, initial_parameter
-        
+
 
         if state in ["left_intron", "right_intron"] and emission[0] != "i":
             norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
@@ -663,9 +656,9 @@ class My_Model(Model):
                 assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
                 prior = unscaled_prob/norm
                 initial_parameter = prior
-        
-        
-           
+
+
+
         # from prior and initial parameter the initial weights are computed.
         # if -1 is passed then the prob is split amoung the parameters
         # assert that if prob is split there is still something left to be split
@@ -709,7 +702,7 @@ class My_Model(Model):
         prior_mask = tf.scatter_nd(self.A_prior_indices, \
                                    [1.0] * len(self.A_prior_indices), \
                                    dense_shape)
-        
+
         # extract prior probs for init matrix
         self.A_prior_matrix = A_init_stochastic * prior_mask
 
@@ -725,7 +718,7 @@ class My_Model(Model):
         self.A_prior_matrix = tf.cast(self.A_prior_matrix, dtype = self.config.dtype)
         alphas = self.A_prior_matrix * self.config.priorA - 1
         log_prior = tf.math.log(tf.sparse.to_dense(self.A(A_kernel)) + tf.cast(self.config.log_prior_epsilon, self.config.dtype))
-        before_reduce_sum = (alphas * log_prior) 
+        before_reduce_sum = (alphas * log_prior)
         return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.A_prior_indices))
 ################################################################################
     def get_B_prior_matrix(self):
@@ -740,7 +733,7 @@ class My_Model(Model):
     def get_B_log_prior(self, B_kernel):
         alphas = self.B_prior_matrix * self.config.priorB - 1
         log_prior = tf.math.log(self.B(B_kernel) + self.config.log_prior_epsilon)
-        before_reduce_sum = (alphas * log_prior) 
+        before_reduce_sum = (alphas * log_prior)
         return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.B_prior_indices))
 ################################################################################
 ################################################################################
@@ -779,8 +772,8 @@ class My_Model(Model):
                             trainable = True,
         ):
             states_which_are_already_added.append(state)
-            self.get_indices_for_emission_and_state(state, 
-                                                    mask, 
+            self.get_indices_for_emission_and_state(state,
+                                                    mask,
                                                     x_bases_must_preceed,
                                                     trainable = trainable)
 
@@ -808,7 +801,7 @@ class My_Model(Model):
             append_emission(state)
 
         self.B_indices = self.B_indices_for_trainable_parameters + self.B_indices_for_constant_parameters
-        
+
 
 
 ################################################################################
@@ -876,7 +869,7 @@ class My_Model(Model):
                 # epsilon = 1e-5
                 # if not found_negative_ones:
                 #     assert abs(sum_with_out_zeros_and_negatives_ones - 1) < epsilon, f"sum of probs state {state}, emission_id_4 {emission_id_4} is not equal to one (={sum_with_out_zeros_and_negatives_ones})"
-                    
+
                 # if found_negative_ones:
                 #     assert 1 - sum_with_out_zeros_and_negatives_ones > epsilon
 

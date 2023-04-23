@@ -11,6 +11,8 @@ class My_Model(Model):
     def __init__(self, config):
         Model.__init__(self, config)
 
+    def prepare_model(self):
+
         # =================> states <============================================
         self.number_of_states = self.get_number_of_states()
         self.state_id_description_list = self.get_state_id_description_list()
@@ -22,17 +24,17 @@ class My_Model(Model):
         self.id_to_emi = self.get_dicts_for_emission_tuple_and_id_conversion()[1] # these are dicts
         self.emi_to_id = self.get_dicts_for_emission_tuple_and_id_conversion()[0]
 
-        self.A_is_dense = config.A_is_dense
-        self.A_is_sparse = config.A_is_sparse
-        self.B_is_dense = config.B_is_dense
-        self.B_is_sparse = config.B_is_sparse
+        self.A_is_dense = self.config.A_is_dense
+        self.A_is_sparse = self.config.A_is_sparse
+        self.B_is_dense = self.config.B_is_dense
+        self.B_is_sparse = self.config.B_is_sparse
 
         # init for reg in layer
         self.A_indices_begin_inserts
         self.A_indices_continue_inserts
         self.A_indices_deletes
 
-
+    def make_model(self):
         self.I_indices = self.I_indices()
 
         self.A_indices_for_weights = self.A_indices_for_weights()
@@ -48,7 +50,7 @@ class My_Model(Model):
         self.B_indices_for_constants = self.B_indices_for_constants()
         self.B_indices = self.B_indices_for_weights + self.B_indices_for_constants
 
-        if config.use_weights_for_consts:
+        if self.config.use_weights_for_consts:
             self.B_indices = sorted(self.B_indices)
 
         shape = (self.number_of_emissions, self.number_of_states)

@@ -42,7 +42,7 @@ def main(config):
     config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
     config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
     config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)
-    
+
     path = f"{config.current_run_dir}/after_fit_para"
     model.get_layer("cgp_hmm_layer").C.write_weights_to_file(path)
 
@@ -60,33 +60,21 @@ def main(config):
     if config.viterbi:
         # write convert fasta file to json (not one hot)
         # see make_dataset in Training.py
-
         import Viterbi
+        Viterbi.main(config)
 
-        Viterbi.run_cc_viterbi(config)
-        if config.manual_passed_fasta:
-            print("you passed --manual_passed_fasta so viterbi guess isnt checked against generated seqs")
-        if not config.manual_passed_fasta:
-            viterbi_guess = Viterbi.load_viterbi_guess(config)
 
-            true_state_seqs = Viterbi.get_true_state_seqs_from_true_MSA(config)
 
-            Viterbi.compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
+    config.write_passed_args_to_file()
 
-            Viterbi.write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
-
-            Viterbi.eval_start_stop(config, viterbi_guess)
-
-    
-
-    config.write_all_attributes_to_file()
-
-    most_recent_call_dir = f"{config.current_run_dir}/../most_recent_call_dir"
-    if not os.path.exists(most_recent_call_dir):
-        os.makedirs(most_recent_call_dir)
-    os.system(f"cp -r {config.current_run_dir} {most_recent_call_dir}")
+    # this may lead to confusion
+    # most_recent_call_dir = f"{config.current_run_dir}/../most_recent_call_dir"
+    # if not os.path.exists(most_recent_call_dir):
+    #     os.makedirs(most_recent_call_dir)
+    # os.system(f"cp -r {config.current_run_dir}/* {most_recent_call_dir}")
 
 if __name__ == '__main__':
     from Config import Config
-    config = Config("main_programm")
+    config = Config()
+    config.init_for_training()
     main(config)

@@ -254,7 +254,7 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
         try:
             human_fasta.id
         except:
-            print("no human id found")
+            print("fasta_true_state_seq_and_optional_viterbi_guess_alignment: no human id found: return")
             return
     except:
         print("seqIO could not parse", fasta_path)
@@ -312,21 +312,21 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
             elif description.startswith("i_"):
                 insert_id = re.search(r"i_(\d+),", description).group(1)
                 if len(insert_id) > 2:
-                    viterbi_as_fasta += "I" # this indicates that insert id is larger than 100, bc only the last two digits can be displayed 
+                    viterbi_as_fasta += "I" # this indicates that insert id is larger than 100, bc only the last two digits can be displayed
                 else:
                     viterbi_as_fasta += "i"
                 if l[0][i+1][1] == "G":
                     i-=2 # -2 bc adding 2 and 1 anyways
                 elif l[0][i+2][1] == "G":
-                    viterbi_as_fasta += " "                    
+                    viterbi_as_fasta += " "
                     i-=1
-                else:     
+                else:
                     viterbi_as_fasta += (" " + insert_id)[-2:]
                 i+=2
             elif description.startswith("c_"):
                 insert_id = re.search(r"c_(\d+),", description).group(1)
                 if len(insert_id) > 2:
-                    viterbi_as_fasta += "C" # this indicates that insert id is larger than 100, bc only the last two digits can be displayed 
+                    viterbi_as_fasta += "C" # this indicates that insert id is larger than 100, bc only the last two digits can be displayed
                 else:
                     viterbi_as_fasta += "c"
                 if l[0][i+1][1] == "G":
@@ -334,7 +334,7 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
                 elif l[0][i+2][1] == "G":
                     viterbi_as_fasta += " "
                     i-=1
-                else:     
+                else:
                     viterbi_as_fasta += (" " + insert_id)[-2:]
                 i+=2
             else:
@@ -407,10 +407,10 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
 ################################################################################
 ################################################################################
 ################################################################################
-def run_cc_viterbi(config):
+def run_cc_viterbi(config, matr_dir):
     import multiprocessing
     start = time.perf_counter()
-    seq_path = f"--seqs_path {config.fasta_path}.json" if config.manual_passed_fasta else ""
+    seq_path = f"--seqs_path {config.fasta_path}.json"
     only_first_seq = f"--only_first_seq" if config.only_first_seq else ""
     # if config.manual_passed_fasta:
     #     out_dir_path = os.path.dirname(config.fasta_path)
@@ -419,32 +419,25 @@ def run_cc_viterbi(config):
     #     out_path = ""
     out_path = f"--out_path {config.current_run_dir}/viterbi_cc_output.json"
     # command = f"{config.out_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq} {out_path}"
-    command = f"./Viterbi -c {config.nCodons} -j {config.viterbi_threads} {seq_path} {only_first_seq} {out_path}"
+    command = f"./Viterbi -j {config.viterbi_threads} {seq_path} {only_first_seq} {out_path} --dir_path_for_para {matr_dir}"
     print("starting", command)
     os.system(command)
     print("done viterbi. it took ", time.perf_counter() - start)
 ################################################################################
 
-if __name__ == "__main__":
-    from Config import Config
-    import numpy as np
-
-    print("started making config in viterbi.py")
-    config = Config("without_priors")
-    print("done with making config in vertbi.py")
+def main(config, after_or_before = "a", overwrite_viterbi = "y"):
+    # (if not passed viterbi_parent_input_dir it is set to current run dir but this is different when calling viterbi
+    # when viterbi_parent_input_dir is not set and viterby.py is called then viterbi.py should select the newest dir)
 
     # check if matrices exists, if not convert kernels
-    print("viterbi with after_fit_matrices or before_fit_matrices [a/b]")
-    while (a_or_b := input()) not in "ab":
-        pass
-    
-    a_or_b = "after_fit_matrices" if a_or_b == "a" else "before_fit_matrices"
-    matr_dir = f"{config.current_run_dir}/{a_or_b}"
+
+    after_or_before = "after_fit_para" if after_or_before == "a" else "before_fit_para"
+    matr_dir = f"{config.current_run_dir}/{after_or_before}"
     if not os.path.exists(f"{matr_dir}/A.json"):
         print("start converting kernels to matrices")
         convert_kernel_files_to_matrices_files(matr_dir)
         print("done with converting kernels")
-    out_dir_path = os.path.dirname(config.fasta_path) # for viterbi_cc and alignment (to fasta file not the json version)
+
 
     seqs_json_path = f"{config.fasta_path}.json"
     if not os.path.exists(seqs_json_path):
@@ -456,30 +449,51 @@ if __name__ == "__main__":
         with open(seqs_json_path, "w") as out_file:
             json.dump(seqs_out, out_file)
         print("finished calculating fa.json")
-    if config.manual_passed_fasta:
-        out_viterbi_file_path = f"{out_dir_path}/viterbi_cc_output.json"
-    else:
-        out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output.json"
+
+    out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output.json"
 
     if config.in_viterbi_path:
         assert config.manual_passed_fasta, "when viterbi.py and --in_viterbi_path also pass --fasta"
-        fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, config.in_viterbi_path, config.model, out_dir_path = out_dir_path)
+        fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, config.in_viterbi_path, config.model, out_dir_path = config.current_run_dir)
     if not config.in_viterbi_path:
         if os.path.exists(out_viterbi_file_path):
-            print("viterbi already exists. rerun? y/n")
-            while (x:=input()) not in ["y","n"]:
-                pass
-            if x == "y":
-                run_cc_viterbi(config)
+            if overwrite_viterbi:
+                run_cc_viterbi(config, matr_dir)
         else:
-            run_cc_viterbi(config)
+            run_cc_viterbi(config, matr_dir)
 
-        if config.manual_passed_fasta:
-            fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, out_viterbi_file_path, config.model, out_dir_path = out_dir_path)
+        # if config.manual_passed_fasta:
+        fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, out_viterbi_file_path, config.model, out_dir_path = config.current_run_dir)
 
-        if not config.manual_passed_fasta:
-            viterbi_guess = load_viterbi_guess(config)
-            true_state_seqs = get_true_state_seqs_from_true_MSA(config)
-            compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
-            write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
-            eval_start_stop(config, viterbi_guess)
+        # if not config.manual_passed_fasta:
+        #     viterbi_guess = load_viterbi_guess(config)
+        #     true_state_seqs = get_true_state_seqs_from_true_MSA(config)
+        #     compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
+        #     write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
+        #     eval_start_stop(config, viterbi_guess)
+
+
+
+if __name__ == "__main__":
+
+    from Config import Config
+    import numpy as np
+
+    print("started making config in viterbi.py")
+    config = Config()
+    config.init_for_viterbi()
+    print("done with making config in vertbi.py")
+
+    print("viterbi with after_fit_matrices or before_fit_matrices [a/b]")
+    while (a_or_b := input()) not in "ab":
+        pass
+
+    out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output.json"
+    if os.path.exists(out_viterbi_file_path):
+        print("viterbi already exist. rerun? y/n")
+        while (overwrite_viterbi := input()) not in ["y","n"]:
+            pass
+        overwrite_viterbi = overwrite_viterbi == "y"
+
+    main(config, after_or_before = a_or_b, overwrite_viterbi = overwrite_viterbi)
+

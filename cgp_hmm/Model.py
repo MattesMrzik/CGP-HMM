@@ -6,8 +6,15 @@ from abc import ABC, abstractmethod
 class Model(ABC):
 
     def __init__(self, config):
-
         self.config = config
+
+    @abstractmethod
+    def prepare_model(self):
+        pass
+
+    @abstractmethod
+    def make_model(self):
+        pass
 
     # kernel sizes
     @abstractmethod
