@@ -494,6 +494,9 @@ if __name__ == "__main__":
         while (overwrite_viterbi := input()) not in ["y","n"]:
             pass
         overwrite_viterbi = overwrite_viterbi == "y"
+    else:
+        overwrite_viterbi = True # the viterbi file doesnt exist, so i can "overwrite" it
+
 
     main(config, after_or_before = a_or_b, overwrite_viterbi = overwrite_viterbi)
 

@@ -91,6 +91,7 @@ class Config():
         if self.fasta_path:
             try:
                 fasta_name = re.search("exon_(.+?_\d+_\d+)", self.fasta_path).group(1)
+                fasta_name = re.search("exon_(.+?_\d+_\d+)", self.fasta_path).group(1)
             except:
                 fasta_name ="no-exon-name-found"
 
