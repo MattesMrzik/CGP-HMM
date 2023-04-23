@@ -88,15 +88,15 @@ class Model(ABC):
 
     # def get_most_likely_emission_seq_from_B(self, A_weights, B_weights, A, B):
     #     '''starting in initial state. what base has highest emission prob
-    #     fix this base and look in next state, what base has highest emisson prob 
+    #     fix this base and look in next state, what base has highest emisson prob
     #     given the fixed base. repeat and return the base seq'''
 
     #     result = ""
 
     #     A, B = self.get_dense_A_and_B(A_weights, B_weights, A, B)
-        
+
     #     for state_id in range(self.number_of_emissions):
-            
+
 
 
 ################################################################################
@@ -114,13 +114,13 @@ class Model(ABC):
 
         if not os.path.exists(dir_path):
             os.system(f"mkdir -p {dir_path}")
-        
+
 
 
         # TODO: add I parameters???
         # n_labels = self.number_of_emissions ** (self.config.order + 1)
         A, B = self.get_dense_A_and_B(A_weights, B_weights, A, B)
-      
+
 
         B_reshaped = tf.reshape(B, shape = (-1, self.config.alphabet_size, self.number_of_states))
         B_argmax = np.argmax(B_reshaped, axis = 1)
@@ -135,7 +135,7 @@ class Model(ABC):
                 # graph.write("nodesep=0.5; splines=polyline;")
                 for current_state_id, row in enumerate(A):
                     # TODO if current state is not reached by high prob, dont draw it
-                    
+
                     current_state_str = self.state_id_to_str(current_state_id)
 
                     # setting color for codons and inserts
@@ -184,4 +184,4 @@ class Model(ABC):
 
         write_file()
         write_file(with_emissions = False, name_appendix="no_emission")
-      
+

@@ -75,7 +75,8 @@ class Config():
             loaded_training_args = json.load(file)
         print("loaded_training_args", loaded_training_args)
         for key, value in loaded_training_args.items():
-            self.args[key] = value
+            if key not in self.args: # loading args only if viterbi.py is run, so i dont want to overwrite viterbi args passed to it with the values from main_programm.cfg
+                self.args[key] = value
 
     def get_current_run_dir(self, for_viterbi = False):
         if for_viterbi:
@@ -89,7 +90,7 @@ class Config():
         fasta_name = "generated"
         if self.fasta_path:
             try:
-                fasta_name = re.search("exon_().*?\d+_\d+)").group(1)
+                fasta_name = re.search("exon_(.+?_\d+_\d+)", self.fasta_path).group(1)
             except:
                 fasta_name ="no-exon-name-found"
 
@@ -401,7 +402,7 @@ class Config():
         self.parser.add_argument('--add_noise_to_initial_weights', action = 'store_true', help = 'add noise to my initial guess for weights ')
         self.parser.add_argument('--left_intron_init_weight', type = float, default = 4, help = 'weight for left -> left, the para for leaving left is 0')
         self.parser.add_argument('--right_intron_init_weight', type = float, default = 4, help = 'weight for right -> right, the para for leaving right is 0')
-        self.parser.add_argument('--exon_skip_init_weight', type = float, default = -1, help = 'initparameter for exon strip')
+        self.parser.add_argument('--exon_skip_init_weight', type = float, default = -3, help = 'initparameter for exon strip')
 
         s = "else case to no model passed, ie the ATG CCC CCC STP model without introns"
         self.parser.add_argument('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
