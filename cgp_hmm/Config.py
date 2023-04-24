@@ -412,7 +412,6 @@ class Config():
         self.parser.add_argument('--inserts_punish_factor', type = float, default = 1, help = 'inserts_punish_factor')
         self.parser.add_argument('--deletes_punish_factor', type = float, default = 1, help = 'deletes_punish_factor')
 
-
         # what forward
         self.parser.add_argument('--felix', action='store_true',  help = 'use felix forward version')
 
