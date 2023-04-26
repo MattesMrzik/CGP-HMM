@@ -128,8 +128,8 @@ class Model(ABC):
         # id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
 
         def write_file(with_emissions = True, name_appendix = ""):
-            gv_path = f"{dir_path}/{name}_{name_appendix}.gv"
-            png_path =f"{dir_path}/{name}_{name_appendix}.png"
+            gv_path = f"{dir_path}/{name}{name_appendix}.gv"
+            png_path =f"{dir_path}/{name}{name_appendix}.png"
             with open(gv_path, "w") as graph:
                 graph.write("DiGraph G{\nrankdir=LR;\n")
                 # graph.write("nodesep=0.5; splines=polyline;")
@@ -183,5 +183,5 @@ class Model(ABC):
                 os.system(command)
 
         write_file()
-        write_file(with_emissions = False, name_appendix="no_emission")
+        write_file(with_emissions = False, name_appendix="_no_emission")
 

@@ -425,7 +425,7 @@ def run_cc_viterbi(config, matr_dir):
     print("done viterbi. it took ", time.perf_counter() - start)
 ################################################################################
 
-def main(config, after_or_before = "a", overwrite_viterbi = "y"):
+def main(config, after_or_before = "a", overwrite_viterbi = True):
     # (if not passed viterbi_parent_input_dir it is set to current run dir but this is different when calling viterbi
     # when viterbi_parent_input_dir is not set and viterby.py is called then viterbi.py should select the newest dir)
 
@@ -459,6 +459,8 @@ def main(config, after_or_before = "a", overwrite_viterbi = "y"):
         if os.path.exists(out_viterbi_file_path):
             if overwrite_viterbi:
                 run_cc_viterbi(config, matr_dir)
+            else:
+                print("viterbi_cc_output.json already exists and --overwrite was not passed")
         else:
             run_cc_viterbi(config, matr_dir)
 
@@ -484,19 +486,14 @@ if __name__ == "__main__":
     config.init_for_viterbi()
     print("done with making config in vertbi.py")
 
-    print("viterbi with after_fit_matrices or before_fit_matrices [a/b]")
-    while (a_or_b := input()) not in "ab":
-        pass
+    # print("viterbi with after_fit_matrices or before_fit_matrices [a/b]")
+    # while (a_or_b := input()) not in "ab":
+    #     pass
 
     out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output.json"
-    if os.path.exists(out_viterbi_file_path):
-        print("viterbi already exist. rerun? y/n")
-        while (overwrite_viterbi := input()) not in ["y","n"]:
-            pass
-        overwrite_viterbi = overwrite_viterbi == "y"
+
+    if not config.force_overwrite:
+        main(config, after_or_before = config.after_or_before, overwrite_viterbi = False)
     else:
-        overwrite_viterbi = True # the viterbi file doesnt exist, so i can "overwrite" it
-
-
-    main(config, after_or_before = a_or_b, overwrite_viterbi = overwrite_viterbi)
+        main(config, after_or_before = config.after_or_before)
 

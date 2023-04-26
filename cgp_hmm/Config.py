@@ -27,7 +27,6 @@ class Config():
     def init_for_training(self):
         self.get_args_for_training()
         self.add_args_from_parser()
-        self.print()
         self.get_current_run_dir()
         self.determine_attributes_that_only_depend_on_args()
         self.write_passed_args_to_file()
@@ -490,4 +489,6 @@ class Config():
         self.parser.add_argument('--in_viterbi_path', help = 'if viteribi is already calculated, path to viterbi file which is then written to the alignment')
         self.parser.add_argument('--viterbi_threads', type = int, default = 1, help = 'how many threads for viterbi.cc')
         self.parser.add_argument('--path_to_dir_where_most_recent_dir_is_selected', help = 'path_to_dir_where_most_recent_dir_is_selected')
+        self.parser.add_argument('--after_or_before', default = "a", help = 'use matrices after/before training')
+        self.parser.add_argument('--force_overwrite', action = 'store_true', help = 'if file viterib guess already exists then overwrite it')
 

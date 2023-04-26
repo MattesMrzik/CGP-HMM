@@ -80,7 +80,7 @@ class My_Model(Model):
 
         # write prior parameters to file
         if self.config.nCodons < 20:
-            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/prior_calculation"
+            dir_name = f"{self.config.current_run_dir}/prior_calculation"
             import os
             if not os.path.exists(dir_name):
                 os.mkdir(dir_name)
@@ -708,7 +708,7 @@ class My_Model(Model):
 
         # write results to file for inspection
         if self.config.nCodons < 10:
-            dir_path = f"{self.config.out_path}/output/{self.config.nCodons}codons/prior_calculation"
+            dir_path = f"{self.config.current_run_dir}/prior_calculation"
             self.A_as_dense_to_file(f"{dir_path}/A_init.csv", "dummy weight parameter", A = A_init, with_description = self.config.nCodons < 20)
             self.A_as_dense_to_file(f"{dir_path}/A_init_stochastic.csv", "dummy weight parameter", A = A_init_stochastic, with_description = self.config.nCodons < 20)
             self.A_as_dense_to_file(f"{dir_path}/A_prior_mask.csv", "dummy weight parameter", A = prior_mask, with_description = self.config.nCodons < 20)
@@ -727,7 +727,7 @@ class My_Model(Model):
         self.B_prior_matrix = tf.cast(self.B_prior_matrix, dtype = self.config.dtype)
 
         if self.config.nCodons < 10:
-            dir_path = f"{self.config.out_path}/output/{self.config.nCodons}codons/prior_calculation"
+            dir_path = f"{self.config.current_run_dir}/prior_calculation"
             self.B_as_dense_to_file(f"{dir_path}/B_prior_matrix.csv", "dummy weight parameter", B = self.B_prior_matrix, with_description = self.config.nCodons < 20)
 ################################################################################
     def get_B_log_prior(self, B_kernel):
@@ -851,7 +851,7 @@ class My_Model(Model):
 
         if self.config.nCodons < 20:
             import os
-            dir_name = f"{self.config.out_path}/output/{self.config.nCodons}codons/prior_calculation"
+            dir_name = f"{self.config.current_run_dir}/prior_calculation"
             if not os.path.exists(dir_name):
                 os.mkdir(dir_name)
             self.B_as_dense_to_file(f"{dir_name}/B_init_parameters_before_conversion.csv", self.B_initial_trainalbe_para_setting, with_description = True, B = emission_matrix)
