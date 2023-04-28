@@ -1,10 +1,9 @@
 import Utility
-from CgpHmmCell import CgpHmmCell
 import tensorflow as tf
-import json
 import time
-import numpy as np
 import os
+from Utility import append_time_ram_stamp_to_file
+import time
 
 def get_call_backs(config, model):
 
@@ -55,8 +54,7 @@ def get_call_backs(config, model):
         def on_epoch_begin(self, epoch, logs = None):
             if epoch == 0:
                 start = time.perf_counter()
-                print("Starting callback write_initial_weights_and_matrices_to_file")
-
+                append_time_ram_stamp_to_file(f"Callbacks.write_initial_paras start", config.bench_path, start)
                 # weights
                 path = f"{config.current_run_dir}/before_fit_para/"
                 cell = model.get_layer("cgp_hmm_layer").C
@@ -67,21 +65,23 @@ def get_call_backs(config, model):
                 config.model.A_as_dense_to_file(f"{path}/A.with_description.csv", cell.A_kernel, with_description = True)
                 # config.model.B_as_dense_to_file(f"{path}/B.csv", cell.B_kernel, with_description = False)
                 config.model.B_as_dense_to_file(f"{path}/B.with_description.csv", cell.B_kernel, with_description = True)
-                
+
                 # json format dense matrices
                 config.model.I_as_dense_to_json_file(f"{path}/I.json", cell.I_kernel)
                 config.model.A_as_dense_to_json_file(f"{path}/A.json", cell.A_kernel)
                 config.model.B_as_dense_to_json_file(f"{path}/B.json", cell.B_kernel)
-                print("done with callback write_initial_weights_and_matrices_to_file, it took:",  time.perf_counter() - start)
+
+                append_time_ram_stamp_to_file(f"Callbacks.write_initial_paras end", config.bench_path, start)
 
     class init_png(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):
             if epoch == 0:
-                print("starting init model to dot")
+                start = time.perf_counter()
+                append_time_ram_stamp_to_file(f"Callbacks.init_png start", config.bench_path, start)
                 cell = model.get_layer("cgp_hmm_layer").C
                 config.model.export_to_dot_and_png(cell.A_kernel, cell.B_kernel, name = "before_fit", to_png = config.nCodons < 10)
-                print("done with init model to dot")
-                
+                append_time_ram_stamp_to_file(f"Callbacks.init_png end", config.bench_path, start)
+
     # class batch_begin_write_weights__layer_call_write_inputs(tf.keras.callbacks.Callback):
     #     # layer call write inputs -> the code is located in layer.py
     #     # and is activated by same flag as this callback
@@ -142,8 +142,8 @@ def get_call_backs(config, model):
         callbacks += [assert_kernels_at_batch_begin()]
     if config.remove_verbose_at_batch_begin:
         callbacks += [remove_verbose_at_batch_begin()]
-    if config.batch_begin_write_weights__layer_call_write_inputs:
-        callbacks += [batch_begin_write_weights__layer_call_write_inputs()]
+    # if config.batch_begin_write_weights__layer_call_write_inputs:
+    #     callbacks += [batch_begin_write_weights__layer_call_write_inputs()]
     if config.write_initial_weights_and_matrices_to_file or True:
         callbacks += [write_initial_weights_and_matrices_to_file()]
     if True:

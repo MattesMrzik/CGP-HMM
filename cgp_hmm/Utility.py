@@ -723,10 +723,10 @@ def append_time_stamp_to_file(time, description, path):
 # Cause: generators are not supported
 # To silence this warning, decorate the function with @tf.autograph.experimental.do_not_convert
 @tf.autograph.experimental.do_not_convert
-def append_time_ram_stamp_to_file(description, path, start = None, ):
-    if not os.path.exists('/'.join(path.split('/')[:-1])):
-        os.system(f"mkdir -p {'/'.join(path.split('/')[:-1])}")
-    with open(path, "a") as file:
+def append_time_ram_stamp_to_file(description, bench_file_path, start = None, ):
+    if not os.path.exists('/'.join(bench_file_path.split('/')[:-1])):
+        os.system(f"mkdir -p {'/'.join(bench_file_path.split('/')[:-1])}")
+    with open(bench_file_path, "a") as file:
         d = {}
         d["time"] = np.round(time.perf_counter(),3)
         d["time since passed start time"] = np.round(time.perf_counter() - start,3) if start != None else "no start passed"

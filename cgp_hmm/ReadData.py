@@ -32,10 +32,15 @@ import time
 #
 #     return seqs
 
-def convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs):
+def convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs) -> list[list[float]]:
     return list(map(lambda l: [[float(x) for x in i.split("_")] for i in l], seqs))
 
-def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False):
+def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False) -> list[list[str]]:
+    '''
+    bc i can only pad batches with scalar i have multi hot encoded strings for every base A,C,G,T,N,a,c,g,t
+    and pad with str that encodes terminal emission
+    then i can convert these a string corresponding to a base to its multi hot encoded version
+    '''
     start = time.perf_counter()
     run_id = randint(0,100)
     append_time_ram_stamp_to_file(f"read_data_one_hot_with_Ns_spread_str() start {run_id}", config.bench_path, start)

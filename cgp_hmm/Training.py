@@ -122,6 +122,8 @@ def make_dataset(config):
         #     padded_shapes = tf.TensorShape(None),  # Each sequence has 2 values
         #     padding_values = f"0{'_0'*(config.model.number_of_emissions-2)}_1",
         #     bucket_batch_sizes = bucket_batch_sizes)
+
+
         dataset = dataset.padded_batch(config.batch_size, None, "_".join(["1.0" if i == index_of_terminal else "0.0" for i in range(config.model.number_of_emissions)]))
         dataset = dataset.map(lambda x: tf.strings.to_number(tf.strings.split(x,'_')))
         dataset = dataset.map(lambda x: x.to_tensor()) # bc it is ragged

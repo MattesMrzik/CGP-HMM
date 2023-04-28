@@ -2,7 +2,9 @@
 import os
 import numpy as np
 import tensorflow as tf
+import time
 from abc import ABC, abstractmethod
+from Utility import append_time_ram_stamp_to_file
 class Model(ABC):
 
     def __init__(self, config):
@@ -110,6 +112,7 @@ class Model(ABC):
     ):
         ''' A and B must be dense'''
 
+
         dir_path = f"{self.config.current_run_dir}/dot"
 
         if not os.path.exists(dir_path):
@@ -182,6 +185,12 @@ class Model(ABC):
                 print(f"running: {command}")
                 os.system(command)
 
+        start = time.perf_counter()
+        append_time_ram_stamp_to_file(f"Model.export_to_dot_and_png start", self.config.bench_path, start)
         write_file()
-        write_file(with_emissions = False, name_appendix="_no_emission")
+        append_time_ram_stamp_to_file(f"Model.export_to_dot_and_png end", self.config.bench_path, start)
 
+        start = time.perf_counter()
+        append_time_ram_stamp_to_file(f"Model.export_to_dot_and_png with emissions start", self.config.bench_path, start)
+        write_file(with_emissions = False, name_appendix="_no_emission")
+        append_time_ram_stamp_to_file(f"Model.export_to_dot_and_png with emissions end", self.config.bench_path, start)

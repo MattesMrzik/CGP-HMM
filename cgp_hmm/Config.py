@@ -1,14 +1,18 @@
+import time
 import argparse
 import re
 import json
 import os
 import tensorflow as tf
 
+from Utility import append_time_ram_stamp_to_file
 class Config():
 
     def __init__(self):
         self.args = {}
         self.det_args = {}
+
+
 
     def init_for_viterbi(self):
 
@@ -139,10 +143,11 @@ class Config():
 ################################################################################
 ################################################################################
 
-    def get_model(self, only_prepare = False):
+    def get_model(self, only_prepare = False) -> None:
 
         # split into prepare model and build
-        print("start getting model")
+        start = time.perf_counter()
+        append_time_ram_stamp_to_file(f"Config.get_model() start", self.bench_path, start)
 
         # import
         if self.intron_model:
@@ -163,7 +168,7 @@ class Config():
         if not only_prepare:
             self.model.make_model()
 
-        print("done getting model")
+        append_time_ram_stamp_to_file(f"Config.get_model() end", self.bench_path, start)
 
 
     # def print(self):
@@ -191,7 +196,6 @@ class Config():
 ################################################################################
 ################################################################################
 ################################################################################
-
     def write_passed_args_to_file(self, dir_path = None):
         # TODO: auch viterbi args to file, wenn nicht im main gecalled?
         if dir_path is None:
@@ -250,7 +254,6 @@ class Config():
 ################################################################################
 ################################################################################
 ################################################################################
-
     def apply_args(self):
 
         # dtype
@@ -279,10 +282,30 @@ class Config():
             for i, x in  enumerate(device_lib.list_local_devices()):
                 print(i, x.name)
 
-################################################################################
-################################################################################
-################################################################################
+        # TODO trying to redirect the tf warnings and infos
+        import logging
+        log_file = f"{self.current_run_dir}/tensorflow_infos_and_warning.log"
+        file_handler = logging.FileHandler(log_file)
 
+        # Create a filter that only captures WARNING and INFO log records
+        class TensorFlowFilter(logging.Filter):
+            def filter(self, record):
+                return 'tensorflow' in record.name.lower() and \
+                    (record.levelno == logging.WARNING or record.levelno == logging.INFO)
+        filter = TensorFlowFilter()
+        file_handler.addFilter(filter)
+
+        # Create a formatter for the file handler
+        formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+        file_handler.setFormatter(formatter)
+
+        # Add the file handler to the TensorFlow logger
+        logger = tf.get_logger()
+        logger.addHandler(file_handler)
+
+################################################################################
+################################################################################
+################################################################################
     def asserts(self):
         if self.check_for_zeros:
             assert self.batch_begin_write_weights__layer_call_write_inputs, "if check_for_zeros also pass --batch"
@@ -492,3 +515,14 @@ class Config():
         self.parser.add_argument('--after_or_before', default = "a", help = 'use matrices after/before training')
         self.parser.add_argument('--force_overwrite', action = 'store_true', help = 'if file viterib guess already exists then overwrite it')
 
+if __name__ == "__main__":
+    s = '\
+    config = Config()  \
+    config.init_for_viterbi() \
+    config.get_model() \
+    A_weights = json.load(open("path_to_A_kernel.json")) \
+    B_weights = json.load(open("path_to_B_kernel.json")) \
+    config.model.export_to_dot_and_png(A_weights = A_weights, B_weights = B_weights) \
+    '
+
+    print(s)
