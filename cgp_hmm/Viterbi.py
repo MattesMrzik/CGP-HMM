@@ -318,10 +318,10 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
                 if l[0][i+1][1] == "G":
                     i-=2 # -2 bc adding 2 and 1 anyways
                 elif l[0][i+2][1] == "G":
-                    viterbi_as_fasta += " "
+                    viterbi_as_fasta += "."
                     i-=1
                 else:
-                    viterbi_as_fasta += (" " + insert_id)[-2:]
+                    viterbi_as_fasta += ("." + insert_id)[-2:]
                 i+=2
             elif description.startswith("c_"):
                 insert_id = re.search(r"c_(\d+),", description).group(1)
@@ -332,10 +332,10 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
                 if l[0][i+1][1] == "G":
                     i-=2
                 elif l[0][i+2][1] == "G":
-                    viterbi_as_fasta += " "
+                    viterbi_as_fasta += "."
                     i-=1
                 else:
-                    viterbi_as_fasta += (" " + insert_id)[-2:]
+                    viterbi_as_fasta += ("." + insert_id)[-2:]
                 i+=2
             else:
                 viterbi_as_fasta += "-"

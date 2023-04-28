@@ -10,10 +10,15 @@ import argparse
 parser = argparse.ArgumentParser(description='Config module description')
 parser.add_argument('--train', action = 'store_true', help='number of codons')
 parser.add_argument('--viterbi_path', help='path to multi_run dir for which to run viterbi')
+parser.add_argument('--eval_viterbi', help='path to multi_run dir for which to evaluation of viterbi')
 parser.add_argument('--threads_for_viterbi', type = int, default = 1, help='how many threads should be used for viterbi')
 args = parser.parse_args()
 
-assert args.train or args.viterbi_path, "you must pass either --train or --viterbi_path"
+# do i want to create bench to run on slurm submission which might be able to run both tf.learning and c++ viterbi
+# or create 2 modes in bench one for training on apphub and one for running viterbi and evaluating
+
+
+assert args.train or args.viterbi_path or args.eval_viterbi, "you must pass either --train or --viterbi_path or --eval_viterbi"
 
 cfg_with_args = {}
 
@@ -29,7 +34,9 @@ exons = ["exon_chr1_1045963_1046088", \
 # are there other parameters that defend on the sequences?
 
 cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/combined.fasta" for exon in exons]
-get_exon_codons = lambda exon_string: (int(exon_string.split("_")[-1]) - int(exon_string.split("_")[-2])) //3
+get_exon_len = lambda exon_string: (int(exon_string.split("_")[-1]) - int(exon_string.split("_")[-2]))
+get_exon_codons = lambda exon_string: get_exon_len(exon_string) // 3
+
 cfg_with_args["nCodons"] = [get_exon_codons(exon) for exon in exons]
 # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
 # cfg_with_args["learning_rate"] = [0.1, 0.01]
@@ -123,10 +130,12 @@ if args.train:
     write_cfgs_to_file(multi_run_dir)
     run_training_without_viterbi(bind_args_together)
 
-if args.viterbi_path:
-    for subdir in os.listdir(args.viterbi_path):
+def get_run_sub_dirs(path):
+    print(path)
+    subdirs = []
+    for subdir in os.listdir(path):
         # check if the subdirectory is a directory
-        sub_path = os.path.join(args.viterbi_path, subdir)
+        sub_path = os.path.join(path, subdir)
         if not os.path.isdir(sub_path):
             continue
         regex = r"(\d{4}-\d{2}-\d{2}_\d{2}-\d{2})"
@@ -135,7 +144,11 @@ if args.viterbi_path:
         cfg_path = f"{sub_path}/passed_args.json"
         if not os.path.exists(cfg_path):
             continue
+        subdirs.append(sub_path)
+    return subdirs
 
+if args.viterbi_path:
+    for sub_path in get_run_sub_dirs(args.viterbi_path):
         # self.parser.add_argument('--only_first_seq', action = 'store_true', help = 'run viterbi only for the first seq')
         # self.parser.add_argument('--viterbi_parent_input_dir', help = 'path to dir containing the config_attr.json and paratemeters dir used for viterbi')
         # self.parser.add_argument('--in_viterbi_path', help = 'if viteribi is already calculated, path to viterbi file which is then written to the alignment')
@@ -143,9 +156,61 @@ if args.viterbi_path:
         # self.parser.add_argument('--path_to_dir_where_most_recent_dir_is_selected', help = 'path_to_dir_where_most_recent_dir_is_selected')
 
         # fasta path doesnt need to get calculated since it is saved in the cfg in viterbi_parent_input_dir
-        command = f"./Viterbi.py --only_first_seq --viterbi_parent_input_dir {sub_path} --viterbi_threads {args.threads_for_viterbi} --force_overwrite"
+
+        force_overwrite = False
+        if force_overwrite:
+            command = f"./Viterbi.py --only_first_seq --viterbi_parent_input_dir {sub_path} --viterbi_threads {args.threads_for_viterbi} --force_overwrite"
+        if not force_overwrite:
+            command = f"./Viterbi.py --only_first_seq --viterbi_parent_input_dir {sub_path} --viterbi_threads {args.threads_for_viterbi}"
 
         print("running", command)
         subprocess.call(re.split("\s+", command))
 
+if args.eval_viterbi:
+    '''
+    start stop of true vs guess
+    len seq,
+    len exon
+    len exon guess
+    overlapp len vs non overlapp len
+    '''
+
+
+    from add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
+    stats = {}
+    for sub_path in get_run_sub_dirs(args.eval_viterbi):
+        exon_stats = {}
+        json_data = json.load(open(f"{sub_path}/passed_args.json"))
+        # the genomic seq, true exon pos, viterbi guess is optional
+        true_alignemnt_path = f"{sub_path}/true_alignment.clw"
+        print(true_alignemnt_path)
+        true_alignemnt = read_true_alignment_with_out_coords_seq(true_alignemnt_path)
+
+
+        assert len(true_alignemnt) == 3, f"true_alignment of {sub_path} doesnt contain the viterbi guess"
+        aligned_seqs = {} # reference_seq, true_seq, viterbi_guess
+        for seq in true_alignemnt:
+            aligned_seqs[seq.id] = seq
+        assert len(aligned_seqs) == 3, "some seqs had same id"
+
+        exon_stats["true_start"] = aligned_seqs["true_seq"].seq.index("E") # inclusive
+        exon_stats["true_end"] = aligned_seqs["true_seq"].seq.index("r") # exclusive
+
+        for i in range(len(aligned_seqs["viterbi_guess"].seq)):
+            if aligned_seqs["viterbi_guess"].seq[i:i+2] == "AG":
+                exon_stats["guessed_start"] = i+2
+            if aligned_seqs["viterbi_guess"].seq[i:i+2] == "GT":
+                exon_stats["guessed_end"] = i
+
+        stats[json_data["fasta_path"]] = exon_stats
+
+
+    for exon, exon_stats in stats.items():
+        print("exon", exon)
+        for key, value in exon_stats.items():
+            print(key, value)
+        print()
+
+#     exon level genauikgkeit also wie viel vom exon wird getroffen
+# also zuerst die lägen anddieren und dann durch gesamt länge teilen aslo große exons sind wichtiger zu treffen
 
