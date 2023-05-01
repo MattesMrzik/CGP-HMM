@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 from Utility import append_time_ram_stamp_to_file
+import tensorflow as tf
 
-
+@tf.function
 def main(config):
     import tensorflow as tf
     import matplotlib.pyplot as plt

@@ -121,30 +121,54 @@ class CgpHmmCell(tf.keras.layers.Layer):
     # but using this bool didnt work, bc it was always set to False
     # in the first call, before the actual graph is executed
 ################################################################################
-    @property
-    def I(self):
+    @tf.function
+    def init_I(self):
         return self.config.model.I(self.I_kernel)
 
-    @property
-    def A(self):
+    @tf.function
+    def get_I(self):
+        try:
+            return self.I
+        except:
+            self.I = self.init_I()
+            return self.I
+
+    @tf.function
+    def init_A(self):
         return self.config.model.A(self.A_kernel)
 
-    @property
-    def B(self):
+    @tf.function
+    def get_A(self):
+        try:
+            return self.A
+        except:
+            self.A = self.init_A()
+            return self.A
+
+    @tf.function
+    def init_B(self):
         return self.config.model.B(self.B_kernel)
 
-    # these transformation to the dense form are used in the NaN asserts
-    @property
-    def I_dense(self):
-        return self.I
+    @tf.function
+    def get_B(self):
+        try:
+            return self.B
+        except:
+            self.B = self.init_B()
+            return self.B
 
-    @property
+    # these transformation to the dense form are used in the NaN asserts
+    @tf.function
+    def I_dense(self):
+        return self.get_I()
+
+    @tf.function
     def A_dense(self):
         if self.config.A_is_sparse:
             return tf.sparse.to_dense(self.A)
         return self.A
 
-    @property
+    @tf.function
     def B_dense(self):
         if self.config.B_is_sparse:
             return tf.sparse.to_dense(self.B)
@@ -157,17 +181,22 @@ class CgpHmmCell(tf.keras.layers.Layer):
     #     return tf.math.log(self.B)
 ################################################################################
 ################################################################################
+    @tf.function
     def get_E(self, inputs):
         if self.config.B_is_dense:
-            return tf.matmul(inputs, self.B)
-        return tf.sparse.sparse_dense_matmul(inputs, self.B)
+            tf.print("self.B", self.get_B())
+            result = tf.matmul(inputs, self.get_B())
+            return result
+        result = tf.sparse.sparse_dense_matmul(inputs, self.get_B())
+        return result
 ################################################################################
+    @tf.function
     def get_R(self, old_forward, init = False):
         if init:
             # todo add eplison here???
             if self.config.logsumexp:
                 return tf.math.log(old_forward)
-            return self.I
+            return self.get_I()
 
         # if add_epsilon_to_z:
         #     Z_i = tf.math.add(Z_i, add_epsilon_to_z)
@@ -179,13 +208,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         if self.config.logsumexp:
             m_alpha = tf.reduce_max(old_forward, axis = 1, keepdims = True)
-            R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.R_epsilon, self.A)) + m_alpha
+            R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.R_epsilon, self.get_A())) + m_alpha
             return R
 
-        R = mul(old_forward, self.A)
+        R = mul(old_forward, self.get_A())
 
         return R
 ################################################################################
+    @tf.function
     def calc_new_cell_state(self, E, R, old_forward, old_loglik, scale_helper, init):
         if self.config.scale_with_const:
             unscaled_alpha = E * R
@@ -242,6 +272,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         return scaled_alpha, unscaled_alpha, loglik, scale_helper
 #################################################################################
+    @tf.function
     def fast_call(self, inputs, states, init = False, training = None): # how often is the graph for this build?
         # -AB sd, no felix , no log
         old_forward, old_loglik = states
@@ -257,6 +288,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         states = [scaled_alpha, loglik]
         return states
 #################################################################################
+    @tf.function
     def call(self, inputs, states, init = False, training = None): # how often is the graph for this build?
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse: tf")
@@ -288,6 +320,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return [], states
 
 ################################################################################
+    @tf.function
     def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
         # old_forward = tf.repeat(tf.zeros(), repeats=batch_size, axis=0)
         # old_forward = tf.zeros((batch_size, self.config.model.number_of_states), dtype=self.config.dtype)

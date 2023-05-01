@@ -21,7 +21,7 @@ from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
 from tensorflow.python.client import device_lib
 
 import time
-
+@tf.function
 def make_model(config):
     start = time.perf_counter()
     run_id = randint(0,100)
@@ -154,6 +154,7 @@ def make_dataset(config):
 ################################################################################
 ################################################################################
 ################################################################################
+@tf.function
 def fit_model(config):
 
     num_gpu = len([x.name for x in device_lib.list_local_devices() if x.device_type == 'GPU'])
@@ -466,43 +467,48 @@ def fit_model(config):
 
 ################################################################################
     else:
+
+        tf.compat.v1.disable_eager_execution()
+
         if num_gpu > 1 and not config.dont_use_mirrored_strategy:
             mirrored_strategy = tf.distribute.MirroredStrategy()
             with mirrored_strategy.scope():
-                model, cgp_hmm_layer = make_model(config)
-                model.summary()
+                pass
+                # TODO: this needs to be updated probably
+                # model, cgp_hmm_layer = make_model(config)
+                # model.summary()
 
-                # compile model
-                start = time.perf_counter()
-                run_id = randint(0,100)
-                append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
-                model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
-                append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
+                # # compile model
+                # start = time.perf_counter()
+                # run_id = randint(0,100)
+                # append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
+                # model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
+                # append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
 
-                # fit model
-                start = time.perf_counter()
-                run_id = randint(0,100)
-                append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
-                history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-                append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+                # # fit model
+                # start = time.perf_counter()
+                # run_id = randint(0,100)
+                # append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
+                # history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
+                # append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
         else:
-             model, cgp_hmm_layer = make_model(config)
-             model.summary()
+            model, cgp_hmm_layer = make_model(config)
+            model.summary()
+            # compile model
+            start = time.perf_counter()
+            run_id = randint(0,100)
+            append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
+            # model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
+            model.compile(optimizer = optimizer)
+            append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
 
-             # compile model
-             start = time.perf_counter()
-             run_id = randint(0,100)
-             append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
-             model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
-             append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
-
-             # git model
-             start = time.perf_counter()
-             run_id = randint(0,100)
-             append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
-             print("optimizer.iterations should be 0:", optimizer.iterations)
-             history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-             print("optimizer.iterations should be larger 0:", optimizer.iterations)
-             append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+            # fit model
+            start = time.perf_counter()
+            run_id = randint(0,100)
+            append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
+            print("optimizer.iterations should be 0:", optimizer.iterations)
+            history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
+            print("optimizer.iterations should be larger 0:", optimizer.iterations)
+            append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
 
     return model, history

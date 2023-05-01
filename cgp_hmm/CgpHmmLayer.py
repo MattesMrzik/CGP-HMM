@@ -11,8 +11,6 @@ import os
 # WARNING:tensorflow:AutoGraph could not transform <bound method LineProfiler.wrap_function of <memory_profiler.LineProfiler object at 0x7fd8c4032af0>> and will run it as-is.
 # Cause: generators are not supported
 
-
-from Utility import append_time_stamp_to_file
 from Utility import append_time_ram_stamp_to_file
 
 from CgpHmmCell import CgpHmmCell
@@ -21,6 +19,8 @@ from CgpHmmCell import CgpHmmCell
 
 class CgpHmmLayer(tf.keras.layers.Layer):
     def __init__(self, config):
+        print("tf.executing_eagerly()", tf.executing_eagerly())
+
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init: tf")
         start = time.perf_counter()
@@ -32,6 +32,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         append_time_ram_stamp_to_file(f"Layer.init() end  {run_id}", self.config.bench_path, start)
 
+    @tf.function
     def build(self, inputs):
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer build")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer build: tf")
@@ -52,6 +53,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         self.F = tf.keras.layers.RNN(self.C, return_state = True) # F = forward ie the chain of cells C
         append_time_ram_stamp_to_file(f"Layer.build() end   {run_id}", self.config.bench_path, start)
 
+    @tf.function
     def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call: tf")
@@ -151,7 +153,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #     alpha = 1
         #     self.add_loss(tf.squeeze(-loglik_mean - alpha * reg))
 
-        #    
+        #
         #     # norm prior by number of inout seqs
         if self.config.priorB or self.config.priorA:
 
@@ -174,7 +176,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         else:
             self.add_loss(tf.squeeze(-loglik_mean))
 
-        if training:
+        # if training:
             # self.add_metric(loglik_mean, "loglik")
 
             # self.add_metric(tf.math.reduce_max(self.C.I_kernel),"ik_max")
@@ -183,14 +185,14 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             # self.add_metric(tf.math.reduce_max(self.C.I_dense),"I_max")
             # self.add_metric(tf.math.reduce_min(self.C.I_dense),"I_min")
 
-            self.add_metric(tf.math.reduce_max(self.C.A_kernel),"tk_max")
-            self.add_metric(tf.math.reduce_min(self.C.A_kernel),"tk_min")
+            # self.add_metric(tf.math.reduce_max(self.C.A_kernel),"tk_max")
+            # self.add_metric(tf.math.reduce_min(self.C.A_kernel),"tk_min")
 
             # self.add_metric(tf.math.reduce_max(self.C.A_dense),"A_max")
             # self.add_metric(tf.math.reduce_min(self.C.A_dense),"A_min")
 
-            self.add_metric(tf.math.reduce_max(self.C.B_kernel),"ek_max")
-            self.add_metric(tf.math.reduce_min(self.C.B_kernel),"ek_min") 
+            # self.add_metric(tf.math.reduce_max(self.C.B_kernel),"ek_max")
+            # self.add_metric(tf.math.reduce_min(self.C.B_kernel),"ek_min")
             # TODO
             # # bc some emissions are forbidden there are some that are allways -inf
             # but why are they still in the kernel and just no set to 0 in B by default
