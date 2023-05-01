@@ -12,15 +12,34 @@ class Config():
         self.args = {}
         self.det_args = {}
 
+    def init_for_add_str_to_matrices(self):
+        self.get_args_for_add_str_to_matrices()
+        self.add_args_from_parser()
 
+        self.load_training_args()
+        self.get_current_run_dir(use_existing = True) # from viterbi.args
+        self.determine_attributes_that_only_depend_on_args()
+        # self.asserts()
+
+        self.get_model(only_prepare = True)
+
+    def init_for_get_dot_and_png(self):
+        self.get_args_for_get_dot_and_png()
+        self.add_args_from_parser()
+
+        self.load_training_args()
+        self.get_current_run_dir(use_existing = True) # from viterbi.args
+        self.determine_attributes_that_only_depend_on_args()
+        self.asserts()
+
+        self.get_model()
 
     def init_for_viterbi(self):
-
         self.get_args_for_viterbi()
         self.add_args_from_parser()
 
         self.load_training_args()
-        self.get_current_run_dir(for_viterbi = True) # from viterbi.args
+        self.get_current_run_dir(use_existing = True) # from viterbi.args
         self.determine_attributes_that_only_depend_on_args()
 
         self.asserts()
@@ -53,14 +72,14 @@ class Config():
     def load_training_args(self): # this is only when Viterbi is run on its own
         '''load most recent run dir if no viterbi in path is specified'''
 
-        print("self.viterbi_parent_input_dir", self.viterbi_parent_input_dir)
-        print("self.path_to_dir_where_most_recent_dir_is_selected", self.path_to_dir_where_most_recent_dir_is_selected)
+        # print("self.parent_input_dir", self.parent_input_dir)
+        # print("self.path_to_dir_where_most_recent_dir_is_selected", self.path_to_dir_where_most_recent_dir_is_selected)
 
-        assert self.viterbi_parent_input_dir or self.path_to_dir_where_most_recent_dir_is_selected, "if run viterbi, args are loaded from file, so path must be specified"
+        assert self.parent_input_dir or self.path_to_dir_where_most_recent_dir_is_selected, "if run viterbi, args are loaded from file, so path must be specified"
 
-        if self.viterbi_parent_input_dir is None:
-            print("viterbi_parent_input_dir was not passed so try to get the most recent dir")
-            # viterbi_parent_input_dir was not set, so try to retrieve the most recent output dir
+        if self.parent_input_dir is None:
+            print("parent_input_dir was not passed so try to get the most recent dir")
+            # parent_input_dir was not set, so try to retrieve the most recent output dir
             p = self.path_to_dir_where_most_recent_dir_is_selected
             regex = r"(\d{4}-\d{2}-\d{2}_\d{2}-\d{2})"
             subdirs = [os.path.join(p, subdir) for subdir in os.listdir(p) if (os.path.isdir(os.path.join(p, subdir)) and re.search(regex, subdir))]
@@ -71,19 +90,20 @@ class Config():
             # Get the path to the most recent subdirectory
             most_recent_subdir = sorted_subdirs[0]
             print("most_recent_subdir", most_recent_subdir)
-            self.viterbi_parent_input_dir = most_recent_subdir
+            self.parent_input_dir = most_recent_subdir
 
-        args_json_path = f"{self.viterbi_parent_input_dir}/passed_args.json"
+        args_json_path = f"{self.parent_input_dir}/passed_args.json"
         with open(args_json_path, "r") as file:
             loaded_training_args = json.load(file)
-        print("loaded_training_args", loaded_training_args)
+        # print("loaded_training_args", loaded_training_args)
         for key, value in loaded_training_args.items():
             if key not in self.args: # loading args only if viterbi.py is run, so i dont want to overwrite viterbi args passed to it with the values from main_programm.cfg
                 self.args[key] = value
 
-    def get_current_run_dir(self, for_viterbi = False):
-        if for_viterbi:
-            self.det_args["current_run_dir"] = self.viterbi_parent_input_dir
+    def get_current_run_dir(self, use_existing = False):
+        if use_existing:
+            # the rhs needs to be called the same in the different modules that use use_existing = True
+            self.det_args["current_run_dir"] = self.parent_input_dir
             return
 
         from datetime import datetime
@@ -333,7 +353,6 @@ class Config():
         #     assert not self.use_weights_for_consts, "if --ig5_const_transition then --use_weights_for_consts cant be used"
 
         if self.simulate_insertions or self.simulate_deletions:
-            assert not self.use_simple_seq_gen, "indels only work with MSAgen"
             assert not self.dont_generate_new_seqs, "simulate indels option isnt applied if you dont generate new seqs"
 
         if self.E_epsilon or self.l_epsilon or self.R_epsilon:
@@ -352,7 +371,6 @@ class Config():
 
         if self.fasta_path:
             assert not self.dont_generate_new_seqs, "using fasta path, so nothig should get generated"
-            assert not self.use_simple_seq_gen, "using fasta path, so nothig should get generated"
 
         assert self.akzeptor_pattern_len < 10, "akzeptor_pattern_len >= 10, setting priors uses the str rep of a state and only work with single diget number, this might not be the only place where this is required"
         assert self.donor_pattern_len < 10, "donor_pattern_len >= 10, setting priors uses the str rep of a state and only work with single diget number, this might not be the only place where this is required"
@@ -360,6 +378,9 @@ class Config():
 
         if (self.priorA or self.priorB) and self.internal_exon_model:
             assert self.nCodons > 1, "when using prior and internal model you must use more than 1 codon since for 1 codon there are no priors for the transition matrix"
+
+        if self.calc_parameter_diff == True: # not simply just if bool: bc it can be -1
+            assert self.write_matrices_after_fit, "if calc_parameter_diff you must pass write_matrices_after_fit"
 
 
 ################################################################################
@@ -454,7 +475,6 @@ class Config():
 
         # seq gen
         self.parser.add_argument('--seq_len', type = int, help = 'lenght of output seqs before the optional stripping of flanks, must be at least 3*nCodons + 8')
-        self.parser.add_argument('--use_simple_seq_gen', action='store_true', help ="use_simple_seq_gen (just random seqs) and not MSAgen")
         self.parser.add_argument('-cd', '--coding_dist', type = float, default = 0.2, help='coding_dist for MSAgen')
         self.parser.add_argument('-ncd', '--noncoding_dist', type = float, default = 0.4, help='noncoding_dist for MSAgen')
         self.parser.add_argument('--dont_strip_flanks', action='store_true', help ="dont_strip_flanks ie all seqs have the same length")
@@ -477,9 +497,14 @@ class Config():
         self.parser.add_argument('--get_gradient_from_saved_model_weights', action='store_true', help ="get_gradient_from_saved_model_weights, previous run saved weights when passing --batch_begin_write_weights__layer_call_write_inputs")
         self.parser.add_argument('--assert_summarize', type = int, default = 5, help = 'assert_summarize [5]')
         self.parser.add_argument('--print_batch_id', action='store_true', help = 'prints the batch id via on_train_batch_begin callback')
+        self.parser.add_argument('--write_initial_matrices_to_file')
         self.parser.add_argument('--write_matrices_after_fit', action ='store_true', help ='after fit write matrices to file')
         self.parser.add_argument('--write_parameters_after_fit', action = 'store_true', help = 'after fit write kernels to file')
-        self.parser.add_argument('--write_initial_weights_and_matrices_to_file', action='store_true', help = 'before fit write kernels to file')
+        self.parser.add_argument('--init_png', action='store_true', help = 'create dot for initial parameters')
+        self.parser.add_argument('--after_fit_png', action='store_true', help = 'create dot for learned parameters')
+        self.parser.add_argument('--calc_parameter_diff', action = 'store_true', help = 'write A_init - A_after_fit to file')
+
+
 
         # debugging
         self.parser.add_argument('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
@@ -508,21 +533,24 @@ class Config():
             self.parser = argparse.ArgumentParser(description='Config module description')
 
         self.parser.add_argument('--only_first_seq', action = 'store_true', help = 'run viterbi only for the first seq')
-        self.parser.add_argument('--viterbi_parent_input_dir', help = 'path to dir containing the config_attr.json and paratemeters dir used for viterbi')
+        self.parser.add_argument('--parent_input_dir', help = 'path to dir containing the config_attr.json and paratemeters dir used for viterbi')
         self.parser.add_argument('--in_viterbi_path', help = 'if viteribi is already calculated, path to viterbi file which is then written to the alignment')
         self.parser.add_argument('--viterbi_threads', type = int, default = 1, help = 'how many threads for viterbi.cc')
         self.parser.add_argument('--path_to_dir_where_most_recent_dir_is_selected', help = 'path_to_dir_where_most_recent_dir_is_selected')
         self.parser.add_argument('--after_or_before', default = "a", help = 'use matrices after/before training')
         self.parser.add_argument('--force_overwrite', action = 'store_true', help = 'if file viterib guess already exists then overwrite it')
 
-if __name__ == "__main__":
-    s = '\
-    config = Config()  \
-    config.init_for_viterbi() \
-    config.get_model() \
-    A_weights = json.load(open("path_to_A_kernel.json")) \
-    B_weights = json.load(open("path_to_B_kernel.json")) \
-    config.model.export_to_dot_and_png(A_weights = A_weights, B_weights = B_weights) \
-    '
 
-    print(s)
+    def get_args_for_get_dot_and_png(self):
+        if self.parser == -1:
+            self.parser = argparse.ArgumentParser(description='Config module description')
+
+        self.parser.add_argument('--parent_input_dir', help = 'path to dir containing the config_attr.json and paratemeters dir')
+        self.parser.add_argument('--for_initial_weights', action = 'store_true', help = 'export dot for initial weights')
+        self.parser.add_argument('--png', action = 'store_true', help = 'render png from dot')
+
+    def get_args_for_add_str_to_matrices(self):
+        if self.parser == -1:
+            self.parser = argparse.ArgumentParser(description='Config module description')
+
+        self.parser.add_argument('--parent_input_dir', required = True, help = 'path to dir containing the config_attr.json and paratemeters dir')

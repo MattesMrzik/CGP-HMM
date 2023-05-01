@@ -2,10 +2,11 @@
 from Model import Model
 import re
 from itertools import product
-import tensorflow as tf
 import json
 import numpy as np
 import os
+import tensorflow as tf
+
 
 class My_Model(Model):
 
@@ -33,7 +34,7 @@ class My_Model(Model):
     def make_model(self):
 
         if self.config.priorB:
-            from load_priors import Prior
+            from Prior import Prior
             self.prior = Prior(self.config)
 
         # I
@@ -132,10 +133,10 @@ class My_Model(Model):
 
         return id_to_state, state_to_id
 
-    def state_id_to_str(self, id):
+    def state_id_to_str(self, id : int) -> str:
         return self.id_to_state[id]
 
-    def str_to_state_id(self, s):
+    def str_to_state_id(self, s : str) -> int:
         return self.state_to_id[s]
 
     # =================> emissions <============================================
@@ -609,7 +610,6 @@ class My_Model(Model):
                     assert norm != 0, f"norm is zero in state {state} and emission {emission}, with pattern {pattern}"
                     prior = unscaled_prob/norm
                     initial_parameter = prior
-
 
         if state[0] == "i":
             codon_id = int(re.search(r"i_(\d+),\d+", state).group(1))

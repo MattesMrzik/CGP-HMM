@@ -215,6 +215,7 @@ def compare_guess_to_true_state_seq(trues, guesses):
     print(f"correct = {correct}, false = {false}, accuracy = {correct/(false+correct)}")
 
 def convert_kernel_files_to_matrices_files(dir_path):
+    config.model.make_model()
     I_path =f"{dir_path}/I.json"
     A_path =f"{dir_path}/A.json"
     B_path =f"{dir_path}/B.json"
@@ -426,8 +427,8 @@ def run_cc_viterbi(config, matr_dir):
 ################################################################################
 
 def main(config, after_or_before = "a", overwrite_viterbi = True):
-    # (if not passed viterbi_parent_input_dir it is set to current run dir but this is different when calling viterbi
-    # when viterbi_parent_input_dir is not set and viterby.py is called then viterbi.py should select the newest dir)
+    # (if not passed parent_input_dir it is set to current run dir but this is different when calling viterbi
+    # when parent_input_dir is not set and viterby.py is called then viterbi.py should select the newest dir)
 
     # check if matrices exists, if not convert kernels
 
@@ -437,7 +438,6 @@ def main(config, after_or_before = "a", overwrite_viterbi = True):
         print("start converting kernels to matrices")
         convert_kernel_files_to_matrices_files(matr_dir)
         print("done with converting kernels")
-
 
     seqs_json_path = f"{config.fasta_path}.json"
     if not os.path.exists(seqs_json_path):
@@ -460,7 +460,7 @@ def main(config, after_or_before = "a", overwrite_viterbi = True):
             if overwrite_viterbi:
                 run_cc_viterbi(config, matr_dir)
             else:
-                print("viterbi_cc_output.json already exists and --overwrite was not passed")
+                print("viterbi_cc_output.json already exists and --force_overwrite was not passed")
         else:
             run_cc_viterbi(config, matr_dir)
 

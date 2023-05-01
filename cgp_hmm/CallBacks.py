@@ -50,28 +50,35 @@ def get_call_backs(config, model):
         def on_train_batch_begin(self, batch, logs = None):
             tf.print("on_train_batch_begin_batch_id (1 based index) =", batch + 1)
 
-    class write_initial_weights_and_matrices_to_file(tf.keras.callbacks.Callback):
-        def on_epoch_begin(self, epoch, logs = None):
+    class write_inital_parameters_to_file(tf.keras.callbacks.Callback):
+        def on_epoch_begin(self, epoch, logs=None):
             if epoch == 0:
                 start = time.perf_counter()
-                append_time_ram_stamp_to_file(f"Callbacks.write_initial_paras start", config.bench_path, start)
-                # weights
+                append_time_ram_stamp_to_file(f"Callbacks.write_initial_para start", config.bench_path, start)
+
                 path = f"{config.current_run_dir}/before_fit_para/"
                 cell = model.get_layer("cgp_hmm_layer").C
                 cell.write_weights_to_file(path)
 
-                # dense human readable space and newline seprateded
-                # config.model.A_as_dense_to_file(f"{path}/A.csv", cell.A_kernel, with_description = False)
-                config.model.A_as_dense_to_file(f"{path}/A.with_description.csv", cell.A_kernel, with_description = True)
-                # config.model.B_as_dense_to_file(f"{path}/B.csv", cell.B_kernel, with_description = False)
-                config.model.B_as_dense_to_file(f"{path}/B.with_description.csv", cell.B_kernel, with_description = True)
+                append_time_ram_stamp_to_file(f"Callbacks.write_initial_para end", config.bench_path, start)
+
+
+
+    class write_initial_matrices_to_file(tf.keras.callbacks.Callback):
+        def on_epoch_begin(self, epoch, logs = None):
+            if epoch == 0:
+                start = time.perf_counter()
+                append_time_ram_stamp_to_file(f"Callbacks.write_initial_matrices start", config.bench_path, start)
+                # weights
+                path = f"{config.current_run_dir}/before_fit_para/"
+                cell = model.get_layer("cgp_hmm_layer").C
 
                 # json format dense matrices
                 config.model.I_as_dense_to_json_file(f"{path}/I.json", cell.I_kernel)
                 config.model.A_as_dense_to_json_file(f"{path}/A.json", cell.A_kernel)
                 config.model.B_as_dense_to_json_file(f"{path}/B.json", cell.B_kernel)
 
-                append_time_ram_stamp_to_file(f"Callbacks.write_initial_paras end", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Callbacks.write_initial_matrices end", config.bench_path, start)
 
     class init_png(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):
@@ -144,10 +151,12 @@ def get_call_backs(config, model):
         callbacks += [remove_verbose_at_batch_begin()]
     # if config.batch_begin_write_weights__layer_call_write_inputs:
     #     callbacks += [batch_begin_write_weights__layer_call_write_inputs()]
-    if config.write_initial_weights_and_matrices_to_file or True:
-        callbacks += [write_initial_weights_and_matrices_to_file()]
-    if True:
+    if config.write_initial_matrices_to_file:
+        callbacks += [write_initial_matrices_to_file()]
+    if config.init_png:
         callbacks += [init_png()]
+
+    callbacks += [write_inital_parameters_to_file()]
 
     # callbacks += [tensorboard_callback]
 

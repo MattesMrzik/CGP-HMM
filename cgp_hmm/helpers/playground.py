@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.8
+#!/usr/bin/env python3
 import numpy as np
 import pandas as pd
 import re
@@ -437,32 +437,36 @@ import os
 
 # what is the max of the derichlet density
 
-import tensorflow as tf
-import tensorflow_probability as tfp
+# import tensorflow as tf
+# import tensorflow_probability as tfp
 
-w = tf.Variable([0.5,0.5,0.5])
-alpha = tf.constant([0.2,2,0.8])/5
-dirichlet = tfp.distributions.Dirichlet(alpha)
-iterations = 300
-for i in range(iterations):
-    with tf.GradientTape() as tape:
-        tape.watch(w)
-        p = tf.nn.softmax(w)
-        formatted_arr = list(map(lambda x: "{:.5f}".format(x), p))
-        output_str = ", ".join(formatted_arr)
-        print("p", output_str)
-        print("p sum", tf.math.reduce_sum(p).numpy())
+# w = tf.Variable([0.5,0.5,0.5])
+# alpha = tf.constant([0.2,2,0.8])/5
+# dirichlet = tfp.distributions.Dirichlet(alpha)
+# iterations = 300
+# for i in range(iterations):
+#     with tf.GradientTape() as tape:
+#         tape.watch(w)
+#         p = tf.nn.softmax(w)
+#         formatted_arr = list(map(lambda x: "{:.5f}".format(x), p))
+#         output_str = ", ".join(formatted_arr)
+#         print("p", output_str)
+#         print("p sum", tf.math.reduce_sum(p).numpy())
 
-        y = -tf.reduce_prod(p**(alpha-1))
-        derichlet_prob = dirichlet.prob(p).numpy()
-        frac = y/derichlet_prob
-        print("frac", frac.numpy())
-        print("y", y.numpy())
-    grad = tape.gradient(y,p)
-    print("dy_dx =", [d.numpy() for d in grad])
-    grad = grad / tf.linalg.norm(grad)
-    w.assign_sub(0.1 * grad)
-    tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(w)), [w])
-    print()
+#         y = -tf.reduce_prod(p**(alpha-1))
+#         derichlet_prob = dirichlet.prob(p).numpy()
+#         frac = y/derichlet_prob
+#         print("frac", frac.numpy())
+#         print("y", y.numpy())
+#     grad = tape.gradient(y,p)
+#     print("dy_dx =", [d.numpy() for d in grad])
+#     grad = grad / tf.linalg.norm(grad)
+#     w.assign_sub(0.1 * grad)
+#     tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(w)), [w])
+#     print()
 
-print("alpha means", alpha / tf.math.reduce_sum(alpha))
+# print("alpha means", alpha / tf.math.reduce_sum(alpha))
+
+################################################################################
+################################################################################
+################################################################################

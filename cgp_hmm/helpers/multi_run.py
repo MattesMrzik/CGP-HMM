@@ -150,18 +150,18 @@ def get_run_sub_dirs(path):
 if args.viterbi_path:
     for sub_path in get_run_sub_dirs(args.viterbi_path):
         # self.parser.add_argument('--only_first_seq', action = 'store_true', help = 'run viterbi only for the first seq')
-        # self.parser.add_argument('--viterbi_parent_input_dir', help = 'path to dir containing the config_attr.json and paratemeters dir used for viterbi')
+        # self.parser.add_argument('--parent_input_dir', help = 'path to dir containing the config_attr.json and paratemeters dir used for viterbi')
         # self.parser.add_argument('--in_viterbi_path', help = 'if viteribi is already calculated, path to viterbi file which is then written to the alignment')
         # self.parser.add_argument('--viterbi_threads', type = int, default = 1, help = 'how many threads for viterbi.cc')
         # self.parser.add_argument('--path_to_dir_where_most_recent_dir_is_selected', help = 'path_to_dir_where_most_recent_dir_is_selected')
 
-        # fasta path doesnt need to get calculated since it is saved in the cfg in viterbi_parent_input_dir
+        # fasta path doesnt need to get calculated since it is saved in the cfg in parent_input_dir
 
         force_overwrite = False
         if force_overwrite:
-            command = f"./Viterbi.py --only_first_seq --viterbi_parent_input_dir {sub_path} --viterbi_threads {args.threads_for_viterbi} --force_overwrite"
+            command = f"./Viterbi.py --only_first_seq --parent_input_dir {sub_path} --viterbi_threads {args.threads_for_viterbi} --force_overwrite"
         if not force_overwrite:
-            command = f"./Viterbi.py --only_first_seq --viterbi_parent_input_dir {sub_path} --viterbi_threads {args.threads_for_viterbi}"
+            command = f"./Viterbi.py --only_first_seq --parent_input_dir {sub_path} --viterbi_threads {args.threads_for_viterbi}"
 
         print("running", command)
         subprocess.call(re.split("\s+", command))
@@ -176,7 +176,7 @@ if args.eval_viterbi:
     '''
 
 
-    from add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
+    from helpers.add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
     stats = {}
     for sub_path in get_run_sub_dirs(args.eval_viterbi):
         exon_stats = {}

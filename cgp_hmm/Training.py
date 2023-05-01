@@ -53,23 +53,19 @@ def make_dataset(config):
     append_time_ram_stamp_to_file(f"Training.make_dataset() start {run_id}", config.bench_path, start)
 
     if config.generate_new_seqs and not config.manual_passed_fasta:
-        if config.use_simple_seq_gen:
-            from generate_seqs import generate_simple
-            generate_simple()
-        else:
-            command = f"python3 ./useMSAgen.py -c {config.nCodons} \
-                          {'-n 100'} \
-                          {'-l' + str(config.seq_len)} \
-                          {'-cd ' + str(config.coding_dist) if config.coding_dist else ''} \
-                          {'-ncd ' + str(config.noncoding_dist) if config.noncoding_dist else ''}\
-                          {'--dont_strip_flanks' if config.dont_strip_flanks else ''} \
-                          {'--MSAgen_dir ' + config.path_to_MSAgen_dir} \
-                          {'--out_path ' + config.current_run_dir} \
-                          {'--insertions ' if config.simulate_insertions else ''} \
-                          {'--deletions ' if config.simulate_deletions else ''}"
+        command = f"python3 ./useMSAgen.py -c {config.nCodons} \
+                        {'-n 100'} \
+                        {'-l' + str(config.seq_len)} \
+                        {'-cd ' + str(config.coding_dist) if config.coding_dist else ''} \
+                        {'-ncd ' + str(config.noncoding_dist) if config.noncoding_dist else ''}\
+                        {'--dont_strip_flanks' if config.dont_strip_flanks else ''} \
+                        {'--MSAgen_dir ' + config.path_to_MSAgen_dir} \
+                        {'--out_path ' + config.current_run_dir} \
+                        {'--insertions ' if config.simulate_insertions else ''} \
+                        {'--deletions ' if config.simulate_deletions else ''}"
 
-            command = re.sub("\s+", " ", command)
-            run(command)
+        command = re.sub("\s+", " ", command)
+        run(command)
 
 
     def print_data_set(ds, name):
