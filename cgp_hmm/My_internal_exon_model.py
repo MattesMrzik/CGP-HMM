@@ -807,14 +807,12 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
 ################################################################################
-    @tf.function
     def I(self, weights):
         # initial_matrix = tf.scatter_nd([[0,0]], [1.0], [self.number_of_states,1])
         initial_matrix = tf.scatter_nd([[0,0]], [1.0], [1, self.number_of_states])
         return initial_matrix
 
 ################################################################################
-    @tf.function
     def A(self, weights):
         if self.config.use_weights_for_consts:
             values = weights
@@ -893,7 +891,7 @@ class My_Model(Model):
         return initial_parameters_for_weights, initial_parameters_for_consts
 
 ################################################################################
-    @tf.function
+
     def B(self, weights):
         # consts = tf.cast([1.0] * len(self.B_indices_for_constants), dtype = self.config.dtype)
         try:
@@ -935,8 +933,6 @@ class My_Model(Model):
             emission_matrix = tf.tensor_scatter_nd_min(emission_matrix, \
                                                        self.B_indices_complement, \
                                                        [0.0] * len(self.B_indices_complement))
-
-
         return emission_matrix
 ################################################################################
 ################################################################################
