@@ -503,6 +503,7 @@ class Config():
         self.parser.add_argument('--init_png', action='store_true', help = 'create dot for initial parameters')
         self.parser.add_argument('--after_fit_png', action='store_true', help = 'create dot for learned parameters')
         self.parser.add_argument('--calc_parameter_diff', action = 'store_true', help = 'write A_init - A_after_fit to file')
+        self.parser.add_argument('--trace_verbose', action = 'store_true', help = 'actiave some print() calls to see if function get retraced')
 
 
 

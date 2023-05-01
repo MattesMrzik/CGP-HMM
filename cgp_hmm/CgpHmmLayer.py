@@ -53,6 +53,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(f"Layer.build() end   {run_id}", self.config.bench_path, start)
 
     def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
+        if self.config.trace_verbose:
+            print("layer.call()")
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer call: tf")
 
@@ -151,7 +153,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         #     alpha = 1
         #     self.add_loss(tf.squeeze(-loglik_mean - alpha * reg))
 
-        #    
+        #
         #     # norm prior by number of inout seqs
         if self.config.priorB or self.config.priorA:
 
@@ -190,7 +192,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             # self.add_metric(tf.math.reduce_min(self.C.A_dense),"A_min")
 
             self.add_metric(tf.math.reduce_max(self.C.B_kernel),"ek_max")
-            self.add_metric(tf.math.reduce_min(self.C.B_kernel),"ek_min") 
+            self.add_metric(tf.math.reduce_min(self.C.B_kernel),"ek_min")
             # TODO
             # # bc some emissions are forbidden there are some that are allways -inf
             # but why are they still in the kernel and just no set to 0 in B by default

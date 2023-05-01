@@ -814,6 +814,8 @@ class My_Model(Model):
 
 ################################################################################
     def A(self, weights):
+        if self.config.trace_verbose:
+            print("model.A")
         if self.config.use_weights_for_consts:
             values = weights
         else:
@@ -893,6 +895,8 @@ class My_Model(Model):
 ################################################################################
 
     def B(self, weights):
+        if self.config.trace_verbose:
+            print("model.B")
         # consts = tf.cast([1.0] * len(self.B_indices_for_constants), dtype = self.config.dtype)
         try:
             consts = self.B_initial_weights_for_constant_parameters

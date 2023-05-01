@@ -158,11 +158,16 @@ class CgpHmmCell(tf.keras.layers.Layer):
 ################################################################################
 ################################################################################
     def get_E(self, inputs):
+        if self.config.trace_verbose:
+            print("cell.get_E()")
+
         if self.config.B_is_dense:
             return tf.matmul(inputs, self.B)
         return tf.sparse.sparse_dense_matmul(inputs, self.B)
 ################################################################################
     def get_R(self, old_forward, init = False):
+        if self.config.trace_verbose:
+            print("cell.get_R()")
         if init:
             # todo add eplison here???
             if self.config.logsumexp:
@@ -187,6 +192,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
         return R
 ################################################################################
     def calc_new_cell_state(self, E, R, old_forward, old_loglik, scale_helper, init):
+        if self.config.trace_verbose:
+            print("cell.calc_new_cell_state()")
         if self.config.scale_with_const:
             unscaled_alpha = E * R
             scaled_alpha = unscaled_alpha * self.config.scale_with_const
@@ -257,8 +264,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
         states = [scaled_alpha, loglik]
         return states
 #################################################################################
-    def call(self, inputs, states, init = False, training = None): # how often is the graph for this build?
-        # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse")
+    def call(self, inputs, states, init = False, training = None):
+        if self.config.trace_verbose:
+            print("cell.call()")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse: tf")
         if self.config.scale_with_conditional_const:
             old_forward, old_loglik, scale_helper = states
@@ -289,6 +297,8 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
 ################################################################################
     def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
+        if self.config.trace_verbose:
+            print("cell.get_initial_state()")
         # old_forward = tf.repeat(tf.zeros(), repeats=batch_size, axis=0)
         # old_forward = tf.zeros((batch_size, self.config.model.number_of_states), dtype=self.config.dtype)
         # old_forward = tf.repeat(tf.concat([[1],tf.zeros(self.config.model.number_of_states)], axis = 0), repeats = batch_size, axis = 0)
