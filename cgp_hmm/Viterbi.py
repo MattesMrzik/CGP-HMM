@@ -242,55 +242,55 @@ def convert_kernel_files_to_matrices_files(dir_path):
 ################################################################################
 ################################################################################
 ################################################################################
-
-def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterbi_path = None, model = None, out_dir_path = "."):
-    # TODO: maybe also implement model.state_id_to_description_single_letter()
-    # assumes viterbi only contains prediction for human
-    try:
-        fasta_data = SeqIO.parse(fasta_path, "fasta")
-        for record in fasta_data:
-            if re.search("Homo_sapiens", record.id):
-                human_fasta = record
-                # if nothing is found this will call except block
+def retrieve_homo_sapiens_from_combinded_fasta(fasta_path):
         try:
-            human_fasta.id
+            fasta_data = SeqIO.parse(fasta_path, "fasta")
+            for record in fasta_data:
+                if re.search("Homo_sapiens", record.id):
+                    human_fasta = record
+                    return human_fasta
+            try:
+                human_fasta.id
+            except:
+                print("fasta_true_state_seq_and_optional_viterbi_guess_alignment: no human id found: return")
+                return
         except:
-            print("fasta_true_state_seq_and_optional_viterbi_guess_alignment: no human id found: return")
+            print("seqIO could not parse", fasta_path)
             return
-    except:
-        print("seqIO could not parse", fasta_path)
-        return
-
-    coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
-
-    l = []
-    if viterbi_path != None:
-        assert model != None, "if you want to include the viterbi guess, you also have to provide a model to convert the state seq to a string"
-
-        try:
-            file = open(viterbi_path)
-        except:
-            print("could not open", viterbi_path)
-            return
-        try:
-            json_data = json.load(file)
-        except:
-            print("json could not parse", file)
-            return
-
-        if type(json_data[0]) is list: #[[0,1,2],[0,0,1],[1,2,3,4,5]]
-            description_seq = []
-            for seq_id, seq in enumerate(json_data):
-                for nth_state, state in enumerate(seq):
-                    description = model.state_id_to_str(state)
-                    description_seq.append((state,description))
-                l.append(description_seq)
-        else: # [0,0,0,01,2,3,4,4,4,4]
-            for nth_state, state in enumerate(json_data):
-                description = model.state_id_to_str(state)
-                l.append((state,description))
-
 ################################################################################
+def read_viterbi_json(model, viterbi_path) -> list[tuple[int,str]]:
+        l = []
+        if viterbi_path != None:
+            assert model != None, "if you want to include the viterbi guess, you also have to provide a model to convert the state seq to a string"
+
+            try:
+                file = open(viterbi_path)
+            except:
+                print("could not open", viterbi_path)
+                return
+            try:
+                json_data = json.load(file)
+            except:
+                print("json could not parse", file)
+                return
+
+            assert len(json_data) == 1, f"more than one seq in {viterbi_path}"
+
+            if type(json_data[0]) is list: #[[0,1,2],[0,0,1],[1,2,3,4,5]]
+                description_seq = []
+                for seq_id, seq in enumerate(json_data):
+                    for nth_state, state in enumerate(seq):
+                        description = model.state_id_to_str(state)
+                        description_seq.append((state,description))
+                    l.append(description_seq)
+            # else: # [0,0,0,01,2,3,4,4,4,4]
+            #     for nth_state, state in enumerate(json_data):
+            #         description = model.state_id_to_str(state)
+            #         l.append((state,description))
+        return l
+################################################################################
+def viterbi_tuple_list_to_fasta(viterbi_path, human_fasta, l : list[tuple[int,str]]) -> str:
+    '''return st. like  llll---AGc 0c 1c 2c 3c 4c 5c 6c 7c 8c 9c10c11c12GT---rrrr'''
     viterbi_as_fasta = ""
     if viterbi_path == None:
         viterbi_as_fasta = " " * len(human_fasta.seq)
@@ -348,9 +348,9 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
         print("viterbi_as_fasta", viterbi_as_fasta)
 
         assert l[0][-1][1] == "ter", "Model.py last not terminal"
-
-    viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
+    return viterbi_as_fasta
 ################################################################################
+def get_true_gene_strucutre_from_fasta_description_as_fasta(coords) -> tuple[str, bool]:
     on_reverse_strand = coords["exon_start_in_human_genome_cd_strand"] != coords["exon_start_in_human_genome_+_strand"]
     if not on_reverse_strand:
         true_seq = "l" * (coords["exon_start_in_human_genome_+_strand"] - coords["seq_start_in_genome_+_strand"])
@@ -360,19 +360,9 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
         true_seq = "l" * (coords["seq_start_in_genome_cd_strand"] - coords["exon_start_in_human_genome_cd_strand"])
         true_seq += "E" * (coords["exon_start_in_human_genome_cd_strand"] - coords["exon_stop_in_human_genome_cd_strand"])
         true_seq += "r" * (coords["exon_stop_in_human_genome_cd_strand"] - coords["seq_stop_in_genome_cd_strand"])
-    true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
+    return true_seq, on_reverse_strand
 ################################################################################
-    len_of_line_in_clw = 50
-    numerate_line = ""
-    for i in range(len(viterbi_as_fasta)):
-        i_line = i % len_of_line_in_clw
-        if i_line % 10 == 0:
-            numerate_line += "|"
-        else:
-            numerate_line += " "
-
-    numerate_line_record =  SeqRecord(seq = Seq(numerate_line), id = "numerate_line")
-################################################################################
+def get_coords_record(len_of_line_in_clw, coords, viterbi_as_fasta, on_reverse_strand):
     coords_fasta = ""
     for line_id in range(len(viterbi_as_fasta)//len_of_line_in_clw):
         in_fasta = line_id*len_of_line_in_clw
@@ -386,25 +376,75 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
     coords_fasta += " " * last_line_len
 
     coords_fasta_record = SeqRecord(seq = Seq(coords_fasta), id = "coords_fasta")
-
+    return coords_fasta_record
 ################################################################################
-    if viterbi_path == None:
-        records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record]
-    else:
-        records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
+def get_numerate_line_record(viterbi_as_fasta, len_of_line_in_clw = 50):
+    numerate_line = ""
+    for i in range(len(viterbi_as_fasta)):
+        i_line = i % len_of_line_in_clw
+        if i_line % 10 == 0:
+            numerate_line += "|"
+        else:
+            numerate_line += " "
+
+    numerate_line_record = SeqRecord(seq = Seq(numerate_line), id = "numerate_line")
+    return numerate_line_record
+################################################################################
+def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterbi_path = None, model = None, out_dir_path = "."):
+    '''
+    fasta_path is config.fasta_path
+    assumes viterbi only contains prediction for human
+    '''
+    len_of_line_in_clw = 50
+    # TODO: maybe also implement model.state_id_to_description_single_letter()
+
+    if (human_fasta := retrieve_homo_sapiens_from_combinded_fasta(fasta_path)) is None:
+        return
+
+    coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
+    l = read_viterbi_json(model, viterbi_path)
+
+    viterbi_as_fasta = viterbi_tuple_list_to_fasta(viterbi_path, human_fasta, l)
+    viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
+
+    true_seq, on_reverse_strand = get_true_gene_strucutre_from_fasta_description_as_fasta(coords)
+    true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
+
+    numerate_line_record = get_numerate_line_record(viterbi_as_fasta, len_of_line_in_clw = len_of_line_in_clw)
+
+    coords_fasta_record = get_coords_record(len_of_line_in_clw, coords, viterbi_as_fasta, on_reverse_strand)
 
     exon_contains_ambiguous_bases = ""
     for base, e_or_i in zip(human_fasta.seq, true_seq_record.seq):
         if e_or_i == "E" and base in "acgtnN":
             exon_contains_ambiguous_bases = "_exon_contains_ambiguous_bases"
+
+    if viterbi_path == None:
+        records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record]
+    else:
+        records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
+
     alignment = MultipleSeqAlignment(records)
 
-    alignment_out_path = f"{out_dir_path}/true_alignment{exon_contains_ambiguous_bases}.clw"
+    after_or_before = ""
+    if viterbi_path != None:
+        print(viterbi_path)
+
+        found_after = re.search("after", os.path.basename(viterbi_path))
+        found_before = re.search("before", os.path.basename(viterbi_path))
+
+        assert not (found_after and found_before), "found both 'after' and 'before' in viterbi_cc_ file name"
+        assert found_after or found_before, "found no 'after' or 'before' in viterbi_cc_ file name"
+
+        after_or_before = "_after" if found_after else "_before"
+        print(after_or_before)
+
+    alignment_out_path = f"{out_dir_path}/true_alignment{after_or_before}{exon_contains_ambiguous_bases}.clw"
+
     with open(alignment_out_path, "w") as output_handle:
         AlignIO.write(alignment, output_handle, "clustal")
     print("wrote alignment to", alignment_out_path)
 
-    return l
 ################################################################################
 ################################################################################
 ################################################################################
@@ -456,17 +496,20 @@ def main(config, after_or_before = "a", overwrite_viterbi = True):
         print("finished calculating fa.json")
 
     after_or_before = os.path.basename(matr_dir).split("_")[0]
-    out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
+    assert after_or_before in ["before", "after"], "Viterbi.py. Folder of matrices must begin with either 'before_' or 'after_'"
 
+    # if viteribi is already calculated, path to viterbi file which is then written to the alignment
     if config.in_viterbi_path:
         assert config.manual_passed_fasta, "when viterbi.py and --in_viterbi_path also pass --fasta"
         fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, config.in_viterbi_path, config.model, out_dir_path = config.current_run_dir)
+
+    out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
     if not config.in_viterbi_path:
         if os.path.exists(out_viterbi_file_path):
             if overwrite_viterbi:
                 run_cc_viterbi(config, matr_dir)
             else:
-                print("viterbi_cc_output.json already exists and --force_overwrite was not passed")
+                print(f"{out_viterbi_file_path} already exists and --force_overwrite was not passed")
         else:
             run_cc_viterbi(config, matr_dir)
 
