@@ -33,11 +33,12 @@ def make_model(config):
     # another None added automatically for yet unkown batch_size
     sequences = tf.keras.Input(shape = (None, config.model.number_of_emissions), name = "sequences", dtype = config.dtype)
 
+    masked_values = tf.keras.layers.Masking(mask_value=0.)(sequences)
+
     cgp_hmm_layer = CgpHmmLayer(config) # init of layer
 
 
-
-    loglik = cgp_hmm_layer(sequences) # layer is build, then called. it seems i cant call build before to avoid building it here again
+    loglik = cgp_hmm_layer(masked_values) # layer is build, then called. it seems i cant call build before to avoid building it here again
 
     # print(tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik))
 
@@ -107,20 +108,28 @@ def make_dataset(config):
 
         dataset = tf.data.Dataset.from_generator(
             lambda: seqs, tf.string, output_shapes=[None])
-
-        bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
-        bucket_batch_sizes = [config.batch_size] * (len(seqs)//config.batch_size) + [len(seqs) - len(seqs)//config.batch_size]
-        # print("(len(seqs)//config.batch_size)", (len(seqs)//config.batch_size))
-
-        # dataset = dataset.bucket_by_sequence_length(
-        #     element_length_func = lambda elem: tf.shape(elem)[0],
-        #     bucket_boundaries = bucket_boundaries,
-        #     padded_shapes = tf.TensorShape(None),  # Each sequence has 2 values
-        #     padding_values = f"0{'_0'*(config.model.number_of_emissions-2)}_1",
-        #     bucket_batch_sizes = bucket_batch_sizes)
+        padding_value = "_".join(["1.0" if i == index_of_terminal else "0.0" for i in range(config.model.number_of_emissions)])
 
 
-        dataset = dataset.padded_batch(config.batch_size, None, "_".join(["1.0" if i == index_of_terminal else "0.0" for i in range(config.model.number_of_emissions)]))
+        if config.bucket_by_seq_len:
+
+            # bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
+            number_of_equal_sized_batches = len(seqs)//config.batch_size
+            bucket_boundaries = [config.batch_size] * number_of_equal_sized_batches
+            bucket_batch_sizes = bucket_boundaries + [len(seqs) - number_of_equal_sized_batches * config.batch_size]
+            print("bucket_boundaries", bucket_boundaries)
+            print("bucket_batch_sizes", bucket_batch_sizes)
+
+            dataset = dataset.bucket_by_sequence_length(
+                element_length_func = lambda elem: tf.shape(elem)[0],
+                bucket_boundaries = bucket_boundaries,
+                padded_shapes = tf.TensorShape(None),  # Each sequence has 2 values
+                padding_values = padding_value,
+                bucket_batch_sizes = bucket_batch_sizes)
+
+        if not config.bucket_by_seq_len:
+            dataset = dataset.padded_batch(config.batch_size, None, padding_value)
+
         dataset = dataset.map(lambda x: tf.strings.to_number(tf.strings.split(x,'_')))
         dataset = dataset.map(lambda x: x.to_tensor()) # bc it is ragged
         np.set_printoptions(linewidth=200)

@@ -246,6 +246,7 @@ class Config():
                     print(f"config.[{name}] not defined")
                     exit(1)
                 else:
+                    tf.print(f"config.{name} was not set")
                     return -1
 
     def print(self):
@@ -369,7 +370,7 @@ class Config():
         if self.manual_forward:
             assert self.AB == "dd", "manula forward only works with dense matrices, so pass -AB dd"
 
-        if self.fasta_path:
+        if self.manual_passed_fasta:
             assert not self.dont_generate_new_seqs, "using fasta path, so nothig should get generated"
 
         assert self.akzeptor_pattern_len < 10, "akzeptor_pattern_len >= 10, setting priors uses the str rep of a state and only work with single diget number, this might not be the only place where this is required"
@@ -407,6 +408,8 @@ class Config():
         self.parser.add_argument('--learning_rate', help ="learning_rate", type = float, default = 0.05)
         self.parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
         self.parser.add_argument('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
+        self.parser.add_argument('--bucket_by_seq_len', action = 'store_true', help = 'bucket seqs by their lengths')
+        # self.parser.add_argument('--mask', action = 'store_true', help = 'mask the input for layer')
 
         # what model
         self.parser.add_argument('--intron_model', action='store_true', help = 'use my model that includes introns')
@@ -514,8 +517,7 @@ class Config():
         self.parser.add_argument('--check_assert', action='store_true', help ="check_assert")
         self.parser.add_argument('--run_eagerly', action='store_true', help ='run model.fit in eager execution')
         self.parser.add_argument('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
-        self.parser.add_argument('--init_weights_from_before_fit', action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --batch_begin_write_weights__layer_call_write_inputs was passed')
-        self.parser.add_argument('--init_weights_from_after_fit' , action='store_true', help = 'if this is passed the cells kernels are initialized with the weights stored in the txt files, which were written on a previous run when --write_parameters_after_fit was passed')
+        self.parser.add_argument('--init_weights_from', help = 'dir that contain I/A/B_kernel.json')
         self.parser.add_argument('--no_deletes', action='store_true', help = 'the delete transitions in A are removed')
         self.parser.add_argument('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
         self.parser.add_argument('--forced_gene_structure', action='store_true', help = 'TGs in igs and ACs in coding, ie the state seq is determinded by emission seq')
@@ -540,6 +542,8 @@ class Config():
         self.parser.add_argument('--path_to_dir_where_most_recent_dir_is_selected', help = 'path_to_dir_where_most_recent_dir_is_selected')
         self.parser.add_argument('--after_or_before', default = "a", help = 'use matrices after/before training')
         self.parser.add_argument('--force_overwrite', action = 'store_true', help = 'if file viterib guess already exists then overwrite it')
+        self.parser.add_argument('--out_file_path', help = 'path and name of outfile')
+        self.parser.add_argument('--viterbi_exe', default = './Viterbi', help = 'path to c++ Viterbi exe')
 
 
     def get_args_for_get_dot_and_png(self):

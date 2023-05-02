@@ -16,6 +16,7 @@ df = pd.read_csv(args.path_to_stats_table, sep = ";")
 print("pd.options.display.width = 0")
 print('pd.set_option("display.max_rows", 10)')
 print('df.sort_values(by = "exon_len", ascending = 1)')
+print('df1 = df.groupby("ambiguous").apply(lambda x:x.sort_values("human_seq_len", ascending = 1))[:20]')
 
 def copy_to_new_good_exons_dir(df) -> None:
     '''

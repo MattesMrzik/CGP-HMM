@@ -64,7 +64,7 @@ def get_true_state_seqs_from_true_MSA(config):
     return true_state_seqs
 
 def load_viterbi_guess(config):
-    viterbi_file = open(f"{config.current_run_dir}/viterbi_cc_output.json", "r")
+    viterbi_file = open(f"{config.current_run_dir}/viterbi_cc_output_{'before' if config.after_or_before == 'b' else 'after'}.json", "r")
     viterbi = json.load(viterbi_file)
     return viterbi
 
@@ -418,9 +418,14 @@ def run_cc_viterbi(config, matr_dir):
     #     out_path = f"--out_path {out_dir_path}/viterbi_cc_output.json"
     # else:
     #     out_path = ""
-    out_path = f"--out_path {config.current_run_dir}/viterbi_cc_output.json"
+
+    after_or_before = os.path.basename(matr_dir).split("_")[0]
+    assert after_or_before in ["before", "after"], "Viterbi.py. Folder of matrices must begin with either 'before' or 'after'"
+    out_path = f"--out_path {config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
     # command = f"{config.out_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq} {out_path}"
-    command = f"./Viterbi -j {config.viterbi_threads} {seq_path} {only_first_seq} {out_path} --dir_path_for_para {matr_dir}"
+
+    # finding the Viterbi exe
+    command = f"{config.viterbi_exe} -j {config.viterbi_threads} {seq_path} {only_first_seq} {out_path} --dir_path_for_para {matr_dir}"
     print("starting", command)
     os.system(command)
     print("done viterbi. it took ", time.perf_counter() - start)
@@ -450,7 +455,8 @@ def main(config, after_or_before = "a", overwrite_viterbi = True):
             json.dump(seqs_out, out_file)
         print("finished calculating fa.json")
 
-    out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output.json"
+    after_or_before = os.path.basename(matr_dir).split("_")[0]
+    out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
 
     if config.in_viterbi_path:
         assert config.manual_passed_fasta, "when viterbi.py and --in_viterbi_path also pass --fasta"
@@ -490,7 +496,6 @@ if __name__ == "__main__":
     # while (a_or_b := input()) not in "ab":
     #     pass
 
-    out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output.json"
 
     if not config.force_overwrite:
         main(config, after_or_before = config.after_or_before, overwrite_viterbi = False)

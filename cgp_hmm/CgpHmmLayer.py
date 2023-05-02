@@ -68,7 +68,10 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         initial_state = self.C.get_initial_state(batch_size=tf.shape(inputs)[0])
         # print("initial_state =", initial_state)
         _, result_first_init_call = self.C(inputs[:,0], initial_state, init = True, training = training)
-        result = self.F(inputs[:,1:], initial_state = result_first_init_call, training = training)
+
+        inputs_with_out_first_emission = inputs[:,1:]
+
+        result = self.F(inputs_with_out_first_emission, initial_state = result_first_init_call, training = training)
         # result = self.F(inputs[:,1:,:])
         # result = self.F(inputs)
         # i think this is an artefact from a previous version, where i would sometimes return an additional value. I think this can be unwrapped right away on the preceeding line

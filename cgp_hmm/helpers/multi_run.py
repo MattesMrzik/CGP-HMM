@@ -2,6 +2,7 @@
 from datetime import datetime
 import os
 import json
+import pandas as pd
 import re
 from itertools import product
 import subprocess
@@ -10,9 +11,14 @@ import argparse
 parser = argparse.ArgumentParser(description='Config module description')
 parser.add_argument('--train', action = 'store_true', help='number of codons')
 parser.add_argument('--viterbi_path', help='path to multi_run dir for which to run viterbi')
+parser.add_argument('--use_init_weights_for_viterbi', action = 'store_true', help = 'use the initial weights instead of the learned ones')
+parser.add_argument('--slurm_viterbi', action = 'store_true', help = 'submit Viterbi.py calls to slurm')
 parser.add_argument('--eval_viterbi', help='path to multi_run dir for which to evaluation of viterbi')
 parser.add_argument('--threads_for_viterbi', type = int, default = 1, help='how many threads should be used for viterbi')
 args = parser.parse_args()
+
+if args.use_init_weights_for_viterbi:
+    assert args.viterbi_path, "if you pass --use_init_weights_for_viterbi. you must also pass --viterbi_path"
 
 # do i want to create bench to run on slurm submission which might be able to run both tf.learning and c++ viterbi
 # or create 2 modes in bench one for training on apphub and one for running viterbi and evaluating
@@ -158,13 +164,79 @@ if args.viterbi_path:
         # fasta path doesnt need to get calculated since it is saved in the cfg in parent_input_dir
 
         force_overwrite = False
-        if force_overwrite:
-            command = f"./Viterbi.py --only_first_seq --parent_input_dir {sub_path} --viterbi_threads {args.threads_for_viterbi} --force_overwrite"
-        if not force_overwrite:
-            command = f"./Viterbi.py --only_first_seq --parent_input_dir {sub_path} --viterbi_threads {args.threads_for_viterbi}"
 
-        print("running", command)
-        subprocess.call(re.split("\s+", command))
+        overwrite = "--force_overwrite" if force_overwrite else ""
+        after_or_before = "--after_or_before b" if args.use_init_weights_for_viterbi else "--after_or_before a"
+        command = f"../Viterbi.py --only_first_seq \
+                   --parent_input_dir {sub_path} \
+                   --viterbi_threads {args.threads_for_viterbi} \
+                   {force_overwrite} \
+                   {after_or_before} \
+                   -viterbi_exe ../Viterbi"
+
+        command = re.sub("\s+", " ", command)
+
+        submission_file_name = f"{sub_path}/slurm_submission.sh"
+        if args.slurm_viterbi:
+            with open(submission_file_name, "w") as file:
+                file.write("#!/bin/bash\n")
+                file.write(f"#SBATCH -J viterbi_{os.path.basename(sub_path)}\n")
+                file.write(f"#SBATCH -N 1\n")
+                file.write(f"#SBATCH -n {args.threads_for_viterbi}\n")
+                file.write("#SBATCH --mem 2000")
+                file.write("#SBATCH --partition=batch\n")
+                file.write(f"#SBATCH -o {sub_path}/out.%j\n")
+                file.write(f"#SBATCH -e {sub_path}/err.%j\n")
+                file.write("#SBATCH -t 02:00:00\n")
+                file.write(command)
+
+            os.system(f"sbatch {submission_file_name}")
+        else:
+            print("running", command)
+            subprocess.call(re.split("\s+", command))
+
+def load_run_stats() -> pd.DataFrame:
+    from add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
+    stats = {}
+    for sub_path in get_run_sub_dirs(args.eval_viterbi):
+        run_stats = {}
+        # the genomic seq, true exon pos, viterbi guess is optional
+        true_alignemnt_path = f"{sub_path}/true_alignment.clw"
+        true_alignemnt = read_true_alignment_with_out_coords_seq(true_alignemnt_path)
+
+        assert len(true_alignemnt) == 3, f"true_alignment of {sub_path} doesnt contain the viterbi guess"
+        aligned_seqs = {} # reference_seq, true_seq, viterbi_guess
+        for seq in true_alignemnt:
+            aligned_seqs[seq.id] = seq
+        assert len(aligned_seqs) == 3, "some seqs had same id"
+
+        run_stats["true_start"] = aligned_seqs["true_seq"].seq.index("E") # inclusive
+        run_stats["true_end"] = aligned_seqs["true_seq"].seq.index("r") # exclusive
+
+        for i in range(len(aligned_seqs["viterbi_guess"].seq)):
+            if aligned_seqs["viterbi_guess"].seq[i:i+2] == "AG":
+                run_stats["guessed_start"] = i+2
+            if aligned_seqs["viterbi_guess"].seq[i:i+2] == "GT":
+                run_stats["guessed_end"] = i
+
+        json_data = json.load(open(f"{sub_path}/passed_args.json"))
+        json_tuple = tuple(json_data.items())
+        stats[json_tuple] = run_stats, json_data
+
+
+    eval_cols = ["guessed_start", "guessed_end", "true_start", "true_end"]
+    df = pd.DataFrame(columns=list(json_data.keys()) + eval_cols)
+
+    for key, value in stats.items():
+        value[1].update(value[0])
+        new_row = pd.DataFrame(value[1], index=[0])
+        df = pd.concat([df, new_row], axis = 0, ignore_index = True)
+
+    cols_to_keep = df.columns[df.nunique() > 1]
+    cols_to_keep = list(set(list(cols_to_keep) + eval_cols))
+    df = df[cols_to_keep]
+
+    return df
 
 if args.eval_viterbi:
     '''
@@ -175,42 +247,10 @@ if args.eval_viterbi:
     overlapp len vs non overlapp len
     '''
 
-
-    from helpers.add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
-    stats = {}
-    for sub_path in get_run_sub_dirs(args.eval_viterbi):
-        exon_stats = {}
-        json_data = json.load(open(f"{sub_path}/passed_args.json"))
-        # the genomic seq, true exon pos, viterbi guess is optional
-        true_alignemnt_path = f"{sub_path}/true_alignment.clw"
-        print(true_alignemnt_path)
-        true_alignemnt = read_true_alignment_with_out_coords_seq(true_alignemnt_path)
+    df = load_run_stats()
+    print(df)
 
 
-        assert len(true_alignemnt) == 3, f"true_alignment of {sub_path} doesnt contain the viterbi guess"
-        aligned_seqs = {} # reference_seq, true_seq, viterbi_guess
-        for seq in true_alignemnt:
-            aligned_seqs[seq.id] = seq
-        assert len(aligned_seqs) == 3, "some seqs had same id"
-
-        exon_stats["true_start"] = aligned_seqs["true_seq"].seq.index("E") # inclusive
-        exon_stats["true_end"] = aligned_seqs["true_seq"].seq.index("r") # exclusive
-
-        for i in range(len(aligned_seqs["viterbi_guess"].seq)):
-            if aligned_seqs["viterbi_guess"].seq[i:i+2] == "AG":
-                exon_stats["guessed_start"] = i+2
-            if aligned_seqs["viterbi_guess"].seq[i:i+2] == "GT":
-                exon_stats["guessed_end"] = i
-
-        stats[json_data["fasta_path"]] = exon_stats
-
-
-    for exon, exon_stats in stats.items():
-        print("exon", exon)
-        for key, value in exon_stats.items():
-            print(key, value)
-        print()
-
-#     exon level genauikgkeit also wie viel vom exon wird getroffen
+# exon level genauikgkeit also wie viel vom exon wird getroffen
 # also zuerst die lägen anddieren und dann durch gesamt länge teilen aslo große exons sind wichtiger zu treffen
 
