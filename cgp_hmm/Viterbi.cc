@@ -1,4 +1,5 @@
 #include <iostream>
+#include <filesystem>
 #include <vector>
 #include <string>
 #include <fstream>
@@ -45,7 +46,8 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
                             const std::vector<std::vector<float>> & A,
                             const std::vector<std::vector<float>> & B,
                             const std::vector<std::vector<float>> & Y,
-                            int id, size_t nThreads, bool only_first, bool verbose) {
+                            int id, size_t nThreads, bool only_first, bool verbose,
+                            std::string out_path) {
 
     // TODO maybe also pass the results vector x by ref
     size_t nStates = A.size();
@@ -60,7 +62,9 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
 
     std::ofstream eta_file;
     if (only_first) {
-        eta_file.open("viterbi_eta.txt");
+        std::filesystem::path new_path = std::filesystem::path(out_path).remove_filename() / "viterbi_eta.txt";
+        std::cout << "eta path " << new_path << "\n";
+        eta_file.open(new_path);
         eta_file << "start" << "\n";
     }
 
@@ -124,7 +128,7 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
         dp_g.push_back(icolumn);
         icolumn.clear();
 
-        if (only_first) {
+        if (only_first && i % 100 == 0) {
             auto stop = std::chrono::high_resolution_clock::now();
             auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
             auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start);
@@ -301,7 +305,7 @@ int main(int argc, char *argv[]) {
                 now_using = seqs.size() - low;
             }
             for (size_t j = 0; j < now_using; j++) {
-                threads.push_back(std::async(std::launch::async, viterbi, i_v,a_v,b_v, seqs_v[low + j], low + j, 1, only_first_seq, verbose));
+                threads.push_back(std::async(std::launch::async, viterbi, i_v,a_v,b_v, seqs_v[low + j], low + j, 1, only_first_seq, verbose, out_path));
             }
             for (size_t j = 0; j < now_using; j++) {
                 auto result = threads[j].get();
@@ -315,7 +319,7 @@ int main(int argc, char *argv[]) {
                 std::cout << "calculated only first seq. check whether the result has the same len as desired fasta len" << '\n';
                 break;
             }
-            state_seqs[seq_id] = viterbi(i_v, a_v, b_v, seqs_v[seq_id], seq_id, nThreads, only_first_seq, verbose);
+            state_seqs[seq_id] = viterbi(i_v, a_v, b_v, seqs_v[seq_id], seq_id, nThreads, only_first_seq, verbose, out_path);
             if (verbose){
                 std::cout << "done with seq " << seq_id << '\n';
             }

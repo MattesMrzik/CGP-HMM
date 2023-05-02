@@ -135,6 +135,30 @@ def get_call_backs(config, model):
     tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
 
 
+    class RelativeEarlyStopping(tf.keras.callbacks.Callback):
+        def __init__(self, monitor = 'loss', min_delta_prop = 0.01, patience = 0):
+            super().__init__()
+            self.monitor = monitor
+            self.min_delta_prop = min_delta_prop
+            self.patience = patience
+            self.best_value = float('inf')
+            self.wait = 0
+
+        def on_epoch_end(self, epoch, logs=None):
+            current_value = logs.get(self.monitor)
+            if current_value is None:
+                return
+
+            if current_value < self.best_value * (1 - self.min_delta_prop):
+                self.best_value = current_value
+                self.wait = 0
+            else:
+                self.wait += 1
+                if self.wait >= self.patience:
+                    self.model.stop_training = True
+                    print(f"\nEpoch {epoch}: RelativeEarlyStopping triggered!")
+
+
     callbacks = []
     callbacks = [write_time_ram_epoch_start_callback(),
                  write_time_ram_epoch_end_callback()]
@@ -157,6 +181,7 @@ def get_call_backs(config, model):
         callbacks += [init_png()]
 
     callbacks += [write_inital_parameters_to_file()]
+    callbacks += [RelativeEarlyStopping()]
 
     # callbacks += [tensorboard_callback]
 

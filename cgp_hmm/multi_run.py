@@ -31,10 +31,11 @@ cfg_with_args = {}
 out_path = "../../cgp_data"
 
 # or read files in a passed dir
-fasta_dir_path = "/home/mattes/Documents/cgp_data/good_exons"
-exons = ["exon_chr1_1045963_1046088", \
-        "exon_chr1_155188007_155188063", \
-        "exon_chr1_74369206_74369264"]
+fasta_dir_path = "../../cgp_data/good_exons_1"
+exons = ["exon_chr1_8364055_8364255", \
+        "exon_chr1_33625050_33625254"]
+
+exons = [dir for dir in os.listdir(fasta_dir_path) if not os.path.isfile(os.path.join(fasta_dir_path, dir)) ]
 
 # TODO i need to determine the nCodons that should be used for each fasta,
 # are there other parameters that defend on the sequences?
@@ -50,7 +51,7 @@ cfg_with_args["priorA"] = [2]
 cfg_with_args["priorB"] = [2]
 cfg_with_args["global_log_epsilon"] = [1e-20]
 cfg_with_args["epoch"] = [1]
-cfg_with_args["step"] = [2]
+cfg_with_args["step"] = [8]
 cfg_with_args["clip_gradient_by_value"] = [5]
 cfg_with_args["prior_path"] = [" ../../cgp_data/priors/human/"]
 cfg_with_args["scale_prior"] = [1e-3]
@@ -163,30 +164,34 @@ if args.viterbi_path:
 
         # fasta path doesnt need to get calculated since it is saved in the cfg in parent_input_dir
 
-        force_overwrite = False
+        force_overwrite = True
 
         overwrite = "--force_overwrite" if force_overwrite else ""
         after_or_before = "--after_or_before b" if args.use_init_weights_for_viterbi else "--after_or_before a"
-        command = f"../Viterbi.py --only_first_seq \
+        command = f"./Viterbi.py --only_first_seq \
                    --parent_input_dir {sub_path} \
                    --viterbi_threads {args.threads_for_viterbi} \
-                   {force_overwrite} \
-                   {after_or_before} \
-                   -viterbi_exe ../Viterbi"
+                   {overwrite} \
+                   {after_or_before}"
 
         command = re.sub("\s+", " ", command)
 
         submission_file_name = f"{sub_path}/slurm_submission.sh"
+
+        slurm_out_path = f"{sub_path}/slurm_out/"
+        if not os.path.exists(slurm_out_path):
+            os.makedirs(slurm_out_path)
+
         if args.slurm_viterbi:
             with open(submission_file_name, "w") as file:
                 file.write("#!/bin/bash\n")
                 file.write(f"#SBATCH -J viterbi_{os.path.basename(sub_path)}\n")
                 file.write(f"#SBATCH -N 1\n")
                 file.write(f"#SBATCH -n {args.threads_for_viterbi}\n")
-                file.write("#SBATCH --mem 2000")
-                file.write("#SBATCH --partition=batch\n")
-                file.write(f"#SBATCH -o {sub_path}/out.%j\n")
-                file.write(f"#SBATCH -e {sub_path}/err.%j\n")
+                file.write("#SBATCH --mem 2000\n")
+                file.write("#SBATCH --partition=snowball\n")
+                file.write(f"#SBATCH -o {sub_path}/slurm_out/out.%j\n")
+                file.write(f"#SBATCH -e {sub_path}/slurm_out/err.%j\n")
                 file.write("#SBATCH -t 02:00:00\n")
                 file.write(command)
 
@@ -196,7 +201,7 @@ if args.viterbi_path:
             subprocess.call(re.split("\s+", command))
 
 def load_run_stats() -> pd.DataFrame:
-    from add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
+    from helpers.add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
     stats = {}
     for sub_path in get_run_sub_dirs(args.eval_viterbi):
         run_stats = {}
