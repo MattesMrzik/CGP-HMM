@@ -112,11 +112,14 @@ def make_dataset(config):
 
 
         if config.bucket_by_seq_len:
+            sorted_seq_lens = sorted([len(seq) for seq in seqs])
+            print("sorted_seq_lens", sorted_seq_lens)
+            bucket_boundaries = [length +1 for i, length in enumerate(sorted_seq_lens) if (i +1) % config.batch_size == 0]
 
             # bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
-            number_of_equal_sized_batches = len(seqs)//config.batch_size
-            bucket_boundaries = [config.batch_size] * number_of_equal_sized_batches
-            bucket_batch_sizes = bucket_boundaries + [len(seqs) - number_of_equal_sized_batches * config.batch_size]
+            # number_of_equal_sized_batches = len(seqs)//config.batch_size
+            # bucket_boundaries = [config.batch_size] * number_of_equal_sized_batches
+            bucket_batch_sizes = [config.batch_size] * (len(bucket_boundaries) +1)
             print("bucket_boundaries", bucket_boundaries)
             print("bucket_batch_sizes", bucket_batch_sizes)
 

@@ -32,8 +32,8 @@ out_path = "../../cgp_data"
 
 # or read files in a passed dir
 fasta_dir_path = "../../cgp_data/good_exons_1"
-exons = ["exon_chr1_8364055_8364255", \
-        "exon_chr1_33625050_33625254"]
+# exons = ["exon_chr1_8364055_8364255", \
+#         "exon_chr1_33625050_33625254"]
 
 exons = [dir for dir in os.listdir(fasta_dir_path) if not os.path.isfile(os.path.join(fasta_dir_path, dir)) ]
 
@@ -47,25 +47,31 @@ get_exon_codons = lambda exon_string: get_exon_len(exon_string) // 3
 cfg_with_args["nCodons"] = [get_exon_codons(exon) for exon in exons]
 # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
 # cfg_with_args["learning_rate"] = [0.1, 0.01]
-cfg_with_args["priorA"] = [2]
-cfg_with_args["priorB"] = [2]
+cfg_with_args["priorA"] = [0,2,10,100]
+cfg_with_args["priorB"] = [0,2,10,100]
 cfg_with_args["global_log_epsilon"] = [1e-20]
-cfg_with_args["epoch"] = [1]
+cfg_with_args["epoch"] = [20]
 cfg_with_args["step"] = [8]
 cfg_with_args["clip_gradient_by_value"] = [5]
 cfg_with_args["prior_path"] = [" ../../cgp_data/priors/human/"]
-cfg_with_args["scale_prior"] = [1e-3]
+cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
 
 bind_args_together = [set([key]) for key in cfg_with_args.keys()]
 bind_args_together += [{"fasta", "nCodons"}]
 # bind_args_together += [{"exon_skip_init_weight", "nCodons"}]
 bind_args_together += [{"priorA", "priorB"}]
 
+# cfg_without_args_that_are_switched = '''
+# exon_skip_const
+# '''
+#
+# cfg_without_args_that_are_switched = re.split("\s+", cfg_without_args_that_are_switched)[1:-1]
 
 cfg_without_args = '''
-internal
+internal_exon_model
 my_initial_guess_for_parameters
 logsumexp
+bucket_by_seq_len
 '''
 cfg_without_args = re.split("\s+", cfg_without_args)[1:-1]
 
@@ -88,48 +94,86 @@ def write_cfgs_to_file(multi_run_dir):
     with open(cfg_without_args_path, "w") as out_file:
         json.dump(cfg_without_args, out_file)
 
-def run_training_without_viterbi(bind_args_together):
-    def merge(inp):
-        for i in range(len(inp)):
-            for j in range(i+1, len(inp)):
-                if len(inp[i] & inp[j]) > 0:
-                    inp.append(inp[i] | inp[j])
-                    break
-            else:
-                continue
-            break
-        inp.remove(inp[j])
-        inp.remove(inp[i])
+def merge_one_step(inp : list[set]):
+    for i in range(len(inp)):
+        for j in range(i+1, len(inp)):
+            if len(inp[i] & inp[j]) > 0:
+                inp.append(inp[i] | inp[j])
+                break
+        else:
+            continue
+        break
+    inp.remove(inp[j])
+    inp.remove(inp[i])
 
-    def no_overlapp(inp):
+def no_overlapp(inp : list[set]) -> bool:
         for i in range(len(inp)):
             for j in range(i+1, len(inp)):
                 if len(inp[i] & inp[j]) > 0:
                     return False
         return True
 
-    while not no_overlapp(bind_args_together):
-        merge(bind_args_together)
+def merge(inp : list):
+    while not no_overlapp(inp):
+        merge_one_step(inp)
 
+def zip_args(inp : list[set]) -> list[tuple[set, zip]]:
     zipped_args = []
-    for merged_args in bind_args_together:
+    for merged_args in inp:
         zipped_args.append((merged_args,(zip(*[cfg_with_args[key] for key in merged_args]))))
+    return zipped_args
 
-    for point_in_grid in product(*[arg[-1] for arg in zipped_args]):
+def get_grid_points(zipped_args):
+    return list(product(*[arg[-1] for arg in zipped_args]))
+
+
+def run_training_without_viterbi(bind_args_together):
+
+    merge(bind_args_together)
+    zipped_args = zip_args(bind_args_together)
+
+    grid_points = get_grid_points(zipped_args)
+
+    print("len get_grid_points", len(grid_points))
+
+    print("do you want to continue enter [y/n]")
+    while (x :=input()) not in "yn":
+        print("input was no y or n")
+    if x == "n":
+        print("exiting")
+        exit()
+
+    for point_in_grid in grid_points:
+        # ['global_log_epsilon', 'epoch', 'step', 'clip_gradient_by_value', 'prior_path', 'exon_skip_init_weight', 'fasta', 'nCodons', 'priorB', 'priorA']
         arg_names = [single_arg for arg in zipped_args for single_arg in arg[0]]
+        # [1e-20, 20, 8, 5, ' ../../cgp_data/priors/human/', -10, '../../cgp_data/good_exons_1/exon_chr1_1050426_1050591/combined.fasta', 55, 100, 100]
         args = [single for p in point_in_grid for single in p]
         pass_args = " ".join([f"--{arg_name} {arg}" for arg_name, arg in zip(arg_names, args)])
-        pass_args +=  " " + " ".join([f"--{arg}" for arg in cfg_without_args])
+        pass_args += " " + " ".join([f"--{arg}" for arg in cfg_without_args])
 
-        command = f"./main_programm.py {pass_args} --out_path {multi_run_dir}"
+
+        from Config import get_dir_path_from_fasta_nCodons_and_out_path
+
+        nCodons = args[arg_names.index("nCodons")]
+        fasta_path = args[arg_names.index("fasta")]
+        run_dir = get_dir_path_from_fasta_nCodons_and_out_path(multi_run_dir, nCodons, fasta_path)
+
+        if not os.path.exists(run_dir):
+            os.makedirs(run_dir)
+        err_path = f"{run_dir}/err.log"
+        out_path = f"{run_dir}/out.log"
+
+        command = f"./main_programm.py {pass_args} --passed_current_run_dir {run_dir}"
         print("running", command)
 
-        subprocess.call(re.split("\s+", command))
-        # status = os.system(command)
-        # exit_status = os.WEXITSTATUS(status)
-        # if exit_status != 0:
-        #     print("exit_status:", exit_status)
-        #     exit(1)
+        with open(out_path, "w") as out_handle:
+            with open(err_path, "w") as err_handle:
+                subprocess.call(re.split("\s+", command), stderr = err_handle, stdout = out_handle)
+                status = os.system(command)
+                exit_status = os.WEXITSTATUS(status)
+                if exit_status != 0:
+                    print("exit_status:", exit_status)
+                    exit(1)
 
 
 if args.train:
@@ -206,27 +250,30 @@ def load_run_stats() -> pd.DataFrame:
     for sub_path in get_run_sub_dirs(args.eval_viterbi):
         run_stats = {}
         # the genomic seq, true exon pos, viterbi guess is optional
-        true_alignemnt_path = f"{sub_path}/true_alignment.clw"
-        true_alignemnt = read_true_alignment_with_out_coords_seq(true_alignemnt_path)
+        for after_or_before in ["after", "before"]:
 
-        assert len(true_alignemnt) == 3, f"true_alignment of {sub_path} doesnt contain the viterbi guess"
-        aligned_seqs = {} # reference_seq, true_seq, viterbi_guess
-        for seq in true_alignemnt:
-            aligned_seqs[seq.id] = seq
-        assert len(aligned_seqs) == 3, "some seqs had same id"
+            true_alignemnt_path = f"{sub_path}/true_alignment_{after_or_before}.clw"
+            true_alignemnt = read_true_alignment_with_out_coords_seq(true_alignemnt_path)
 
-        run_stats["true_start"] = aligned_seqs["true_seq"].seq.index("E") # inclusive
-        run_stats["true_end"] = aligned_seqs["true_seq"].seq.index("r") # exclusive
+            assert len(true_alignemnt) == 3, f"{true_alignemnt_path} doesnt contain the viterbi guess"
+            aligned_seqs = {} # reference_seq, true_seq, viterbi_guess
+            for seq in true_alignemnt:
+                aligned_seqs[seq.id] = seq
+            assert len(aligned_seqs) == 3, "some seqs had same id"
 
-        for i in range(len(aligned_seqs["viterbi_guess"].seq)):
-            if aligned_seqs["viterbi_guess"].seq[i:i+2] == "AG":
-                run_stats["guessed_start"] = i+2
-            if aligned_seqs["viterbi_guess"].seq[i:i+2] == "GT":
-                run_stats["guessed_end"] = i
+            run_stats["true_start"] = aligned_seqs["true_seq"].seq.index("E") # inclusive
+            run_stats["true_end"] = aligned_seqs["true_seq"].seq.index("r") # exclusive
 
-        json_data = json.load(open(f"{sub_path}/passed_args.json"))
-        json_tuple = tuple(json_data.items())
-        stats[json_tuple] = run_stats, json_data
+            for i in range(len(aligned_seqs["viterbi_guess"].seq)):
+                if aligned_seqs["viterbi_guess"].seq[i:i+2] == "AG":
+                    run_stats["guessed_start"] = i+2
+                if aligned_seqs["viterbi_guess"].seq[i:i+2] == "GT":
+                    run_stats["guessed_end"] = i
+
+            json_data = json.load(open(f"{sub_path}/passed_args.json"))
+            json_data["after_or_before"] = after_or_before
+            json_tuple = tuple(json_data.items())
+            stats[json_tuple] = run_stats, json_data
 
 
     eval_cols = ["guessed_start", "guessed_end", "true_start", "true_end"]

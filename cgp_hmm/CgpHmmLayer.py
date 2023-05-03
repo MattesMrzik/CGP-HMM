@@ -83,6 +83,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             scale_count_state = result[2]
 
         if self.config.batch_begin_write_weights__layer_call_write_inputs:
+            print("deprecated 3049t85h")
+            exit()
             # os.system(f"rm {self.config['out_path']}/output/{self.config['nCodons']}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
             # also remove the file at beginning of batch
             # out_inputs = tf.argmax(inputs, axis = 2)
@@ -164,14 +166,12 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             self.add_metric(-loglik_mean, "-loglik_mean")
             loss = -loglik_mean # normed likelihood by batchsize
             if self.config.priorA:
-                A_prior = self.config.model.get_A_log_prior(self.C.A_kernel) * self.config.scale_prior
-                A_prior /= m
+                A_prior = self.config.model.get_A_log_prior(self.C.A_kernel) / m
                 self.add_metric(A_prior, "A_prior")
                 loss -= A_prior
             if self.config.priorB:
 
-                B_prior = self.config.model.get_B_log_prior(self.C.B_kernel) * self.config.scale_prior
-                B_prior /= m
+                B_prior = self.config.model.get_B_log_prior(self.C.B_kernel) / m
                 self.add_metric(B_prior, "B_prior")
                 loss -= B_prior
 

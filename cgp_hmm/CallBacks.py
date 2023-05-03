@@ -136,7 +136,7 @@ def get_call_backs(config, model):
 
 
     class RelativeEarlyStopping(tf.keras.callbacks.Callback):
-        def __init__(self, monitor = 'loss', min_delta_prop = 0.01, patience = 0):
+        def __init__(self, monitor = 'loss', min_delta_prop = 0.002, patience = 2):
             super().__init__()
             self.monitor = monitor
             self.min_delta_prop = min_delta_prop

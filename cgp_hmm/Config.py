@@ -4,8 +4,29 @@ import re
 import json
 import os
 import tensorflow as tf
-
 from Utility import append_time_ram_stamp_to_file
+import numpy as np
+
+
+def get_dir_path_from_fasta_nCodons_and_out_path(out_path, nCodons, fasta_path = None) -> str:
+    random_id = "".join(np.random.choice(list("qwertzuioplkjhgfdsayxcvbm0123456789"), size=4))
+    if fasta_path == None or fasta_path == -1:
+        return f"{out_path}/{get_date_str()}_{random_id}_generated_{nCodons}"
+    return f"{out_path}/{get_date_str()}_{random_id}_{get_exon_from_fasta_path(fasta_path)}_{nCodons}"
+
+def get_date_str() -> str:
+    from datetime import datetime
+    now = datetime.now()
+    date_string = now.strftime("%Y-%m-%d_%H-%M")
+    return date_string
+
+def get_exon_from_fasta_path(fasta_path) -> str:
+    try:
+        return re.search("exon_(.+?_\d+_\d+)", fasta_path).group(1)
+    except:
+        return "no-exon-name-found"
+
+
 class Config():
 
     def __init__(self):
@@ -17,7 +38,7 @@ class Config():
         self.add_args_from_parser()
 
         self.load_training_args()
-        self.get_current_run_dir(use_existing = True) # from viterbi.args
+        self.set_current_run_dir(use_existing = True) # from viterbi.args
         self.determine_attributes_that_only_depend_on_args()
         # self.asserts()
 
@@ -28,7 +49,7 @@ class Config():
         self.add_args_from_parser()
 
         self.load_training_args()
-        self.get_current_run_dir(use_existing = True) # from viterbi.args
+        self.set_current_run_dir(use_existing = True) # from viterbi.args
         self.determine_attributes_that_only_depend_on_args()
         self.asserts()
 
@@ -39,7 +60,7 @@ class Config():
         self.add_args_from_parser()
 
         self.load_training_args()
-        self.get_current_run_dir(use_existing = True) # from viterbi.args
+        self.set_current_run_dir(use_existing = True) # from viterbi.args
         self.determine_attributes_that_only_depend_on_args()
 
         self.asserts()
@@ -50,7 +71,7 @@ class Config():
     def init_for_training(self):
         self.get_args_for_training()
         self.add_args_from_parser()
-        self.get_current_run_dir()
+        self.set_current_run_dir()
         self.determine_attributes_that_only_depend_on_args()
         self.write_passed_args_to_file()
         # TODO do i also want to write determined args to seperate file?
@@ -100,27 +121,32 @@ class Config():
             if key not in self.args: # loading args only if viterbi.py is run, so i dont want to overwrite viterbi args passed to it with the values from main_programm.cfg
                 self.args[key] = value
 
-    def get_current_run_dir(self, use_existing = False):
-        if use_existing:
+################################################################################
+    def get_current_run_dir(self, use_existing = False) -> str:
+        if use_existing: # if args are loaded
             # the rhs needs to be called the same in the different modules that use use_existing = True
-            self.det_args["current_run_dir"] = self.parent_input_dir
-            return
+            return self.parent_input_dir
 
-        from datetime import datetime
+        if self.passed_current_run_dir: # if main is called from multi_run
+            return self.passed_current_run_dir
 
-        now = datetime.now()
-        date_string = now.strftime("%Y-%m-%d_%H-%M")
-        fasta_name = "generated"
-        if self.fasta_path:
-            try:
-                fasta_name = re.search("exon_(.+?_\d+_\d+)", self.fasta_path).group(1)
-                fasta_name = re.search("exon_(.+?_\d+_\d+)", self.fasta_path).group(1)
-            except:
-                fasta_name ="no-exon-name-found"
+        return get_dir_path_from_fasta_nCodons_and_out_path(self.out_path, self.nCodons, self.fasta_path)
 
-        self.det_args["current_run_dir"] = f"{self.out_path}/{date_string}_{fasta_name}_{self.nCodons}"
+
+    def set_current_run_dir(self, use_existing = False):
+        self.det_args["current_run_dir"] = self.get_current_run_dir(use_existing)
+        if self.called_determine_attributes_that_only_depend_on_args == True:
+            # if this succeeds, then determine_attributes_that_only_depend_on_args was
+            # called before this method. I want to avoid this
+            print("called determine_attributes_that_only_depend_on_args() before set_current_run_dir(). This is forbidden.")
+            exit(1)
+
+
+################################################################################
 
     def determine_attributes_that_only_depend_on_args(self):
+
+        self.called_determine_attributes_that_only_depend_on_args = True
         self.det_args["alphabet_size"] = 4
         self.det_args["write_return_sequnces"] = False
 
@@ -395,6 +421,7 @@ class Config():
         self.parser.add_argument('-AB', default = 'sd', help = '[sd (default), ds, sd, ss] specify the sparse or denseness of A and B')
         self.parser.add_argument('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
         self.parser.add_argument('-p', '--out_path', default = "../../cgp_data", help='path to paranet output dir')
+        self.parser.add_argument('--passed_current_run_dir', help='path to current run dir, if not passed one is generated')
         self.parser.add_argument('--path_to_MSAgen_dir', default= "../MSAgen", help = 'path to MSAgen_dir')
         self.parser.add_argument('--fasta_path', help = 'path to fasta file where the traning seqs are')
 
@@ -434,7 +461,6 @@ class Config():
         # prior
         self.parser.add_argument('--priorB', type = float, default = 0, help = 'use prior for B and scale the alphas')
         self.parser.add_argument('--priorA', type = float, default = 0, help = 'use prior for A and scale the alphas')
-        self.parser.add_argument('--scale_prior', type = float, default = 1, help = "scale the prior loss with this. bc it is not yet scaled by 1/m")
         self.parser.add_argument('--prior_path', default = "/home/mattes/Documents/cgp_data/priors/human/", help = ' path to the dir containing exon and intron .pbl')
         self.parser.add_argument('--ass_start', type = int, default = 5, help = 'len of prior pattern before AG ASS splice site')
         self.parser.add_argument('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
