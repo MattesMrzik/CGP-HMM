@@ -8,6 +8,8 @@ import os
 import json
 import re
 
+import numpy as np
+
 import Utility
 from Utility import run
 from CallBacks import get_call_backs
@@ -106,6 +108,8 @@ def make_dataset(config):
         # https://www.tensorflow.org/api_docs/python/tf/data/Dataset
         seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
 
+        seqs = np.random.shuffle(seqs)
+
         dataset = tf.data.Dataset.from_generator(
             lambda: seqs, tf.string, output_shapes=[None])
         padding_value = "_".join(["1.0" if i == index_of_terminal else "0.0" for i in range(config.model.number_of_emissions)])
@@ -115,6 +119,12 @@ def make_dataset(config):
             sorted_seq_lens = sorted([len(seq) for seq in seqs])
             print("sorted_seq_lens", sorted_seq_lens)
             bucket_boundaries = [length +1 for i, length in enumerate(sorted_seq_lens) if (i +1) % config.batch_size == 0]
+
+            # sort bucket_boundries, st the ones closest to the median seqlen come first,
+            # and buckets that differ much from the median are trained at the end
+
+            median_seq_len = np.median(sorted_seq_lens)
+            bucket_boundaries = sorted(bucket_boundaries, key = lambda x: abs(x - median_seq_len))
 
             # bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
             # number_of_equal_sized_batches = len(seqs)//config.batch_size

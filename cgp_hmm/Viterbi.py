@@ -215,29 +215,24 @@ def compare_guess_to_true_state_seq(trues, guesses):
     print(f"correct = {correct}, false = {false}, accuracy = {correct/(false+correct)}")
 
 def convert_kernel_files_to_matrices_files(dir_path):
+    print("convert_kernel_files_to_matrices_files   dir_path", dir_path)
     config.model.make_model()
-    I_path =f"{dir_path}/I.json"
-    A_path =f"{dir_path}/A.json"
-    B_path =f"{dir_path}/B.json"
 
-    # convert kenrnel files to matrices files
-    if not os.path.exists(A_path):
-        # from cell.py
-        def read_weights_from_file(kernel_dir):
-            with open(f"{kernel_dir}/I_kernel.json") as file:
-                I_kernel = np.array(json.load(file))
-            with open(f"{kernel_dir}/A_kernel.json") as file:
-                A_kernel = np.array(json.load(file))
-            with open(f"{kernel_dir}/B_kernel.json") as file:
-                B_kernel = np.array(json.load(file))
-            return I_kernel, A_kernel, B_kernel
+    # from cell.py
+    def read_weights_from_file(kernel_dir):
+        with open(f"{kernel_dir}/I_kernel.json") as file:
+            I_kernel = np.array(json.load(file))
+        with open(f"{kernel_dir}/A_kernel.json") as file:
+            A_kernel = np.array(json.load(file))
+        with open(f"{kernel_dir}/B_kernel.json") as file:
+            B_kernel = np.array(json.load(file))
+        return I_kernel, A_kernel, B_kernel
 
-        kernel_dir = f"{config.current_run_dir}/after_fit_para/"
-        I_kernel, A_kernel, B_kernel = read_weights_from_file(kernel_dir)
+    I_kernel, A_kernel, B_kernel = read_weights_from_file(dir_path)
 
-        config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
-        config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
-        config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)
+    config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
+    config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
+    config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)
 
 ################################################################################
 ################################################################################
@@ -463,6 +458,7 @@ def run_cc_viterbi(config, matr_dir):
     assert after_or_before in ["before", "after"], "Viterbi.py. Folder of matrices must begin with either 'before' or 'after'"
     out_path = f"--out_path {config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
     # command = f"{config.out_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq} {out_path}"
+    print("matr_dir passed to cc viterbi", matr_dir)
 
     # finding the Viterbi exe
     command = f"{config.viterbi_exe} -j {config.viterbi_threads} {seq_path} {only_first_seq} {out_path} --dir_path_for_para {matr_dir}"
@@ -479,10 +475,10 @@ def main(config, after_or_before = "a", overwrite_viterbi = True):
 
     after_or_before = "after_fit_para" if after_or_before == "a" else "before_fit_para"
     matr_dir = f"{config.current_run_dir}/{after_or_before}"
-    if not os.path.exists(f"{matr_dir}/A.json"):
-        print("start converting kernels to matrices")
-        convert_kernel_files_to_matrices_files(matr_dir)
-        print("done with converting kernels")
+    # if not os.path.exists(f"{matr_dir}/A.json"):
+    print("start converting kernels to matrices")
+    convert_kernel_files_to_matrices_files(matr_dir)
+    print("done with converting kernels")
 
     seqs_json_path = f"{config.fasta_path}.json"
     if not os.path.exists(seqs_json_path):

@@ -74,6 +74,7 @@ class Config():
         self.set_current_run_dir()
         self.determine_attributes_that_only_depend_on_args()
         self.write_passed_args_to_file()
+        self.print()
         # TODO do i also want to write determined args to seperate file?
         # this might only be necessray if determine_attributes_that_only_depend_on_args()
         # changes during development

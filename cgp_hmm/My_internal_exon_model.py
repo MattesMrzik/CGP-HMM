@@ -716,9 +716,9 @@ class My_Model(Model):
     ################################################################################
     def get_A_log_prior(self, A_kernel):
         self.A_prior_matrix = tf.cast(self.A_prior_matrix, dtype = self.config.dtype)
-        alphas = self.A_prior_matrix * self.config.priorA - 1
+        exponent = self.A_prior_matrix * self.config.priorA - 1
         log_prior = tf.math.log(tf.sparse.to_dense(self.A(A_kernel)) + tf.cast(self.config.log_prior_epsilon, self.config.dtype))
-        before_reduce_sum = (alphas * log_prior)
+        before_reduce_sum = (exponent * log_prior)
         return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.A_prior_indices))
 ################################################################################
     def get_B_prior_matrix(self):
@@ -731,9 +731,9 @@ class My_Model(Model):
             self.B_as_dense_to_file(f"{dir_path}/B_prior_matrix.csv", "dummy weight parameter", B = self.B_prior_matrix, with_description = self.config.nCodons < 20)
 ################################################################################
     def get_B_log_prior(self, B_kernel):
-        alphas = self.B_prior_matrix * self.config.priorB - 1
+        exponent = self.B_prior_matrix * self.config.priorB - 1
         log_prior = tf.math.log(self.B(B_kernel) + self.config.log_prior_epsilon)
-        before_reduce_sum = (alphas * log_prior)
+        before_reduce_sum = (exponent * log_prior)
         return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.B_prior_indices))
 ################################################################################
 ################################################################################
