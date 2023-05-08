@@ -42,8 +42,6 @@ class Config():
         self.determine_attributes_that_only_depend_on_args()
         # self.asserts()
 
-        self.prior_path = "../" + self.prior_path
-
         self.get_model()
 
     def init_for_add_str_to_matrices(self):
@@ -473,7 +471,7 @@ class Config():
         # prior
         self.parser.add_argument('--priorB', type = float, default = 0, help = 'use prior for B and scale the alphas')
         self.parser.add_argument('--priorA', type = float, default = 0, help = 'use prior for A and scale the alphas')
-        self.parser.add_argument('--prior_path', default = "/home/mattes/Documents/cgp_data/priors/human/", help = ' path to the dir containing exon and intron .pbl')
+        self.parser.add_argument('--prior_path', default = "../../cgp_data/priors/human/", help = ' path to the dir containing exon and intron .pbl')
         self.parser.add_argument('--ass_start', type = int, default = 5, help = 'len of prior pattern before AG ASS splice site')
         self.parser.add_argument('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
         self.parser.add_argument('--dss_start', type = int, default = 5, help = 'len of prior pattern before GT DSS splice site')

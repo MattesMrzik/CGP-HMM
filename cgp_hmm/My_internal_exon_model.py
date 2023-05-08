@@ -61,6 +61,7 @@ def non_class_A_log_prior(A, prior_matrix, prior_indices):
 
 def non_class_B_log_prior(B, prior_matrix, prior_indices, alphabet_size):
         alphas = tf.gather_nd(prior_matrix, prior_indices)
+
         tf.debugging.Assert(tf.math.reduce_all(alphas != 0), [alphas, tf.boolean_mask(prior_indices, alphas == 0)], name = "some_alphas_are_zero")
         tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alphas)), [alphas], name = "some_alphas_are_not_finite")
 
@@ -905,6 +906,9 @@ class My_Model(Model):
             initial_parameters.append(i)
             index = [self.emission_tuple_to_id(ho_emission), state_id]
             if p != -1:
+
+                if p == 0:
+                    p = 1e-3
                 self.B_priors.append(p)
                 self.B_prior_indices.append(index)
 
