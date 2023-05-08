@@ -7,6 +7,93 @@ import numpy as np
 import os
 import tensorflow as tf
 
+def non_class_A_log_prior(A, prior_matrix, prior_indices):
+        epsilon = 1e-2
+
+
+        alphas = tf.gather_nd(prior_matrix, prior_indices)
+        tf.debugging.Assert(tf.math.reduce_all(alphas != 0), [alphas], name = "some_alphas_are_zero")
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alphas)), [alphas], name = "some_alphas_are_not_finite")
+
+
+        ps = tf.gather_nd(A, prior_indices)
+
+        # this shouldnt be a formal requirement
+        tf.debugging.Assert(tf.math.reduce_all(ps != 0), [ps], name = "some_ps_are_zero")
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ps)), [ps], name = "some_ps_are_not_finite")
+
+
+        # epsilon = tf.cast(self.config.log_prior_epsilon, self.config.dtype)
+
+
+        def is_greater_0(tensor):
+            ones_mask = tf.math.greater(tensor, 0)
+            return ones_mask
+
+        def lbeta_row_positive_values(row):
+            return tf.math.lbeta(tf.boolean_mask(row, is_greater_0(row)))
+
+        # def lbeta_row_positive_values(row):
+        #     return tf.boolean_mask(row, is_greater_0(row))
+
+
+        log_z = tf.map_fn(lbeta_row_positive_values, prior_matrix)
+
+
+        log_z = tf.math.reduce_sum(tf.boolean_mask(log_z, tf.math.is_finite(log_z)))
+        # some rows dont have values, so only zeros, these have no prior and are therefore discared
+
+        # if a parameter gets zero lbeta yields inf
+        # and i cant just only take positive values since that might
+        # neglet some prior parameters since some might be zero,
+        # which is forbidden, and asserted above
+
+        # def is_close_to_one(tensor, epsilon):
+        #     ones_mask = tf.math.less_equal(tf.math.abs(tensor - 1), epsilon)
+        #     return ones_mask
+
+
+        # tf.print("rows_that_have_prior", rows_that_have_prior, summarize = -1)
+        # log_z = tf.math.reduce_sum(tf.boolean_mask(log_z, rows_that_have_prior))
+
+        before_reduce_sum = tf.math.xlogy((alphas-1), ps)
+        return tf.math.reduce_sum(before_reduce_sum) - log_z
+
+def non_class_B_log_prior(B, prior_matrix, prior_indices, alphabet_size):
+        alphas = tf.gather_nd(prior_matrix, prior_indices)
+        tf.debugging.Assert(tf.math.reduce_all(alphas != 0), [alphas, tf.boolean_mask(prior_indices, alphas == 0)], name = "some_alphas_are_zero")
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alphas)), [alphas], name = "some_alphas_are_not_finite")
+
+        ps = tf.gather_nd(B, prior_indices)
+
+        # this shouldnt be a formal requirement
+        tf.debugging.Assert(tf.math.reduce_all(ps != 0), [ps], name = "some_ps_are_zero")
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ps)), [ps], name = "some_ps_are_not_finite")
+
+        prior_matrix_transposed = tf.transpose(prior_matrix)
+        prior_matrix_transposed_reshaped = tf.reshape(prior_matrix_transposed, (-1, alphabet_size))
+
+        def is_greater_0(tensor):
+            ones_mask = tf.math.greater(tensor, 0)
+            return ones_mask
+
+        def lbeta_row_positive_values(row):
+            return tf.math.lbeta(tf.boolean_mask(row, is_greater_0(row)))
+
+        # def lbeta_row_positive_values(row):
+        #     return tf.boolean_mask(row, is_greater_0(row))
+
+        log_z = tf.map_fn(lbeta_row_positive_values, prior_matrix_transposed_reshaped)
+
+        log_z = tf.math.reduce_sum(tf.boolean_mask(log_z, tf.math.is_finite(log_z)))
+        # some rows dont have values, so only zeros, these have no prior and are therefore discared
+
+        # tf.print("rows_that_have_prior", rows_that_have_prior, summarize = -1)
+        # log_z = tf.math.reduce_sum(tf.boolean_mask(log_z, rows_that_have_prior))
+
+        before_reduce_sum = tf.math.xlogy((alphas-1), ps)
+
+        return tf.math.reduce_sum(before_reduce_sum) - log_z
 
 class My_Model(Model):
 
@@ -38,7 +125,7 @@ class My_Model(Model):
             self.prior = Prior(self.config)
 
         # I
-        self.I_indices = self.I_indices()
+        self.I_indices = self.get_I_indices()
 
         # A
         self.A_indices_for_weights, \
@@ -229,7 +316,7 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
     # TODO: maybe use small letters instead of capital ones
-    def I_indices(self):
+    def get_I_indices(self):
         only_start_in_ig5 = True
         if only_start_in_ig5:
             return [[0,0]]
@@ -674,6 +761,7 @@ class My_Model(Model):
 
         # A with initial parameters
         dense_shape = [self.number_of_states, self.number_of_states]
+        # i need the ones for const aswell since i apply softmax to get the stochastic paras from weights
         values = tf.concat([self.A_initial_weights_for_trainable_parameters, self.A_initial_weights_for_constants], axis = 0)
         # values = tf.cast(values, tf.float32)
 
@@ -699,42 +787,106 @@ class My_Model(Model):
         # tf.print("len self.A_prior_indices", len(self.A_prior_indices), summarize = -1)
         # tf.print("[1.0] * len(self.A_prior_indices)", [1.0] * len(self.A_prior_indices), summarize = -1)
 
-        prior_mask = tf.scatter_nd(self.A_prior_indices, \
+        self.A_prior_mask = tf.scatter_nd(self.A_prior_indices, \
                                    [1.0] * len(self.A_prior_indices), \
                                    dense_shape)
 
-        # extract prior probs for init matrix
-        self.A_prior_matrix = A_init_stochastic * prior_mask
+        self.A_prior_matrix = tf.cast(A_init_stochastic * self.A_prior_mask, dtype = self.config.dtype) * self.config.priorA
 
         # write results to file for inspection
         if self.config.nCodons < 10:
             dir_path = f"{self.config.current_run_dir}/prior_calculation"
             self.A_as_dense_to_file(f"{dir_path}/A_init.csv", "dummy weight parameter", A = A_init, with_description = self.config.nCodons < 20)
             self.A_as_dense_to_file(f"{dir_path}/A_init_stochastic.csv", "dummy weight parameter", A = A_init_stochastic, with_description = self.config.nCodons < 20)
-            self.A_as_dense_to_file(f"{dir_path}/A_prior_mask.csv", "dummy weight parameter", A = prior_mask, with_description = self.config.nCodons < 20)
+            self.A_as_dense_to_file(f"{dir_path}/A_prior_mask.csv", "dummy weight parameter", A = self.A_prior_mask, with_description = self.config.nCodons < 20)
             self.A_as_dense_to_file(f"{dir_path}/A_prior_matrix.csv", "dummy weight parameter", A = self.A_prior_matrix, with_description = self.config.nCodons < 20)
-    ################################################################################
+
+
+################################################################################
+    def assert_a_is_compatible_with_direchlet_prior(self):
+        '''
+        if there is a prior for a parameter in a row,
+        then every parameter has to have a prior in that row
+        '''
+
+        A_mask = tf.scatter_nd(self.A_indices, \
+                            [1.0] * len(self.A_indices), \
+                            (self.number_of_states, self.number_of_states))
+
+
+        # vectors. entry is number of parameters in row
+        # A_n_paras = tf.math.reduce_sum(A_mask, axis = -1)
+        # prior_n_paras = tf.math.reduce_sum(self.A_prior_mask, axis = -1)
+
+        def get_mask_rows_that_have_prior(tensor):
+            row_sums = tf.math.reduce_sum(tensor, axis = -1)
+            mask = tf.math.greater(row_sums, 0)
+            return mask
+
+        rows_that_matter = get_mask_rows_that_have_prior(self.A_prior_matrix)
+
+        diff_mask = A_mask - self.A_prior_mask
+        diff_rows_that_matter = tf.boolean_mask(diff_mask, rows_that_matter)
+
+        # diff_n_paras = A_n_paras - prior_n_paras
+        # tf.print("rows_that_matter", rows_that_matter)
+
+        # values_that_matter = tf.boolean_mask(diff_n_paras, rows_that_matter)
+        # tf.debugging.Assert(tf.math.reduce_all(values_that_matter == 0), [values_that_matter], name = "some_paras_havent_got_prior")
+
+        tf.debugging.Assert(tf.math.reduce_all(diff_rows_that_matter == 0), [diff_rows_that_matter], name = "some_A_paras_havent_got_prior")
+
+################################################################################
     def get_A_log_prior(self, A_kernel):
-        self.A_prior_matrix = tf.cast(self.A_prior_matrix, dtype = self.config.dtype)
-        exponent = self.A_prior_matrix * self.config.priorA - 1
-        log_prior = tf.math.log(tf.sparse.to_dense(self.A(A_kernel)) + tf.cast(self.config.log_prior_epsilon, self.config.dtype))
-        before_reduce_sum = (exponent * log_prior)
-        return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.A_prior_indices))
+        A_dense = tf.sparse.to_dense(self.A(A_kernel))
+        self.assert_a_is_compatible_with_direchlet_prior()
+        return non_class_A_log_prior(A_dense, self.A_prior_matrix, self.A_prior_indices)
+
 ################################################################################
     def get_B_prior_matrix(self):
         dense_shape = [self.number_of_emissions, self.number_of_states]
         self.B_prior_matrix = tf.scatter_nd(self.B_prior_indices, self.B_priors, shape = dense_shape)
-        self.B_prior_matrix = tf.cast(self.B_prior_matrix, dtype = self.config.dtype)
+        self.B_prior_matrix = tf.cast(self.B_prior_matrix, dtype = self.config.dtype) * self.config.priorB
 
         if self.config.nCodons < 10:
             dir_path = f"{self.config.current_run_dir}/prior_calculation"
             self.B_as_dense_to_file(f"{dir_path}/B_prior_matrix.csv", "dummy weight parameter", B = self.B_prior_matrix, with_description = self.config.nCodons < 20)
 ################################################################################
+    def assert_b_is_compatible_with_direchlet_prior(self):
+        B_mask = tf.scatter_nd(self.B_indices, \
+                            [1.0] * len(self.B_indices), \
+                            (self.number_of_emissions, self.number_of_states))
+
+        B_prior_mask = tf.scatter_nd(self.B_prior_indices, \
+                            [1.0] * len(self.B_priors), \
+                            (self.number_of_emissions, self.number_of_states))
+
+        other_shape = (self.number_of_states, -1, self.config.alphabet_size)
+        reshaped_B_mask = tf.reshape(tf.transpose(B_mask), other_shape)
+        reshaped_prior_mask = tf.reshape(tf.transpose(B_prior_mask), other_shape)
+        reshaped_B_prior_matrix = tf.reshape(tf.transpose(self.B_prior_matrix), other_shape)
+
+
+        def get_mask_rows_that_have_prior(tensor):
+            row_sums = tf.math.reduce_sum(tensor, axis = -1)
+            mask = tf.math.greater(row_sums, 0)
+            return mask
+
+        rows_that_matter = get_mask_rows_that_have_prior(reshaped_B_prior_matrix)
+
+        diff_mask = reshaped_B_mask - reshaped_prior_mask
+        diff_rows_that_matter = tf.boolean_mask(diff_mask, rows_that_matter)
+        tf.debugging.Assert(tf.math.reduce_all(diff_rows_that_matter == 0), [diff_rows_that_matter], name = "some_B_paras_havent_got_prior", summarize = -1)
+################################################################################
     def get_B_log_prior(self, B_kernel):
-        exponent = self.B_prior_matrix * self.config.priorB - 1
-        log_prior = tf.math.log(self.B(B_kernel) + self.config.log_prior_epsilon)
-        before_reduce_sum = (exponent * log_prior)
-        return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.B_prior_indices))
+        self.assert_b_is_compatible_with_direchlet_prior()
+
+        return non_class_B_log_prior(self.B(B_kernel), self.B_prior_matrix, self.B_prior_indices, self.config.alphabet_size)
+
+        # exponent = self.B_prior_matrix * self.config.priorB - 1
+        # log_prior = tf.math.log(self.B(B_kernel) + self.config.log_prior_epsilon)
+        # before_reduce_sum = (exponent * log_prior)
+        # return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.B_prior_indices))
 ################################################################################
 ################################################################################
 ################################################################################
@@ -929,8 +1081,10 @@ class My_Model(Model):
             emission_matrix = tf.reshape(emission_matrix, shape = shape_to_apply_softmax_to)
             mask            = tf.reshape(mask,            shape = shape_to_apply_softmax_to)
             # softmax
-            softmax_layer = tf.keras.layers.Softmax(axis = 1) # using layer here, bc it has a mask
-            emission_matrix = softmax_layer(emission_matrix, mask)# this leaves [0.25, 0.25, 0.25, 0.25] in columns where the mask has only zeros
+            softmax_layer = tf.keras.layers.Softmax(axis = 1) # using layer here, bc it has a mask. or rather i can softmax along axis 1
+            emission_matrix = softmax_layer(emission_matrix, mask)
+            # ^ this leaves [0.25, 0.25, 0.25, 0.25] in columns where the mask has only zeros
+            # or does it?
             # reshape
             emission_matrix = tf.reshape(emission_matrix, shape = dense_shape, name = "B_dense")
             #removing the [0.25, 0.25, 0.25, 0.25] artefact

@@ -108,7 +108,7 @@ def make_dataset(config):
         # https://www.tensorflow.org/api_docs/python/tf/data/Dataset
         seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
 
-        seqs = np.random.shuffle(seqs)
+        np.random.shuffle(seqs)
 
         dataset = tf.data.Dataset.from_generator(
             lambda: seqs, tf.string, output_shapes=[None])

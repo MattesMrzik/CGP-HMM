@@ -33,6 +33,19 @@ class Config():
         self.args = {}
         self.det_args = {}
 
+    def init_for_convert_kernel(self):
+        self.get_args_for_add_str_to_matrices()
+        self.add_args_from_parser()
+
+        self.load_training_args()
+        self.set_current_run_dir(use_existing = True) # from viterbi.args
+        self.determine_attributes_that_only_depend_on_args()
+        # self.asserts()
+
+        self.prior_path = "../" + self.prior_path
+
+        self.get_model()
+
     def init_for_add_str_to_matrices(self):
         self.get_args_for_add_str_to_matrices()
         self.add_args_from_parser()
@@ -178,9 +191,6 @@ class Config():
         self.det_args["gen_len"] = 3 * self.nCodons
 
         self.det_args["seq_len"] = self.seq_len if self.seq_len else ((self.nCodons * 3 + 6 + 2) * 2)
-
-        print('self.det_args["seq_len"]', self.det_args["seq_len"])
-        print('self.seq_len',  self.seq_len)
 
         #                                     start and stop, i want at least one ig 3' and 5'
         assert self.seq_len >= self.gen_len + 6               + 2, f"self.seq_len ({self.seq_len}) < self.gen_len ({self.gen_len}) + 6 + 2"
@@ -406,6 +416,7 @@ class Config():
 
         if (self.priorA or self.priorB) and self.internal_exon_model:
             assert self.nCodons > 1, "when using prior and internal model you must use more than 1 codon since for 1 codon there are no priors for the transition matrix"
+            assert self.internal_exon_model, "if passing prior you must use internal_exon_model"
 
         if self.calc_parameter_diff == True: # not simply just if bool: bc it can be -1
             assert self.write_matrices_after_fit, "if calc_parameter_diff you must pass write_matrices_after_fit"

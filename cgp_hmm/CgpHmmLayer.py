@@ -163,7 +163,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         if self.config.priorB or self.config.priorA:
 
             m = self.config.nSeqs
-            self.add_metric(-loglik_mean, "-loglik_mean")
+            self.add_metric(loglik_mean, "loglik_mean")
             loss = -loglik_mean # normed likelihood by batchsize
             if self.config.priorA:
                 A_prior = self.config.model.get_A_log_prior(self.C.A_kernel) / m

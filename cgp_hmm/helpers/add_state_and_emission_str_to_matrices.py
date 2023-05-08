@@ -23,7 +23,7 @@ def add_description_to_A(model, path_to_json_file : str) -> None:
     df.columns = states_strs
     df["from_state"] = states_strs
     df = df.set_index("from_state")
-    out_file_path = re.sub(".json","_with_added_description.csv", path_to_json_file)
+    out_file_path = re.sub(".json","_description.csv", path_to_json_file)
     df.to_csv(out_file_path, sep = ";", header = True, index = True)
 
 def add_description_to_B(model, path_to_json_file : str) -> None:

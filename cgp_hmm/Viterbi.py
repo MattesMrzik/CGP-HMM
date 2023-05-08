@@ -8,6 +8,7 @@ from Bio import SeqIO, AlignIO
 from Bio.Align import MultipleSeqAlignment
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
+from helpers.convert_kernels_to_matrices import convert_kernel_files_to_matrices_files
 
 def get_true_state_seqs_from_true_MSA(config):
     # calc true state seq from true MSA
@@ -214,25 +215,7 @@ def compare_guess_to_true_state_seq(trues, guesses):
             correct += 1
     print(f"correct = {correct}, false = {false}, accuracy = {correct/(false+correct)}")
 
-def convert_kernel_files_to_matrices_files(dir_path):
-    print("convert_kernel_files_to_matrices_files   dir_path", dir_path)
-    config.model.make_model()
 
-    # from cell.py
-    def read_weights_from_file(kernel_dir):
-        with open(f"{kernel_dir}/I_kernel.json") as file:
-            I_kernel = np.array(json.load(file))
-        with open(f"{kernel_dir}/A_kernel.json") as file:
-            A_kernel = np.array(json.load(file))
-        with open(f"{kernel_dir}/B_kernel.json") as file:
-            B_kernel = np.array(json.load(file))
-        return I_kernel, A_kernel, B_kernel
-
-    I_kernel, A_kernel, B_kernel = read_weights_from_file(dir_path)
-
-    config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
-    config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
-    config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)
 
 ################################################################################
 ################################################################################
@@ -524,7 +507,6 @@ def main(config, after_or_before = "a", overwrite_viterbi = True):
 if __name__ == "__main__":
 
     from Config import Config
-    import numpy as np
 
     print("started making config in viterbi.py")
     config = Config()

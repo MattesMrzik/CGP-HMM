@@ -1034,4 +1034,4 @@ def create_layer_without_recursive_call():
 ################################################################################
 if __name__ == "__main__":
     from Config import Config
-    config = Config("without_priors")
+    config = Config()
