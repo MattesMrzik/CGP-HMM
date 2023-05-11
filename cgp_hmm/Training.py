@@ -107,41 +107,85 @@ def make_dataset(config):
         # Use tf.py_function, which allows you to write arbitrary Python code but will generally result in worse performance than 1). For example:
         # https://www.tensorflow.org/api_docs/python/tf/data/Dataset
         seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
+        config.nSeqs = len(seqs)
+
 
         np.random.shuffle(seqs)
 
-        dataset = tf.data.Dataset.from_generator(
-            lambda: seqs, tf.string, output_shapes=[None])
+        def get_initial_data_set():
+            dataset = tf.data.Dataset.from_generator(lambda: seqs, \
+                                                     tf.string, \
+                                                     output_shapes=[None])
+            return dataset
+
         padding_value = "_".join(["1.0" if i == index_of_terminal else "0.0" for i in range(config.model.number_of_emissions)])
 
 
         if config.bucket_by_seq_len:
-            sorted_seq_lens = sorted([len(seq) for seq in seqs])
-            print("sorted_seq_lens", sorted_seq_lens)
-            bucket_boundaries = [length +1 for i, length in enumerate(sorted_seq_lens) if (i +1) % config.batch_size == 0]
 
-            # sort bucket_boundries, st the ones closest to the median seqlen come first,
-            # and buckets that differ much from the median are trained at the end
+            def batch_sizes_are_unequal_one(dataset):
+                for batch_id, batch in enumerate(dataset):
+                    if len(batch) < 2:
+                        return False
+                return True
 
-            median_seq_len = np.median(sorted_seq_lens)
-            bucket_boundaries = sorted(bucket_boundaries, key = lambda x: abs(x - median_seq_len))
+            def bucket_seqs_of_dataset(dataset, batch_size):
+                sorted_seq_lens = sorted([len(seq) for seq in seqs])
+                print("sorted_seq_lens", sorted_seq_lens)
+                bucket_boundaries = [length +1 for i, length in enumerate(sorted_seq_lens) if (i +1) % batch_size == 0]
 
-            # bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
-            # number_of_equal_sized_batches = len(seqs)//config.batch_size
-            # bucket_boundaries = [config.batch_size] * number_of_equal_sized_batches
-            bucket_batch_sizes = [config.batch_size] * (len(bucket_boundaries) +1)
-            print("bucket_boundaries", bucket_boundaries)
-            print("bucket_batch_sizes", bucket_batch_sizes)
+                # sort bucket_boundries, st the ones closest to the median seqlen come first,
+                # and buckets that differ much from the median are trained at the end
 
-            dataset = dataset.bucket_by_sequence_length(
-                element_length_func = lambda elem: tf.shape(elem)[0],
-                bucket_boundaries = bucket_boundaries,
-                padded_shapes = tf.TensorShape(None),  # Each sequence has 2 values
-                padding_values = padding_value,
-                bucket_batch_sizes = bucket_batch_sizes)
+                median_seq_len = np.median(sorted_seq_lens)
+                bucket_boundaries = sorted(bucket_boundaries, key = lambda x: abs(x - median_seq_len))
+
+                # bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
+                # number_of_equal_sized_batches = len(seqs)//config.batch_size
+                # bucket_boundaries = [config.batch_size] * number_of_equal_sized_batches
+                bucket_batch_sizes = [batch_size] * (len(bucket_boundaries) +1)
+                print("bucket_boundaries", bucket_boundaries)
+                print("bucket_batch_sizes", bucket_batch_sizes)
+
+                dataset = dataset.bucket_by_sequence_length(
+                    element_length_func = lambda elem: tf.shape(elem)[0],
+                    bucket_boundaries = bucket_boundaries,
+                    padded_shapes = tf.TensorShape(None),  # Each sequence has 2 values
+                    padding_values = padding_value,
+                    bucket_batch_sizes = bucket_batch_sizes)
+
+                return dataset
+
+            adjusted_batch_size = config.batch_size
+
+            dataset = get_initial_data_set()
+            dataset = bucket_seqs_of_dataset(dataset, adjusted_batch_size)
+
+            while not batch_sizes_are_unequal_one(dataset):
+                adjusted_batch_size += 1
+                dataset = get_initial_data_set()
+                dataset = bucket_seqs_of_dataset(dataset, adjusted_batch_size)
+
+            print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a batch beeing only a single seq")
+
 
         if not config.bucket_by_seq_len:
-            dataset = dataset.padded_batch(config.batch_size, None, padding_value)
+
+            def get_adjusted_batch_size(nSeqs, initial_batch_size):
+                adjusted_batch_size = initial_batch_size
+                while nSeqs % adjusted_batch_size == 1:
+                    adjusted_batch_size += 1
+                return adjusted_batch_size
+            adjusted_batch_size = get_adjusted_batch_size(config.nSeqs, config.batch_size)
+            print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a batch beeing only a single seq")
+            dataset = get_initial_data_set()
+            dataset = dataset.padded_batch(adjusted_batch_size, None, padding_value)
+
+
+            # dataset = dataset.padded_batch(config.batch_size, None, padding_value)
+            # if len(seqs) % config.batch_size == 1:
+            #     print(f"batch {batch_id} has only one seq, choose different batchsize")
+            #     exit()
 
         dataset = dataset.map(lambda x: tf.strings.to_number(tf.strings.split(x,'_')))
         dataset = dataset.map(lambda x: x.to_tensor()) # bc it is ragged
@@ -157,7 +201,7 @@ def make_dataset(config):
         export_seqs_json = True
         if os.path.exists(seqs_json_path):
             if config.manual_passed_fasta:
-                export_seqs_json = False
+                export_seqs_js
             # not manual passed fasta
             if config.dont_generate_new_seqs:
                 export_seqs_json = False
@@ -166,7 +210,6 @@ def make_dataset(config):
             with open(seqs_json_path, "w") as out_file:
                 json.dump(seqs_out, out_file)
 
-    config.nSeqs = len(seqs)
 
     append_time_ram_stamp_to_file(f"Training.make_dataset() end   {run_id}", config.bench_path, start)
     return dataset, seqs
