@@ -6,9 +6,16 @@ import pandas as pd
 
 def find_ag_gt_pairs(sequence, min_distance, max_distance):
     ag_gt_pairs = []
+    in_frame_stop_codon = [False, False, False]
     for i in range(len(sequence)-1):
         if sequence[i:i+2] == "AG":
             for j in range(i+2, min(i+max_distance+1, len(sequence)-1)):
+                if j <= len(sequence) -2:
+                    triple = sequence[j:j+3]
+                    if triple in ["TAA", "TGA", "TAG"]:
+                        in_frame_stop_codon[j % 3] = True
+                        if all(in_frame_stop_codon):
+                            break
                 if sequence[j:j+2] == "GT":
                     separation = j-i-2
                     if separation >= min_distance and separation < max_distance:
