@@ -33,6 +33,16 @@ class Config():
         self.args = {}
         self.det_args = {}
 
+    def init_for_matrix_diff(self):
+        self.get_args_for_add_str_to_matrices()
+        self.add_args_from_parser()
+
+        self.load_training_args()
+        self.set_current_run_dir(use_existing = True) # from viterbi.args
+        self.determine_attributes_that_only_depend_on_args()
+
+        self.get_model(only_prepare = True)
+
     def init_for_convert_kernel(self):
         self.get_args_for_add_str_to_matrices()
         self.add_args_from_parser()

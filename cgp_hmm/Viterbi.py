@@ -460,7 +460,7 @@ def main(config, after_or_before = "a", overwrite_viterbi = True):
     matr_dir = f"{config.current_run_dir}/{after_or_before}"
     # if not os.path.exists(f"{matr_dir}/A.json"):
     print("start converting kernels to matrices")
-    convert_kernel_files_to_matrices_files(matr_dir)
+    convert_kernel_files_to_matrices_files(config, matr_dir)
     print("done with converting kernels")
 
     seqs_json_path = f"{config.fasta_path}.json"
