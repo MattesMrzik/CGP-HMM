@@ -4,6 +4,9 @@ import numpy as np
 def convert_kernel_files_to_matrices_files(config, dir_path):
     print("called convert_kernel_files_to_matrices_files. dir_path =", dir_path)
 
+    if not config.model.is_made:
+        config.model.make_model()
+
     # from cell.py
     def read_weights_from_file(kernel_dir):
             with open(f"{kernel_dir}/I_kernel.json") as file:

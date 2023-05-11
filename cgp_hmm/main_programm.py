@@ -55,7 +55,7 @@ def main(config):
             from_before_and_after_json_matrices_calc_diff_and_write_csv(config)
         append_time_ram_stamp_to_file(f"main_programm from_before_and_after_json_matrices_calc_diff_and_write_csv end", config.bench_path, start)
 
-    # export_to_dot_and_png
+    # export_to_dot_and_png2023-05-09_15-27_ycbm_chr1_1043537_1043732_65
     if config.after_fit_png:
         start = time.perf_counter()
         append_time_ram_stamp_to_file(f"main_programm export after fit to dot start", config.bench_path, start)
@@ -70,13 +70,13 @@ def main(config):
         Viterbi.main(config)
 
 
-    config.write_passed_args_to_file()
 
     # this may lead to confusion
     # most_recent_call_dir = f"{config.current_run_dir}/../most_recent_call_dir"
     # if not os.path.exists(most_recent_call_dir):
     #     os.makedirs(most_recent_call_dir)
     # os.system(f"cp -r {config.current_run_dir}/* {most_recent_call_dir}")
+
 
 if __name__ == '__main__':
     from Config import Config
