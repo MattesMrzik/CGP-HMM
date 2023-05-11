@@ -7,9 +7,7 @@
 import os
 import pandas as pd
 
-from convert_kernels_to_matrices import convert_kernel_files_to_matrices_files
-
-
+from add_state_and_emission_str_to_matrices import call_for_every_A_and_B_found_in_subdirs
 def diff_of_csv_with_description(before_path, after_path, output_path):
 
     # Read in the two input CSV files
@@ -30,14 +28,17 @@ if __name__ == "__main__":
     config = Config()
     config.init_for_matrix_diff()
 
-    for transition_or_emissions in "A":
+    for transition_or_emissions in "AB":
         before = f"{config.parent_input_dir}/before_fit_para/{transition_or_emissions}_with_description.csv"
         after = f"{config.parent_input_dir}/after_fit_para/{transition_or_emissions}_with_description.csv"
 
+        # if not os.path.exists(before):
+        #     convert_kernel_files_to_matrices_files(config, os.path.dirname(before))
+        # if not os.path.exists(after):
+        #     convert_kernel_files_to_matrices_files(config, os.path.dirname(after))
+
         if not os.path.exists(before):
-            convert_kernel_files_to_matrices_files(config, os.path.dirname(before))
-        if not os.path.exists(after):
-            convert_kernel_files_to_matrices_files(config, os.path.dirname(after))
+            call_for_every_A_and_B_found_in_subdirs(config.model, config.parent_input_dir)
 
         out_dir_path = f"{config.parent_input_dir}/diff_para"
         if not os.path.exists(out_dir_path):
