@@ -12,15 +12,15 @@ def non_class_A_log_prior(A, prior_matrix, prior_indices):
 
 
         alphas = tf.gather_nd(prior_matrix, prior_indices)
-        tf.debugging.Assert(tf.math.reduce_all(alphas != 0), [alphas], name = "some_alphas_are_zero")
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alphas)), [alphas], name = "some_alphas_are_not_finite")
+        tf.debugging.Assert(tf.math.reduce_all(alphas != 0), [alphas], name = "some_A_alphas_are_zero")
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alphas)), [alphas], name = "some_A_alphas_are_not_finite")
 
 
         ps = tf.gather_nd(A, prior_indices)
 
         # this shouldnt be a formal requirement
-        tf.debugging.Assert(tf.math.reduce_all(ps != 0), [ps], name = "some_ps_are_zero")
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ps)), [ps], name = "some_ps_are_not_finite")
+        tf.debugging.Assert(tf.math.reduce_all(ps != 0), [ps], name = "some_A_ps_are_zero")
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ps)), [ps], name = "some_A_ps_are_not_finite")
 
 
         # epsilon = tf.cast(self.config.log_prior_epsilon, self.config.dtype)
@@ -62,14 +62,14 @@ def non_class_A_log_prior(A, prior_matrix, prior_indices):
 def non_class_B_log_prior(B, prior_matrix, prior_indices, alphabet_size):
         alphas = tf.gather_nd(prior_matrix, prior_indices)
 
-        tf.debugging.Assert(tf.math.reduce_all(alphas != 0), [alphas, tf.boolean_mask(prior_indices, alphas == 0)], name = "some_alphas_are_zero")
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alphas)), [alphas], name = "some_alphas_are_not_finite")
+        tf.debugging.Assert(tf.math.reduce_all(alphas != 0), [alphas, tf.boolean_mask(prior_indices, alphas == 0)], name = "some_B_alphas_are_zero")
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alphas)), [alphas], name = "some_B_alphas_are_not_finite")
 
         ps = tf.gather_nd(B, prior_indices)
 
         # this shouldnt be a formal requirement
-        tf.debugging.Assert(tf.math.reduce_all(ps != 0), [ps], name = "some_ps_are_zero")
-        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ps)), [ps], name = "some_ps_are_not_finite")
+        tf.debugging.Assert(tf.math.reduce_all(ps != 0), [ps, tf.boolean_mask(prior_indices, ps == 0)], name = "some_B_ps_are_zero")
+        tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ps)), [ps], name = "some_B_ps_are_not_finite")
 
         prior_matrix_transposed = tf.transpose(prior_matrix)
         prior_matrix_transposed_reshaped = tf.reshape(prior_matrix_transposed, (-1, alphabet_size))
@@ -101,6 +101,8 @@ class My_Model(Model):
     # this overwrites the init from Model. alternatively i can omit it
     def __init__(self, config):
         Model.__init__(self, config)
+        self.is_prepared = False
+        self.is_made = False
 
     def prepare_model(self):
         self.insert_low = 0 if self.config.inserts_at_intron_borders else 1
@@ -117,7 +119,7 @@ class My_Model(Model):
         self.A_is_sparse = self.config.A_is_sparse
         self.B_is_dense = self.config.B_is_dense
         self.B_is_sparse = self.config.B_is_sparse
-
+        self.is_prepared = True
 
     def make_model(self):
 
@@ -177,6 +179,8 @@ class My_Model(Model):
 
         if self.config.use_weights_for_consts:
             self.B_indices = sorted(self.B_indices)
+
+        self.is_made = True
 
 ################################################################################
     def B_weight_tuple_id(self, tuple):
@@ -726,6 +730,9 @@ class My_Model(Model):
                 # TODO if prior is zero maybe dont set initial para to zero
                 # TODO are pseudo count also added to non occuring patterns?
 
+                # prior 0 is forbidden since dirichlet uses alpha > 0
+                # so i set zero priors and zero init paras to epsilon in downstream code
+
         if state.startswith("do_"):
             assert self.config.donor_pattern_len < 10, "donor pattern len >=10 gubi2t9w0gurz8"
             if state[-1] == "0":
@@ -903,6 +910,10 @@ class My_Model(Model):
 
         for ho_emission in self.get_emissions_that_fit_ambiguity_mask(mask, x_bases_must_preceed, state_id):
             p,i =  self.prior_and_initial_parameter_for_state_and_emission(state, self.emission_tuple_to_str(ho_emission))
+
+            if i == 0:
+                i = 1e-3
+
             initial_parameters.append(i)
             index = [self.emission_tuple_to_id(ho_emission), state_id]
             if p != -1:
