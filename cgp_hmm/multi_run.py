@@ -18,6 +18,7 @@ def get_multi_run_config():
 
     parser = argparse.ArgumentParser(description='Config module description')
     parser.add_argument('--train', action = 'store_true', help='train with args specified in the methods in this module and write output to calculated path based on current time')
+    parser.add_argument('--continue_training', help='path to multi_run dir for which to continue training')
     parser.add_argument('--viterbi_path', help='path to multi_run dir for which to run viterbi')
     parser.add_argument('--use_init_weights_for_viterbi', action = 'store_true', help = 'use the initial weights instead of the learned ones')
     parser.add_argument('--slurm_viterbi', action = 'store_true', help = 'submit Viterbi.py calls to slurm')
@@ -34,7 +35,7 @@ def get_multi_run_config():
     # or create 2 modes in bench one for training on apphub and one for running viterbi and evaluating
 
 
-    assert args.train or args.viterbi_path or args.eval_viterbi, "you must pass either --train or --viterbi_path or --eval_viterbi"
+    assert args.train or args.viterbi_path or args.eval_viterbi or args.continue_training, "you must pass either --train or --viterbi_path or --eval_viterbi"
 
     return args
 
@@ -65,17 +66,22 @@ def get_cfg_with_args():
     get_exon_len = lambda exon_string: (int(exon_string.split("_")[-1]) - int(exon_string.split("_")[-2]))
     get_exon_codons = lambda exon_string: get_exon_len(exon_string) // 3
 
+
+    #  i can also pass the same arg to a parameter twice and bind it with another parameter to achieve
+    # something like manual defined grid points
     cfg_with_args["nCodons"] = [get_exon_codons(exon) for exon in exons]
     # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
-    cfg_with_args["priorA"] = [0,2,10,100]
-    cfg_with_args["priorB"] = [0,2,10,100]
+    cfg_with_args["priorA"] = [1,0,3]
+    cfg_with_args["priorB"] = [1,0,3]
     cfg_with_args["global_log_epsilon"] = [1e-20]
     cfg_with_args["epoch"] = [20]
-    cfg_with_args["step"] = [8]
+    cfg_with_args["batch_size"] = [16]
+    cfg_with_args["step"] = [16]
     cfg_with_args["clip_gradient_by_value"] = [5]
     cfg_with_args["prior_path"] = [" ../../cgp_data/priors/human/"]
     cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
+
 
     return cfg_with_args
 
@@ -148,11 +154,15 @@ def zip_args(inp : list[set]) -> list[tuple[set, zip]]:
         zipped_args.append((merged_args,(zip(*[get_cfg_with_args()[key] for key in merged_args]))))
     return zipped_args
 
-def get_grid_points(zipped_args):
+def get_grid_points(zipped_args : list[tuple[set, zip]]) -> list[list[list]]:
+    '''return list of grid points.
+    a gridpoint is a list of parameters.
+    a single parameter is wrapped in a list.
+    binded parameters are in the same list'''
     return list(product(*[arg[-1] for arg in zipped_args]))
 
 
-def run_training_without_viterbi():
+def run_training_without_viterbi(args):
 
     binded_arg_names = get_bind_args_together(get_cfg_with_args())
     multi_run_dir = get_and_make_dir()
@@ -161,6 +171,11 @@ def run_training_without_viterbi():
     # [{'global_log_epsilon'}, {'epoch'}, {'step'}, {'clip_gradient_by_value'}, {'prior_path'}, {'exon_skip_init_weight'}, {'nCodons', 'fasta'}, {'priorB', 'priorA'}]
     merge(binded_arg_names)
     zipped_args = zip_args(binded_arg_names)
+
+    arg_names = [single_arg for arg in zipped_args for single_arg in arg[0]]
+
+    with open(f"{multi_run_dir}/arg_names.json", "w") as arg_names_file:
+        json.dump(arg_names, arg_names_file)
 
     grid_points = get_grid_points(zipped_args)
 
@@ -173,20 +188,36 @@ def run_training_without_viterbi():
         print("exiting")
         exit()
 
-    for point_in_grid in grid_points:
+    with open(f"{multi_run_dir}/grid_points.json", "w") as grid_point_file:
+        json.dump(grid_points, grid_point_file)
+
+    with open(f"{multi_run_dir}/todo_grid_points.json", "w") as grid_point_file:
+        json.dump(grid_points, grid_point_file)
+
+    args.continue_training = multi_run_dir
+    continue_training(args)
+
+def continue_training(parsed_args):
+
+    with open(f"{parsed_args.continue_training}/todo_grid_points.json", "r") as grid_point_file:
+        grid_points = json.load(grid_point_file)
+
+    with open(f"{parsed_args.continue_training}/arg_names.json", "r") as arg_names_file:
         # ['global_log_epsilon', 'epoch', 'step', 'clip_gradient_by_value', 'prior_path', 'exon_skip_init_weight', 'fasta', 'nCodons', 'priorB', 'priorA']
-        arg_names = [single_arg for arg in zipped_args for single_arg in arg[0]]
+        arg_names = json.load(arg_names_file)
+
+    for i, point_in_grid in enumerate(grid_points):
+        print(f"calculating point in hyperparameter grid {i}/{len(grid_points)}")
         # [1e-20, 20, 8, 5, ' ../../cgp_data/priors/human/', -10, '../../cgp_data/good_exons_1/exon_chr1_1050426_1050591/combined.fasta', 55, 100, 100]
         args = [single for p in point_in_grid for single in p]
         pass_args = " ".join([f"--{arg_name} {arg}" for arg_name, arg in zip(arg_names, args)])
         pass_args += " " + " ".join([f"--{arg}" for arg in get_cfg_without_args()])
 
-
         from Config import get_dir_path_from_fasta_nCodons_and_out_path
 
         nCodons = args[arg_names.index("nCodons")]
         fasta_path = args[arg_names.index("fasta")]
-        run_dir = get_dir_path_from_fasta_nCodons_and_out_path(multi_run_dir, nCodons, fasta_path)
+        run_dir = get_dir_path_from_fasta_nCodons_and_out_path(parsed_args.continue_training, nCodons, fasta_path)
 
         if not os.path.exists(run_dir):
             os.makedirs(run_dir)
@@ -196,16 +227,25 @@ def run_training_without_viterbi():
         command = f"./main_programm.py {pass_args} --passed_current_run_dir {run_dir}"
         print("running", command)
 
+        path_to_command_file = f"{run_dir}/called_command.log"
+        with open(path_to_command_file, "w") as out_file:
+            out_file.write(command)
+            out_file.write("\n")
+
         # running command and directing out steams
         with open(out_path, "w") as out_handle:
             with open(err_path, "w") as err_handle:
-                subprocess.call(re.split("\s+", command), stderr = err_handle, stdout = out_handle)
-                status = os.system(command)
-                exit_status = os.WEXITSTATUS(status)
-                if exit_status != 0:
-                    print("exit_status:", exit_status)
+                exit_code = subprocess.call(re.split("\s+", command), stderr = err_handle, stdout = out_handle)
+                if exit_code != 0:
+                    print("exit_code:", exit_code)
                     exit(1)
 
+        with open(f"{parsed_args.continue_training}/todo_grid_points.json", "w") as grid_point_file:
+            json.dump(grid_points[i+1:], grid_point_file)
+
+        # TODO maybe if i ctrl C this the learning isnt findished, and the gridpoint is removed from todo list
+        # bc i want to do viterbi afterwards, i should just look if the after fit parameters are there, and if so
+        # then remove the gridpoint
 
 
 def get_run_sub_dirs(path):
@@ -262,7 +302,7 @@ def viterbi(path):
                 file.write(f"#SBATCH -N 1\n")
                 file.write(f"#SBATCH -n 1\n")
                 file.write("#SBATCH --mem 2000\n")
-                file.write("#SBATCH --partition=batch\n")
+                file.write("#SBATCH --partition=snowball\n")
                 file.write(f"#SBATCH -o {sub_path}/slurm_out/out.%j\n")
                 file.write(f"#SBATCH -e {sub_path}/slurm_out/err.%j\n")
                 file.write("#SBATCH -t 02:00:00\n")
@@ -302,16 +342,13 @@ def get_run_stats(path) -> pd.DataFrame:
             continue
 
         add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs, get_true_alignemnt_path(train_run_dir, after_or_before))
+        run_stats["after_or_before"] = after_or_before
 
         training_args = json.load(open(f"{train_run_dir}/passed_args.json"))
-        training_args["after_or_before"] = after_or_before
-
         add_actual_epochs_to_run_stats(train_run_dir, run_stats, max_epochs = training_args['epochs'])
-
         stats[(train_run_dir, after_or_before)] = run_stats, training_args
 
-
-    df = pd.DataFrame(columns=list(training_args.keys()) + list(run_stats.keys()))
+    df = pd.DataFrame(columns=list(set(training_args.keys()) or set(run_stats.keys())))
 
     for run_stats, training_args in stats.values():
         new_row = pd.DataFrame({**training_args, **run_stats}, index=[0])
@@ -321,7 +358,7 @@ def get_run_stats(path) -> pd.DataFrame:
     # remove cols, ie name of parameter for training runs, whos args are const across runs
     cols_to_keep = df.columns[df.nunique() > 1]
     # i want to keep run stats even if those results are const across runs
-    cols_to_keep = list(set(list(cols_to_keep) + run_stats.keys()))
+    cols_to_keep = list(set(list(cols_to_keep) + list(run_stats.keys())))
     df = df[cols_to_keep]
 
     df["fasta"] = df["fasta_path"].apply(os.path.dirname).apply(os.path.basename)
@@ -443,8 +480,10 @@ if __name__ == "__main__":
     args = get_multi_run_config()
 
     if args.train:
-        run_training_without_viterbi()
+        run_training_without_viterbi(args)
     if args.viterbi_path:
         viterbi(args.viterbi_path)
     if args.eval_viterbi:
         df, grouped = eval_viterbi(args.eval_viterbi)
+    if args.continue_training:
+        continue_training(args)
