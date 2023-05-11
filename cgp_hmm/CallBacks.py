@@ -27,13 +27,16 @@ def get_call_backs(config, model):
 
     class exit_after_loglik_is_nan(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
+            tf.print("logs", logs)
             try:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(logs["loglik"])), [logs["loglik"]], name = "logs['loglik']_batch_begin", summarize = config.assert_summarize)
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(logs["loss"])), [logs["loss"]], name = "logs['loss']_batch_begin", summarize = config.assert_summarize)
             except:
-                print("key error in callback: exit_after_loglik_is_nan")
+                print("key error in callback begin: exit_after_loglik_is_nan")
         def on_train_batch_end(self, batch, logs = None):
-            tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(logs["loglik"])), [logs["loglik"]], name = "logs['loglik']_batch_end", summarize = config.assert_summarize)
-
+            try:
+                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(logs["loss"])), [logs["loss"]], name = "logs['loss']_batch_end", summarize = config.assert_summarize)
+            except:
+                print("key error in callback end: exit_after_loglik_is_nan")
     class remove_verbose_at_batch_begin(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
             os.system(f"rm {config.out_path}/verbose/{config.nCodons}codons.txt")
@@ -168,7 +171,9 @@ def get_call_backs(config, model):
     if config.exit_after_first_batch:
         callbacks += [exit_after_first_batch()]
     if config.exit_after_loglik_is_nan:
-        callbacks += [exit_after_loglik_is_nan()]
+        # callbacks += [exit_after_loglik_is_nan()]
+        callbacks  += [tf.keras.callbacks.TerminateOnNaN()]
+
     if config.check_assert:
         callbacks += [assert_kernels_at_batch_begin()]
     if config.remove_verbose_at_batch_begin:
