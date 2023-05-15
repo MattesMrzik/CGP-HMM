@@ -170,7 +170,7 @@ def get_call_backs(config, model):
         callbacks += [batch_id_at_begin()]
     if config.exit_after_first_batch:
         callbacks += [exit_after_first_batch()]
-    if config.exit_after_loglik_is_nan:
+    if config.exit_after_loglik_is_nan :
         # callbacks += [exit_after_loglik_is_nan()]
         callbacks  += [tf.keras.callbacks.TerminateOnNaN()]
 

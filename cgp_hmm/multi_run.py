@@ -4,6 +4,7 @@ import numpy as np
 import os
 import json
 import pandas as pd
+import time
 import re
 from itertools import product
 import subprocess
@@ -17,11 +18,17 @@ out_path = "../../cgp_data"
 def get_multi_run_config():
 
     parser = argparse.ArgumentParser(description='Config module description')
+    parser.add_argument('--slurm', action = 'store_true', help='use with slurm')
+
     parser.add_argument('--train', action = 'store_true', help='train with args specified in the methods in this module and write output to calculated path based on current time')
+    parser.add_argument('--mem', type = int, default = 10000, help='mem for slurm train')
+    parser.add_argument('--mpi', type = int, default = 8, help='mpi for slurm train')
+    parser.add_argument('--max_jobs', type = int, default = 8, help='max number of jobs for slurm train')
+    parser.add_argument('--partition', default = "snowball", help='partition for slurm train')
     parser.add_argument('--continue_training', help='path to multi_run dir for which to continue training')
+
     parser.add_argument('--viterbi_path', help='path to multi_run dir for which to run viterbi')
     parser.add_argument('--use_init_weights_for_viterbi', action = 'store_true', help = 'use the initial weights instead of the learned ones')
-    parser.add_argument('--slurm_viterbi', action = 'store_true', help = 'submit Viterbi.py calls to slurm')
     parser.add_argument('--eval_viterbi', help='path to multi_run dir for which to evaluation of viterbi')
     # parser.add_argument('--threads_for_viterbi', type = int, default = 1, help='how many threads should be used for viterbi')
     # here only first seq, ie the human one is calculated, an parallel calc of M produced more overhead than it actually helped
@@ -72,15 +79,16 @@ def get_cfg_with_args():
     cfg_with_args["nCodons"] = [get_exon_codons(exon) for exon in exons]
     # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
-    cfg_with_args["priorA"] = [1,0,3]
-    cfg_with_args["priorB"] = [1,0,3]
+    cfg_with_args["priorA"] = [1,0]
+    cfg_with_args["priorB"] = [1,0]
     cfg_with_args["global_log_epsilon"] = [1e-20]
     cfg_with_args["epoch"] = [20]
     cfg_with_args["batch_size"] = [16]
     cfg_with_args["step"] = [16]
     cfg_with_args["clip_gradient_by_value"] = [5]
     cfg_with_args["prior_path"] = [" ../../cgp_data/priors/human/"]
-    cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
+    # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
+    cfg_with_args["exon_skip_init_weight"] = [-2]
 
 
     return cfg_with_args
@@ -102,6 +110,7 @@ def get_cfg_without_args():
     my_initial_guess_for_parameters
     logsumexp
     bucket_by_seq_len
+    exit_after_loglik_is_nan
     '''
     cfg_without_args = re.split("\s+", cfg_without_args)[1:-1]
     return cfg_without_args
@@ -206,6 +215,7 @@ def continue_training(parsed_args):
         # ['global_log_epsilon', 'epoch', 'step', 'clip_gradient_by_value', 'prior_path', 'exon_skip_init_weight', 'fasta', 'nCodons', 'priorB', 'priorA']
         arg_names = json.load(arg_names_file)
 
+
     for i, point_in_grid in enumerate(grid_points):
         print(f"calculating point in hyperparameter grid {i}/{len(grid_points)}")
         # [1e-20, 20, 8, 5, ' ../../cgp_data/priors/human/', -10, '../../cgp_data/good_exons_1/exon_chr1_1050426_1050591/combined.fasta', 55, 100, 100]
@@ -232,20 +242,73 @@ def continue_training(parsed_args):
             out_file.write(command)
             out_file.write("\n")
 
-        # running command and directing out steams
-        with open(out_path, "w") as out_handle:
-            with open(err_path, "w") as err_handle:
-                exit_code = subprocess.call(re.split("\s+", command), stderr = err_handle, stdout = out_handle)
-                if exit_code != 0:
-                    print("exit_code:", exit_code)
-                    exit(1)
+        if not parsed_args.slurm:
+            # running command and directing out steams
+            with open(out_path, "w") as out_handle:
+                with open(err_path, "w") as err_handle:
+                    exit_code = subprocess.call(re.split("\s+", command), stderr = err_handle, stdout = out_handle)
+                    if exit_code != 0:
+                        print("exit_code:", exit_code)
+        if parsed_args.slurm:
+            submission_file_name = f"{run_dir}/slurm_learn_submission.sh"
+            with open(submission_file_name, "w") as file:
+                file.write("#!/bin/bash\n")
+                file.write(f"#SBATCH -J l_{os.path.basename(run_dir)[-6:]}\n")
+                file.write(f"#SBATCH -N 1\n")
+                file.write(f"#SBATCH -n {parsed_args.mpi}\n")
+                file.write(f"#SBATCH --mem {parsed_args.mem}\n")
+                file.write(f"#SBATCH --partition={parsed_args.partition}\n")
+                file.write(f"#SBATCH -o {out_path}\n")
+                file.write(f"#SBATCH -e {err_path}\n")
+                file.write(f"#SBATCH -t 12:00:00\n")
+                file.write(command)
+                file.write("\n")
 
-        with open(f"{parsed_args.continue_training}/todo_grid_points.json", "w") as grid_point_file:
-            json.dump(grid_points[i+1:], grid_point_file)
+            def get_number_of_running_slurm_jobs() -> int:
+                # run the 'squeue' command and capture the output
+                output = subprocess.check_output(['squeue', '-u', "s-mamrzi"])
+                # count the number of lines in the output
+                num_jobs = len(output.strip().split(b'\n')) - 1 # subtract 1 to exclude the header
+                return num_jobs
 
-        # TODO maybe if i ctrl C this the learning isnt findished, and the gridpoint is removed from todo list
-        # bc i want to do viterbi afterwards, i should just look if the after fit parameters are there, and if so
-        # then remove the gridpoint
+            while get_number_of_running_slurm_jobs() > parsed_args.max_jobs:
+                time.sleep(1)
+
+            os.system(f"sbatch {submission_file_name}")
+
+
+        # if learning fails, due to RAM overflow or keyboard interupt, then this
+        # file shoulnd exists
+        path_of_A_kernel_after_fit = f"{run_dir}/after_fit_paras/A.kernel"
+        if os.path.exists(path_of_A_kernel_after_fit):
+            with open(f"{parsed_args.continue_training}/todo_grid_points.json", "w") as grid_point_file:
+                json.dump(grid_points[i+1:], grid_point_file)
+        else:
+            import signal
+
+            # define a handler for the timeout signal
+            def timeout_handler(signum, frame):
+                print("Time's up!")
+                raise TimeoutError
+
+            # set the signal handler for the SIGALRM signal
+            signal.signal(signal.SIGALRM, timeout_handler)
+
+            # prompt the user for input with a 30-second timeout
+            try:
+                signal.alarm(30) # set the timeout to 30 seconds
+                print(f"the file {path_of_A_kernel_after_fit} doesnt exist after training")
+                print(f"should the dir {run_dir} be removed? [y/n], it will be removed automatically in 30sec")
+                user_input = input("Please enter some input within 30 seconds: ")
+                signal.alarm(0) # disable the alarm
+            except TimeoutError:
+                print("No input provided within 30 seconds. rm -rf {run_dir}")
+                os.system(f"rm -rf {run_dir}")
+            else:
+                while user_input not in "yn":
+                    user_input = input("was not in [y/n]")
+                if user_input == "y":
+                    os.system(f"rm -rf {run_dir}")
 
 
 def get_run_sub_dirs(path):
@@ -295,10 +358,10 @@ def viterbi(path):
         if not os.path.exists(slurm_out_path):
             os.makedirs(slurm_out_path)
 
-        if args.slurm_viterbi:
+        if args.slurm:
             with open(submission_file_name, "w") as file:
                 file.write("#!/bin/bash\n")
-                file.write(f"#SBATCH -J viterbi_{os.path.basename(sub_path)}\n")
+                file.write(f"#SBATCH -J v_{os.path.basename(sub_path)[-6:]}\n")
                 file.write(f"#SBATCH -N 1\n")
                 file.write(f"#SBATCH -n 1\n")
                 file.write("#SBATCH --mem 2000\n")
@@ -333,7 +396,7 @@ def get_viterbi_aligned_seqs(train_run_dir, after_or_before):
 
     return aligned_seqs
 
-def get_run_stats(path) -> pd.DataFrame:
+def calc_run_stats(path) -> pd.DataFrame:
 
     stats = {}
     for train_run_dir, after_or_before in product(get_run_sub_dirs(path), ["after", "before"]):
@@ -407,7 +470,19 @@ def get_cols_to_group_by():
     return parameters_with_more_than_one_arg
 
 def sort_columns(df):
-    sorted_columns = ["passed_current_run_dir", "actual_epochs", "true_start", "true_end", "guessed_start", "guessed_end", "exon_len", "overlap", "overlap_single_ratio", "overlap_ratio_per_grid_point", "after_or_before", "priorA", "priorB", "exon_skip_init_weight"]
+    sorted_columns = ["passed_current_run_dir", "actual_epochs", \
+                      "true_start", "true_end", "guessed_start", "guessed_end", \
+                      "exon_len", \
+                      "correct", "skipped_exon", "wrap", "incomplete", "miss", \
+                      "overlap", "overlap_single_ratio", "overlap_ratio_per_grid_point", \
+                      "toobig", "toobig_ratio_per_grid_point", \
+                      "after_or_before", "priorA", "priorB", "exon_skip_init_weight"]
+
+    # bc sometimes i dont have multiple values for a parameter, so it is removed
+    # from df in get_run_stats()
+    for key in sorted_columns[::-1]:
+        if key not in df.columns:
+            sorted_columns.remove(key)
     remaining_columns = list(set(df.columns) - set(sorted_columns))
     df = df[sorted_columns + remaining_columns]
     return df
@@ -421,6 +496,9 @@ def add_additional_eval_cols(df):
         return max(0, end_overlap - start_overlap)
     df['overlap'] = df.apply(lambda row: overlap(row), axis=1)
     df['overlap_single_ratio'] = df["overlap"] / df["exon_len"]
+    df['toobig'] = df['guessed_end'] - df['guessed_start'] - df["overlap"]
+
+
 
     cols_to_group_by = get_cols_to_group_by()
     new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["exon_len"])).reset_index(name = "sum_exon_lens")
@@ -430,8 +508,54 @@ def add_additional_eval_cols(df):
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
     df["overlap_ratio_per_grid_point"] = df["sum_overlap_lens"] / df["sum_exon_lens"]
+
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["toobig"])).reset_index(name = "sum_toobig")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
+    df["toobig_ratio_per_grid_point"] = df["sum_toobig"] / df["sum_exon_lens"]
+
+    df["skipped_exon"] = df.apply(lambda x: True if x['guessed_start'] == -1 and x['guessed_end'] == -1 else False, axis=1)
+    new_col = df.groupby(cols_to_group_by)["skipped_exon"].mean().reset_index(name = "skipped_exon_mean")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
+    df["left_miss"] = (df["guessed_end"] < df["true_start"]) & (~ df["skipped_exon"])
+    df["right_miss"] = (df["guessed_start"] > df["true_end"]) & (~ df["skipped_exon"])
+    df["miss"] = df["left_miss"] | df["right_miss"]
+
+    df["correct"] = (df["guessed_start"] == df["true_start"]) & (df["guessed_end"] == df["true_end"])
+    df["wrap"] = (df["guessed_start"] <= df["true_start"]) & (df["guessed_end"] >= df["true_end"]) & (~ df["correct"])
+    df["incomplete"] = (df["guessed_start"] >= df["true_start"]) & (df["guessed_end"] <= df["true_end"]) & (~ df["correct"])
+
+    df["overlapps_left"] = (df["guessed_start"] < df["true_start"]) & (df["guessed_end"] > df["true_start"]) & (~ df["wrap"])
+    df["overlapps_right"] = (df["guessed_start"] < df["true_end"]) & (df["guessed_end"] > df["true_end"]) & (~ df["wrap"])
+
+    df["overlapps"] = df["overlapps_left"] | df["overlapps_right"]
+
+    change_type_to_int = ["overlap", "toobig", "guessed_start", "guessed_end", "true_start", "true_end", "actual_epochs", "sum_exon_lens", "sum_toobig", "sum_overlap_lens", "exon_len"]
+    for col in change_type_to_int:
+        df[col] = df[col].astype(int)
+
     return df
 
+def rename_cols(df):
+    columns = {"actual_epochs":"epoch",
+               "true_start": "start",
+               "true_end": "end",
+               "guessed_start": "v_start",
+               "guessed_end":"v_end",
+               "overlap_ratio_per_grid_point" : "overlap_ratio",
+               "overlap_single_ratio" : "exon_overlap",
+               "toobig_ratio_per_grid_point" : "toobig_ratio"}
+    df = df.rename(columns = columns)
+    return df
+
+def remove_cols(df):
+
+    cols = ["fasta_path", "sum_toobig", "sum_overlap_lens", "sum_exon_lens"]
+    for col in cols:
+        df = df.drop(col, axis = 1)
+
+    return df
 def eval_viterbi(path):
     df = load_or_calc_eval_df(path)
 
@@ -440,6 +564,10 @@ def eval_viterbi(path):
 
     df = add_additional_eval_cols(df)
     df = sort_columns(df)
+    df = rename_cols(df)
+    df = remove_cols(df)
+
+    #TODO also rename grouped?
 
     cols_to_group_by = get_cols_to_group_by()
     grouped = df.groupby(cols_to_group_by).apply(lambda x: sum(x["overlap"]/sum(x["exon_len"]))).reset_index(name = "grouped_overlap_ratio_per_grid_point").sort_values("grouped_overlap_ratio_per_grid_point")
@@ -456,10 +584,10 @@ def load_or_calc_eval_df(path):
         if x == "l":
             df = pd.read_csv(path_to_out_csv, index_col = 0)
         if x == "r":
-            df = get_run_stats(path)
+            df = calc_run_stats(path)
             df.to_csv(path_to_out_csv, header = True)
     else:
-        df = get_run_stats(path)
+        df = calc_run_stats(path)
         df.to_csv(path_to_out_csv, header = True)
     return df
 
@@ -481,9 +609,9 @@ if __name__ == "__main__":
 
     if args.train:
         run_training_without_viterbi(args)
-    if args.viterbi_path:
+    elif args.viterbi_path:
         viterbi(args.viterbi_path)
-    if args.eval_viterbi:
+    elif args.eval_viterbi:
         df, grouped = eval_viterbi(args.eval_viterbi)
-    if args.continue_training:
+    elif args.continue_training:
         continue_training(args)
