@@ -470,25 +470,33 @@ import os
 ################################################################################
 ################################################################################
 ################################################################################
-import tensorflow as tf
+# import tensorflow as tf
 
-elements = [list(range(n)) for n in range(10,0,-1)]
-l = [[e + 100 for e in seq] for seq in elements]
-print(l)
-elements = elements + l
-np.random.shuffle(elements)
-print("elements")
-for seq in elements:
-    print("seq", seq)
+# elements = [list(range(n)) for n in range(10,0,-1)]
+# l = [[e + 100 for e in seq] for seq in elements]
+# print(l)
+# elements = elements + l
+# np.random.shuffle(elements)
+# print("elements")
+# for seq in elements:
+#     print("seq", seq)
 
-dataset = tf.data.Dataset.from_generator(
-    lambda: elements, tf.int64, output_shapes=[None])
-dataset = dataset.bucket_by_sequence_length(
-        element_length_func=lambda elem: tf.shape(elem)[0],
-        bucket_boundaries=[100,100,100],
-        bucket_batch_sizes=[5,5,5,5])
+# dataset = tf.data.Dataset.from_generator(
+#     lambda: elements, tf.int64, output_shapes=[None])
+# dataset = dataset.bucket_by_sequence_length(
+#         element_length_func=lambda elem: tf.shape(elem)[0],
+#         bucket_boundaries=[100,100,100],
+#         bucket_batch_sizes=[5,5,5,5])
 
 
-for elem in dataset.as_numpy_iterator():
-    print(elem)
-    print()
+# for elem in dataset.as_numpy_iterator():
+#     print(elem)
+#     print()
+################################################################################
+################################################################################
+################################################################################
+def asdf(a : str = None) -> list[int,str]:
+    print(a)
+    return [(1,"a"),(2,"b")]
+
+print(asdf("a str"))
