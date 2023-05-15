@@ -29,7 +29,9 @@ def convert_kernel_files_to_matrices_files(config, dir_path):
 
 if __name__ == "__main__":
     import sys
-    sys.path.insert(0, "..")
+    sys.path.insert(0, "..") # if called from helpers. prior path migth not work,
+    # prior path
+    sys.path.insert(0, ".") # if called from scr
     from Config import Config
     config = Config()
     config.init_for_convert_kernel()

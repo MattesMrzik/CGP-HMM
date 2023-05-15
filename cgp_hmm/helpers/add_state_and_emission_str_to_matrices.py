@@ -40,6 +40,17 @@ def add_description_to_B(model, path_to_json_file : str) -> None:
     df = df.set_index("emissions_strs")
     df.to_csv(out_file_path, sep = ";", header = True, index = True)
 
+def call_for_every_A_and_B_found_in_subdirs(model, parent_path):
+    '''model must only be prepared not made'''
+
+    for dirpath, dirnames, filenames in os.walk(parent_path):
+        for file in filenames:
+            if file == "A.json":
+                add_description_to_A(model, os.path.join(dirpath, file))
+            if file == "B.json":
+                add_description_to_B(model, os.path.join(dirpath, file))
+
+
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, "..")
@@ -47,10 +58,4 @@ if __name__ == "__main__":
     config = Config()
     config.init_for_add_str_to_matrices()
 
-    for dirpath, dirnames, filenames in os.walk(config.parent_input_dir):
-        for file in filenames:
-            if file == "A.json":
-                add_description_to_A(config.model, os.path.join(dirpath, file))
-            if file == "B.json":
-                add_description_to_B(config.model, os.path.join(dirpath, file))
-
+    call_for_every_A_and_B_found_in_subdirs(config.model, config.parent_input_dir)
