@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from datetime import datetime
 import pandas as pd
 import numpy as np
 import json
@@ -22,7 +23,7 @@ def get_output_dir():
 
     # dirs
     # output_dir = f"{args.path}/out_{'' if not args.n else str(args.n) + 'Exons_'}{args.species.split('/')[-1]}_{lengths_config_str}_{args.hal.split('/')[-1]}"
-    output_dir = f"{args.path}/out_Exons_{args.species.split('/')[-1]}_{lengths_config_str}_{args.hal.split('/')[-1]}"
+    output_dir = f"{args.path}/exons_{args.species.split('/')[-1]}_{lengths_config_str}_{args.hal.split('/')[-1]}"
     if not os.path.exists(output_dir):
         os.system(f"mkdir -p {output_dir}")
     return output_dir
@@ -53,6 +54,7 @@ def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str
     NM_df = hg38_refseq_bed[hg38_refseq_bed['name'].str.startswith('NM_')]
     # if there are less then 3 exons, there cant be a middle one
     NM_df = NM_df[NM_df['blockCount'].apply(lambda x: x >= 3)]
+    NM_df = NM_df[NM_df['chrom'].apply(lambda x: not re.search("_", x))]
 
     NM_df = NM_df.reset_index(drop=True)
 
@@ -93,7 +95,7 @@ def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str
             chromosom = row["chrom"]
             exon_start_in_genome = row["chromStart"] + exon_start
             exon_end_in_genome = row["chromStart"] + exon_start + exon_len # the end id is not included
-            key = (chromosom, exon_start_in_genome, exon_end_in_genome, row["strand"], exon_id)
+            key = (chromosom, exon_start_in_genome, exon_end_in_genome, row["strand"])
             if key in internal_exons:
                 internal_exons[key].append(row)
             else:
@@ -194,7 +196,6 @@ def filter_exons_based_in_min_segment_lengths(exons :  list[tuple, pd.Series]) -
         exon_key, exon_row = exon
         exon_start_in_gene = exon_key[1] - exon_row["chromStart"]
         exon_id = exon_row["blockStarts"].index(exon_start_in_gene)
-        assert exon_id == exon_key[4]
         assert exon_row["blockSizes"][exon_id] == exon_key[2] - exon_key[1], "calculated id exon len is not same as stop - start in genome"
         if exon_row["blockSizes"][exon_id] < args.min_exon_len:
             return True
@@ -240,7 +241,8 @@ def get_ref_seqs_to_be_lifted(exons : list[tuple, pd.Series]) -> list[dict]:
             progress = (i + 1) // num_tenths
             print(f"{progress}0% of the get_ref_seqs_to_be_lifted loop completed")
         exon_key, exon_row = exon
-        exon_id = exon_key[4]
+        exon_start_in_gene = exon_key[1] - exon_row["chromStart"]
+        exon_id = exon_row["blockStarts"].index(exon_start_in_gene)
         # getting coordinates from rightmost end of left exon that will be lifted to the other genomes
         # getting coordinates from leftmost end of right exon that will be lifted to the other genome
         left_intron_len = exon_row["blockStarts"][exon_id] - exon_row["blockStarts"][exon_id-1] - exon_row["blockSizes"][exon_id - 1]
@@ -315,7 +317,6 @@ def get_seqs_to_be_lifted_df(seqs_to_be_lifted : list[dict]) -> pd.DataFrame:
                         "start" : seqs_dict["key"][1], \
                         "stop" : seqs_dict["key"][2], \
                         "strand" : seqs_dict["key"][3], \
-                        "id" : seqs_dict["key"][4], \
                         "exon_len" :exon_len, \
                         "before_strip_seq_len" : before_strip_seq_len, \
                         "exon_len_to_seq_len_ratio" : exon_len / before_strip_seq_len, \
@@ -325,10 +326,10 @@ def get_seqs_to_be_lifted_df(seqs_to_be_lifted : list[dict]) -> pd.DataFrame:
         list_for_df.append(new_row_dict)
         # new_row = pd.DataFrame(new_row_dict, index=[0])
         # df = pd.concat([df, new_row], axis = 0, ignore_index = True)
-    df = pd.DataFrame(list_for_df)
+    seqs_df = pd.DataFrame(list_for_df)
 
     print("finished get_seqs_to_be_lifted_df(). It took:", time.perf_counter() - start)
-    return df
+    return seqs_df
 ################################################################################
 def get_to_be_lifted_seqs(args, json_path) -> list[dict]:
     '''
@@ -411,18 +412,18 @@ def get_new_or_old_species_bed(args = None, \
     returns bool whether a bedfile was found or created
     '''
     bed_file_path = f"{out_dir}/{species_name}.bed"
-    if not args.use_old_bed:
-        command = f"time halLiftover {args.hal} Homo_sapiens {human_exon_to_be_lifted_path} {species_name} {bed_file_path}"
-        print("running:", command)
-        os.system(command)
-        return True
-    else:
-        bed_files = [f for f in os.listdir(out_dir) if f.endswith(".bed")]
-        for bed_file in bed_files:
-            # if bed_file.startswith(single_species):
-            #     return f"{out_dir}/{bed_file}"
-            if bed_file == f"{species_name}.bed":
-                return True
+    # if not args.use_old_bed:
+    command = f"time halLiftover {args.hal} Homo_sapiens {human_exon_to_be_lifted_path} {species_name} {bed_file_path}"
+    print("running:", command)
+    os.system(command)
+    return True
+    # else:
+    #     bed_files = [f for f in os.listdir(out_dir) if f.endswith(".bed")]
+    #     for bed_file in bed_files:
+    #         # if bed_file.startswith(single_species):
+    #         #     return f"{out_dir}/{bed_file}"
+    #         if bed_file == f"{species_name}.bed":
+    #             return True
 ################################################################################
 def extract_info_and_check_bed_file(bed_dir_path : str = None, \
                                     species_name : str = None, \
@@ -615,9 +616,14 @@ def combine_fasta_files(output_file = None, input_files = None):
         for input_file in input_files:
             for seq_record in SeqIO.parse(input_file, "fasta"):
                 SeqIO.write(seq_record, out, "fasta")
+        print("combined fasta files", output_file)
     out.close()
 ################################################################################
-def create_exon_data_sets(args, seqs_to_be_lifted) -> None:
+def create_exon_data_sets(args, seqs_to_be_lifted, output_dir) -> None:
+    import sys
+    sys.path.insert(0, "..")
+    from Viterbi import fasta_true_state_seq_and_optional_viterbi_guess_alignment
+
     def get_all_species():
         with open(args.species, "r") as species_file:
             species = species_file.readlines()
@@ -667,17 +673,17 @@ def create_exon_data_sets(args, seqs_to_be_lifted) -> None:
             # getting the seq, from human: [left exon    [litfed]] [intron] [exon] [intron] [[lifted]right exon]
             # the corresponding seq of [intron] [exon] [intron] in other species
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
-            if not args.use_old_fasta:
-                run_hal_2_fasta(args = args,
-                                species_name = single_species, \
-                                start = extra_seq_data["seq_start_in_genome"], \
-                                len = extra_seq_data["len_of_seq_substring_in_single_species"], \
-                                seq = extra_seq_data["seq_name"], \
-                                outpath = out_fa_path)
+            # if not args.use_old_fasta:
+            run_hal_2_fasta(args = args,
+                            species_name = single_species, \
+                            start = extra_seq_data["seq_start_in_genome"], \
+                            len = extra_seq_data["len_of_seq_substring_in_single_species"], \
+                            seq = extra_seq_data["seq_name"], \
+                            outpath = out_fa_path)
 
-                write_extra_data_to_fasta_description_and_reverse_complement(fa_path = out_fa_path, \
-                                                      extra_seq_data = extra_seq_data,
-                                                      seq_dict = seq_dict)
+            write_extra_data_to_fasta_description_and_reverse_complement(fa_path = out_fa_path, \
+                                                    extra_seq_data = extra_seq_data,
+                                                    seq_dict = seq_dict)
 
             stripped_fasta_file_path = re.sub("non_stripped","stripped", out_fa_path)
             strip_seqs(fasta_file = out_fa_path, \
@@ -687,13 +693,13 @@ def create_exon_data_sets(args, seqs_to_be_lifted) -> None:
 
             # create alignment of fasta and true splice sites
             if single_species == "Homo_sapiens":
-                from Viterbi import fasta_true_state_seq_and_optional_viterbi_guess_alignment
                 fasta_true_state_seq_and_optional_viterbi_guess_alignment(stripped_fasta_file_path, out_dir_path = exon_dir)
 
         # gather all usable fasta seqs in a single file
         input_files = get_input_files_with_human_at_0(from_path = stripped_seqs_dir)
 
         output_file =f"{exon_dir}/combined.fasta"
+
         combine_fasta_files(output_file = output_file, input_files = input_files )
 
         output_file = f"{capitalzed_subs_seqs_dir}/combined.fasta"
@@ -701,16 +707,16 @@ def create_exon_data_sets(args, seqs_to_be_lifted) -> None:
             convert_short_acgt_to_ACGT(output_file, input_files, threshold = args.convert_short_acgt_to_ACGT)
 ################################################################################
 def make_stats_table(args):
-    df = pd.DataFrame(columns = ["path", "exon", "exon_len", "human_seq_len", \
+    stats_df = pd.DataFrame(columns = ["path", "exon", "exon_len", "human_seq_len", \
                                  "exon_len_to_human_len_ratio", "median_len", \
                                  "exon_len_to_median_len_ratio","average_len", \
                                  "exon_len_to_average_len", "num_seqs", "ambiguous"])
-    dir = get_output_dir() if args.hal else args.stats_table
+    dir = args.stats_table
     for exon in os.listdir(dir):
         exon_dir = os.path.join(dir, exon)
         if os.path.isdir(exon_dir):
             # exon might be st like: exon_chr1_67095234_67095421
-            exon_coords = list(map(int, exon.split("_")[2:]))
+            exon_coords = list(map(int, exon.split("_")[-2:]))
             exon_len = exon_coords[1] - exon_coords[0]
             lens = []
             for record in SeqIO.parse(f"{exon_dir}/combined.fasta","fasta"):
@@ -740,11 +746,11 @@ def make_stats_table(args):
                             "num_seqs" : len(lens), \
                             "ambiguous" : ambiguous}
 
-            df.loc[len(df)] = new_row_dict
+            stats_df.loc[len(stats_df)] = new_row_dict
     pd.set_option('display.max_columns', None)
     # pd.set_option('display.max_rows', None)
-    df.to_csv(f'{dir}/stats_table.csv', index=True, header=True, line_terminator='\n', sep=";")
-    return df
+    stats_df.to_csv(f'{dir}/stats_table.csv', index=True, header=True, line_terminator='\n', sep=";")
+    return stats_df
 
 ################################################################################
 
@@ -752,7 +758,7 @@ def make_stats_table(args):
 # time hal2fasta /nas-hs/projs/CGP200/data/msa/241-mammalian-2020v2.hal Macaca_mulatta --start 66848804 --sequence CM002977.3 --length 15 --ucscSequenceNames > maxaxa_exon_left_seq.fa
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='creating a dataset of exons from hg38.bed and .hal alignment. Only exons which are between introns')
+    parser = argparse.ArgumentParser(description='python3 -i get_internal_exon.py --hal ../../../../CGP200/data/msa/241-mammalian-2020v2.hal --spe ../../../../CGP200/data/msa/species.names --hg ../../../iei-ranges/hg38-refseq.bed ')
     parser.add_argument('--hg38', help = 'path to hg38-refseq.bed')
     parser.add_argument('--hal', help = 'path to the .hal file')
     parser.add_argument('--species', help = 'path to species file, which are the target of liftover from human')
@@ -766,10 +772,11 @@ if __name__ == "__main__":
     parser.add_argument('--len_of_right_to_be_lifted', type = int, default = 15, help = 'len_of_right_to_be_lifted')
     parser.add_argument('--path', default = "../../../cgp_data", help = 'working directory')
     parser.add_argument('-v', action = 'store_true', help = 'verbose')
-    parser.add_argument('--use_old_bed', action = 'store_true', help = 'use the old bed files and dont calculate new ones')
-    parser.add_argument('--use_old_fasta', action = 'store_true', help = 'use the old fasta files and dont calculate new ones')
+    # parser.add_argument('--use_old_bed', action = 'store_true', help = 'use the old bed files and dont calculate new ones')
+    # parser.add_argument('--use_old_fasta', action = 'store_true', help = 'use the old fasta files and dont calculate new ones')
     parser.add_argument('--discard_multiple_bed_hits', action = 'store_true', help = 'sometimes, halLiftover maps a single coordinate to 2 or more, if this flag is passed, the species is discarded, otherwise the largest of the hits is selected')
-    parser.add_argument('--stats_table', nargs = '?', const = True, help ='instead of getting all the exon data, get stats table of existing data. Specified path, or pass hg38, hal and species and same n')
+    # parser.add_argument('--stats_table', nargs = '?', const = True, help ='instead of getting all the exon data, get stats table of existing data. Specified path, or pass hg38, hal and species and same n')
+    parser.add_argument('--stats_table', help ='path to dir to make the stats_table')
     parser.add_argument('--convert_short_acgt_to_ACGT', type = int, default = 0, help = 'convert shorter than --convert_short_acgt_to_ACGT')
     args = parser.parse_args()
 
@@ -779,9 +786,7 @@ if __name__ == "__main__":
     # TODO im using the above also for the start and end of th middle exon, not only the middle of the middle/current exon
 
     if args.stats_table:
-        if not os.path.isdir(args.stats_table):
-            assert args.hg38 and args.hal and args.species, "you must pass path to hg38, hal and species.lst or path to the dir of which the stats table should get created"
-        make_stats_table(args)
+        stats_df = make_stats_table(args)
         exit()
 
 
@@ -809,18 +814,30 @@ if __name__ == "__main__":
             else:
                 print("your answer must be either y or n")
 
-    seqs_to_be_lifted, df = get_to_be_lifted_seqs(args, json_path)
-    print("run this skript in interactive mode, select subset  of df and pass it to make_data_from_df(args, df, seqs_to_be_lifted)")
+    seqs_to_be_lifted, seqs_df = get_to_be_lifted_seqs(args, json_path)
 
-def make_data_from_df(args, df, seqs_to_be_lifted):
+
+    print("run this skript in interactive mode, select subset of seqs_df and pass it to make_data_from_df(args, seqs_df, seqs_to_be_lifted)")
+
+def make_data_from_df(args, seqs_df, seqs_to_be_lifted):
     '''
     parameters:
         args: for .hal file
-        df: was created by get_seqs_to_be_lifted_df, and should be passed to here, optionally sorted and subsetted
-        seqs_to_be_lifted: seqs_to_be_lifted is list, indices from df are used to extract seqs from here
+        seqs_df: was created by get_seqs_to_be_lifted_seqs_df, and should be passed to here, optionally sorted and subsetted
+        seqs_to_be_lifted: seqs_to_be_lifted is list, indices from seqs_df are used to extract seqs from here
+
+        seqs_df.sort_values("before_strip_seq_len")[:20000].sort_values("exon_len")[:7000].sample(40)
     '''
+    now = datetime.now()
+    date_string = now.strftime("%Y-%m-%d_%H-%M")
+    out_dir_path = f"{output_dir}/{date_string}"
+    if not os.path.exists(out_dir_path):
+        os.makedirs(out_dir_path)
+    path_to_subset_df = f"{out_dir_path}/seqs_to_be_lifted_subset_df.csv"
+    seqs_df.to_csv(path_to_subset_df, sep = ";", header = True)
 
 
-    seqs_to_be_lifted = [seqs_to_be_lifted[i] for i in df.index.tolist()]
-    create_exon_data_sets(args, seqs_to_be_lifted)
+    seqs_to_be_lifted = [seqs_to_be_lifted[i] for i in seqs_df.index.tolist()]
+    create_exon_data_sets(args, seqs_to_be_lifted, out_dir_path)
+    args.stats_table = out_dir_path
     make_stats_table(args)
