@@ -10,7 +10,6 @@ import tensorflow as tf
 def non_class_A_log_prior(A, prior_matrix, prior_indices):
         epsilon = 1e-2
 
-
         alphas = tf.gather_nd(prior_matrix, prior_indices)
         tf.debugging.Assert(tf.math.reduce_all(alphas != 0), [alphas], name = "some_A_alphas_are_zero")
         tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alphas)), [alphas], name = "some_A_alphas_are_not_finite")
@@ -123,9 +122,8 @@ class My_Model(Model):
 
     def make_model(self):
 
-        if self.config.priorB:
-            from Prior import Prior
-            self.prior = Prior(self.config)
+        from Prior import Prior
+        self.prior = Prior(self.config)
 
         # I
         self.I_indices = self.get_I_indices()
@@ -137,8 +135,7 @@ class My_Model(Model):
         self.A_initial_weights_for_constants = self.A_indices_and_initial_weights()
         self.A_indices = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
 
-        if self.config.priorA:
-            self.get_A_prior_matrix()
+        self.get_A_prior_matrix()
 
         if self.config.use_weights_for_consts:
 
@@ -155,8 +152,7 @@ class My_Model(Model):
 
         # B
         self.make_preparations_for_B()
-        if self.config.priorB:
-            self.get_B_prior_matrix()
+        self.get_B_prior_matrix()
 
         shape = (self.number_of_emissions, self.number_of_states)
         B_indices_complement = tf.where(tf.ones(shape, dtype = tf.float32) - tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), shape = shape))
@@ -668,10 +664,6 @@ class My_Model(Model):
         prior = -1.0
         initial_parameter = -1.0
 
-        if not self.config.priorB:
-            return prior, initial_parameter
-
-
         if state in ["left_intron", "right_intron"] and emission[0] != "i":
             norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
             assert abs(norm - 1 ) < 1e-4, f"norm is {norm} but should be one"
@@ -846,6 +838,8 @@ class My_Model(Model):
 
 ################################################################################
     def get_A_log_prior(self, A_kernel):
+        if self.config.priorA == 0:
+            return 0
         A_dense = tf.sparse.to_dense(self.A(A_kernel))
         self.assert_a_is_compatible_with_direchlet_prior()
         return non_class_A_log_prior(A_dense, self.A_prior_matrix, self.A_prior_indices)
@@ -887,6 +881,8 @@ class My_Model(Model):
         tf.debugging.Assert(tf.math.reduce_all(diff_rows_that_matter == 0), [diff_rows_that_matter], name = "some_B_paras_havent_got_prior", summarize = -1)
 ################################################################################
     def get_B_log_prior(self, B_kernel):
+        if self.config.priorB == 0:
+            return 0
         self.assert_b_is_compatible_with_direchlet_prior()
 
         return non_class_B_log_prior(self.B(B_kernel), self.B_prior_matrix, self.B_prior_indices, self.config.alphabet_size)
