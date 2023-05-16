@@ -13,7 +13,7 @@ import argparse
 from helpers.add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
 
 out_path = "../../cgp_data"
-
+# plt.hist(seqs_df["exon_len"][seqs_df["exon_len"]<600]); plt.savefig("hist.png")
 
 def get_multi_run_config():
 
@@ -489,6 +489,8 @@ def sort_columns(df):
 
 def add_additional_eval_cols(df):
     df["exon_len"] = df["true_end"] - df["true_start"]
+    df["v_len"] = df["guessed_end"] - df["guessed_start"]
+    df["len_ratio"] = df["v_len"] / df["exon_len"]
 
     def overlap(row):
         start_overlap = max(row['true_start'], row['guessed_start'])
@@ -557,6 +559,7 @@ def remove_cols(df):
 
     return df
 def eval_viterbi(path):
+    import matplotlib.pyplot as plt
     df = load_or_calc_eval_df(path)
 
     # print(df.groupby(["priorA", "priorB", "exon_skip_init_weight", "fasta"]).apply(np.std))
