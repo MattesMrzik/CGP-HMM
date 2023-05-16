@@ -9,6 +9,7 @@ import time
 import re
 from Bio import SeqIO
 import math
+import matplotlib.pyplot as plt
 
 ################################################################################
 def get_output_dir():
@@ -197,6 +198,7 @@ def filter_exons_based_in_min_segment_lengths(exons :  list[tuple, pd.Series]) -
         exon_start_in_gene = exon_key[1] - exon_row["chromStart"]
         exon_id = exon_row["blockStarts"].index(exon_start_in_gene)
         assert exon_row["blockSizes"][exon_id] == exon_key[2] - exon_key[1], "calculated id exon len is not same as stop - start in genome"
+
         if exon_row["blockSizes"][exon_id] < args.min_exon_len:
             return True
 
@@ -262,7 +264,9 @@ def get_ref_seqs_to_be_lifted(exons : list[tuple, pd.Series]) -> list[dict]:
                 "right_lift_start" : right_lift_start, \
                 "right_lift_end" : right_lift_end, \
                 "left_intron_len" : left_intron_len, \
+                "left_exon_len" : exon_row["blockSizes"][exon_id -1 ], \
                 "right_intron_len" : right_intron_len, \
+                "right_exon_len" : exon_row["blockSizes"][exon_id +1 ], \
                 "key" : exon_key ,\
                 "row" : dict(exon_row)}
 
@@ -321,7 +325,9 @@ def get_seqs_to_be_lifted_df(seqs_to_be_lifted : list[dict]) -> pd.DataFrame:
                         "before_strip_seq_len" : before_strip_seq_len, \
                         "exon_len_to_seq_len_ratio" : exon_len / before_strip_seq_len, \
                         "left_intron_len" : seqs_dict["left_intron_len"], \
-                        "right_intron_len" : seqs_dict["right_intron_len"]
+                        "left_exon_len" : seqs_dict["left_exon_len"], \
+                        "right_intron_len" : seqs_dict["right_intron_len"], \
+                        "right_exon_len" : seqs_dict["right_exon_len"]
                         }
         list_for_df.append(new_row_dict)
         # new_row = pd.DataFrame(new_row_dict, index=[0])
@@ -345,6 +351,8 @@ def get_to_be_lifted_seqs(args, json_path) -> list[dict]:
         with open(json_path) as file:
             seqs_to_be_lifted = json.load(file)
             seqs_to_be_lifted_df = get_seqs_to_be_lifted_df(seqs_to_be_lifted)
+            unfiltered_seqs_to_be_lifted_df = seqs_to_be_lifted_df
+            print("attention unfiltered_seqs_to_be_lifted_df is same as seqs_to_be_lifted_df if loaded and not calculated")
         print("finished json.load(seqs_to_be_lifted.json). It took:", time.perf_counter() - start)
     # seqs_to_be_lifted_file doesnt exist
     else:
@@ -352,11 +360,15 @@ def get_to_be_lifted_seqs(args, json_path) -> list[dict]:
         hg38_refseq_bed_df = load_hg38_refseq_bed(args.hg38)
         internal_exons = get_internal_conding_exons(hg38_refseq_bed_df)
         exons_with_out_duplicates = choose_exon_of_all_its_duplicates(internal_exons)
-        exons_with_out_duplicates = filter_exons_based_in_min_segment_lengths(exons_with_out_duplicates)
-        seqs_to_be_lifted = get_ref_seqs_to_be_lifted(exons_with_out_duplicates)
+        filtered_exons = filter_exons_based_in_min_segment_lengths(exons_with_out_duplicates)
+        seqs_to_be_lifted = get_ref_seqs_to_be_lifted(filtered_exons)
         write_seqs_to_be_lifted(seqs_to_be_lifted, json_path)
         seqs_to_be_lifted_df = get_seqs_to_be_lifted_df(seqs_to_be_lifted)
-    return seqs_to_be_lifted, seqs_to_be_lifted_df
+
+        unfiltered_seqs_to_be_lifted = get_ref_seqs_to_be_lifted(exons_with_out_duplicates)
+        write_seqs_to_be_lifted(unfiltered_seqs_to_be_lifted, json_path + ".unfiltered")
+        unfiltered_seqs_to_be_lifted_df = get_seqs_to_be_lifted_df(unfiltered_seqs_to_be_lifted)
+    return seqs_to_be_lifted, seqs_to_be_lifted_df, unfiltered_seqs_to_be_lifted_df
 ################################################################################
 ################################################################################
 ################################################################################
@@ -387,7 +399,7 @@ def create_lift_over_query_bed_file(seq_dict : dict = None, \
 
         # middle of exon
         left_middle = (seq_dict["stop_in_genome"] + seq_dict['start_in_genome'] - args.len_of_exon_middle_to_be_lifted)//2
-        right_middle = left_middle + args.len_of_exon_middle_to_be_lifted # this index does not part of the area to be lifted
+        right_middle = left_middle + args.len_of_exon_middle_to_be_lifted # this index is not part of the area to be lifted
         add_bed_line(start = str(left_middle), \
                      stop = str(right_middle), \
                      name = f"{base_name}_middle")
@@ -401,16 +413,11 @@ def create_lift_over_query_bed_file(seq_dict : dict = None, \
         #              stop = str(exon["stop_in_genome"]), \
         #              name = f"{base_name}_exonend")
 ################################################################################
-def get_new_or_old_species_bed(args = None, \
-                               human_exon_to_be_lifted_path : str = None, \
-                               species_name : str = None, \
-                               out_dir : str = None) -> bool:
-    '''
-    either lifts over bed file
-    or it returns file to existing bed file
+def run_liftover(args = None, \
+                 human_exon_to_be_lifted_path : str = None, \
+                 species_name : str = None, \
+                 out_dir : str = None) -> bool:
 
-    returns bool whether a bedfile was found or created
-    '''
     bed_file_path = f"{out_dir}/{species_name}.bed"
     # if not args.use_old_bed:
     command = f"time halLiftover {args.hal} Homo_sapiens {human_exon_to_be_lifted_path} {species_name} {bed_file_path}"
@@ -464,14 +471,25 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
             print("l_m_r[x.group(1)] didnt work")
             print("row['name']", row["name"])
             exit()
-
-    if len(l_m_r) != 3:
-        os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_not_all_l_m_r.bed")
+    # from the time where lifted over middle was a necessary requirement
+    # if len(l_m_r) != 3:
+    #     os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_not_all_l_m_r.bed")
+    #     return False
+    if "left" not in l_m_r or "right" not in l_m_r:
+        os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_neighbour_missing.bed")
         return False
-    if l_m_r["left"]["strand"] != l_m_r["right"]["strand"] or l_m_r["left"]["strand"] != l_m_r["middle"]["strand"]:
+    # from the time where lifted over middle was a necessary requirement
+    # if l_m_r["left"]["strand"] != l_m_r["right"]["strand"] or l_m_r["left"]["strand"] != l_m_r["middle"]["strand"]:
+    #     os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_unequal_strands.bed")
+    #     return False
+    # if l_m_r["left"]["seq"] != l_m_r["left"]["seq"] or l_m_r["left"]["seq"] != l_m_r["middle"]["seq"]:
+    #     os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_unequal_seqs.bed")
+    #     return False
+
+    if l_m_r["left"]["strand"] != l_m_r["right"]["strand"]:
         os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_unequal_strands.bed")
         return False
-    if l_m_r["left"]["seq"] != l_m_r["left"]["seq"] or l_m_r["left"]["seq"] != l_m_r["middle"]["seq"]:
+    if l_m_r["left"]["seq"] != l_m_r["left"]["seq"]:
         os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_unequal_seqs.bed")
         return False
 
@@ -484,15 +502,42 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
         # gets mapped to [right_start, right_stop] ... [middle_start, middle_stop] ... [left_start, left_stop]
         extra_seq_data["seq_start_in_genome"]  = l_m_r["right"]["stop"]
         extra_seq_data["seq_stop_in_genome"]  = l_m_r["left"]["start"]
-    extra_seq_data["middle_of_exon_start"] = l_m_r["middle"]["start"]
-    extra_seq_data["middle_of_exon_stop"] = l_m_r["middle"]["stop"]
 
-    if extra_seq_data["seq_start_in_genome"] >= extra_seq_data["middle_of_exon_start"]:
-        os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_left_greater_middle.bed")
+
+    if extra_seq_data["seq_start_in_genome"] > extra_seq_data["seq_stop_in_genome"]:
+        os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_start_greater_stop.bed")
         return False
-    if extra_seq_data["middle_of_exon_stop"] >= extra_seq_data["seq_stop_in_genome"]:
-        os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_right_less_middle.bed")
-        return False
+
+
+    # from the time where lifted over middle was a necessary requirement
+    # if extra_seq_data["seq_start_in_genome"] >= extra_seq_data["middle_of_exon_start"]:
+    #     os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_left_greater_middle.bed")
+    #     return False
+    # if extra_seq_data["middle_of_exon_stop"] >= extra_seq_data["seq_stop_in_genome"]:
+    #     os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_right_less_middle.bed")
+    #     return False
+
+    extra_seq_data["middle_exon"] = False
+    if "middle" in l_m_r:
+        if l_m_r["left"]["strand"] != l_m_r["right"]["strand"] or l_m_r["left"]["strand"] != l_m_r["middle"]["strand"]:
+            os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_unequal_strands.bed")
+            return False
+        if l_m_r["left"]["seq"] != l_m_r["left"]["seq"] or l_m_r["left"]["seq"] != l_m_r["middle"]["seq"]:
+            os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_unequal_seqs.bed")
+            return False
+        extra_seq_data["middle_of_exon_start"] = l_m_r["middle"]["start"]
+        extra_seq_data["middle_of_exon_stop"] = l_m_r["middle"]["stop"]
+        extra_seq_data["middle_exon"] = True
+        if extra_seq_data["seq_start_in_genome"] >= extra_seq_data["middle_of_exon_start"]:
+            extra_seq_data["middle_exon"] = False
+        if extra_seq_data["middle_of_exon_stop"] >= extra_seq_data["seq_stop_in_genome"]:
+            extra_seq_data["middle_exon"] = False
+
+    # no middle does not mean that middle exon didnt get lifted over,
+    # it can also mean that the lifted over exon is no in the seq to be hal2fastaed
+    if not extra_seq_data["middle_exon"]:
+        os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_no_middle.bed")
+
 
     extra_seq_data["on_reverse_strand"] = l_m_r["left"]["strand"] == "-"
     extra_seq_data["seq_name"] = l_m_r['left']['seq']
@@ -531,7 +576,8 @@ def write_extra_data_to_fasta_description_and_reverse_complement(fa_path : str =
                            "seq_start_in_genome_cd_strand" : extra_seq_data["seq_start_in_genome"] if not extra_seq_data["on_reverse_strand"] else extra_seq_data["seq_stop_in_genome"], \
                            "seq_stop_in_genome_cd_strand" : extra_seq_data["seq_start_in_genome"] if extra_seq_data["on_reverse_strand"] else extra_seq_data["seq_stop_in_genome"], \
                            "exon_start_in_human_genome_cd_strand" : seq_dict["start_in_genome"] if not extra_seq_data["on_reverse_strand"] else seq_dict["stop_in_genome"], \
-                           "exon_stop_in_human_genome_cd_strand" : seq_dict["stop_in_genome"] if not extra_seq_data["on_reverse_strand"] else seq_dict["start_in_genome"]}
+                           "exon_stop_in_human_genome_cd_strand" : seq_dict["stop_in_genome"] if not extra_seq_data["on_reverse_strand"] else seq_dict["start_in_genome"], \
+                           "middle_exon" : extra_seq_data["middle_exon"]}
             record.description = json.dumps(description)
             if extra_seq_data["on_reverse_strand"]:
                 reverse_seq = record.seq.reverse_complement()
@@ -575,7 +621,8 @@ def strip_seqs(fasta_file = None, seq_dict = None, out_path = None, extra_seq_da
                                "seq_start_in_genome_cd_strand" : seq_start_in_genome if not extra_seq_data["on_reverse_strand"] else seq_stop_in_genome, \
                                "seq_stop_in_genome_cd_strand" : seq_start_in_genome if extra_seq_data["on_reverse_strand"] else seq_stop_in_genome, \
                                "exon_start_in_human_genome_cd_strand" : seq_dict["start_in_genome"] if not extra_seq_data["on_reverse_strand"] else seq_dict["stop_in_genome"], \
-                               "exon_stop_in_human_genome_cd_strand" : seq_dict["stop_in_genome"] if not extra_seq_data["on_reverse_strand"] else seq_dict["start_in_genome"]}
+                               "exon_stop_in_human_genome_cd_strand" : seq_dict["stop_in_genome"] if not extra_seq_data["on_reverse_strand"] else seq_dict["start_in_genome"], \
+                               "middle_exon" : extra_seq_data["middle_exon"]}
                 record.description = json.dumps(description)
                 SeqIO.write(record, stripped_seq_file, "fasta")
 ################################################################################
@@ -653,7 +700,7 @@ def create_exon_data_sets(args, seqs_to_be_lifted, output_dir) -> None:
         for single_species in all_species:
             extra_seq_data = {}
 
-            if not get_new_or_old_species_bed(
+            if not run_liftover(
                 args = args,
                 human_exon_to_be_lifted_path = human_exon_to_be_lifted_path,
                 species_name = single_species,
@@ -719,8 +766,10 @@ def make_stats_table(args):
             exon_coords = list(map(int, exon.split("_")[-2:]))
             exon_len = exon_coords[1] - exon_coords[0]
             lens = []
+            contains_middle_exon = 0
             for record in SeqIO.parse(f"{exon_dir}/combined.fasta","fasta"):
                 lens.append(len(record.seq))
+                contains_middle_exon += 1 if json.loads(record.description)["middle"] else 0
                 if record.id.startswith("Homo_sapiens"):
                     human_len = len(record.seq)
 
@@ -743,7 +792,8 @@ def make_stats_table(args):
                             "exon_len_to_median_len_ratio" : exon_len/median_len, \
                             "average_len" : average_len, \
                             "exon_len_to_average_len" : exon_len/average_len, \
-                            "num_seqs" : len(lens), \
+                            "num_seqs" : len(lens),
+                            "middle_ratio" : contains_middle_exon/ len(lens), \
                             "ambiguous" : ambiguous}
 
             stats_df.loc[len(stats_df)] = new_row_dict
@@ -814,7 +864,7 @@ if __name__ == "__main__":
             else:
                 print("your answer must be either y or n")
 
-    seqs_to_be_lifted, seqs_df = get_to_be_lifted_seqs(args, json_path)
+    seqs_to_be_lifted, seqs_df, unfiltered_seqs_df = get_to_be_lifted_seqs(args, json_path)
 
 
     print("run this skript in interactive mode, select subset of seqs_df and pass it to make_data_from_df(args, seqs_df, seqs_to_be_lifted)")
@@ -827,6 +877,7 @@ def make_data_from_df(args, seqs_df, seqs_to_be_lifted):
         seqs_to_be_lifted: seqs_to_be_lifted is list, indices from seqs_df are used to extract seqs from here
 
         seqs_df.sort_values("before_strip_seq_len")[:20000].sort_values("exon_len")[:7000].sample(40)
+        plt.hist(seqs_df["exon_len"][seqs_df["exon_len"] < 600], bins = 20); plt.savefig("hist.png")
     '''
     now = datetime.now()
     date_string = now.strftime("%Y-%m-%d_%H-%M")

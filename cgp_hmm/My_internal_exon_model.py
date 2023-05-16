@@ -10,7 +10,6 @@ import tensorflow as tf
 def non_class_A_log_prior(A, prior_matrix, prior_indices):
         epsilon = 1e-2
 
-
         alphas = tf.gather_nd(prior_matrix, prior_indices)
         tf.debugging.Assert(tf.math.reduce_all(alphas != 0), [alphas], name = "some_A_alphas_are_zero")
         tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alphas)), [alphas], name = "some_A_alphas_are_not_finite")
