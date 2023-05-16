@@ -429,6 +429,7 @@ class Config():
         if self.calc_parameter_diff == True: # not simply just if bool: bc it can be -1
             assert self.write_matrices_after_fit, "if calc_parameter_diff you must pass write_matrices_after_fit"
 
+        assert self.flatten_B_init >= 0 and self.flatten_B_init <= 1, f"self.flatten_B_init must be in [0,1] but is {self.flatten_B_init}"
 
 ################################################################################
 ################################################################################
@@ -496,6 +497,7 @@ class Config():
         self.parser.add_argument('--left_intron_init_weight', type = float, default = 4, help = 'weight for left -> left, the para for leaving left is 0')
         self.parser.add_argument('--right_intron_init_weight', type = float, default = 4, help = 'weight for right -> right, the para for leaving right is 0')
         self.parser.add_argument('--exon_skip_init_weight', type = float, default = -3, help = 'initparameter for exon strip')
+        self.parser.add_argument('--flatten_B_init', type = float, default = 0, help = 'flatten the init parameters of B, ie priorB *C + uniform * (1-c)')
 
         s = "else case to no model passed, ie the ATG CCC CCC STP model without introns"
         self.parser.add_argument('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")

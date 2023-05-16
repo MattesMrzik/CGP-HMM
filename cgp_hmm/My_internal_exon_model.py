@@ -123,9 +123,8 @@ class My_Model(Model):
 
     def make_model(self):
 
-        if self.config.priorB:
-            from Prior import Prior
-            self.prior = Prior(self.config)
+        from Prior import Prior
+        self.prior = Prior(self.config)
 
         # I
         self.I_indices = self.get_I_indices()
@@ -137,8 +136,7 @@ class My_Model(Model):
         self.A_initial_weights_for_constants = self.A_indices_and_initial_weights()
         self.A_indices = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
 
-        if self.config.priorA:
-            self.get_A_prior_matrix()
+        self.get_A_prior_matrix()
 
         if self.config.use_weights_for_consts:
 
@@ -155,8 +153,7 @@ class My_Model(Model):
 
         # B
         self.make_preparations_for_B()
-        if self.config.priorB:
-            self.get_B_prior_matrix()
+        self.get_B_prior_matrix()
 
         shape = (self.number_of_emissions, self.number_of_states)
         B_indices_complement = tf.where(tf.ones(shape, dtype = tf.float32) - tf.scatter_nd(self.B_indices, [1.0] * len(self.B_indices), shape = shape))
@@ -668,10 +665,6 @@ class My_Model(Model):
         prior = -1.0
         initial_parameter = -1.0
 
-        if not self.config.priorB:
-            return prior, initial_parameter
-
-
         if state in ["left_intron", "right_intron"] and emission[0] != "i":
             norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
             assert abs(norm - 1 ) < 1e-4, f"norm is {norm} but should be one"
@@ -846,6 +839,8 @@ class My_Model(Model):
 
 ################################################################################
     def get_A_log_prior(self, A_kernel):
+        if self.config.priorA == 0:
+            return 0
         A_dense = tf.sparse.to_dense(self.A(A_kernel))
         self.assert_a_is_compatible_with_direchlet_prior()
         return non_class_A_log_prior(A_dense, self.A_prior_matrix, self.A_prior_indices)
@@ -887,6 +882,8 @@ class My_Model(Model):
         tf.debugging.Assert(tf.math.reduce_all(diff_rows_that_matter == 0), [diff_rows_that_matter], name = "some_B_paras_havent_got_prior", summarize = -1)
 ################################################################################
     def get_B_log_prior(self, B_kernel):
+        if self.config.priorB == 0:
+            return 0
         self.assert_b_is_compatible_with_direchlet_prior()
 
         return non_class_B_log_prior(self.B(B_kernel), self.B_prior_matrix, self.B_prior_indices, self.config.alphabet_size)
@@ -1029,8 +1026,11 @@ class My_Model(Model):
         for state in range(tf.shape(emission_matrix)[1]):
             for emission_id_4 in range(0,tf.shape(emission_matrix)[0], self.config.alphabet_size):
                 sum_with_out_zeros_and_negatives_ones = 0.0
+                number_of_values_that_can_be_flattened = 0.0
                 found_negative_ones = 0.0
                 for emission_id in range(emission_id_4, emission_id_4 + self.config.alphabet_size):
+                    if emission_matrix[emission_id, state] != 0:
+                        number_of_values_that_can_be_flattened += 1
                     if emission_matrix[emission_id, state] != -1:
                         sum_with_out_zeros_and_negatives_ones += tf.cast(emission_matrix[emission_id, state], tf.float32)
                     else:
@@ -1046,7 +1046,12 @@ class My_Model(Model):
                     if emission_matrix[emission_id, state] == -1:
                         weight = tf.math.log((1-sum_with_out_zeros_and_negatives_ones)/found_negative_ones)
                     else:
-                        weight = tf.math.log(tf.cast(emission_matrix[emission_id, state], tf.float32))
+                        if self.config.flatten_B_init and number_of_values_that_can_be_flattened != 0:
+                            flattened_value = emission_matrix[emission_id, state] * (1-self.config.flatten_B_init) + 1.0/number_of_values_that_can_be_flattened * self.config.flatten_B_init
+                            print(flattened_value, emission_matrix[emission_id, state])
+                            weight = tf.math.log(tf.cast(flattened_value, tf.float32))
+                        else:
+                            weight = tf.math.log(tf.cast(emission_matrix[emission_id, state], tf.float32))
                     indx = (emission_id, state)
                     if list(indx) in self.B_indices_for_trainable_parameters:
                         initial_parameters_for_weights[self.B_weight_tuple_id(indx)] = weight
@@ -1057,6 +1062,7 @@ class My_Model(Model):
                     #     exit()
         initial_parameters_for_weights = np.array(initial_parameters_for_weights, np.float32)
         initial_parameters_for_consts = np.array(initial_parameters_for_consts, np.float32)
+
         return initial_parameters_for_weights, initial_parameters_for_consts
 
 ################################################################################
