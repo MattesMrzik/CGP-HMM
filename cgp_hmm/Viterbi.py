@@ -267,7 +267,7 @@ def read_viterbi_json(model, viterbi_path) -> list[tuple[int,str]]:
             #         l.append((state,description))
         return l
 ################################################################################
-def viterbi_tuple_list_to_fasta(viterbi_path, human_fasta, l : list[tuple[int,str]]) -> str:
+def viterbi_tuple_list_to_fasta(viterbi_path, human_fasta, l : list[int,str]) -> str:
     '''return st. like  llll---AGc 0c 1c 2c 3c 4c 5c 6c 7c 8c 9c10c11c12GT---rrrr'''
     viterbi_as_fasta = ""
     if viterbi_path == None:
@@ -368,9 +368,9 @@ def get_numerate_line_record(viterbi_as_fasta, len_of_line_in_clw = 50):
     numerate_line_record = SeqRecord(seq = Seq(numerate_line), id = "numerate_line")
     return numerate_line_record
 ################################################################################
-def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterbi_path = None, model = None, out_dir_path = "."):
+def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterbi_out_path = None, model = None, out_dir_path = "."):
     '''
-    fasta_path is config.fasta_path
+    fasta_path is config.fasta_path (combined.fasta in most cases)
     assumes viterbi only contains prediction for human
     '''
     len_of_line_in_clw = 50
@@ -380,10 +380,17 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
         return
 
     coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
-    l = read_viterbi_json(model, viterbi_path)
+    l = read_viterbi_json(model, viterbi_out_path)
 
-    viterbi_as_fasta = viterbi_tuple_list_to_fasta(viterbi_path, human_fasta, l)
+    viterbi_as_fasta = viterbi_tuple_list_to_fasta(viterbi_out_path, human_fasta, l)
+
+    # out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
+    viterbi_as_fasta_path = re.sub("_cc_output", "", viterbi_out_path)
+    viterbi_as_fasta_path = re.sub(".json", ".fasta", viterbi_as_fasta_path)
+
     viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
+    with open(viterbi_as_fasta_path, "w") as viterbi_fa_file:
+        SeqIO.write(viterbi_record, viterbi_fa_file, "fasta")
 
     true_seq, on_reverse_strand = get_true_gene_strucutre_from_fasta_description_as_fasta(coords)
     true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
@@ -397,7 +404,7 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
         if e_or_i == "E" and base in "acgtnN":
             exon_contains_ambiguous_bases = "_exon_contains_ambiguous_bases"
 
-    if viterbi_path == None:
+    if viterbi_out_path == None:
         records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record]
     else:
         records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
@@ -405,11 +412,11 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
     alignment = MultipleSeqAlignment(records)
 
     after_or_before = ""
-    if viterbi_path != None:
-        print(viterbi_path)
+    if viterbi_out_path != None:
+        print(viterbi_out_path)
 
-        found_after = re.search("after", os.path.basename(viterbi_path))
-        found_before = re.search("before", os.path.basename(viterbi_path))
+        found_after = re.search("after", os.path.basename(viterbi_out_path))
+        found_before = re.search("before", os.path.basename(viterbi_out_path))
 
         assert not (found_after and found_before), "found both 'after' and 'before' in viterbi_cc_ file name"
         assert found_after or found_before, "found no 'after' or 'before' in viterbi_cc_ file name"
@@ -449,7 +456,6 @@ def run_cc_viterbi(config, matr_dir):
     os.system(command)
     print("done viterbi. it took ", time.perf_counter() - start)
 ################################################################################
-
 def main(config, after_or_before = "a", overwrite_viterbi = True):
     # (if not passed parent_input_dir it is set to current run dir but this is different when calling viterbi
     # when parent_input_dir is not set and viterby.py is called then viterbi.py should select the newest dir)
@@ -459,6 +465,8 @@ def main(config, after_or_before = "a", overwrite_viterbi = True):
     after_or_before = "after_fit_para" if after_or_before == "a" else "before_fit_para"
     matr_dir = f"{config.current_run_dir}/{after_or_before}"
     # if not os.path.exists(f"{matr_dir}/A.json"):
+
+    # TODO maybe dont convert if files already exist
     print("start converting kernels to matrices")
     convert_kernel_files_to_matrices_files(config, matr_dir)
     print("done with converting kernels")
@@ -466,8 +474,8 @@ def main(config, after_or_before = "a", overwrite_viterbi = True):
     seqs_json_path = f"{config.fasta_path}.json"
     if not os.path.exists(seqs_json_path):
         print("fa.json doesnt exist, so it it calculated")
-        from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
         from ReadData import read_data_one_hot_with_Ns_spread_str
+        from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
         seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
         seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
         with open(seqs_json_path, "w") as out_file:
