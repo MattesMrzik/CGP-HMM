@@ -81,13 +81,20 @@ def get_cfg_with_args():
 
     #  i can also pass the same arg to a parameter twice and bind it with another parameter to achieve
     # something like manual defined grid points
+
+    # these need to be named the same as in Config.py
+    # by if i only pass a partial str as key here
+    # it is completed by Config.py but columns i get from the keys
+    # of cfg_with_args arent completet automatically
+    # i.e epoch is completed to epochs
+
     cfg_with_args["nCodons"] = [get_exon_codons(exon) for exon in exons]
     # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
     cfg_with_args["priorA"] = [10,3,0]
     cfg_with_args["priorB"] = [10,3,0]
     cfg_with_args["global_log_epsilon"] = [1e-20]
-    cfg_with_args["epoch"] = [20,40]
+    cfg_with_args["epochs"] = [20,40]
     cfg_with_args["learning_rate"] = [0.05,0.01]
     cfg_with_args["batch_size"] = [16]
     cfg_with_args["step"] = [16]
@@ -95,7 +102,7 @@ def get_cfg_with_args():
     cfg_with_args["prior_path"] = [" ../../cgp_data/priors/human/"]
     # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
     cfg_with_args["exon_skip_init_weight"] = [-4,-6]
-    cfg_with_args["flatten_B_init"] = [.9, 1]
+    cfg_with_args["flatten_B_init"] = [.1, 0]
 
     return cfg_with_args
 
@@ -417,8 +424,11 @@ def get_viterbi_aligned_seqs(train_run_dir, after_or_before):
 
 def calc_run_stats(path) -> pd.DataFrame:
 
-    stats = {}
-    for train_run_dir, after_or_before in product(get_run_sub_dirs(path), ["after", "before"]):
+    stats_list = []
+    sub_dir_and_after_or_before = list(product(get_run_sub_dirs(path), ["after", "before"]))
+    for i, (train_run_dir, after_or_before) in enumerate(sub_dir_and_after_or_before):
+        print(f"getting stats {i}/{len(sub_dir_and_after_or_before)}")
+
         run_stats = {}
         if (aligned_seqs := get_viterbi_aligned_seqs(train_run_dir, after_or_before)) == -1:
             continue
@@ -428,14 +438,11 @@ def calc_run_stats(path) -> pd.DataFrame:
 
         training_args = json.load(open(f"{train_run_dir}/passed_args.json"))
         add_actual_epochs_to_run_stats(train_run_dir, run_stats, max_epochs = training_args['epochs'])
-        stats[(train_run_dir, after_or_before)] = run_stats, training_args
 
-    df = pd.DataFrame(columns=list(set(training_args.keys()) or set(run_stats.keys())))
+        stats_list.append({**training_args, **run_stats})
 
-    for run_stats, training_args in stats.values():
-        new_row = pd.DataFrame({**training_args, **run_stats}, index=[0])
-        df = pd.concat([df, new_row], axis = 0, ignore_index = True)
 
+    df = pd.DataFrame(stats_list)
 
     # remove cols, ie name of parameter for training runs, whos args are const across runs
     cols_to_keep = df.columns[df.nunique() > 1]
@@ -451,6 +458,9 @@ def calc_run_stats(path) -> pd.DataFrame:
 def add_actual_epochs_to_run_stats(sub_path, run_stats, max_epochs = None):
     # Epoch 6/20
     path_to_std_out = f"{sub_path}/out_train.log"
+    if not os.path.exists(path_to_std_out):
+        path_to_std_out = f"{sub_path}/out.log"
+
     max_epoch = 0
     with open(path_to_std_out, "r") as log_file:
         regrex = f"Epoch\s(\d{{1,3}})/{max_epochs}"
@@ -479,8 +489,12 @@ def add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs, true
         assert run_stats["guessed_end"] + run_stats["guessed_start"] == -2, f"if viterbi didnt find start it is assumend that it also didnt find end, bc i dont want to handle this case, true_alignemnt_path = {true_alignemnt_path}"
 
 
-def get_cols_to_group_by():
-    parameters_with_more_than_one_arg = [name for name, args in get_cfg_with_args().items() if len(args) > 1]
+def get_cols_to_group_by(args):
+    path_to_multi_run_dir = f"{args.eval_viterbi}/cfg_with_args.json"
+    with open(path_to_multi_run_dir, "r") as file:
+        cfg_with_args = json.load(file)
+
+    parameters_with_more_than_one_arg = [name for name, args in cfg_with_args.items() if len(args) > 1]
     parameters_with_more_than_one_arg.remove("fasta")
     parameters_with_more_than_one_arg.remove("nCodons")
 
@@ -488,25 +502,8 @@ def get_cols_to_group_by():
 
     return parameters_with_more_than_one_arg
 
-def sort_columns(df):
-    sorted_columns = ["passed_current_run_dir", "actual_epochs", \
-                      "true_start", "true_end", "guessed_start", "guessed_end", \
-                      "exon_len", "v_len"\
-                      "correct", "skipped_exon", "wrap", "incomplete", "overlapps", "miss", \
-                      "overlap", "overlap_single_ratio", "overlap_ratio_per_grid_point", \
-                      "toobig", "toobig_ratio_per_grid_point", \
-                      "after_or_before", "priorA", "priorB", "exon_skip_init_weight"]
 
-    # bc sometimes i dont have multiple values for a parameter, so it is removed
-    # from df in get_run_stats()
-    for key in sorted_columns[::-1]:
-        if key not in df.columns:
-            sorted_columns.remove(key)
-    remaining_columns = list(set(df.columns) - set(sorted_columns))
-    df = df[sorted_columns + remaining_columns]
-    return df
-
-def add_additional_eval_cols(df):
+def add_additional_eval_cols(df, args):
     df["exon_len"] = df["true_end"] - df["true_start"]
     df["v_len"] = df["guessed_end"] - df["guessed_start"]
     df["len_ratio"] = df["v_len"] / df["exon_len"]
@@ -519,9 +516,7 @@ def add_additional_eval_cols(df):
     df['overlap_single_ratio'] = df["overlap"] / df["exon_len"]
     df['toobig'] = df['guessed_end'] - df['guessed_start'] - df["overlap"]
 
-
-
-    cols_to_group_by = get_cols_to_group_by()
+    cols_to_group_by = get_cols_to_group_by(args)
     new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["exon_len"])).reset_index(name = "sum_exon_lens")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
@@ -558,9 +553,26 @@ def add_additional_eval_cols(df):
 
     return df
 
+def sort_columns(df):
+    sorted_columns = ["passed_current_run_dir", "actual_epochs", \
+                      "true_start", "true_end", "guessed_start", "guessed_end", \
+                      "exon_len", "v_len",\
+                      "correct", "skipped_exon", "wrap", "incomplete", "overlapps", "miss", \
+                      "overlap", "overlap_single_ratio", "overlap_ratio_per_grid_point", \
+                      "toobig", "toobig_ratio_per_grid_point", \
+                      "after_or_before", "priorA", "priorB", "exon_skip_init_weight"]
+
+    # bc sometimes i dont have multiple values for a parameter, so it is removed
+    # from df in get_run_stats()
+    for key in sorted_columns[::-1]:
+        if key not in df.columns:
+            sorted_columns.remove(key)
+    remaining_columns = list(set(df.columns) - set(sorted_columns))
+    df = df[sorted_columns + remaining_columns]
+    return df
+
 def rename_cols(df):
-    columns = {"actual_epochs":"epoch",
-               "true_start": "start",
+    columns = {"true_start": "start",
                "true_end": "end",
                "guessed_start": "v_start",
                "guessed_end":"v_end",
@@ -577,21 +589,25 @@ def remove_cols(df):
         df = df.drop(col, axis = 1)
 
     return df
-def eval_viterbi(path):
+def eval_viterbi(args):
     import matplotlib.pyplot as plt
+    path = args.eval_viterbi
     df = load_or_calc_eval_df(path)
+
 
     # print(df.groupby(["priorA", "priorB", "exon_skip_init_weight", "fasta"]).apply(np.std))
     # print(df.groupby(["priorA", "priorB", "exon_skip_init_weight", "fasta"]).size())
 
-    df = add_additional_eval_cols(df)
+    # print(df.groupby(get_cols_to_group_by(args)).mean()[["correct", "overlap_ratio", "toobig_ratio"]].sort_values("overlap_ratio").to_string(max_rows = None, max_cols = None))
+
+    df = add_additional_eval_cols(df, args)
     df = sort_columns(df)
     df = rename_cols(df)
     df = remove_cols(df)
 
     #TODO also rename grouped?
 
-    cols_to_group_by = get_cols_to_group_by()
+    cols_to_group_by = get_cols_to_group_by(args)
     grouped = df.groupby(cols_to_group_by).apply(lambda x: sum(x["overlap"]/sum(x["exon_len"]))).reset_index(name = "grouped_overlap_ratio_per_grid_point").sort_values("grouped_overlap_ratio_per_grid_point")
 
     return df, grouped
@@ -634,6 +650,6 @@ if __name__ == "__main__":
     elif args.viterbi_path:
         viterbi(args)
     elif args.eval_viterbi:
-        df, grouped = eval_viterbi(args.eval_viterbi)
+        df, grouped = eval_viterbi(args)
     elif args.continue_training:
         continue_training(args)
