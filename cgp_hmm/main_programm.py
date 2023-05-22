@@ -42,7 +42,12 @@ def main(config):
     # tf weights
     path = f"{config.current_run_dir}/after_fit_para"
 
-    model.get_layer(f"cgp_hmm_layer{'_' + str(config.epochs-1) if config.likelihood_influence_growth_factor else ''}").C.write_weights_to_file(path)
+    for i in range(config.epochs-1):
+        try:
+            model.get_layer(f"cgp_hmm_layer{'_' + str(i) if config.likelihood_influence_growth_factor else ''}").C.write_weights_to_file(path)
+            break
+        except:
+            pass
 
     append_time_ram_stamp_to_file(f"main_programm after fit export paras end", config.bench_path, start)
 

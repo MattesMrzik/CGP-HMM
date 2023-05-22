@@ -571,6 +571,7 @@ def fit_model(config):
                 append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
 
             # TODO: maybe it would be faster if i do a manual training loop here
+            # TODO: or make a loss layer, and maybe the cgphmm doesnt need to be retraced
                 # for epoch in range(config.epochs):
                 #     for step, batch in enumerate(data_set):
                 #         if step >= config.steps_per_epoch:
@@ -581,7 +582,8 @@ def fit_model(config):
                 if not os.path.exists(dir_path):
                         os.system(f"mkdir -p {dir_path}")
                 for current_epoch in range(config.epochs):
-
+                    if config.likelihood_influence_growth_factor * current_epoch >= 1:
+                        break
                     if current_epoch != 0:
                         config.init_weights_from = dir_path
                     model, cgp_hmm_layer = make_model(config, current_epoch = current_epoch)
@@ -607,6 +609,29 @@ def fit_model(config):
                     append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
 
                     model.get_layer(f"cgp_hmm_layer{'_' + str(current_epoch) if current_epoch > 0 else ''}").C.write_weights_to_file(dir_path)
+                # end for
+                config.init_weights_from = dir_path
+                model, cgp_hmm_layer = make_model(config, current_epoch)
+
+                skipeed_data_set = data_set.skip(current_epoch)
+
+                # compile model
+                start = time.perf_counter()
+                run_id = randint(0,100)
+                append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
+                model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
+                append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
+
+                # fit model
+                start = time.perf_counter()
+                run_id = randint(0,100)
+                append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
+                print("optimizer.iterations should be 0:", optimizer.iterations)
+                history = model.fit(skipeed_data_set, epochs = config.epochs - current_epoch, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
+                print("optimizer.iterations should be larger 0:", optimizer.iterations)
+                append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+
+                model.get_layer(f"cgp_hmm_layer{'_' + str(current_epoch) if current_epoch > 0 else ''}").C.write_weights_to_file(dir_path)
 
 
     return model, history

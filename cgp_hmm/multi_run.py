@@ -105,7 +105,9 @@ def get_cfg_with_args():
     cfg_with_args["prior_path"] = [" ../../cgp_data/priors/human/"]
     # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
     cfg_with_args["exon_skip_init_weight"] = [-5]
-    cfg_with_args["flatten_B_init"] = [.2, 0]
+    cfg_with_args["flatten_B_init"] = [0]
+
+    cfg_with_args["likelihood_influence_growth_factor"] = [0, 0.2]
 
     return cfg_with_args
 
