@@ -88,21 +88,24 @@ def get_cfg_with_args():
     # of cfg_with_args arent completet automatically
     # i.e epoch is completed to epochs
 
-    cfg_with_args["nCodons"] = [get_exon_codons(exon) for exon in exons]
+    exon_nCodons = [get_exon_codons(exon) for exon in exons]
+
+    cfg_with_args["nCodons"] = exon_nCodons
+    cfg_with_args["model_size_factor"] = [1, 1.2]
     # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
-    cfg_with_args["priorA"] = [10,3,0]
-    cfg_with_args["priorB"] = [10,3,0]
+    cfg_with_args["priorA"] = [100,5,0]
+    cfg_with_args["priorB"] = [100,5,0]
     cfg_with_args["global_log_epsilon"] = [1e-20]
-    cfg_with_args["epochs"] = [20,40]
-    cfg_with_args["learning_rate"] = [0.05,0.01]
+    cfg_with_args["epochs"] = [40]
+    cfg_with_args["learning_rate"] = [0.05]
     cfg_with_args["batch_size"] = [16]
     cfg_with_args["step"] = [16]
     cfg_with_args["clip_gradient_by_value"] = [5]
     cfg_with_args["prior_path"] = [" ../../cgp_data/priors/human/"]
     # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
-    cfg_with_args["exon_skip_init_weight"] = [-4,-6]
-    cfg_with_args["flatten_B_init"] = [.1, 0]
+    cfg_with_args["exon_skip_init_weight"] = [-5]
+    cfg_with_args["flatten_B_init"] = [.2, 0]
 
     return cfg_with_args
 
@@ -113,7 +116,7 @@ def get_bind_args_together(cfg_with_args):
     bind_args_together = [set([key]) for key in cfg_with_args.keys()]
     bind_args_together += [{"fasta", "nCodons"}]
     # bind_args_together += [{"exon_skip_init_weight", "nCodons"}]
-    bind_args_together += [{"priorA", "priorB"}]
+    # bind_args_together += [{"priorA", "priorB"}]
 
     return bind_args_together
 
@@ -124,6 +127,7 @@ def get_cfg_without_args():
     logsumexp
     bucket_by_seq_len
     exit_after_loglik_is_nan
+    viterbi
     '''
     cfg_without_args = re.split("\s+", cfg_without_args)[1:-1]
     return cfg_without_args
@@ -184,7 +188,7 @@ def get_grid_points(zipped_args : list[tuple[set, zip]]) -> list[list[list]]:
     return list(product(*[arg[-1] for arg in zipped_args]))
 
 
-def run_training_without_viterbi(args):
+def run_training(args):
 
     binded_arg_names = get_bind_args_together(get_cfg_with_args())
 
@@ -610,6 +614,9 @@ def eval_viterbi(args):
     cols_to_group_by = get_cols_to_group_by(args)
     grouped = df.groupby(cols_to_group_by).apply(lambda x: sum(x["overlap"]/sum(x["exon_len"]))).reset_index(name = "grouped_overlap_ratio_per_grid_point").sort_values("grouped_overlap_ratio_per_grid_point")
 
+    g1 = df.groupby(get_cols_to_group_by(args)).mean()[["correct", "overlap_ratio", "toobig_ratio"]].reset_index()
+    print('g1[(g1["priorA"] == 0) & (g1["epochs"] == 20) & (g1["exon_skip_init_weight"] == -4)]')
+
     return df, grouped
 
 def load_or_calc_eval_df(path):
@@ -646,7 +653,7 @@ if __name__ == "__main__":
     args = get_multi_run_config()
 
     if args.train:
-        run_training_without_viterbi(args)
+        run_training(args)
     elif args.viterbi_path:
         viterbi(args)
     elif args.eval_viterbi:

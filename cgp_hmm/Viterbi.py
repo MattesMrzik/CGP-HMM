@@ -381,7 +381,6 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
 
     coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
     l = read_viterbi_json(model, viterbi_out_path)
-
     viterbi_as_fasta = viterbi_tuple_list_to_fasta(viterbi_out_path, human_fasta, l)
 
     # out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
@@ -391,6 +390,7 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
     viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
     with open(viterbi_as_fasta_path, "w") as viterbi_fa_file:
         SeqIO.write(viterbi_record, viterbi_fa_file, "fasta")
+
 
     true_seq, on_reverse_strand = get_true_gene_strucutre_from_fasta_description_as_fasta(coords)
     true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
@@ -456,13 +456,13 @@ def run_cc_viterbi(config, matr_dir):
     os.system(command)
     print("done viterbi. it took ", time.perf_counter() - start)
 ################################################################################
-def main(config, after_or_before = "a", overwrite_viterbi = True):
+def main(config, overwrite_viterbi = True):
     # (if not passed parent_input_dir it is set to current run dir but this is different when calling viterbi
     # when parent_input_dir is not set and viterby.py is called then viterbi.py should select the newest dir)
 
     # check if matrices exists, if not convert kernels
 
-    after_or_before = "after_fit_para" if after_or_before == "a" else "before_fit_para"
+    after_or_before = "after_fit_para" if config.after_or_before == "a" else "before_fit_para"
     matr_dir = f"{config.current_run_dir}/{after_or_before}"
     # if not os.path.exists(f"{matr_dir}/A.json"):
 
@@ -501,15 +501,15 @@ def main(config, after_or_before = "a", overwrite_viterbi = True):
             run_cc_viterbi(config, matr_dir)
 
         # if config.manual_passed_fasta:
+        print("before fasta_true_state_seq_and_optional_viterbi_guess_alignment")
         fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, out_viterbi_file_path, config.model, out_dir_path = config.current_run_dir)
-
+        print("adter fasta_true_state_seq_and_optional_viterbi_guess_alignment")
         # if not config.manual_passed_fasta:
         #     viterbi_guess = load_viterbi_guess(config)
         #     true_state_seqs = get_true_state_seqs_from_true_MSA(config)
         #     compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
         #     write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
         #     eval_start_stop(config, viterbi_guess)
-
 
 
 if __name__ == "__main__":
@@ -525,9 +525,5 @@ if __name__ == "__main__":
     # while (a_or_b := input()) not in "ab":
     #     pass
 
-
-    if not config.force_overwrite:
-        main(config, after_or_before = config.after_or_before, overwrite_viterbi = False)
-    else:
-        main(config, after_or_before = config.after_or_before)
+    main(config)
 

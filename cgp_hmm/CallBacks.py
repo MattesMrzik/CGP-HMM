@@ -60,8 +60,12 @@ def get_call_backs(config, model):
                 append_time_ram_stamp_to_file(f"Callbacks.write_initial_para start", config.bench_path, start)
 
                 path = f"{config.current_run_dir}/before_fit_para/"
-                cell = model.get_layer("cgp_hmm_layer").C
-                cell.write_weights_to_file(path)
+                try:
+                    cell = model.get_layer("cgp_hmm_layer").C
+                    cell.write_weights_to_file(path)
+                except:
+                    pass
+                    # print("run of second model when likelihood_influence_growth_factor, write no init weights")
 
                 append_time_ram_stamp_to_file(f"Callbacks.write_initial_para end", config.bench_path, start)
 

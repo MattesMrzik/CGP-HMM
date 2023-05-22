@@ -61,6 +61,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             print("self.config.get_gradient_for_current_txt is decrepated")
             exit(1)
         if self.config.init_weights_from:
+            print("init cell weights from ", self.config.init_weights_from)
             weights = self.read_weights_from_file(self.config.init_weights_from)
 
             I_initializer = tf.constant_initializer(weights[0])
