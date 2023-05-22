@@ -686,14 +686,16 @@ class My_Model(Model):
                     assert norm != 0, f"norm is zero in state {state} and emission {emission}, with pattern {pattern}"
                     prior = unscaled_prob/norm
                     initial_parameter = prior
-                if state[-1] == "1":
-                    pattern = f".{{{self.config.ass_start}}}AG{emission[1:]}.{{{self.config.ass_end-2}}}"
-                    norm_pattern = f".{{{self.config.ass_start}}}AG{emission[1]}.{{{self.config.ass_end-1}}}"
-                    unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = pattern)
-                    norm = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = norm_pattern)
-                    assert norm != 0, f"norm is zero in state {state} and emission {emission}, with pattern {pattern}"
-                    prior = unscaled_prob/norm
-                    initial_parameter = prior
+                # if state[-1] == "1": #  i dont think that this can be used
+                # since i dont know if this is emission right after AG (c_0,0 was skipped)
+                # , or c_0,0 was entered
+                #     pattern = f".{{{self.config.ass_start}}}AG{emission[1:]}.{{{self.config.ass_end-2}}}"
+                #     norm_pattern = f".{{{self.config.ass_start}}}AG{emission[1]}.{{{self.config.ass_end-1}}}"
+                #     unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = pattern)
+                #     norm = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = norm_pattern)
+                #     assert norm != 0, f"norm is zero in state {state} and emission {emission}, with pattern {pattern}"
+                #     prior = unscaled_prob/norm
+                #     initial_parameter = prior
 
         if state[0] == "i":
             codon_id = int(re.search(r"i_(\d+),\d+", state).group(1))
@@ -1047,7 +1049,7 @@ class My_Model(Model):
                     else:
                         if self.config.flatten_B_init and number_of_values_that_can_be_flattened != 0:
                             flattened_value = emission_matrix[emission_id, state] * (1-self.config.flatten_B_init) + 1.0/number_of_values_that_can_be_flattened * self.config.flatten_B_init
-                            print(flattened_value, emission_matrix[emission_id, state])
+                            # print(flattened_value, emission_matrix[emission_id, state])
                             weight = tf.math.log(tf.cast(flattened_value, tf.float32))
                         else:
                             weight = tf.math.log(tf.cast(emission_matrix[emission_id, state], tf.float32))

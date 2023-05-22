@@ -21,7 +21,7 @@ def get_multi_run_config():
     parser.add_argument('--slurm', action = 'store_true', help='use with slurm')
 
     parser.add_argument('--train', action = 'store_true', help='train with args specified in the methods in this module and write output to calculated path based on current time')
-    parser.add_argument('--mem', type = int, default = 10000, help='mem for slurm train')
+    parser.add_argument('--mem', type = int, default = 20000, help='mem for slurm train')
     parser.add_argument('--mpi', type = int, default = 8, help='mpi for slurm train')
     parser.add_argument('--max_jobs', type = int, default = 8, help='max number of jobs for slurm train')
     parser.add_argument('--partition', default = "snowball", help='partition for slurm train')
@@ -44,6 +44,11 @@ def get_multi_run_config():
 
     assert args.train or args.viterbi_path or args.eval_viterbi or args.continue_training, "you must pass either --train or --viterbi_path or --eval_viterbi"
 
+    if args.continue_training:
+        print()
+        print("can only continue training if it was started withour slurm before")
+        time.sleep(3)
+
     return args
 
 def get_cfg_without_args_that_are_switched():
@@ -60,7 +65,7 @@ def get_cfg_with_args():
     cfg_with_args = {}
 
     # or read files in a passed dir
-    fasta_dir_path = "../../cgp_data/good_exons_1"
+    fasta_dir_path = "/home/s-mamrzi/cgp_data/good_exons_2"
     # exons = ["exon_chr1_8364055_8364255", \
     #         "exon_chr1_33625050_33625254"]
 
@@ -76,20 +81,28 @@ def get_cfg_with_args():
 
     #  i can also pass the same arg to a parameter twice and bind it with another parameter to achieve
     # something like manual defined grid points
+
+    # these need to be named the same as in Config.py
+    # by if i only pass a partial str as key here
+    # it is completed by Config.py but columns i get from the keys
+    # of cfg_with_args arent completet automatically
+    # i.e epoch is completed to epochs
+
     cfg_with_args["nCodons"] = [get_exon_codons(exon) for exon in exons]
     # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
-    cfg_with_args["priorA"] = [1,0]
-    cfg_with_args["priorB"] = [1,0]
+    cfg_with_args["priorA"] = [10,3,0]
+    cfg_with_args["priorB"] = [10,3,0]
     cfg_with_args["global_log_epsilon"] = [1e-20]
-    cfg_with_args["epoch"] = [20]
+    cfg_with_args["epochs"] = [20,40]
+    cfg_with_args["learning_rate"] = [0.05,0.01]
     cfg_with_args["batch_size"] = [16]
     cfg_with_args["step"] = [16]
     cfg_with_args["clip_gradient_by_value"] = [5]
     cfg_with_args["prior_path"] = [" ../../cgp_data/priors/human/"]
     # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
-    cfg_with_args["exon_skip_init_weight"] = [-2]
-
+    cfg_with_args["exon_skip_init_weight"] = [-4,-6]
+    cfg_with_args["flatten_B_init"] = [.1, 0]
 
     return cfg_with_args
 
@@ -174,17 +187,12 @@ def get_grid_points(zipped_args : list[tuple[set, zip]]) -> list[list[list]]:
 def run_training_without_viterbi(args):
 
     binded_arg_names = get_bind_args_together(get_cfg_with_args())
-    multi_run_dir = get_and_make_dir()
-    write_cfgs_to_file(multi_run_dir)
 
     # [{'global_log_epsilon'}, {'epoch'}, {'step'}, {'clip_gradient_by_value'}, {'prior_path'}, {'exon_skip_init_weight'}, {'nCodons', 'fasta'}, {'priorB', 'priorA'}]
     merge(binded_arg_names)
     zipped_args = zip_args(binded_arg_names)
 
     arg_names = [single_arg for arg in zipped_args for single_arg in arg[0]]
-
-    with open(f"{multi_run_dir}/arg_names.json", "w") as arg_names_file:
-        json.dump(arg_names, arg_names_file)
 
     grid_points = get_grid_points(zipped_args)
 
@@ -196,6 +204,11 @@ def run_training_without_viterbi(args):
     if x == "n":
         print("exiting")
         exit()
+
+    multi_run_dir = get_and_make_dir()
+    write_cfgs_to_file(multi_run_dir)
+    with open(f"{multi_run_dir}/arg_names.json", "w") as arg_names_file:
+        json.dump(arg_names, arg_names_file)
 
     with open(f"{multi_run_dir}/grid_points.json", "w") as grid_point_file:
         json.dump(grid_points, grid_point_file)
@@ -231,8 +244,8 @@ def continue_training(parsed_args):
 
         if not os.path.exists(run_dir):
             os.makedirs(run_dir)
-        err_path = f"{run_dir}/err.log"
-        out_path = f"{run_dir}/out.log"
+        err_path = f"{run_dir}/err_train.log"
+        out_path = f"{run_dir}/out_train.log"
 
         command = f"./main_programm.py {pass_args} --passed_current_run_dir {run_dir}"
         print("running", command)
@@ -250,7 +263,7 @@ def continue_training(parsed_args):
                     if exit_code != 0:
                         print("exit_code:", exit_code)
         if parsed_args.slurm:
-            submission_file_name = f"{run_dir}/slurm_learn_submission.sh"
+            submission_file_name = f"{run_dir}/slurm_train_submission.sh"
             with open(submission_file_name, "w") as file:
                 file.write("#!/bin/bash\n")
                 file.write(f"#SBATCH -J l_{os.path.basename(run_dir)[-6:]}\n")
@@ -277,38 +290,39 @@ def continue_training(parsed_args):
             os.system(f"sbatch {submission_file_name}")
 
 
-        # if learning fails, due to RAM overflow or keyboard interupt, then this
-        # file shoulnd exists
-        path_of_A_kernel_after_fit = f"{run_dir}/after_fit_paras/A.kernel"
-        if os.path.exists(path_of_A_kernel_after_fit):
-            with open(f"{parsed_args.continue_training}/todo_grid_points.json", "w") as grid_point_file:
-                json.dump(grid_points[i+1:], grid_point_file)
-        else:
-            import signal
-
-            # define a handler for the timeout signal
-            def timeout_handler(signum, frame):
-                print("Time's up!")
-                raise TimeoutError
-
-            # set the signal handler for the SIGALRM signal
-            signal.signal(signal.SIGALRM, timeout_handler)
-
-            # prompt the user for input with a 30-second timeout
-            try:
-                signal.alarm(30) # set the timeout to 30 seconds
-                print(f"the file {path_of_A_kernel_after_fit} doesnt exist after training")
-                print(f"should the dir {run_dir} be removed? [y/n], it will be removed automatically in 30sec")
-                user_input = input("Please enter some input within 30 seconds: ")
-                signal.alarm(0) # disable the alarm
-            except TimeoutError:
-                print("No input provided within 30 seconds. rm -rf {run_dir}")
-                os.system(f"rm -rf {run_dir}")
+        if not parsed_args.slurm:
+            # if learning fails, due to RAM overflow or keyboard interupt, then this
+            # file shoulnd exists
+            path_of_A_kernel_after_fit = f"{run_dir}/after_fit_paras/A.kernel"
+            if os.path.exists(path_of_A_kernel_after_fit):
+                with open(f"{parsed_args.continue_training}/todo_grid_points.json", "w") as grid_point_file:
+                    json.dump(grid_points[i+1:], grid_point_file)
             else:
-                while user_input not in "yn":
-                    user_input = input("was not in [y/n]")
-                if user_input == "y":
+                import signal
+
+                # define a handler for the timeout signal
+                def timeout_handler(signum, frame):
+                    print("Time's up!")
+                    raise TimeoutError
+
+                # set the signal handler for the SIGALRM signal
+                signal.signal(signal.SIGALRM, timeout_handler)
+
+                # prompt the user for input with a 30-second timeout
+                try:
+                    signal.alarm(30) # set the timeout to 30 seconds
+                    print(f"the file {path_of_A_kernel_after_fit} doesnt exist after training")
+                    print(f"should the dir {run_dir} be removed? [y/n], it will be removed automatically in 30sec")
+                    user_input = input("Please enter some input within 30 seconds: ")
+                    signal.alarm(0) # disable the alarm
+                except TimeoutError:
+                    print("No input provided within 30 seconds. rm -rf {run_dir}")
                     os.system(f"rm -rf {run_dir}")
+                else:
+                    while user_input not in "yn":
+                        user_input = input("was not in [y/n]")
+                    if user_input == "y":
+                        os.system(f"rm -rf {run_dir}")
 
 
 def get_run_sub_dirs(path):
@@ -328,8 +342,10 @@ def get_run_sub_dirs(path):
         subdirs.append(sub_path)
     return subdirs
 
-def viterbi(path):
-    for sub_path in get_run_sub_dirs(path):
+def viterbi(parsed_args):
+    run_sub_dirs = get_run_sub_dirs(args.viterbi_path)
+    for i, sub_path in enumerate(run_sub_dirs):
+        print(f"calculating viterbi {i}/{len(run_sub_dirs)}")
 
         # Viterbi.py args:
         # self.parser.add_argument('--only_first_seq', action = 'store_true', help = 'run viterbi only for the first seq')
@@ -351,10 +367,11 @@ def viterbi(path):
                    {after_or_before}"
 
         command = re.sub("\s+", " ", command)
+        print("runnung: ", command)
 
-        submission_file_name = f"{sub_path}/slurm_submission.sh"
+        submission_file_name = f"{sub_path}/slurm_viterbi_submission.sh"
 
-        slurm_out_path = f"{sub_path}/slurm_out/"
+        slurm_out_path = f"{sub_path}/slurm_viterbi_out/"
         if not os.path.exists(slurm_out_path):
             os.makedirs(slurm_out_path)
 
@@ -366,11 +383,20 @@ def viterbi(path):
                 file.write(f"#SBATCH -n 1\n")
                 file.write("#SBATCH --mem 2000\n")
                 file.write("#SBATCH --partition=snowball\n")
-                file.write(f"#SBATCH -o {sub_path}/slurm_out/out.%j\n")
-                file.write(f"#SBATCH -e {sub_path}/slurm_out/err.%j\n")
+                file.write(f"#SBATCH -o {sub_path}/slurm_viterbi_out/out.%j\n")
+                file.write(f"#SBATCH -e {sub_path}/slurm_viterbi_out/err.%j\n")
                 file.write("#SBATCH -t 02:00:00\n")
                 file.write(command)
                 file.write("\n")
+            def get_number_of_running_slurm_jobs() -> int:
+                # run the 'squeue' command and capture the output
+                output = subprocess.check_output(['squeue', '-u', "s-mamrzi"])
+                # count the number of lines in the output
+                num_jobs = len(output.strip().split(b'\n')) - 1 # subtract 1 to exclude the header
+                return num_jobs
+
+            while get_number_of_running_slurm_jobs() > parsed_args.max_jobs:
+                time.sleep(1)
 
             os.system(f"sbatch {submission_file_name}")
         else:
@@ -398,8 +424,11 @@ def get_viterbi_aligned_seqs(train_run_dir, after_or_before):
 
 def calc_run_stats(path) -> pd.DataFrame:
 
-    stats = {}
-    for train_run_dir, after_or_before in product(get_run_sub_dirs(path), ["after", "before"]):
+    stats_list = []
+    sub_dir_and_after_or_before = list(product(get_run_sub_dirs(path), ["after", "before"]))
+    for i, (train_run_dir, after_or_before) in enumerate(sub_dir_and_after_or_before):
+        print(f"getting stats {i}/{len(sub_dir_and_after_or_before)}")
+
         run_stats = {}
         if (aligned_seqs := get_viterbi_aligned_seqs(train_run_dir, after_or_before)) == -1:
             continue
@@ -409,14 +438,11 @@ def calc_run_stats(path) -> pd.DataFrame:
 
         training_args = json.load(open(f"{train_run_dir}/passed_args.json"))
         add_actual_epochs_to_run_stats(train_run_dir, run_stats, max_epochs = training_args['epochs'])
-        stats[(train_run_dir, after_or_before)] = run_stats, training_args
 
-    df = pd.DataFrame(columns=list(set(training_args.keys()) or set(run_stats.keys())))
+        stats_list.append({**training_args, **run_stats})
 
-    for run_stats, training_args in stats.values():
-        new_row = pd.DataFrame({**training_args, **run_stats}, index=[0])
-        df = pd.concat([df, new_row], axis = 0, ignore_index = True)
 
+    df = pd.DataFrame(stats_list)
 
     # remove cols, ie name of parameter for training runs, whos args are const across runs
     cols_to_keep = df.columns[df.nunique() > 1]
@@ -431,7 +457,10 @@ def calc_run_stats(path) -> pd.DataFrame:
 
 def add_actual_epochs_to_run_stats(sub_path, run_stats, max_epochs = None):
     # Epoch 6/20
-    path_to_std_out = f"{sub_path}/out.log"
+    path_to_std_out = f"{sub_path}/out_train.log"
+    if not os.path.exists(path_to_std_out):
+        path_to_std_out = f"{sub_path}/out.log"
+
     max_epoch = 0
     with open(path_to_std_out, "r") as log_file:
         regrex = f"Epoch\s(\d{{1,3}})/{max_epochs}"
@@ -460,8 +489,12 @@ def add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs, true
         assert run_stats["guessed_end"] + run_stats["guessed_start"] == -2, f"if viterbi didnt find start it is assumend that it also didnt find end, bc i dont want to handle this case, true_alignemnt_path = {true_alignemnt_path}"
 
 
-def get_cols_to_group_by():
-    parameters_with_more_than_one_arg = [name for name, args in get_cfg_with_args().items() if len(args) > 1]
+def get_cols_to_group_by(args):
+    path_to_multi_run_dir = f"{args.eval_viterbi}/cfg_with_args.json"
+    with open(path_to_multi_run_dir, "r") as file:
+        cfg_with_args = json.load(file)
+
+    parameters_with_more_than_one_arg = [name for name, args in cfg_with_args.items() if len(args) > 1]
     parameters_with_more_than_one_arg.remove("fasta")
     parameters_with_more_than_one_arg.remove("nCodons")
 
@@ -469,25 +502,8 @@ def get_cols_to_group_by():
 
     return parameters_with_more_than_one_arg
 
-def sort_columns(df):
-    sorted_columns = ["passed_current_run_dir", "actual_epochs", \
-                      "true_start", "true_end", "guessed_start", "guessed_end", \
-                      "exon_len", \
-                      "correct", "skipped_exon", "wrap", "incomplete", "miss", \
-                      "overlap", "overlap_single_ratio", "overlap_ratio_per_grid_point", \
-                      "toobig", "toobig_ratio_per_grid_point", \
-                      "after_or_before", "priorA", "priorB", "exon_skip_init_weight"]
 
-    # bc sometimes i dont have multiple values for a parameter, so it is removed
-    # from df in get_run_stats()
-    for key in sorted_columns[::-1]:
-        if key not in df.columns:
-            sorted_columns.remove(key)
-    remaining_columns = list(set(df.columns) - set(sorted_columns))
-    df = df[sorted_columns + remaining_columns]
-    return df
-
-def add_additional_eval_cols(df):
+def add_additional_eval_cols(df, args):
     df["exon_len"] = df["true_end"] - df["true_start"]
     df["v_len"] = df["guessed_end"] - df["guessed_start"]
     df["len_ratio"] = df["v_len"] / df["exon_len"]
@@ -500,9 +516,7 @@ def add_additional_eval_cols(df):
     df['overlap_single_ratio'] = df["overlap"] / df["exon_len"]
     df['toobig'] = df['guessed_end'] - df['guessed_start'] - df["overlap"]
 
-
-
-    cols_to_group_by = get_cols_to_group_by()
+    cols_to_group_by = get_cols_to_group_by(args)
     new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["exon_len"])).reset_index(name = "sum_exon_lens")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
@@ -539,9 +553,26 @@ def add_additional_eval_cols(df):
 
     return df
 
+def sort_columns(df):
+    sorted_columns = ["passed_current_run_dir", "actual_epochs", \
+                      "true_start", "true_end", "guessed_start", "guessed_end", \
+                      "exon_len", "v_len",\
+                      "correct", "skipped_exon", "wrap", "incomplete", "overlapps", "miss", \
+                      "overlap", "overlap_single_ratio", "overlap_ratio_per_grid_point", \
+                      "toobig", "toobig_ratio_per_grid_point", \
+                      "after_or_before", "priorA", "priorB", "exon_skip_init_weight"]
+
+    # bc sometimes i dont have multiple values for a parameter, so it is removed
+    # from df in get_run_stats()
+    for key in sorted_columns[::-1]:
+        if key not in df.columns:
+            sorted_columns.remove(key)
+    remaining_columns = list(set(df.columns) - set(sorted_columns))
+    df = df[sorted_columns + remaining_columns]
+    return df
+
 def rename_cols(df):
-    columns = {"actual_epochs":"epoch",
-               "true_start": "start",
+    columns = {"true_start": "start",
                "true_end": "end",
                "guessed_start": "v_start",
                "guessed_end":"v_end",
@@ -558,21 +589,25 @@ def remove_cols(df):
         df = df.drop(col, axis = 1)
 
     return df
-def eval_viterbi(path):
+def eval_viterbi(args):
     import matplotlib.pyplot as plt
+    path = args.eval_viterbi
     df = load_or_calc_eval_df(path)
+
 
     # print(df.groupby(["priorA", "priorB", "exon_skip_init_weight", "fasta"]).apply(np.std))
     # print(df.groupby(["priorA", "priorB", "exon_skip_init_weight", "fasta"]).size())
 
-    df = add_additional_eval_cols(df)
+    # print(df.groupby(get_cols_to_group_by(args)).mean()[["correct", "overlap_ratio", "toobig_ratio"]].sort_values("overlap_ratio").to_string(max_rows = None, max_cols = None))
+
+    df = add_additional_eval_cols(df, args)
     df = sort_columns(df)
     df = rename_cols(df)
     df = remove_cols(df)
 
     #TODO also rename grouped?
 
-    cols_to_group_by = get_cols_to_group_by()
+    cols_to_group_by = get_cols_to_group_by(args)
     grouped = df.groupby(cols_to_group_by).apply(lambda x: sum(x["overlap"]/sum(x["exon_len"]))).reset_index(name = "grouped_overlap_ratio_per_grid_point").sort_values("grouped_overlap_ratio_per_grid_point")
 
     return df, grouped
@@ -613,8 +648,8 @@ if __name__ == "__main__":
     if args.train:
         run_training_without_viterbi(args)
     elif args.viterbi_path:
-        viterbi(args.viterbi_path)
+        viterbi(args)
     elif args.eval_viterbi:
-        df, grouped = eval_viterbi(args.eval_viterbi)
+        df, grouped = eval_viterbi(args)
     elif args.continue_training:
         continue_training(args)
