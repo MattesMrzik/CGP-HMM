@@ -496,145 +496,76 @@ import os
 ################################################################################
 ################################################################################
 
-# s = "JH655890.1      14119495        14119510        exon_74801836_74801890_11_left  0       +\n"
-# s +="JH655900.1      33525331        33525346        exon_74801836_74801890_11_left  0       +\n"
-# s +="JH655900.1      33525350        33525354        exon_74801836_74801890_11_left  0       +\n"
-# s +="JH655890.1      14119619        14119634        exon_74801836_74801890_11_right 0       +\n"
-# s +="JH655900.1      33525547        33525562        exon_74801836_74801890_11_right 0       +\n"
-# s +="JH655890.1      14119590        14119599        exon_74801836_74801890_11_middle        0       +\n"
-# s +="JH655900.1      33525407        33525422        exon_74801836_74801890_11_middle        0       +"
-# s = "JH655890.1      14119495        14119510        exon_74801836_74801890_11_left  0       +\n"
-# s +="JH655900.1      33525331        33525346        exon_74801836_74801890_11_left  0       +\n"
-# s +="JH655900.1      33525350        33525354        exon_74801836_74801890_11_left  0       +\n"
-# s +="JH655890.1      14119619        14119634        exon_74801836_74801890_11_right 0       +\n"
-# s +="JH655900.1      33525547        33525562        exon_74801836_74801890_11_right 0       +\n"
-# s +="JH655890.1      14119590        14119599        exon_74801836_74801890_11_middle        0       +\n"
-# s +="JH655900.1      33525407        33525422        exon_74801836_74801890_11_middle        0       +"
+s = "JH655890.1      14119495        14119510        exon_74801836_74801890_11_left  0       +\n"
+s +="JH655900.1      33525331        33525346        exon_74801836_74801890_11_left  0       +\n"
+s +="JH655900.1      33525350        33525354        exon_74801836_74801890_11_left  0       +\n"
+s +="JH655890.1      14119619        14119634        exon_74801836_74801890_11_right 0       +\n"
+s +="JH655900.1      33525547        33525562        exon_74801836_74801890_11_right 0       +\n"
+s +="JH655890.1      14119590        14119599        exon_74801836_74801890_11_middle        0       +\n"
+s +="JH655900.1      33525407        33525422        exon_74801836_74801890_11_middle        0       +"
 
-# cols = ["seq", "start", "stop", "name", "score", "strand"]
-# s = s.split("\n")
-# d = pd.DataFrame([dict([(key, value) for key,value in zip(cols,re.split("\s+", row) )])for row in s])
+cols = ["seq", "start", "stop", "name", "score", "strand"]
+s = s.split("\n")
+d = pd.DataFrame([dict([(key, value) for key,value in zip(cols,re.split("\s+", row) )])for row in s])
 
-# path = "/nas-hs/projs/CGP-by-HMM-learning/cgp_data/exons_species.names_20_15_20_50_15_20_15_20_241-mammalian-2020v2.hal/2023-05-16_11-58/exon_chr15_74801836_74801890/species_bed/"
-# # path += "Lasiurus_borealis_no_middle.bed"
-# path += "Eidolon_helvum.bed"
+path = "/nas-hs/projs/CGP-by-HMM-learning/cgp_data/exons_species.names_20_15_20_50_15_20_15_20_241-mammalian-2020v2.hal/2023-05-16_11-58/exon_chr15_74801836_74801890/species_bed/"
+# path += "Lasiurus_borealis_no_middle.bed"
+path += "Eidolon_helvum.bed"
 
-# d = pd.read_csv(path, sep = "\t", header=None)
-# d.columns = cols
-# d["name"] = d["name"].apply(lambda s: s.split("_")[-1])
+d = pd.read_csv(path, sep = "\t", header=None)
+d.columns = cols
+d["name"] = d["name"].apply(lambda s: s.split("_")[-1])
 
-# def swap_left_and_right(s):
-#     return ["left", "middle", "right"][["right","middle","left"].index(s)]
+def swap_left_and_right(s):
+    return ["left", "middle", "right"][["right","middle","left"].index(s)]
 
-# human_strand = "+"
+human_strand = "+"
 
-# d["swapped_names"] = d[["name","strand"]].apply(lambda s: swap_left_and_right(s["name"]) if s["strand"] != human_strand else s["name"], axis = 1)
-# d["start"] = d["start"].astype(int)
-# d["stop"] = d["stop"].astype(int)
-# d = d.sort_values("start")
+d["swapped_names"] = d[["name","strand"]].apply(lambda s: swap_left_and_right(s["name"]) if s["strand"] != human_strand else s["name"], axis = 1)
+d["start"] = d["start"].astype(int)
+d["stop"] = d["stop"].astype(int)
+d = d.sort_values("start")
 
-# rows_to_keep = []
+rows_to_keep = []
 
-# last_stop = -1
-# for i, (index, row) in enumerate(d.iterrows()):
-#     if last_stop == -1:
-#         last_stop = row["stop"]
-#         rows_to_keep.append(i)
-#         continue
-#     if abs(last_stop - row["start"]) > 5:
-#         rows_to_keep.append(i)
-#     last_stop = row["stop"]
-# d = d.iloc[rows_to_keep,:]
-# print(d)
-# names_list = d["swapped_names"].tolist()
-# print("names_list", names_list)
-# found_left_right_id = -1
-# found_left_middle_right_id = -1
-# for i in range(len(names_list) - 1):
-#     if i < len(names_list) - 2:
-#         if names_list[i:i+3] == ["left","middle","right"]:
-#             if len(d.iloc[i:i+3,:]["seq"].unique()) == 1 and len(d.iloc[i:i+3,:]["strand"].unique()) == 1:
-#                 # TODO check if there are all in the same seq
-#                 # also that they arent overlapping, which might be the case anyways
+last_stop = -1
+for i, (index, row) in enumerate(d.iterrows()):
+    if last_stop == -1:
+        last_stop = row["stop"]
+        rows_to_keep.append(i)
+        continue
+    if abs(last_stop - row["start"]) > 5:
+        rows_to_keep.append(i)
+    last_stop = row["stop"]
+d = d.iloc[rows_to_keep,:]
+print(d)
+names_list = d["swapped_names"].tolist()
+print("names_list", names_list)
+found_left_right_id = -1
+found_left_middle_right_id = -1
+for i in range(len(names_list) - 1):
+    if i < len(names_list) - 2:
+        if names_list[i:i+3] == ["left","middle","right"]:
+            if len(d.iloc[i:i+3,:]["seq"].unique()) == 1 and len(d.iloc[i:i+3,:]["strand"].unique()) == 1:
+                # TODO check if there are all in the same seq
+                # also that they arent overlapping, which might be the case anyways
 
-#                 found_left_middle_right_id = i
-#                 break
-#     if names_list[i:i+2] == ["left","right"]:
-#         found_left_middle_right = True
-#         found_left_middle_right_id = i
+                found_left_middle_right_id = i
+                break
+    if names_list[i:i+2] == ["left","right"]:
+        found_left_middle_right = True
+        found_left_middle_right_id = i
 
 
-# if found_left_right_id == -1 and found_left_middle_right_id == -1:
-#     print("no valid bourders retur False")
+if found_left_right_id == -1 and found_left_middle_right_id == -1:
+    print("no valid bourders retur False")
 
-# if found_left_middle_right_id == -1:
-#     if found_left_right_id != -1:
-#         print(found_left_right_id)
-#         print("found valid borders but no middle")
-# else:
-#     print(found_left_middle_right_id)
-#     print("found valid borders with middle")
+if found_left_middle_right_id == -1:
+    if found_left_right_id != -1:
+        print(found_left_right_id)
+        print("found valid borders but no middle")
+else:
+    print(found_left_middle_right_id)
+    print("found valid borders with middle")
 
-# df = d.iloc[found_left_middle_right_id:found_left_middle_right_id+3,:]
-
-
-################################################################################
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.stats import dirichlet
-
-
-def plot(a):
-    # Define the parameters of the Dirichlet distribution
-
-    # Generate a grid of points within the 2-simplex
-    res = 0.02
-    x = np.arange(0, 1 + res, res)
-    y = np.arange(0, 1 + res, res)
-
-    X, Y = np.meshgrid(x, y)
-    Z = np.stack([X, Y, 1 - X - Y], axis=-1)
-
-    # Calculate the Dirichlet density for each point in the grid
-    density_values = np.zeros_like(X)
-    for i in range(Z.shape[0]):
-        for j in range(Z.shape[1]):
-            point = Z[i, j, :]
-            if np.all(point > 0) and np.all(point <= 1):  # Check if all entries are within [0, 1]
-                density_values[i, j] = dirichlet.pdf(point, a)
-
-    # Create a contour plot of the Dirichlet density
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-
-
-    contour = ax1.contourf(X, Y, density_values, cmap='viridis')
-    cbar = plt.colorbar(contour, ax = ax1)
-    cbar.set_label('Probability Density')
-
-
-    # Add labels and title
-    ax1.set_xlabel('x')
-    ax1.set_ylabel('y')
-    ax1.set_title(f'Dirichlet Density for the 2-Simplex {a}')
-
-    # Display the plot
-
-    a = a[:2]
-    x = np.arange(0.02,1,0.02)
-    y = [np.log(dirichlet.pdf([xs, 1-xs], a)) for xs in x]
-    ax2.plot(x,y)
-    plt.savefig("dirichlet.png")
-
-a = np.array([0.85, 0.14, 0.01]) * 1
-
-from ipywidgets import interact, FloatSlider
-slider_a = FloatSlider(value=.5, min=0.1, max=1.0, step=0.1, description='a0')
-slider_b = FloatSlider(value=.5, min=0.1, max=1.0, step=0.1, description='a1')
-slider_s = FloatSlider(value=.5, min=0.1, max=1.0, step=0.1, description='concentration')
-
-def update(a,b,s):
-    alpha = [a, (1-a)*b, 1-a-(1-a)*b] * s
-    plot(alpha)
-
-interact(update, a=slider_a, b=slider_b,s = slider_s)
-
+df = d.iloc[found_left_middle_right_id:found_left_middle_right_id+3,:]
