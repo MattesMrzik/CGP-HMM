@@ -496,76 +496,83 @@ import os
 ################################################################################
 ################################################################################
 
-s = "JH655890.1      14119495        14119510        exon_74801836_74801890_11_left  0       +\n"
-s +="JH655900.1      33525331        33525346        exon_74801836_74801890_11_left  0       +\n"
-s +="JH655900.1      33525350        33525354        exon_74801836_74801890_11_left  0       +\n"
-s +="JH655890.1      14119619        14119634        exon_74801836_74801890_11_right 0       +\n"
-s +="JH655900.1      33525547        33525562        exon_74801836_74801890_11_right 0       +\n"
-s +="JH655890.1      14119590        14119599        exon_74801836_74801890_11_middle        0       +\n"
-s +="JH655900.1      33525407        33525422        exon_74801836_74801890_11_middle        0       +"
+# s = "JH655890.1      14119495        14119510        exon_74801836_74801890_11_left  0       +\n"
+# s +="JH655900.1      33525331        33525346        exon_74801836_74801890_11_left  0       +\n"
+# s +="JH655900.1      33525350        33525354        exon_74801836_74801890_11_left  0       +\n"
+# s +="JH655890.1      14119619        14119634        exon_74801836_74801890_11_right 0       +\n"
+# s +="JH655900.1      33525547        33525562        exon_74801836_74801890_11_right 0       +\n"
+# s +="JH655890.1      14119590        14119599        exon_74801836_74801890_11_middle        0       +\n"
+# s +="JH655900.1      33525407        33525422        exon_74801836_74801890_11_middle        0       +"
 
-cols = ["seq", "start", "stop", "name", "score", "strand"]
-s = s.split("\n")
-d = pd.DataFrame([dict([(key, value) for key,value in zip(cols,re.split("\s+", row) )])for row in s])
+# cols = ["seq", "start", "stop", "name", "score", "strand"]
+# s = s.split("\n")
+# d = pd.DataFrame([dict([(key, value) for key,value in zip(cols,re.split("\s+", row) )])for row in s])
 
-path = "/nas-hs/projs/CGP-by-HMM-learning/cgp_data/exons_species.names_20_15_20_50_15_20_15_20_241-mammalian-2020v2.hal/2023-05-16_11-58/exon_chr15_74801836_74801890/species_bed/"
-# path += "Lasiurus_borealis_no_middle.bed"
-path += "Eidolon_helvum.bed"
+# path = "/nas-hs/projs/CGP-by-HMM-learning/cgp_data/exons_species.names_20_15_20_50_15_20_15_20_241-mammalian-2020v2.hal/2023-05-16_11-58/exon_chr15_74801836_74801890/"
+# path += "out2.bed"
+# # path = "/nas-hs/projs/CGP-by-HMM-learning/cgp_data/exons_species.names_20_15_20_50_15_20_15_20_241-mammalian-2020v2.hal/2023-05-16_11-58/exon_chr15_74801836_74801890/species_bed/"
+# # path += "Elaphurus_davidianus.bed"
 
-d = pd.read_csv(path, sep = "\t", header=None)
-d.columns = cols
-d["name"] = d["name"].apply(lambda s: s.split("_")[-1])
+# # path += "Lasiurus_borealis_no_middle.bed"
 
-def swap_left_and_right(s):
-    return ["left", "middle", "right"][["right","middle","left"].index(s)]
+# d = pd.read_csv(path, sep = "\t", header=None)
+# d.columns = cols
+# d["name"] = d["name"].apply(lambda s: s.split("_")[-1])
 
-human_strand = "+"
+# def swap_left_and_right(s):
+#     return ["left", "middle", "right"][["right","middle","left"].index(s)]
 
-d["swapped_names"] = d[["name","strand"]].apply(lambda s: swap_left_and_right(s["name"]) if s["strand"] != human_strand else s["name"], axis = 1)
-d["start"] = d["start"].astype(int)
-d["stop"] = d["stop"].astype(int)
-d = d.sort_values("start")
+# human_strand = "+"
 
-rows_to_keep = []
+# d["swapped_names"] = d[["name","strand"]].apply(lambda s: swap_left_and_right(s["name"]) if s["strand"] != human_strand else s["name"], axis = 1)
+# d["start"] = d["start"].astype(int)
+# d["stop"] = d["stop"].astype(int)
+# d = d.sort_values("start")
 
-last_stop = -1
-for i, (index, row) in enumerate(d.iterrows()):
-    if last_stop == -1:
-        last_stop = row["stop"]
-        rows_to_keep.append(i)
-        continue
-    if abs(last_stop - row["start"]) > 5:
-        rows_to_keep.append(i)
-    last_stop = row["stop"]
-d = d.iloc[rows_to_keep,:]
-print(d)
-names_list = d["swapped_names"].tolist()
-print("names_list", names_list)
-found_left_right_id = -1
-found_left_middle_right_id = -1
-for i in range(len(names_list) - 1):
-    if i < len(names_list) - 2:
-        if names_list[i:i+3] == ["left","middle","right"]:
-            if len(d.iloc[i:i+3,:]["seq"].unique()) == 1 and len(d.iloc[i:i+3,:]["strand"].unique()) == 1:
-                # TODO check if there are all in the same seq
-                # also that they arent overlapping, which might be the case anyways
+# rows_to_keep = []
 
-                found_left_middle_right_id = i
-                break
-    if names_list[i:i+2] == ["left","right"]:
-        found_left_middle_right = True
-        found_left_middle_right_id = i
+# last_stop = -1
+# for i, (index, row) in enumerate(d.iterrows()):
+#     if last_stop == -1:
+#         last_stop = row["stop"]
+#         rows_to_keep.append(i)
+#         continue
+#     if abs(last_stop - row["start"]) > 5:
+#         rows_to_keep.append(i)
+#     last_stop = row["stop"]
+# d = d.iloc[rows_to_keep,:]
+# print(d)
+# names_list = d["swapped_names"].tolist()
+# print("names_list", names_list)
+# found_left_right_id = -1
+# found_left_middle_right_id = -1
+# for i in range(len(names_list) - 1):
+#     if i < len(names_list) - 2:
+#         if names_list[i:i+3] == ["left","middle","right"]:
+#             if len(d.iloc[i:i+3,:]["seq"].unique()) == 1 and len(d.iloc[i:i+3,:]["strand"].unique()) == 1:
+#                 # TODO check if there are all in the same seq
+#                 # also that they arent overlapping, which might be the case anyways
+
+#                 found_left_middle_right_id = i
+#                 break
+#     if names_list[i:i+2] == ["left","right"]:
+#         found_left_middle_right = True
+#         found_left_middle_right_id = i
 
 
-if found_left_right_id == -1 and found_left_middle_right_id == -1:
-    print("no valid bourders retur False")
+# if found_left_right_id == -1 and found_left_middle_right_id == -1:
+#     print("no valid bourders retur False")
 
-if found_left_middle_right_id == -1:
-    if found_left_right_id != -1:
-        print(found_left_right_id)
-        print("found valid borders but no middle")
-else:
-    print(found_left_middle_right_id)
-    print("found valid borders with middle")
+# if found_left_middle_right_id == -1:
+#     if found_left_right_id != -1:
+#         print(found_left_right_id)
+#         print("found valid borders but no middle")
+# else:
+#     print(found_left_middle_right_id)
+#     print("found valid borders with middle")
 
-df = d.iloc[found_left_middle_right_id:found_left_middle_right_id+3,:]
+# df = d.iloc[found_left_middle_right_id:found_left_middle_right_id+3,:]
+
+################################################################################
+################################################################################
+################################################################################

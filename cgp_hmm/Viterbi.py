@@ -328,17 +328,29 @@ def viterbi_tuple_list_to_fasta(viterbi_path, human_fasta, l : list[tuple[int,st
         assert l[0][-1][1] == "ter", "Model.py last not terminal"
     return viterbi_as_fasta
 ################################################################################
-def get_true_gene_strucutre_from_fasta_description_as_fasta(coords) -> tuple[str, bool]:
+def get_true_gene_strucutre_from_fasta_description_as_fasta(coords) -> tuple[str, bool, dict]:
     on_reverse_strand = coords["exon_start_in_human_genome_cd_strand"] != coords["exon_start_in_human_genome_+_strand"]
     if not on_reverse_strand:
-        true_seq = "l" * (coords["exon_start_in_human_genome_+_strand"] - coords["seq_start_in_genome_+_strand"])
-        true_seq += "E" * (coords["exon_stop_in_human_genome_+_strand"] - coords["exon_start_in_human_genome_+_strand"])
-        true_seq += "r" * (coords["seq_stop_in_genome_+_strand"] - coords["exon_stop_in_human_genome_+_strand"])
+        left_intron_len = (coords["exon_start_in_human_genome_+_strand"] - coords["seq_start_in_genome_+_strand"])
+        exon_len = (coords["exon_stop_in_human_genome_+_strand"] - coords["exon_start_in_human_genome_+_strand"])
+        exon_start = coords["exon_start_in_human_genome_+_strand"]
+        exon_end = coords["exon_stop_in_human_genome_+_strand"]
+        right_intron_len = (coords["seq_stop_in_genome_+_strand"] - coords["exon_stop_in_human_genome_+_strand"])
     else:
-        true_seq = "l" * (coords["seq_start_in_genome_cd_strand"] - coords["exon_start_in_human_genome_cd_strand"])
-        true_seq += "E" * (coords["exon_start_in_human_genome_cd_strand"] - coords["exon_stop_in_human_genome_cd_strand"])
-        true_seq += "r" * (coords["exon_stop_in_human_genome_cd_strand"] - coords["seq_stop_in_genome_cd_strand"])
-    return true_seq, on_reverse_strand
+        left_intron_len = (coords["seq_start_in_genome_cd_strand"] - coords["exon_start_in_human_genome_cd_strand"])
+        exon_len = (coords["exon_start_in_human_genome_cd_strand"] - coords["exon_stop_in_human_genome_cd_strand"])
+        exon_start = coords["exon_stop_in_human_genome_cd_strand"]
+        exon_end = coords["exon_start_in_human_genome_cd_strand"]
+        right_intron_len = (coords["exon_stop_in_human_genome_cd_strand"] - coords["seq_stop_in_genome_cd_strand"])
+    true_seq = "l" * left_intron_len
+    true_seq += "E" * exon_len
+    true_seq += "r" * right_intron_len
+    d = {"left_intron_len": left_intron_len, \
+         "exon_len" : exon_len, \
+         "exon_start" : exon_start, \
+         "exon_end" : exon_end, \
+         "right_intron_len" : right_intron_len}
+    return true_seq, on_reverse_strand, d
 ################################################################################
 def get_coords_record(len_of_line_in_clw, coords, viterbi_as_fasta, on_reverse_strand):
     coords_fasta = ""
@@ -385,7 +397,7 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
     viterbi_as_fasta = viterbi_tuple_list_to_fasta(viterbi_path, human_fasta, l)
     viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
 
-    true_seq, on_reverse_strand = get_true_gene_strucutre_from_fasta_description_as_fasta(coords)
+    true_seq, on_reverse_strand, _ = get_true_gene_strucutre_from_fasta_description_as_fasta(coords)
     true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
 
     numerate_line_record = get_numerate_line_record(viterbi_as_fasta, len_of_line_in_clw = len_of_line_in_clw)
