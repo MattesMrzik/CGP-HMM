@@ -333,22 +333,16 @@ def get_true_gene_strucutre_from_fasta_description_as_fasta(coords) -> tuple[str
     if not on_reverse_strand:
         left_intron_len = (coords["exon_start_in_human_genome_+_strand"] - coords["seq_start_in_genome_+_strand"])
         exon_len = (coords["exon_stop_in_human_genome_+_strand"] - coords["exon_start_in_human_genome_+_strand"])
-        exon_start = coords["exon_start_in_human_genome_+_strand"]
-        exon_end = coords["exon_stop_in_human_genome_+_strand"]
         right_intron_len = (coords["seq_stop_in_genome_+_strand"] - coords["exon_stop_in_human_genome_+_strand"])
     else:
         left_intron_len = (coords["seq_start_in_genome_cd_strand"] - coords["exon_start_in_human_genome_cd_strand"])
         exon_len = (coords["exon_start_in_human_genome_cd_strand"] - coords["exon_stop_in_human_genome_cd_strand"])
-        exon_start = coords["exon_stop_in_human_genome_cd_strand"]
-        exon_end = coords["exon_start_in_human_genome_cd_strand"]
         right_intron_len = (coords["exon_stop_in_human_genome_cd_strand"] - coords["seq_stop_in_genome_cd_strand"])
     true_seq = "l" * left_intron_len
     true_seq += "E" * exon_len
     true_seq += "r" * right_intron_len
     d = {"left_intron_len": left_intron_len, \
          "exon_len" : exon_len, \
-         "exon_start" : exon_start, \
-         "exon_end" : exon_end, \
          "right_intron_len" : right_intron_len}
     return true_seq, on_reverse_strand, d
 ################################################################################
@@ -470,7 +464,7 @@ def run_cc_viterbi(config, matr_dir):
 ################################################################################
 def main(config, overwrite_viterbi = True):
     # (if not passed parent_input_dir it is set to current run dir but this is different when calling viterbi
-    # when parent_input_dir is not set and viterby.py is called then viterbi.py should select the newest dir)
+    # when parent_input_dir is not set and viterby.py is called d viterbi.py should select the newest dir)
 
     # check if matrices exists, if not convert kernels
 
