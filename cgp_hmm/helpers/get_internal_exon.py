@@ -663,10 +663,38 @@ def combine_fasta_files(output_file = None, input_files = None):
         print("combined fasta files", output_file)
     out.close()
 ################################################################################
-# def write_human_gff_for_exon(coords = None, path = None):
-#     from Viterbi import get_true_gene_strucutre_from_fasta_description_as_fasta
-#     get_true_gene_strucutre_from_fasta_description_as_fasta(coords)
-#     pass
+# def write_human_gff_for_exon(seq_dict = None, path = None):
+#     '''seq_dict = {"seq" : exon_key[0], \
+#                 "start_in_genome" : exon_key[1], \
+#                 "stop_in_genome" : exon_key[2], \
+#                 "exon_id" : exon_id, \
+#                 "left_lift_start": left_lift_start, \
+#                 "left_lift_end" : left_lift_end, \
+#                 "right_lift_start" : right_lift_start, \
+#                 "right_lift_end" : right_lift_end, \
+#                 "left_intron_len" : left_intron_len, \
+#                 "left_exon_len" : exon_row["blockSizes"][exon_id -1 ], \
+#                 "right_intron_len" : right_intron_len, \
+#                 "right_exon_len" : exon_row["blockSizes"][exon_id +1 ], \
+#                 "key" : exon_key ,\
+#                 "row" : dict(exon_row)}
+#     '''
+#     # ["seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"]
+#     seqname = seq_dict["seq"]
+#     source = "hg38refseq"
+#     feature = "exon"
+#     strand = seq_dict["row"]["strand"]
+#     if strand == "+":
+#         start = seq_dict["row"]["blockStars"][seq_dict["exon_id"]]
+#         end =   seq_dict["row"]["blockStarts"][seq_dict["exon_id"]] + seq_dict["row"]["blockSizes"][seq_dict["exon_id"]]
+#     elif strand == "-":
+#         start = seq_dict["row"]["blockStars"][seq_dict["exon_id"]]
+#         end =   seq_dict["row"]["blockStarts"][seq_dict["exon_id"]] + seq_dict["row"]["blockSizes"][seq_dict["exon_id"]]
+#     else:
+#         print("strand is neither + or - ,   238t493dgzuh")
+#         exit(1)
+
+
 
 ################################################################################
 def create_exon_data_sets(args, seqs_to_be_lifted, output_dir) -> None:
@@ -699,7 +727,6 @@ def create_exon_data_sets(args, seqs_to_be_lifted, output_dir) -> None:
         extra_exon_data["human_strand"] = seq_dict["row"]["strand"]
 
         create_lift_over_query_bed_file(seq_dict = seq_dict, out_path = human_exon_to_be_lifted_path)
-
 
 
         for single_species in all_species:
