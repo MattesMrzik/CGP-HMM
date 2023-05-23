@@ -168,6 +168,10 @@ class Config():
 
     def determine_attributes_that_only_depend_on_args(self):
 
+        self.determine_attributes_that_only_depend_on_args_was_run = True
+
+        self.args["nCodons"] = int(self.nCodons * self.model_size_factor)
+
         self.called_determine_attributes_that_only_depend_on_args = True
         self.det_args["alphabet_size"] = 4
         self.det_args["write_return_sequnces"] = False
@@ -262,6 +266,13 @@ class Config():
 ################################################################################
 ################################################################################
     def write_passed_args_to_file(self, dir_path = None):
+
+        # this is because nCodons is changed by two args and the modified one should be wirtten to the file
+        try:
+            assert self.determine_attributes_that_only_depend_on_args_was_run, "determine_attributes_that_only_depend_on_args_was_not_run_before_write_args_to_file"
+        except:
+            print("determine_attributes_that_only_depend_on_args_was_not_run_before_write_args_to_file")
+
         # TODO: auch viterbi args to file, wenn nicht im main gecalled?
         if dir_path is None:
             dir_path = self.current_run_dir
@@ -457,6 +468,10 @@ class Config():
         self.parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
         self.parser.add_argument('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
         self.parser.add_argument('--bucket_by_seq_len', action = 'store_true', help = 'bucket seqs by their lengths')
+        self.parser.add_argument('--likelihood_influence_growth_factor', type = float, default = 0, help = 'if 1, likelihood is used as usual, but if for example 0.1. then likelihood in first epoch is scaled by .1 then in second by 0.2 ...')
+        self.parser.add_argument('--prior_only', action = 'store_true', help = 'use prior and no likelihood')
+        self.parser.add_argument('--model_size_factor', type = float, default = 1, help = 'change model size, ie nCodons, by this factor')
+        self.parser.add_argument('--dont_shuffle_seqs', action = 'store_true', help = 'dont shuffle seqs')
         # self.parser.add_argument('--mask', action = 'store_true', help = 'mask the input for layer')
 
         # what model

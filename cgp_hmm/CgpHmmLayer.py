@@ -20,7 +20,7 @@ from CgpHmmCell import CgpHmmCell
 
 
 class CgpHmmLayer(tf.keras.layers.Layer):
-    def __init__(self, config):
+    def __init__(self, config, current_epoch = None):
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init: tf")
         start = time.perf_counter()
@@ -29,6 +29,8 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         super(CgpHmmLayer, self).__init__()
         self.nCodons = config.nCodons
         self.config = config
+        if current_epoch is not None:
+            self.current_epoch = current_epoch
 
         append_time_ram_stamp_to_file(f"Layer.init() end  {run_id}", self.config.bench_path, start)
 
@@ -53,6 +55,16 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(f"Layer.build() end   {run_id}", self.config.bench_path, start)
 
     def call(self, inputs, training = False): # shape of inputs is None = batch, None = seqlen, 126 = emissions_size
+        try:
+            tf.print("hash values of inputs, A, B")
+            for tensor in [inputs, self.C.A_kernel, self.C.B_kernel]:
+                tensor_serialized = tf.io.serialize_tensor(tensor)
+                hash_value = tf.strings.to_hash_bucket_fast(tensor_serialized, num_buckets=1000)
+                tf.print(hash_value, end = ", ")
+            tf.print("")
+        except:
+            pass
+
         # tf.print(f"inputs {inputs}")
         if self.config.trace_verbose:
             print("layer.call()")
@@ -161,11 +173,22 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
         #
         #     # norm prior by number of inout seqs
+
+
         if self.config.priorB or self.config.priorA:
+            if not self.config.prior_only:
+                self.add_metric(loglik_mean, "loglik_mean")
+                # normed likelihood by batchsize
+                if self.config.likelihood_influence_growth_factor and self.config.likelihood_influence_growth_factor != 1:
+                    self.add_metric(self.current_epoch, "self.current_epoch")
+                    loglik_mean = loglik_mean * min(1, self.config.likelihood_influence_growth_factor * self.current_epoch)
+                    self.add_metric(loglik_mean, "scaled_loglik_mean")
+                loss = - loglik_mean
+            else:
+                loss = 0
+
 
             m = self.config.nSeqs
-            self.add_metric(loglik_mean, "loglik_mean")
-            loss = -loglik_mean # normed likelihood by batchsize
             if self.config.priorA:
                 A_prior = self.config.model.get_A_log_prior(self.C.A_kernel) / m
                 self.add_metric(A_prior, "A_prior")

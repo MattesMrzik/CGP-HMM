@@ -24,7 +24,7 @@ from tensorflow.python.client import device_lib
 
 import time
 
-def make_model(config):
+def make_model(config, current_epoch = None):
     start = time.perf_counter()
     run_id = randint(0,100)
 
@@ -37,8 +37,7 @@ def make_model(config):
 
     masked_values = tf.keras.layers.Masking(mask_value=0.)(sequences)
 
-    cgp_hmm_layer = CgpHmmLayer(config) # init of layer
-
+    cgp_hmm_layer = CgpHmmLayer(config, current_epoch = current_epoch) # init of layer
 
     loglik = cgp_hmm_layer(masked_values) # layer is build, then called. it seems i cant call build before to avoid building it here again
 
@@ -109,8 +108,8 @@ def make_dataset(config):
         seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
         config.nSeqs = len(seqs)
 
-
-        np.random.shuffle(seqs)
+        if not config.dont_shuffle_seqs:
+            np.random.shuffle(seqs)
 
         def get_initial_data_set():
             dataset = tf.data.Dataset.from_generator(lambda: seqs, \
@@ -166,7 +165,7 @@ def make_dataset(config):
                 dataset = get_initial_data_set()
                 dataset = bucket_seqs_of_dataset(dataset, adjusted_batch_size)
 
-            print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a batch beeing only a single seq")
+            print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a bucket batch beeing only a single seq")
 
 
         if not config.bucket_by_seq_len:
@@ -196,19 +195,19 @@ def make_dataset(config):
     # TODO: shuffle dataset?
     dataset = dataset.repeat()
 
-    if config.viterbi:
-        seqs_json_path = f"{config.fasta_path}.json"
-        export_seqs_json = True
-        if os.path.exists(seqs_json_path):
-            if config.manual_passed_fasta:
-                export_seqs_js
-            # not manual passed fasta
-            if config.dont_generate_new_seqs:
-                export_seqs_json = False
-        if export_seqs_json:
-            seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
-            with open(seqs_json_path, "w") as out_file:
-                json.dump(seqs_out, out_file)
+    # if config.viterbi:
+    #     seqs_json_path = f"{config.fasta_path}.json"
+    #     export_seqs_json = True
+    #     if os.path.exists(seqs_json_path):
+    #         if config.manual_passed_fasta:
+    #             export_seqs_js
+    #         # not manual passed fasta
+    #         if config.dont_generate_new_seqs:
+    #             export_seqs_json = False
+    #     if export_seqs_json:
+    #         seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
+    #         with open(seqs_json_path, "w") as out_file:
+    #             json.dump(seqs_out, out_file)
 
 
     append_time_ram_stamp_to_file(f"Training.make_dataset() end   {run_id}", config.bench_path, start)
@@ -551,23 +550,88 @@ def fit_model(config):
                 history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
                 append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
         else:
-             model, cgp_hmm_layer = make_model(config)
-             model.summary()
+            if not config.likelihood_influence_growth_factor:
+                model, cgp_hmm_layer = make_model(config)
+                model.summary()
 
-             # compile model
-             start = time.perf_counter()
-             run_id = randint(0,100)
-             append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
-             model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
-             append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
+                # compile model
+                start = time.perf_counter()
+                run_id = randint(0,100)
+                append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
+                model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
+                append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
 
-             # git model
-             start = time.perf_counter()
-             run_id = randint(0,100)
-             append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
-             print("optimizer.iterations should be 0:", optimizer.iterations)
-             history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-             print("optimizer.iterations should be larger 0:", optimizer.iterations)
-             append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+                # fit model
+                start = time.perf_counter()
+                run_id = randint(0,100)
+                append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
+                print("optimizer.iterations should be 0:", optimizer.iterations)
+                history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
+                print("optimizer.iterations should be larger 0:", optimizer.iterations)
+                append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+
+            # TODO: maybe it would be faster if i do a manual training loop here
+            # TODO: or make a loss layer, and maybe the cgphmm doesnt need to be retraced
+                # for epoch in range(config.epochs):
+                #     for step, batch in enumerate(data_set):
+                #         if step >= config.steps_per_epoch:
+                #             break
+                #         with
+            if config.likelihood_influence_growth_factor:
+                dir_path = f"{config.current_run_dir}/after_fit_para"
+                if not os.path.exists(dir_path):
+                        os.system(f"mkdir -p {dir_path}")
+                for current_epoch in range(config.epochs):
+                    if config.likelihood_influence_growth_factor * current_epoch >= 1:
+                        break
+                    if current_epoch != 0:
+                        config.init_weights_from = dir_path
+                    model, cgp_hmm_layer = make_model(config, current_epoch = current_epoch)
+                    if current_epoch == 0:
+                        model.summary()
+
+                    skipeed_data_set = data_set.skip(current_epoch)
+
+                    # compile model
+                    start = time.perf_counter()
+                    run_id = randint(0,100)
+                    append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
+                    model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
+                    append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
+
+                    # fit model
+                    start = time.perf_counter()
+                    run_id = randint(0,100)
+                    append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
+                    print("optimizer.iterations should be 0:", optimizer.iterations)
+                    history = model.fit(skipeed_data_set, epochs = 1, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
+                    print("optimizer.iterations should be larger 0:", optimizer.iterations)
+                    append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+
+                    model.get_layer(f"cgp_hmm_layer{'_' + str(current_epoch) if current_epoch > 0 else ''}").C.write_weights_to_file(dir_path)
+                # end for
+                config.init_weights_from = dir_path
+                model, cgp_hmm_layer = make_model(config, current_epoch)
+
+                skipeed_data_set = data_set.skip(current_epoch)
+
+                # compile model
+                start = time.perf_counter()
+                run_id = randint(0,100)
+                append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
+                model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
+                append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
+
+                # fit model
+                start = time.perf_counter()
+                run_id = randint(0,100)
+                append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
+                print("optimizer.iterations should be 0:", optimizer.iterations)
+                history = model.fit(skipeed_data_set, epochs = config.epochs - current_epoch, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
+                print("optimizer.iterations should be larger 0:", optimizer.iterations)
+                append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+
+                model.get_layer(f"cgp_hmm_layer{'_' + str(current_epoch) if current_epoch > 0 else ''}").C.write_weights_to_file(dir_path)
+
 
     return model, history
