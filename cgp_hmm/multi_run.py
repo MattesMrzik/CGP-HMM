@@ -516,6 +516,8 @@ def add_additional_eval_cols(df, args):
     df["len_ratio"] = df["v_len"] / df["exon_len"]
     df["true_left"] = df["true_start"] == df["guessed_start"]
     df["true_right"] = df["true_end"] == df["guessed_end"]
+    # are the coords coorect, ie guessed end and true and are both inclusice or exclusive
+
 
     def overlap(row):
         start_overlap = max(row['true_start'], row['guessed_start'])
