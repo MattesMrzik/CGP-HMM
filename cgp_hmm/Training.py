@@ -582,11 +582,11 @@ def fit_model(config):
                 if not os.path.exists(dir_path):
                         os.system(f"mkdir -p {dir_path}")
                 for current_epoch in range(config.epochs):
-                    if config.likelihood_influence_growth_factor * current_epoch >= 1:
+                    if config.likelihood_influence_growth_factor * (current_epoch + 1) >= 1:
                         break
                     if current_epoch != 0:
                         config.init_weights_from = dir_path
-                    model, cgp_hmm_layer = make_model(config, current_epoch = current_epoch)
+                    model, cgp_hmm_layer = make_model(config, current_epoch = current_epoch +1)
                     if current_epoch == 0:
                         model.summary()
 

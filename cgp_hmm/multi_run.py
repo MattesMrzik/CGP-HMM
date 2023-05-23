@@ -22,7 +22,7 @@ def get_multi_run_config():
 
     parser.add_argument('--train', action = 'store_true', help='train with args specified in the methods in this module and write output to calculated path based on current time')
     parser.add_argument('--mem', type = int, default = 20000, help='mem for slurm train')
-    parser.add_argument('--mpi', type = int, default = 8, help='mpi for slurm train')
+    # parser.add_argument('--mpi', type = int, default = 8, help='mpi for slurm train')
     parser.add_argument('--max_jobs', type = int, default = 8, help='max number of jobs for slurm train')
     parser.add_argument('--partition', default = "snowball", help='partition for slurm train')
     parser.add_argument('--continue_training', help='path to multi_run dir for which to continue training')
@@ -94,8 +94,8 @@ def get_cfg_with_args():
     cfg_with_args["model_size_factor"] = [1, 1.2]
     # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
-    cfg_with_args["priorA"] = [100,5,0]
-    cfg_with_args["priorB"] = [100,5,0]
+    cfg_with_args["priorA"] = [100,100,100,5,5,5,0,0,0]
+    cfg_with_args["priorB"] = [100,5,0,100,5,0,100,5,0]
     cfg_with_args["global_log_epsilon"] = [1e-20]
     cfg_with_args["epochs"] = [40]
     cfg_with_args["learning_rate"] = [0.05]
@@ -107,7 +107,7 @@ def get_cfg_with_args():
     cfg_with_args["exon_skip_init_weight"] = [-5]
     cfg_with_args["flatten_B_init"] = [0]
 
-    cfg_with_args["likelihood_influence_growth_factor"] = [0, 0.2]
+    cfg_with_args["likelihood_influence_growth_factor"] = [0.2, 0.2, 0.2,0.2, 0.2, 0.2, 0.2,0.2,0]
 
     return cfg_with_args
 
@@ -118,7 +118,8 @@ def get_bind_args_together(cfg_with_args):
     bind_args_together = [set([key]) for key in cfg_with_args.keys()]
     bind_args_together += [{"fasta", "nCodons"}]
     # bind_args_together += [{"exon_skip_init_weight", "nCodons"}]
-    # bind_args_together += [{"priorA", "priorB"}]
+    bind_args_together += [{"priorA", "priorB"}]
+    bind_args_together += [{"priorA", "likelihood_influence_growth_factor"}]
 
     return bind_args_together
 
@@ -274,7 +275,7 @@ def continue_training(parsed_args):
                 file.write("#!/bin/bash\n")
                 file.write(f"#SBATCH -J l_{os.path.basename(run_dir)[-6:]}\n")
                 file.write(f"#SBATCH -N 1\n")
-                file.write(f"#SBATCH -n {parsed_args.mpi}\n")
+                # file.write(f"#SBATCH -n {parsed_args.mpi}\n")
                 file.write(f"#SBATCH --mem {parsed_args.mem}\n")
                 file.write(f"#SBATCH --partition={parsed_args.partition}\n")
                 file.write(f"#SBATCH -o {out_path}\n")
@@ -513,28 +514,40 @@ def add_additional_eval_cols(df, args):
     df["exon_len"] = df["true_end"] - df["true_start"]
     df["v_len"] = df["guessed_end"] - df["guessed_start"]
     df["len_ratio"] = df["v_len"] / df["exon_len"]
+    df["true_left"] = df["true_start"] == df["guessed_start"]
+    df["true_right"] = df["true_end"] == df["guessed_end"]
 
     def overlap(row):
         start_overlap = max(row['true_start'], row['guessed_start'])
         end_overlap = min(row['true_end'], row['guessed_end'])
         return max(0, end_overlap - start_overlap)
     df['overlap'] = df.apply(lambda row: overlap(row), axis=1)
-    df['overlap_single_ratio'] = df["overlap"] / df["exon_len"]
+    df['exon_sn'] = df["overlap"] / df["exon_len"]
+    df['exon_sp'] = df["overlap"] / df["v_len"]
+
     df['toobig'] = df['guessed_end'] - df['guessed_start'] - df["overlap"]
+
 
     cols_to_group_by = get_cols_to_group_by(args)
     new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["exon_len"])).reset_index(name = "sum_exon_lens")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["v_len"])).reset_index(name = "sum_v_len")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
     new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["overlap"])).reset_index(name = "sum_overlap_lens")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
-    df["overlap_ratio_per_grid_point"] = df["sum_overlap_lens"] / df["sum_exon_lens"]
 
     new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["toobig"])).reset_index(name = "sum_toobig")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
-    df["toobig_ratio_per_grid_point"] = df["sum_toobig"] / df["sum_exon_lens"]
+    df["sn"]                           = df["sum_overlap_lens"] / df["sum_exon_lens"]
+    df["toobig_ratio_per_grid_point"]  = df["sum_toobig"]       / df["sum_exon_lens"]
+    df["sp"]                           = df["sum_overlap_lens"] / df["sum_v_len"]
+    df["f1"] = 2 * df["sn"] * df["sp"] / (df["sn"] + df["sp"])
+
+
 
     df["skipped_exon"] = df.apply(lambda x: True if x['guessed_start'] == -1 and x['guessed_end'] == -1 else False, axis=1)
     new_col = df.groupby(cols_to_group_by)["skipped_exon"].mean().reset_index(name = "skipped_exon_mean")
@@ -564,7 +577,7 @@ def sort_columns(df):
                       "true_start", "true_end", "guessed_start", "guessed_end", \
                       "exon_len", "v_len",\
                       "correct", "skipped_exon", "wrap", "incomplete", "overlapps", "miss", \
-                      "overlap", "overlap_single_ratio", "overlap_ratio_per_grid_point", \
+                      "overlap", "overlap_single_ratio", "sn", \
                       "toobig", "toobig_ratio_per_grid_point", \
                       "after_or_before", "priorA", "priorB", "exon_skip_init_weight"]
 
@@ -582,9 +595,7 @@ def rename_cols(df):
                "true_end": "end",
                "guessed_start": "v_start",
                "guessed_end":"v_end",
-               "overlap_ratio_per_grid_point" : "overlap_ratio",
-               "overlap_single_ratio" : "exon_overlap",
-               "toobig_ratio_per_grid_point" : "toobig_ratio"}
+               "overlap_single_ratio" : "exon_sn"}
     df = df.rename(columns = columns)
     return df
 
@@ -604,7 +615,7 @@ def eval_viterbi(args):
     # print(df.groupby(["priorA", "priorB", "exon_skip_init_weight", "fasta"]).apply(np.std))
     # print(df.groupby(["priorA", "priorB", "exon_skip_init_weight", "fasta"]).size())
 
-    # print(df.groupby(get_cols_to_group_by(args)).mean()[["correct", "overlap_ratio", "toobig_ratio"]].sort_values("overlap_ratio").to_string(max_rows = None, max_cols = None))
+    # print(df.groupby(get_cols_to_group_by(args)).mean()[["correct", "sn", "sp", "f1"]].sort_values("f1").to_string(max_rows = None, max_cols = None))
 
     df = add_additional_eval_cols(df, args)
     df = sort_columns(df)
@@ -614,9 +625,9 @@ def eval_viterbi(args):
     #TODO also rename grouped?
 
     cols_to_group_by = get_cols_to_group_by(args)
-    grouped = df.groupby(cols_to_group_by).apply(lambda x: sum(x["overlap"]/sum(x["exon_len"]))).reset_index(name = "grouped_overlap_ratio_per_grid_point").sort_values("grouped_overlap_ratio_per_grid_point")
+    grouped = df.groupby(cols_to_group_by).mean()[["correct", "sn","sp","f1"]].reset_index().sort_values("f1")
 
-    g1 = df.groupby(get_cols_to_group_by(args)).mean()[["correct", "overlap_ratio", "toobig_ratio"]].reset_index()
+    g1 = df.groupby(get_cols_to_group_by(args)).mean()[["correct", "sn", "sp"]].reset_index()
     print('g1[(g1["priorA"] == 0) & (g1["epochs"] == 20) & (g1["exon_skip_init_weight"] == -4)]')
 
     return df, grouped

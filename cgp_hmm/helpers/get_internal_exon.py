@@ -654,7 +654,7 @@ def get_input_files_with_human_at_0(from_path = None):
     to combine fasta files to one with human at first position
     '''
     input_files = [f"{from_path}/{f}" for f in os.listdir(from_path) if f.endswith(".fa")]
-    input_files = sorted(input_files, key = lambda x: 0 if re.search("Homo_sapiens", x) else 1)
+    input_files = sorted(input_files, key = lambda x: (0 if re.search("Homo_sapiens", x) else 1, x))
     assert re.search("Homo_sapiens", input_files[0]), "homo sapiens not in first pos of combined.fasta"
     return input_files
 ################################################################################

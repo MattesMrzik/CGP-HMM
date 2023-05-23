@@ -17,8 +17,6 @@ from Utility import append_time_ram_stamp_to_file
 
 from CgpHmmCell import CgpHmmCell
 
-
-
 class CgpHmmLayer(tf.keras.layers.Layer):
     def __init__(self, config, current_epoch = None):
         # print("~~~~~~~~~~~~~~~~~~~~~~~~~ layer init")
