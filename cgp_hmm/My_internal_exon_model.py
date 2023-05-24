@@ -669,6 +669,8 @@ class My_Model(Model):
             assert abs(norm - 1 ) < 1e-4, f"norm is {norm} but should be one"
             prior = self.prior.get_intron_prob(emission) / norm
             initial_parameter = prior
+
+        # codons
         if state[0] == "c": # c_0,2   c_12,1
             codon_id = int(re.search(r"c_(\d+),\d+", state).group(1))
             if codon_id not in [0, self.config.nCodons - 1]:
@@ -697,6 +699,7 @@ class My_Model(Model):
                 #     prior = unscaled_prob/norm
                 #     initial_parameter = prior
 
+        # inserts
         if state[0] == "i":
             codon_id = int(re.search(r"i_(\d+),\d+", state).group(1))
             if codon_id not in [0, self.config.nCodons]:
@@ -705,8 +708,9 @@ class My_Model(Model):
                 prior = self.prior.get_exon_prob(emission, window = int(state[-1])) / norm
                 initial_parameter = prior
 
+        # akzeptor splice site
         if state.startswith("ak_"):
-            ak_id = int(state[-1])
+            ak_id = int(re.search(r"ak_(\d+)", state).group(1))
             how_many_states_before_A = self.config.akzeptor_pattern_len - ak_id
             # = 1 if state is right before A, = 2 if there is one more state before A
             start_in_prior_pattern = self.config.ass_start - how_many_states_before_A - self.config.order
@@ -726,10 +730,15 @@ class My_Model(Model):
 
                 # prior 0 is forbidden since dirichlet uses alpha > 0
                 # so i set zero priors and zero init paras to epsilon in downstream code
+            else:
+                norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
+                assert abs(norm - 1 ) < 1e-4, f"norm is {norm} but should be one"
+                prior = self.prior.get_intron_prob(emission) / norm
+                initial_parameter = prior
 
         if state.startswith("do_"):
-            assert self.config.donor_pattern_len < 10, "donor pattern len >=10 gubi2t9w0gurz8"
-            if state[-1] == "0":
+            do_id = int(re.search(r"do_(\d+)", state).group(1))
+            if do_id == 0:
                 pattern = f".{{{self.config.dss_start}}}GT{emission[-1]}.{{{self.config.dss_end-1}}}"
                 norm_pattern = f".{{{self.config.dss_start}}}GT.{{{self.config.dss_end}}}"
                 unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = pattern)
@@ -737,13 +746,18 @@ class My_Model(Model):
                 assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
                 prior = unscaled_prob/norm
                 initial_parameter = prior
-            if state[-1] == "1":
+            elif do_id == 1:
                 pattern = f".{{{self.config.dss_start}}}GT{emission[1:]}.{{{self.config.dss_end-2}}}"
                 norm_pattern = f".{{{self.config.dss_start}}}GT{emission[1]}.{{{self.config.dss_end-1}}}"
                 unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = pattern)
                 norm = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = norm_pattern)
                 assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
                 prior = unscaled_prob/norm
+                initial_parameter = prior
+            else:
+                norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
+                assert abs(norm - 1 ) < 1e-4, f"norm is {norm} but should be one"
+                prior = self.prior.get_intron_prob(emission) / norm
                 initial_parameter = prior
 
 

@@ -32,7 +32,7 @@ def create_gff_from_fasta_description(exon_dir_path : str) -> None:
 
         def write_gff(name, start, stop,):
             with open(name, "w") as out:
-                line = [record.id, "description", "CDS", str(start), str(stop), "0", "+", ".", "src=W"]
+                line = [record.id, "description", "CDS", str(start), str(stop), "0", "+", ".", "src=M"]
                 out.write("\t".join(line))
                 out.write("\n")
 
