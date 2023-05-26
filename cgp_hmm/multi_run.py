@@ -13,7 +13,7 @@ import argparse
 from helpers.add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
 
 out_path = "../../cgp_data"
-# plt.hist(seqs_df["exon_len"][seqs_df["exon_len"]<600]); plt.savefig("hist.png")
+# plt.hist(seqs_df["true_p_nt_exon"][seqs_df["true_p_nt_exon"]<600]); plt.savefig("hist.png")
 
 def get_multi_run_config():
 
@@ -88,14 +88,21 @@ def get_cfg_with_args():
     # of cfg_with_args arent completet automatically
     # i.e epoch is completed to epochs
 
+    # if i pass more than one parameter to an arg, they have to be non unifrom
+
     exon_nCodons = [get_exon_codons(exon) for exon in exons]
 
     cfg_with_args["nCodons"] = exon_nCodons
     cfg_with_args["model_size_factor"] = [1, 1.2]
     # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
-    cfg_with_args["priorA"] = [100,100,100,5,5,5,0,0,0]
-    cfg_with_args["priorB"] = [100,5,0,100,5,0,100,5,0]
+
+    cfg_with_args["priorA"] = [20,0]
+    cfg_with_args["priorB"] = [0]
+
+    cfg_with_args["akzeptor_pattern_len"] = [3,8]
+    cfg_with_args["donor_pattern_len"] = [3,8]
+
     cfg_with_args["global_log_epsilon"] = [1e-20]
     cfg_with_args["epochs"] = [40]
     cfg_with_args["learning_rate"] = [0.05]
@@ -107,7 +114,10 @@ def get_cfg_with_args():
     cfg_with_args["exon_skip_init_weight"] = [-5]
     cfg_with_args["flatten_B_init"] = [0]
 
-    cfg_with_args["likelihood_influence_growth_factor"] = [0.2, 0.2, 0.2,0.2, 0.2, 0.2, 0.2,0.2,0]
+    cfg_with_args["logsumexp"] = [0,1]
+
+
+    cfg_with_args["likelihood_influence_growth_factor"] = [0.2, 0.2, 0]
 
     return cfg_with_args
 
@@ -118,8 +128,9 @@ def get_bind_args_together(cfg_with_args):
     bind_args_together = [set([key]) for key in cfg_with_args.keys()]
     bind_args_together += [{"fasta", "nCodons"}]
     # bind_args_together += [{"exon_skip_init_weight", "nCodons"}]
-    bind_args_together += [{"priorA", "priorB"}]
+    # bind_args_together += [{"priorA", "priorB"}]
     bind_args_together += [{"priorA", "likelihood_influence_growth_factor"}]
+    bind_args_together += [{"akzeptor_pattern_len", "donor_pattern_len"}]
 
     return bind_args_together
 
@@ -127,11 +138,11 @@ def get_cfg_without_args():
     cfg_without_args = '''
     internal_exon_model
     my_initial_guess_for_parameters
-    logsumexp
     bucket_by_seq_len
     exit_after_loglik_is_nan
     viterbi
     '''
+
     cfg_without_args = re.split("\s+", cfg_without_args)[1:-1]
     return cfg_without_args
 
@@ -434,7 +445,8 @@ def calc_run_stats(path) -> pd.DataFrame:
     stats_list = []
     sub_dir_and_after_or_before = list(product(get_run_sub_dirs(path), ["after", "before"]))
     for i, (train_run_dir, after_or_before) in enumerate(sub_dir_and_after_or_before):
-        print(f"getting stats {i}/{len(sub_dir_and_after_or_before)}")
+        if i %1000 == 0:
+            print(f"getting stats {i}/{len(sub_dir_and_after_or_before)}")
 
         run_stats = {}
         if (aligned_seqs := get_viterbi_aligned_seqs(train_run_dir, after_or_before)) == -1:
@@ -442,6 +454,7 @@ def calc_run_stats(path) -> pd.DataFrame:
 
         add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs, get_true_alignemnt_path(train_run_dir, after_or_before))
         run_stats["after_or_before"] = after_or_before
+        run_stats["seq_len_from_multi_run"] = len(aligned_seqs["true_seq"].seq)
 
         training_args = json.load(open(f"{train_run_dir}/passed_args.json"))
         add_actual_epochs_to_run_stats(train_run_dir, run_stats, max_epochs = training_args['epochs'])
@@ -453,6 +466,9 @@ def calc_run_stats(path) -> pd.DataFrame:
 
     # remove cols, ie name of parameter for training runs, whos args are const across runs
     cols_to_keep = df.columns[df.nunique() > 1]
+    # cols_discared = list(set(df.columns) - set(cols_to_keep))
+    # non_unique_args = df.iloc[0,:][cols_discared]
+    # print("non_unique_args", non_unique_args)
     # i want to keep run stats even if those results are const across runs
     cols_to_keep = list(set(list(cols_to_keep) + list(run_stats.keys())))
     df = df[cols_to_keep]
@@ -502,54 +518,85 @@ def get_cols_to_group_by(args):
         cfg_with_args = json.load(file)
 
     parameters_with_more_than_one_arg = [name for name, args in cfg_with_args.items() if len(args) > 1]
+    parameters_with_less_than_one_arg = [name for name, args in cfg_with_args.items() if len(args) <= 1]
+
+    parameter_that_are_not_in_df = [(name, cfg_with_args[name][0]) for name in parameters_with_less_than_one_arg]
+
+    # these should not be grouped over, since i want the mean over these
     parameters_with_more_than_one_arg.remove("fasta")
     parameters_with_more_than_one_arg.remove("nCodons")
 
     parameters_with_more_than_one_arg += ["after_or_before"]
 
-    return parameters_with_more_than_one_arg
+    return parameters_with_more_than_one_arg, parameter_that_are_not_in_df
 
 
 def add_additional_eval_cols(df, args):
-    df["exon_len"] = df["true_end"] - df["true_start"]
-    df["v_len"] = df["guessed_end"] - df["guessed_start"]
-    df["len_ratio"] = df["v_len"] / df["exon_len"]
+    df["p_nt_on_exon"]           = df["true_end"] -    df["true_start"]
+    df["predicted_p_nt_on_exon"] = df["guessed_end"] - df["guessed_start"]
+
+    df["n_nt_on_exon"]           = df["seq_len_from_multi_run"] - df["p_nt_on_exon"]
+    df["predicted_n_nt_on_exon"] = df["seq_len_from_multi_run"] - df["predicted_p_nt_on_exon"]
+
+    df["len_ratio"] = df["predicted_p_nt_on_exon"] / df["p_nt_on_exon"]
     df["true_left"] = df["true_start"] == df["guessed_start"]
     df["true_right"] = df["true_end"] == df["guessed_end"]
-    # are the coords coorect, ie guessed end and true and are both inclusice or exclusive
-
+    # are the coords coorect, ie guessed end and true and are both inclusice or exclusive?
 
     def overlap(row):
         start_overlap = max(row['true_start'], row['guessed_start'])
         end_overlap = min(row['true_end'], row['guessed_end'])
         return max(0, end_overlap - start_overlap)
-    df['overlap'] = df.apply(lambda row: overlap(row), axis=1)
-    df['exon_sn'] = df["overlap"] / df["exon_len"]
-    df['exon_sp'] = df["overlap"] / df["v_len"]
+    df['tp_nt_on_exon'] = df.apply(lambda row: overlap(row), axis=1)
+    df['fp_nt_on_exon'] = df["predicted_p_nt_on_exon"] - df["tp_nt_on_exon"]
 
-    df['toobig'] = df['guessed_end'] - df['guessed_start'] - df["overlap"]
+    df['fn_nt_on_exon'] = df["p_nt_on_exon"] - df["tp_nt_on_exon"]
+    df['tn_nt_on_exon'] = df["seq_len_from_multi_run"] - df["fn_nt_on_exon"] -df["tp_nt_on_exon"]  - df["fp_nt_on_exon"]
 
+    df['sn_nt_on_exon'] = df["tp_nt_on_exon"] / df["p_nt_on_exon"]
+    df['sp_nt_on_exon'] = df["tp_nt_on_exon"] / df["predicted_p_nt_on_exon"]
 
-    cols_to_group_by = get_cols_to_group_by(args)
-    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["exon_len"])).reset_index(name = "sum_exon_lens")
+    cols_to_group_by, _ = get_cols_to_group_by(args)
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["p_nt_on_exon"])).reset_index(name = "p_nt")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
-    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["v_len"])).reset_index(name = "sum_v_len")
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["n_nt_on_exon"])).reset_index(name = "n_nt")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
-    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["overlap"])).reset_index(name = "sum_overlap_lens")
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["predicted_p_nt_on_exon"])).reset_index(name = "predicted_p_nt")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
-
-    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["toobig"])).reset_index(name = "sum_toobig")
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["predicted_n_nt_on_exon"])).reset_index(name = "predicted_n_nt")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
-    df["sn"]                           = df["sum_overlap_lens"] / df["sum_exon_lens"]
-    df["toobig_ratio_per_grid_point"]  = df["sum_toobig"]       / df["sum_exon_lens"]
-    df["sp"]                           = df["sum_overlap_lens"] / df["sum_v_len"]
-    df["f1"] = 2 * df["sn"] * df["sp"] / (df["sn"] + df["sp"])
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["tp_nt_on_exon"])).reset_index(name = "tp_nt")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["fp_nt_on_exon"])).reset_index(name = "fp_nt")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["tn_nt_on_exon"])).reset_index(name = "tn_nt")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["fn_nt_on_exon"])).reset_index(name = "fn_nt")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
+    df["sn_nt"]                           = df["tp_nt"] / df["p_nt"]
+    df["sp_nt"]                           = df["tp_nt"] / df["predicted_p_nt"]
+    df["f1_nt"] = 2 * df["sn_nt"] * df["sp_nt"] / (df["sn_nt"] + df["sp_nt"])
+
+    MCC_numerator = df["tp_nt"] * df["tn_nt"] - df["fp_nt"] * df["fn_nt"]
+    MCC_denominator = np.sqrt((df["tp_nt"] + df["fp_nt"]) * (df["tp_nt"] + df["fn_nt"]) * (df["tn_nt"] + df["fp_nt"]) * (df["tn_nt"] + df["fn_nt"]))
+    df["MCC"] = MCC_numerator / MCC_denominator
+
+    t1 = df["tp_nt"] / (df["tp_nt"] + df["fn_nt"])
+    t2 = df["tp_nt"] / (df["tp_nt"] + df["fp_nt"])
+    t3 = df["tn_nt"] / (df["tn_nt"] + df["fp_nt"])
+    t4 = df["tn_nt"] / (df["tn_nt"] + df["fn_nt"])
+    df["ACP"] = (t1 + t2 + t3 + t4) / 4
+
+    # that cehckts and then assert that all values are true
+    cnew_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["fn_nt_on_exon"])).reset_index(name = "fn_nt")
 
     df["skipped_exon"] = df.apply(lambda x: True if x['guessed_start'] == -1 and x['guessed_end'] == -1 else False, axis=1)
     new_col = df.groupby(cols_to_group_by)["skipped_exon"].mean().reset_index(name = "skipped_exon_mean")
@@ -568,7 +615,7 @@ def add_additional_eval_cols(df, args):
 
     df["overlapps"] = df["overlapps_left"] | df["overlapps_right"]
 
-    change_type_to_int = ["overlap", "toobig", "guessed_start", "guessed_end", "true_start", "true_end", "actual_epochs", "sum_exon_lens", "sum_toobig", "sum_overlap_lens", "exon_len"]
+    change_type_to_int = ["tp_nt", "tn_nt", "guessed_start", "guessed_end", "true_start", "true_end", "actual_epochs","tp_nt_on_exon", "fp_nt_on_exon", "fn_nt_on_exon", "tn_nt_on_exon"]
     for col in change_type_to_int:
         df[col] = df[col].astype(int)
 
@@ -577,10 +624,9 @@ def add_additional_eval_cols(df, args):
 def sort_columns(df):
     sorted_columns = ["passed_current_run_dir", "actual_epochs", \
                       "true_start", "true_end", "guessed_start", "guessed_end", \
-                      "exon_len", "v_len",\
+                      "p_nt_exon", "predicted_p_nt_exon",\
                       "correct", "skipped_exon", "wrap", "incomplete", "overlapps", "miss", \
-                      "overlap", "overlap_single_ratio", "sn", \
-                      "toobig", "toobig_ratio_per_grid_point", \
+                      "tp_nt_on_exon", "sn_nt_on_exon", "sn_nt", \
                       "after_or_before", "priorA", "priorB", "exon_skip_init_weight"]
 
     # bc sometimes i dont have multiple values for a parameter, so it is removed
@@ -596,14 +642,13 @@ def rename_cols(df):
     columns = {"true_start": "start",
                "true_end": "end",
                "guessed_start": "v_start",
-               "guessed_end":"v_end",
-               "overlap_single_ratio" : "exon_sn"}
+               "guessed_end":"v_end"}
     df = df.rename(columns = columns)
     return df
 
 def remove_cols(df):
 
-    cols = ["fasta_path", "sum_toobig", "sum_overlap_lens", "sum_exon_lens"]
+    cols = ["fasta_path"]
     for col in cols:
         df = df.drop(col, axis = 1)
 
@@ -619,6 +664,8 @@ def eval_viterbi(args):
 
     # print(df.groupby(get_cols_to_group_by(args)).mean()[["correct", "sn", "sp", "f1"]].sort_values("f1").to_string(max_rows = None, max_cols = None))
 
+    # df[df["predicted_p_nt_exon"] != 0].groupby(["priorA", "model_size_factor"]).apply(lambda x: x["predicted_p_nt_exon"] / x["true_p_nt_exon"]).mean(level=["priorA", "model_size_factor"])
+
     df = add_additional_eval_cols(df, args)
     df = sort_columns(df)
     df = rename_cols(df)
@@ -626,13 +673,18 @@ def eval_viterbi(args):
 
     #TODO also rename grouped?
 
-    cols_to_group_by = get_cols_to_group_by(args)
-    grouped = df.groupby(cols_to_group_by).mean()[["correct", "sn","sp","f1"]].reset_index().sort_values("f1")
+    _, parameters_with_less_than_one_arg = get_cols_to_group_by(args)
 
-    g1 = df.groupby(get_cols_to_group_by(args)).mean()[["correct", "sn", "sp"]].reset_index()
+
+
+    cols_to_group_by, _ = get_cols_to_group_by(args)
+    eval_cols = ["correct", "sn_nt", "sp_nt", "f1_nt", "MCC", "ACP"]
+    grouped = df.groupby(cols_to_group_by).mean()[eval_cols].reset_index().sort_values("f1_nt")
+
+    g1 = df.groupby(cols_to_group_by).mean()[eval_cols].reset_index()
     print('g1[(g1["priorA"] == 0) & (g1["epochs"] == 20) & (g1["exon_skip_init_weight"] == -4)]')
 
-    return df, grouped
+    return df, grouped, parameters_with_less_than_one_arg
 
 def load_or_calc_eval_df(path):
     path_to_out_csv = f"{path}/eval.csv"
@@ -654,7 +706,7 @@ def load_or_calc_eval_df(path):
 # pd.set_option('display.max_columns', None)
 # pd.options.display.width = 0
 # pd.set_option("display.max_rows", None)
-# df.sort_values(by = "exon_len", ascending = 1)
+# df.sort_values(by = "true_p_nt_exon", ascending = 1)
 
 
 def toggle_col():
@@ -672,6 +724,6 @@ if __name__ == "__main__":
     elif args.viterbi_path:
         viterbi(args)
     elif args.eval_viterbi:
-        df, grouped = eval_viterbi(args)
+        df, grouped, parameter_that_are_not_in_df = eval_viterbi(args)
     elif args.continue_training:
         continue_training(args)

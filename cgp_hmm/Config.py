@@ -170,6 +170,11 @@ class Config():
 
         self.determine_attributes_that_only_depend_on_args_was_run = True
 
+        if self.logsumexp:
+            if self.logsumexp != -1:
+                if self.logsumexp in ["0","False"]:
+                    self.logsumexp = False
+
         self.args["nCodons"] = int(self.nCodons * self.model_size_factor)
 
         self.called_determine_attributes_that_only_depend_on_args = True
@@ -413,7 +418,8 @@ class Config():
             assert not self.dont_generate_new_seqs, "simulate indels option isnt applied if you dont generate new seqs"
 
         if self.E_epsilon or self.l_epsilon or self.R_epsilon:
-            assert self.logsumexp, "you passed E_epsilon or l_epsilon or R_epsilon, so you must also pass --log"
+            # assert self.logsumexp, "you passed E_epsilon or l_epsilon or R_epsilon, so you must also pass --log"
+            print("Warning: you passed E_epsilon or l_epsilon or R_epsilon, so you must also pass --log")
 
         if self.conditional_epsilon:
             assert self.scale_with_conditional_const, "you passed conditional_epsilon, so you must also pass scale_with_conditional_const"
@@ -521,7 +527,8 @@ class Config():
         # what forward
         self.parser.add_argument('--felix', action='store_true',  help = 'use felix forward version')
 
-        self.parser.add_argument('--logsumexp', action = "store_true", help = "logsumexp")
+        # self.parser.add_argument('--logsumexp', action = "store_true", help = "logsumexp")
+        self.parser.add_argument('--logsumexp', nargs = "?", const = 1, help = "logsumexp")
         self.parser.add_argument('--global_log_epsilon', type = float, default = 0, help = 'set l_, R_, E_ and prior_log_epsilon to this value')
         self.parser.add_argument('--l_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + config.epsilon_l, axis = 1, keepdims = True)) + m_alpha')
         self.parser.add_argument('--R_epsilon', type = float, default = 0, help = '[0] R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + config.epsilon_R, A)) + m_alpha')
