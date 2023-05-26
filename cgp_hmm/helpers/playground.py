@@ -496,76 +496,102 @@ import os
 ################################################################################
 ################################################################################
 
-s = "JH655890.1      14119495        14119510        exon_74801836_74801890_11_left  0       +\n"
-s +="JH655900.1      33525331        33525346        exon_74801836_74801890_11_left  0       +\n"
-s +="JH655900.1      33525350        33525354        exon_74801836_74801890_11_left  0       +\n"
-s +="JH655890.1      14119619        14119634        exon_74801836_74801890_11_right 0       +\n"
-s +="JH655900.1      33525547        33525562        exon_74801836_74801890_11_right 0       +\n"
-s +="JH655890.1      14119590        14119599        exon_74801836_74801890_11_middle        0       +\n"
-s +="JH655900.1      33525407        33525422        exon_74801836_74801890_11_middle        0       +"
+# s = "JH655890.1      14119495        14119510        exon_74801836_74801890_11_left  0       +\n"
+# s +="JH655900.1      33525331        33525346        exon_74801836_74801890_11_left  0       +\n"
+# s +="JH655900.1      33525350        33525354        exon_74801836_74801890_11_left  0       +\n"
+# s +="JH655890.1      14119619        14119634        exon_74801836_74801890_11_right 0       +\n"
+# s +="JH655900.1      33525547        33525562        exon_74801836_74801890_11_right 0       +\n"
+# s +="JH655890.1      14119590        14119599        exon_74801836_74801890_11_middle        0       +\n"
+# s +="JH655900.1      33525407        33525422        exon_74801836_74801890_11_middle        0       +"
 
-cols = ["seq", "start", "stop", "name", "score", "strand"]
-s = s.split("\n")
-d = pd.DataFrame([dict([(key, value) for key,value in zip(cols,re.split("\s+", row) )])for row in s])
+# cols = ["seq", "start", "stop", "name", "score", "strand"]
+# s = s.split("\n")
+# d = pd.DataFrame([dict([(key, value) for key,value in zip(cols,re.split("\s+", row) )])for row in s])
 
-path = "/nas-hs/projs/CGP-by-HMM-learning/cgp_data/exons_species.names_20_15_20_50_15_20_15_20_241-mammalian-2020v2.hal/2023-05-16_11-58/exon_chr15_74801836_74801890/species_bed/"
-# path += "Lasiurus_borealis_no_middle.bed"
-path += "Eidolon_helvum.bed"
+# path = "/nas-hs/projs/CGP-by-HMM-learning/cgp_data/exons_species.names_20_15_20_50_15_20_15_20_241-mammalian-2020v2.hal/2023-05-16_11-58/exon_chr15_74801836_74801890/species_bed/"
+# # path += "Lasiurus_borealis_no_middle.bed"
+# path += "Eidolon_helvum.bed"
 
-d = pd.read_csv(path, sep = "\t", header=None)
-d.columns = cols
-d["name"] = d["name"].apply(lambda s: s.split("_")[-1])
+# d = pd.read_csv(path, sep = "\t", header=None)
+# d.columns = cols
+# d["name"] = d["name"].apply(lambda s: s.split("_")[-1])
 
-def swap_left_and_right(s):
-    return ["left", "middle", "right"][["right","middle","left"].index(s)]
+# def swap_left_and_right(s):
+#     return ["left", "middle", "right"][["right","middle","left"].index(s)]
 
-human_strand = "+"
+# human_strand = "+"
 
-d["swapped_names"] = d[["name","strand"]].apply(lambda s: swap_left_and_right(s["name"]) if s["strand"] != human_strand else s["name"], axis = 1)
-d["start"] = d["start"].astype(int)
-d["stop"] = d["stop"].astype(int)
-d = d.sort_values("start")
+# d["swapped_names"] = d[["name","strand"]].apply(lambda s: swap_left_and_right(s["name"]) if s["strand"] != human_strand else s["name"], axis = 1)
+# d["start"] = d["start"].astype(int)
+# d["stop"] = d["stop"].astype(int)
+# d = d.sort_values("start")
 
-rows_to_keep = []
+# rows_to_keep = []
 
-last_stop = -1
-for i, (index, row) in enumerate(d.iterrows()):
-    if last_stop == -1:
-        last_stop = row["stop"]
-        rows_to_keep.append(i)
-        continue
-    if abs(last_stop - row["start"]) > 5:
-        rows_to_keep.append(i)
-    last_stop = row["stop"]
-d = d.iloc[rows_to_keep,:]
-print(d)
-names_list = d["swapped_names"].tolist()
-print("names_list", names_list)
-found_left_right_id = -1
-found_left_middle_right_id = -1
-for i in range(len(names_list) - 1):
-    if i < len(names_list) - 2:
-        if names_list[i:i+3] == ["left","middle","right"]:
-            if len(d.iloc[i:i+3,:]["seq"].unique()) == 1 and len(d.iloc[i:i+3,:]["strand"].unique()) == 1:
-                # TODO check if there are all in the same seq
-                # also that they arent overlapping, which might be the case anyways
+# last_stop = -1
+# for i, (index, row) in enumerate(d.iterrows()):
+#     if last_stop == -1:
+#         last_stop = row["stop"]
+#         rows_to_keep.append(i)
+#         continue
+#     if abs(last_stop - row["start"]) > 5:
+#         rows_to_keep.append(i)
+#     last_stop = row["stop"]
+# d = d.iloc[rows_to_keep,:]
+# print(d)
+# names_list = d["swapped_names"].tolist()
+# print("names_list", names_list)
+# found_left_right_id = -1
+# found_left_middle_right_id = -1
+# for i in range(len(names_list) - 1):
+#     if i < len(names_list) - 2:
+#         if names_list[i:i+3] == ["left","middle","right"]:
+#             if len(d.iloc[i:i+3,:]["seq"].unique()) == 1 and len(d.iloc[i:i+3,:]["strand"].unique()) == 1:
+#                 # TODO check if there are all in the same seq
+#                 # also that they arent overlapping, which might be the case anyways
 
-                found_left_middle_right_id = i
-                break
-    if names_list[i:i+2] == ["left","right"]:
-        found_left_middle_right = True
-        found_left_middle_right_id = i
+#                 found_left_middle_right_id = i
+#                 break
+#     if names_list[i:i+2] == ["left","right"]:
+#         found_left_middle_right = True
+#         found_left_middle_right_id = i
 
 
-if found_left_right_id == -1 and found_left_middle_right_id == -1:
-    print("no valid bourders retur False")
+# if found_left_right_id == -1 and found_left_middle_right_id == -1:
+#     print("no valid bourders retur False")
 
-if found_left_middle_right_id == -1:
-    if found_left_right_id != -1:
-        print(found_left_right_id)
-        print("found valid borders but no middle")
-else:
-    print(found_left_middle_right_id)
-    print("found valid borders with middle")
+# if found_left_middle_right_id == -1:
+#     if found_left_right_id != -1:
+#         print(found_left_right_id)
+#         print("found valid borders but no middle")
+# else:
+#     print(found_left_middle_right_id)
+#     print("found valid borders with middle")
 
-df = d.iloc[found_left_middle_right_id:found_left_middle_right_id+3,:]
+# df = d.iloc[found_left_middle_right_id:found_left_middle_right_id+3,:]
+
+
+# Create a sample DataFrame
+data = {
+    'A': [1, 2, 3],
+    'B': [4, 5, 6],
+    'C': [7, 8, 9]
+}
+df = pd.DataFrame(data)
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+# Assuming you have a DataFrame named 'df' containing floats
+
+# Create a grid of subplots
+fig, axes = plt.subplots(nrows=1, ncols=len(df.columns), figsize=(15, 5))
+
+# Iterate over each column in the DataFrame and create a heatmap in the corresponding subplot
+for i, column in enumerate(df.columns):
+    sns.heatmap(df[[column]], cmap='YlGnBu', annot=True, fmt=".2f", cbar=False, ax=axes[i])
+    axes[i].set_title(column)  # Set the title as the column name
+
+plt.tight_layout()  # Adjust the spacing between subplots
+plt.savefig('heatmap.png', bbox_inches='tight')
+plt.close()
