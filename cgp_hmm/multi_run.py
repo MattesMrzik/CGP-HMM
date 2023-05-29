@@ -10,7 +10,7 @@ from itertools import product
 import subprocess
 import matplotlib.pyplot as plt
 import seaborn as sns
-
+import traceback
 
 import argparse
 
@@ -101,12 +101,12 @@ def get_cfg_with_args():
     # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
 
-    cfg_with_args["priorA"] = [20,20,0]
-    cfg_with_args["priorB"] = [0]
-    cfg_with_args["likelihood_influence_growth_factor"] = [0.2, 0, 0]
+    cfg_with_args["priorA"] = [100,20,0]
+    cfg_with_args["priorB"] = [100,20,0]
+    cfg_with_args["likelihood_influence_growth_factor"] = [0.2 ,0]
 
-    cfg_with_args["akzeptor_pattern_len"] = [3,8]
-    cfg_with_args["donor_pattern_len"] = [3,8]
+    cfg_with_args["akzeptor_pattern_len"] = [3,5]
+    cfg_with_args["donor_pattern_len"] = [3,5]
 
     cfg_with_args["global_log_epsilon"] = [1e-20]
     cfg_with_args["epochs"] = [40]
@@ -116,8 +116,9 @@ def get_cfg_with_args():
     cfg_with_args["clip_gradient_by_value"] = [5]
     cfg_with_args["prior_path"] = [" ../../cgp_data/priors/human/"]
     # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
-    cfg_with_args["exon_skip_init_weight"] = [-5]
-    cfg_with_args["flatten_B_init"] = [0]
+    cfg_with_args["exon_skip_init_weight_factor"] = [0,1,5] # 5 should be very expesive
+    cfg_with_args["flatten_B_init"] = [0,.2]
+    cfg_with_args["cesar_init"] = [0,1]
 
     cfg_with_args["logsumexp"] = [1]
 
@@ -133,7 +134,7 @@ def get_bind_args_together(cfg_with_args):
     bind_args_together += [{"fasta", "nCodons"}]
     # bind_args_together += [{"exon_skip_init_weight", "nCodons"}]
     # bind_args_together += [{"priorA", "priorB"}]
-    bind_args_together += [{"priorA", "likelihood_influence_growth_factor"}]
+    # bind_args_together += [{"priorA", "likelihood_influence_growth_factor"}]
     bind_args_together += [{"akzeptor_pattern_len", "donor_pattern_len"}]
 
     return bind_args_together
@@ -462,8 +463,8 @@ def calc_run_stats(path) -> pd.DataFrame:
 
         training_args = json.load(open(f"{train_run_dir}/passed_args.json"))
         add_actual_epochs_to_run_stats(train_run_dir, run_stats, max_epochs = training_args['epochs'])
-
-        stats_list.append({**training_args, **run_stats})
+        d = {**training_args, **run_stats}
+        stats_list.append(d)
 
 
     df = pd.DataFrame(stats_list)
@@ -576,6 +577,8 @@ def add_additional_eval_cols(df, args):
 
 
     cols_to_group_by, _ = get_cols_to_group_by(args)
+    print("cols_to_group_by", cols_to_group_by)
+    print("df.columns", df.columns)
     new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["p_nt_on_exon"])).reset_index(name = "p_nt")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
@@ -734,15 +737,12 @@ def anova_for_one_hyper(df, group, hyper_grid_para, predicted_column = "f1_nt_on
 
 
 
-
-
-# eval last call to train
-
-
     '''
     group is for example priorA with levels 0, 5, 20
     hypergird are the other hyperparameters including group
     '''
+
+    print(f"\n\nANOVA for {group}\n\n")
     from scipy import stats
     missing_one_hyper_para_col = list(set(hyper_grid_para) - set([group]))
     # print("missing_one_hyper_para_col", missing_one_hyper_para_col)
@@ -750,7 +750,7 @@ def anova_for_one_hyper(df, group, hyper_grid_para, predicted_column = "f1_nt_on
     # print("grouped_data.mean", grouped_data.mean(), sep = "\n")
 
     for group_name, group_df in grouped_data:
-        # print("group_name", group_name)
+        print("Group:", list(zip(missing_one_hyper_para_col, group_name)))
         # print("group", group)
         # print("group_df", group_df.reset_index()[group].unique(), sep="\n")
         group_values = []
@@ -761,32 +761,27 @@ def anova_for_one_hyper(df, group, hyper_grid_para, predicted_column = "f1_nt_on
             group_values.append(level_df[predicted_column].values)
 
         # print("group_values", group_values)
-
-        # Perform the ANOVA test
-        f_statistic, p_value = stats.f_oneway(*group_values)
-
-        # Print the results for each group
-        print("Group:", list(zip(missing_one_hyper_para_col, group_name)))
-        print("F-Statistic:", f_statistic)
-        print("p-value:", p_value)
-        print("------------------------")
-
         gro = df.groupby(missing_one_hyper_para_col + [group]).mean()["f1_nt"].reset_index()
         # print(gro)
         mask = pd.Series(True, index=gro.index)
+
         for column, value in list(zip(missing_one_hyper_para_col, group_name)):
             mask &= gro[column] == value
         filtered_df = gro[mask]
         print("this is f1_nt accorss exon. the test is done every exon as its own data point")
         print(filtered_df)
 
+        try:
+            # Perform the ANOVA test
+            f_statistic, p_value = stats.f_oneway(*group_values)
+            # Print the results for each group
+            print("F-Statistic:", f_statistic)
+            print("p-value:", p_value)
+            print("------------------------")
+        except Exception:
+            print("in except")
+            print(traceback.format_exc())
 
-
-    f_statistic, p_value = stats.f_oneway(*group_values)
-
-    # Print the results
-    print("F-Statistic:", f_statistic)
-    print("p-value:", p_value)
 
 def heatmap_grouped(grouped, figsize = (15,7), angle1 = 90, angle2 = 60, eval_cols = None):
 

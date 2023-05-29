@@ -484,8 +484,8 @@ class Config():
 
         self.parser.add_argument('--internal_exon_model', action = 'store_true', help = 'finde ein exon welches von zwei introns begrenzt ist')
         self.parser.add_argument('--inserts_at_intron_borders', action = 'store_true', help = 'inserts can come right after and before intron')
-        self.parser.add_argument('--akzeptor_pattern_len', type = int, default = 3, help = 'akzeptor_pattern_len before AG')
-        self.parser.add_argument('--donor_pattern_len', type = int, default = 3, help = 'donor_pattern_len after GT')
+        self.parser.add_argument('--akzeptor_pattern_len', type = int, default = 5, help = 'akzeptor_pattern_len before AG')
+        self.parser.add_argument('--donor_pattern_len', type = int, default = 5, help = 'donor_pattern_len after GT')
         self.parser.add_argument('--left_intron_const', action = 'store_true', help = 'uses const transition left_intron loop')
         self.parser.add_argument('--right_intron_const', action = 'store_true', help = 'uses const transition right_intron loop')
         self.parser.add_argument('--deletes_after_intron_to_codon', action = 'store_true', help = 'light green: deletes_after_intron_to_codon')
@@ -500,11 +500,16 @@ class Config():
         # prior
         self.parser.add_argument('--priorB', type = float, default = 0, help = 'use prior for B and scale the alphas')
         self.parser.add_argument('--priorA', type = float, default = 0, help = 'use prior for A and scale the alphas')
-        self.parser.add_argument('--prior_path', default = "../../cgp_data/priors/human/", help = ' path to the dir containing exon and intron .pbl')
-        self.parser.add_argument('--ass_start', type = int, default = 5, help = 'len of prior pattern before AG ASS splice site')
+        self.parser.add_argument('--prior_path', default = "../../cgp_data/priors/new_prior/7215/", help = ' path to the dir containing exon and intron .pbl')
+        # self.parser.add_argument('--ass_start', type = int, default = 5, help = 'len of prior pattern before AG ASS splice site')
+        # self.parser.add_argument('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
+        # self.parser.add_argument('--dss_start', type = int, default = 5, help = 'len of prior pattern before GT DSS splice site')
+        # self.parser.add_argument('--dss_end', type = int, default = 2, help = 'len of prior pattern after GT DSS splice site')
+
+        self.parser.add_argument('--ass_start', type = int, default = 7, help = 'len of prior pattern before AG ASS splice site')
         self.parser.add_argument('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
-        self.parser.add_argument('--dss_start', type = int, default = 5, help = 'len of prior pattern before GT DSS splice site')
-        self.parser.add_argument('--dss_end', type = int, default = 2, help = 'len of prior pattern after GT DSS splice site')
+        self.parser.add_argument('--dss_start', type = int, default = 1, help = 'len of prior pattern before GT DSS splice site')
+        self.parser.add_argument('--dss_end', type = int, default = 5, help = 'len of prior pattern after GT DSS splice site')
         self.parser.add_argument('--log_prior_epsilon', type = float, default = 0, help = '[0] log_prior = tf.math.log(B(B_kernel) + prior_log_epsilon)')
 
         # prior and initial weights
@@ -514,8 +519,9 @@ class Config():
         self.parser.add_argument('--add_noise_to_initial_weights', action = 'store_true', help = 'add noise to my initial guess for weights ')
         self.parser.add_argument('--left_intron_init_weight', type = float, default = 4, help = 'weight for left -> left, the para for leaving left is 0')
         self.parser.add_argument('--right_intron_init_weight', type = float, default = 4, help = 'weight for right -> right, the para for leaving right is 0')
-        self.parser.add_argument('--exon_skip_init_weight', type = float, default = -3, help = 'initparameter for exon strip')
+        self.parser.add_argument('--exon_skip_init_weight_factor', type = float, default = 1, help = 'initparameter for exon strip')
         self.parser.add_argument('--flatten_B_init', type = float, default = 0, help = 'flatten the init parameters of B, ie priorB *C + uniform * (1-c)')
+        self.parser.add_argument('--cesar_init', type = int, default = 0, help = 'try to use weights from cesar')
 
         s = "else case to no model passed, ie the ATG CCC CCC STP model without introns"
         self.parser.add_argument('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
