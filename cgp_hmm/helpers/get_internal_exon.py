@@ -39,7 +39,7 @@ def load_hg38_refseq_bed(load_hg38_refseq_bed_file_path : str) -> pd.DataFrame:
     print("finished load_hg38_refseq_bed(). It took:", time.perf_counter() - start)
     return hg38_refseq_bed
 ################################################################################
-def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str,int,int, str, int], pd.Series]:
+def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str,int,int, str], pd.Series]:
     '''
     gets exons that have at least one neigbhouring exon upsteam and downstream
     these exons are also required to be between thick start and thick end
@@ -59,7 +59,7 @@ def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str
 
     NM_df = NM_df.reset_index(drop=True)
 
-
+    all_exon_intervalls = {}
     start = time.perf_counter()
     print("started get_internal_conding_exons()")
 
@@ -78,6 +78,10 @@ def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str
         # this was under the assumption that the first exons contains ATG and the last one STOP
         # but it could be the case that the first or last exons are in UTR
         for exon_id, (exon_len, exon_start) in enumerate(zip(row["blockSizes"], row["blockStarts"])):
+            exon_start_in_genome = row["chromStart"] + exon_start
+            exon_end_in_genome = row["chromStart"] + exon_start + exon_len # the end id is not included
+
+            all_exon_intervalls.add((exon_start_in_genome, exon_end_in_genome))
             # getting exons that are actually between ATG and Stop
             # these might still include the exons with start and stop codon
             # these still need to be exluded in the filtering step
@@ -94,8 +98,6 @@ def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str
             assert row["chromStart"] <= row["chromEnd"], 'row["chromStart"] > row["chromEnd"]'
             assert row["thickStart"] <= row["thickEnd"], 'row["thickStart"] > row["thickEnd"]'
             chromosom = row["chrom"]
-            exon_start_in_genome = row["chromStart"] + exon_start
-            exon_end_in_genome = row["chromStart"] + exon_start + exon_len # the end id is not included
             key = (chromosom, exon_start_in_genome, exon_end_in_genome, row["strand"])
             if key in internal_exons:
                 internal_exons[key].append(row)
@@ -114,6 +116,28 @@ def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str
     print("finished get_internal_conding_exons(). It took:", time.perf_counter() - start)
 
     print("len get_internal_conding_exons()", len(internal_exons))
+
+    def two_different_spliced_froms(interval1, interval2) -> bool:
+        if interval1['start'] == interval2['start'] and interval1['stop'] == interval2['stop']:
+            return False
+        if interval1['start'] <= interval2['stop'] and interval1['stop'] >= interval2['start']:
+            return True
+        else:
+            return False
+
+
+    exons_keys_to_be_removed = []
+
+    for key, row in internal_exons.items():
+        for other_exon_interval in all_exon_intervalls:
+            if two_different_spliced_froms((key[1], key[2]), other_exon_interval):
+                exons_keys_to_be_removed.append(key)
+
+    print("exons_keys_to_be_removed bc it is alternatively spliced:", exons_keys_to_be_removed)
+    for key in exons_keys_to_be_removed:
+        internal_exons.pop(key)
+
+
     return internal_exons
 ################################################################################
 def choose_exon_of_all_its_duplicates(exons: dict[tuple, list[pd.Series]]) -> list[tuple, pd.Series]:

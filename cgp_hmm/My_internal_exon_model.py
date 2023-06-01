@@ -348,7 +348,7 @@ class My_Model(Model):
                 assert s1 != None and s2 != None, "s1 and s2 must be != None if l = None"
                 if initial_weights == None:
                     initial_weights = 0
-                assert type(initial_weights) in [int, float], "if you append a single transition, you must pass either no initial weight or int or float"
+                assert type(initial_weights) in [int, float], f"if you append a single transition, you must pass either no initial weight or int or float, but it is {type(initial_weights)}"
                 initial_weights = [initial_weights]
                 l = [[self.str_to_state_id(s1), self.str_to_state_id(s2)]]
             if initial_weights == None:
@@ -369,8 +369,16 @@ class My_Model(Model):
                     indicies_for_constant_parameters.append(entry)
                     initial_weights_for_consts.append(weight)
 
-
-        append_transition("left_intron", "right_intron", trainable = self.config.exon_skip_const, initial_weights = self.config.exon_skip_init_weight)
+        if self.config.exon_skip_init_weight_factor != 0:
+            exon_skip_init_prob = - float( \
+                                    np.log( \
+                                        self.config.nCodons/20 \
+                                        * self.config.exon_skip_init_weight_factor \
+                                        )\
+                                    )
+            append_transition("left_intron", "right_intron", \
+                            trainable = not self.config.exon_skip_const, \
+                            initial_weights = exon_skip_init_prob)
 
         append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const, initial_weights = self.config.left_intron_init_weight)
 
@@ -396,18 +404,34 @@ class My_Model(Model):
             append_transition(f"c_{i},1", f"c_{i},2", trainable = False)
 
         # inserts
+
         #i dont have inserts right after or before splice site
-        append_transition(l = self.A_indices_begin_inserts, use_as_prior=True)
+        if self.config.cesar_init:
+            append_transition(l = self.A_indices_begin_inserts, use_as_prior=True, initial_weights = [-.8] * len(self.A_indices_begin_inserts))
+        else:
+            append_transition(l = self.A_indices_begin_inserts, use_as_prior=True)
+
         for i in range(self.insert_low, self.insert_high):
             append_transition(f"i_{i},0", f"i_{i},1", trainable = False)
             append_transition(f"i_{i},1", f"i_{i},2", trainable = False)
-        append_transition(l = self.A_indices_end_inserts, initial_weights = [single_high_prob_kernel] * len(self.A_indices_end_inserts), use_as_prior=True)
-        append_transition(l = self.A_indices_continue_inserts, use_as_prior=True)
+
+        if self.config.cesar_init:
+            append_transition(l = self.A_indices_end_inserts,      initial_weights = [0] * len(self.A_indices_end_inserts), use_as_prior=True)
+            append_transition(l = self.A_indices_continue_inserts, initial_weights = [1] * len(self.A_indices_end_inserts), use_as_prior=True)
+        else:
+            append_transition(l = self.A_indices_end_inserts, initial_weights = [single_high_prob_kernel] * len(self.A_indices_end_inserts), use_as_prior=True)
+            append_transition(l = self.A_indices_continue_inserts, use_as_prior=True)
 
         # deletes
         A_indices_normal_deletes, A_init_weights_normal_deletes = self.A_indices_and_init_weights_normal_deletes
         # print("A_init_weights_normal_deletes", A_init_weights_normal_deletes)
-        append_transition(l = A_indices_normal_deletes, initial_weights = A_init_weights_normal_deletes, use_as_prior=True)
+
+
+        if self.config.cesar_init:
+            append_transition(l = A_indices_normal_deletes, initial_weights = [x-.5 for x in A_init_weights_normal_deletes], use_as_prior=True)
+        else:
+            append_transition(l = A_indices_normal_deletes, initial_weights = A_init_weights_normal_deletes, use_as_prior=True)
+
         if self.config.deletes_after_intron_to_codon:
             append_transition(l = self.A_indices_deletes_after_intron_to_codon)
         if self.config.deletes_after_codon_to_intron:
@@ -666,9 +690,11 @@ class My_Model(Model):
 
         if state in ["left_intron", "right_intron"] and emission[0] != "i":
             norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
-            assert abs(norm - 1 ) < 1e-4, f"norm is {norm} but should be one"
+            assert abs(norm - 1 ) < 1e-3, f"norm is {norm} but should be one"
             prior = self.prior.get_intron_prob(emission) / norm
             initial_parameter = prior
+
+        # codons
         if state[0] == "c": # c_0,2   c_12,1
             codon_id = int(re.search(r"c_(\d+),\d+", state).group(1))
             if codon_id not in [0, self.config.nCodons - 1]:
@@ -697,6 +723,7 @@ class My_Model(Model):
                 #     prior = unscaled_prob/norm
                 #     initial_parameter = prior
 
+        # inserts
         if state[0] == "i":
             codon_id = int(re.search(r"i_(\d+),\d+", state).group(1))
             if codon_id not in [0, self.config.nCodons]:
@@ -705,8 +732,9 @@ class My_Model(Model):
                 prior = self.prior.get_exon_prob(emission, window = int(state[-1])) / norm
                 initial_parameter = prior
 
+        # akzeptor splice site
         if state.startswith("ak_"):
-            ak_id = int(state[-1])
+            ak_id = int(re.search(r"ak_(\d+)", state).group(1))
             how_many_states_before_A = self.config.akzeptor_pattern_len - ak_id
             # = 1 if state is right before A, = 2 if there is one more state before A
             start_in_prior_pattern = self.config.ass_start - how_many_states_before_A - self.config.order
@@ -726,24 +754,53 @@ class My_Model(Model):
 
                 # prior 0 is forbidden since dirichlet uses alpha > 0
                 # so i set zero priors and zero init paras to epsilon in downstream code
+            else:
+                norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
+                assert abs(norm - 1 ) < 1e-4, f"norm is {norm} but should be one"
+                prior = self.prior.get_intron_prob(emission) / norm
+                initial_parameter = prior
 
         if state.startswith("do_"):
-            assert self.config.donor_pattern_len < 10, "donor pattern len >=10 gubi2t9w0gurz8"
-            if state[-1] == "0":
-                pattern = f".{{{self.config.dss_start}}}GT{emission[-1]}.{{{self.config.dss_end-1}}}"
-                norm_pattern = f".{{{self.config.dss_start}}}GT.{{{self.config.dss_end}}}"
+            do_id = int(re.search(r"do_(\d+)", state).group(1))
+            if do_id < self.config.dss_end:
+                if do_id == 0:
+                    after_pattern = f"{emission[2:]}.{{{self.config.dss_end-1}}}"
+                elif do_id == 1:
+                    after_pattern = f"{emission[1:]}.{{{self.config.dss_end-2}}}"
+                elif do_id == 2:
+                    after_pattern = f"{emission}.{{{self.config.dss_end-3}}}"
+                else:
+                    after_pattern = f".{{{do_id-2}}}{emission}.{{{self.config.dss_end - do_id - 1}}}"
+                pattern = f".{{{self.config.dss_start}}}GT{after_pattern}"
+                def replace_last_base_with_period(string):
+                    modified_string = re.sub(r"([A-Za-z])(?=[^A-Za-z]*$)", r".", string)
+                    return modified_string
+                norm_pattern = f".{{{self.config.dss_start}}}GT{replace_last_base_with_period(after_pattern)}"
                 unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = pattern)
                 norm = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = norm_pattern)
                 assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
                 prior = unscaled_prob/norm
                 initial_parameter = prior
-            if state[-1] == "1":
-                pattern = f".{{{self.config.dss_start}}}GT{emission[1:]}.{{{self.config.dss_end-2}}}"
-                norm_pattern = f".{{{self.config.dss_start}}}GT{emission[1]}.{{{self.config.dss_end-1}}}"
-                unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = pattern)
-                norm = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = norm_pattern)
-                assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
-                prior = unscaled_prob/norm
+            # if do_id == 0:
+            #     pattern = f".{{{self.config.dss_start}}}GT{emission[-1]}.{{{self.config.dss_end-1}}}"
+            #     norm_pattern = f".{{{self.config.dss_start}}}GT.{{{self.config.dss_end}}}"
+            #     unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = pattern)
+            #     norm = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = norm_pattern)
+            #     assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
+            #     prior = unscaled_prob/norm
+            #     initial_parameter = prior
+            # elif do_id == 1:
+            #     pattern = f".{{{self.config.dss_start}}}GT{emission[1:]}.{{{self.config.dss_end-2}}}"
+            #     norm_pattern = f".{{{self.config.dss_start}}}GT{emission[1]}.{{{self.config.dss_end-1}}}"
+            #     unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = pattern)
+            #     norm = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = norm_pattern)
+            #     assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
+            #     prior = unscaled_prob/norm
+            #     initial_parameter = prior
+            else:
+                norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
+                assert abs(norm - 1 ) < 1e-3, f"norm is {norm} but should be one"
+                prior = self.prior.get_intron_prob(emission) / norm
                 initial_parameter = prior
 
 
@@ -796,7 +853,7 @@ class My_Model(Model):
         self.A_prior_matrix = tf.cast(A_init_stochastic * self.A_prior_mask, dtype = self.config.dtype) * self.config.priorA
 
         # write results to file for inspection
-        if self.config.nCodons < 10:
+        if self.config.nCodons < 20:
             dir_path = f"{self.config.current_run_dir}/prior_calculation"
             self.A_as_dense_to_file(f"{dir_path}/A_init.csv", "dummy weight parameter", A = A_init, with_description = self.config.nCodons < 20)
             self.A_as_dense_to_file(f"{dir_path}/A_init_stochastic.csv", "dummy weight parameter", A = A_init_stochastic, with_description = self.config.nCodons < 20)
@@ -852,7 +909,7 @@ class My_Model(Model):
         self.B_prior_matrix = tf.scatter_nd(self.B_prior_indices, self.B_priors, shape = dense_shape)
         self.B_prior_matrix = tf.cast(self.B_prior_matrix, dtype = self.config.dtype) * self.config.priorB
 
-        if self.config.nCodons < 10:
+        if self.config.nCodons < 20:
             dir_path = f"{self.config.current_run_dir}/prior_calculation"
             self.B_as_dense_to_file(f"{dir_path}/B_prior_matrix.csv", "dummy weight parameter", B = self.B_prior_matrix, with_description = self.config.nCodons < 20)
 ################################################################################
@@ -910,6 +967,7 @@ class My_Model(Model):
             p,i =  self.prior_and_initial_parameter_for_state_and_emission(state, self.emission_tuple_to_str(ho_emission))
 
             if i == 0:
+                print("setting init para to epsilon")
                 i = 1e-3
 
             initial_parameters.append(i)
@@ -917,6 +975,7 @@ class My_Model(Model):
             if p != -1:
 
                 if p == 0:
+                    print("setting prior to epsilon")
                     p = 1e-3
                 self.B_priors.append(p)
                 self.B_prior_indices.append(index)

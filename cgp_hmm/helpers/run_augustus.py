@@ -32,7 +32,7 @@ def create_gff_from_fasta_description(exon_dir_path : str) -> None:
 
         def write_gff(name, start, stop,):
             with open(name, "w") as out:
-                line = [record.id, "description", "CDS", str(start), str(stop), "0", "+", ".", "src=W"]
+                line = [record.id, "description", "CDS", str(start), str(stop), "0", "+", ".", "src=M"]
                 out.write("\t".join(line))
                 out.write("\n")
 
@@ -41,18 +41,26 @@ def create_gff_from_fasta_description(exon_dir_path : str) -> None:
         hints_file_path = f"{exon_dir_path}/augustus_hints.gff"
         exon_len = exon_end - exon_start
 
-        write_gff(hints_file_path, exon_start + exon_len//2 - 2, exon_start + exon_len//2 + 2)
+        size_of_hints_cds = 11 # since min exon len is 24
 
+        write_gff(hints_file_path, exon_start + exon_len//2 - size_of_hints_cds, exon_start + exon_len//2 + size_of_hints_cds)
         return hints_file_path
 
 def run_augustus_for_dir(path : str) -> None:
     dir_content = sorted(list(os.listdir(path)))
+    number_found = 0
+    number_not_found = 0
     for i, file_or_dir in enumerate(dir_content):
         full_path = os.path.join(path, file_or_dir)
         if os.path.isdir(full_path):
 
             hintsfile = create_gff_from_fasta_description(full_path)
             command = f"{path_to_augustus_exe} --species=human --hintsfile={hintsfile} --strand=forward {full_path}/species_seqs/stripped/Homo_sapiens.fa"
+            print("command", command)
+            # stanke was zeigen wo es nicht funcktioniert
+            # --minCoding_len 1
+
+            # ich kanna auch ewzingen ddass erste und letzt position ein intron ist.
 
             try:
                 output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
@@ -60,6 +68,8 @@ def run_augustus_for_dir(path : str) -> None:
                 out_array = output.split("\n")
                 non_comments = [line for line in out_array if (not line.startswith("#") and len(line) > 0)]
                 if len(non_comments) == 0:
+                    number_not_found += 1
+                    print(f"nothing found for {full_path}")
                     continue
                 non_comments = [line.split("\t") for line in non_comments]
                 df = pandas.DataFrame(non_comments)
@@ -67,12 +77,15 @@ def run_augustus_for_dir(path : str) -> None:
                 df.columns = ["seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"]
                 print(full_path)
                 print(df)
+                number_found += 1
             except subprocess.CalledProcessError as e:
                 print("Error executing command:", e.output)
 
             # exit_code = subprocess.call(re.split("\s+", command))#, stderr = err_handle, stdout = out_handle)
             # if exit_code != 0:
             #     print("exit_code:", exit_code)
+
+    print(f"number_found {number_found}, number_not_found {number_not_found}")
 
 if __name__ == "__main__":
     path = "/home/s-mamrzi/cgp_data/good_exons_2"
