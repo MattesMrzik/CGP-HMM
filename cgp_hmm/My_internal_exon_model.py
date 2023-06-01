@@ -369,15 +369,16 @@ class My_Model(Model):
                     indicies_for_constant_parameters.append(entry)
                     initial_weights_for_consts.append(weight)
 
-        exon_skip_init_prob = - float( \
-                                np.log( \
-                                    self.config.nCodons/20 \
-                                    * self.config.exon_skip_init_weight_factor \
-                                    )\
-                                )
-        append_transition("left_intron", "right_intron", \
-                          trainable = not self.config.exon_skip_const, \
-                          initial_weights = exon_skip_init_prob)
+        if self.config.exon_skip_init_weight_factor != 0:
+            exon_skip_init_prob = - float( \
+                                    np.log( \
+                                        self.config.nCodons/20 \
+                                        * self.config.exon_skip_init_weight_factor \
+                                        )\
+                                    )
+            append_transition("left_intron", "right_intron", \
+                            trainable = not self.config.exon_skip_const, \
+                            initial_weights = exon_skip_init_prob)
 
         append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const, initial_weights = self.config.left_intron_init_weight)
 

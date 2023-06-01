@@ -496,7 +496,6 @@ class Config():
         self.parser.add_argument('--pattern_length_after_intron_loop', type = int, default = 2, help = 'number of states after intron loop')
         self.parser.add_argument('--deletions_and_insertions_not_only_between_codons', action = 'store_true', help = 'deletions_and_insertions_not_only_between_codons. ie not after insertion or intron')
         self.parser.add_argument('--exon_skip_const', action = 'store_true', help = 'transition from left intron to rigth intron is not learend')
-
         # prior
         self.parser.add_argument('--priorB', type = float, default = 0, help = 'use prior for B and scale the alphas')
         self.parser.add_argument('--priorA', type = float, default = 0, help = 'use prior for A and scale the alphas')

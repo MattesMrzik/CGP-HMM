@@ -97,16 +97,16 @@ def get_cfg_with_args():
     exon_nCodons = [get_exon_codons(exon) for exon in exons]
 
     cfg_with_args["nCodons"] = exon_nCodons
-    cfg_with_args["model_size_factor"] = [1, 1.2]
+    cfg_with_args["model_size_factor"] = [1]
     # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
 
-    cfg_with_args["priorA"] = [100,20,0]
-    cfg_with_args["priorB"] = [100,20,0]
-    cfg_with_args["likelihood_influence_growth_factor"] = [0.2 ,0]
+    cfg_with_args["priorA"] = [10000,0]
+    cfg_with_args["priorB"] = [10000,0]
+    # cfg_with_args["likelihood_influence_growth_factor"] = [0.2 ,0]
 
-    cfg_with_args["akzeptor_pattern_len"] = [3,5]
-    cfg_with_args["donor_pattern_len"] = [3,5]
+    cfg_with_args["akzeptor_pattern_len"] = [5]
+    cfg_with_args["donor_pattern_len"] = [5]
 
     cfg_with_args["global_log_epsilon"] = [1e-20]
     cfg_with_args["epochs"] = [40]
@@ -114,11 +114,10 @@ def get_cfg_with_args():
     cfg_with_args["batch_size"] = [16]
     cfg_with_args["step"] = [16]
     cfg_with_args["clip_gradient_by_value"] = [5]
-    cfg_with_args["prior_path"] = [" ../../cgp_data/priors/human/"]
     # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
-    cfg_with_args["exon_skip_init_weight_factor"] = [0,1,5] # 5 should be very expesive
-    cfg_with_args["flatten_B_init"] = [0,.2]
-    cfg_with_args["cesar_init"] = [0,1]
+    cfg_with_args["exon_skip_init_weight_factor"] = [1,5] # 0 is ni skip, 1 is cheaper than 5, 0s cost is infinite so 0 and 0.0001 are very different
+    cfg_with_args["flatten_B_init"] = [0]
+    cfg_with_args["cesar_init"] = [0]
 
     cfg_with_args["logsumexp"] = [1]
 
@@ -133,7 +132,7 @@ def get_bind_args_together(cfg_with_args):
     bind_args_together = [set([key]) for key in cfg_with_args.keys()]
     bind_args_together += [{"fasta", "nCodons"}]
     # bind_args_together += [{"exon_skip_init_weight", "nCodons"}]
-    # bind_args_together += [{"priorA", "priorB"}]
+    bind_args_together += [{"priorA", "priorB"}]
     # bind_args_together += [{"priorA", "likelihood_influence_growth_factor"}]
     bind_args_together += [{"akzeptor_pattern_len", "donor_pattern_len"}]
 
@@ -146,6 +145,9 @@ def get_cfg_without_args():
     bucket_by_seq_len
     exit_after_loglik_is_nan
     viterbi
+    exon_skip_const
+    left_intron_const
+    right_intron_const
     '''
 
     cfg_without_args = re.split("\s+", cfg_without_args)[1:-1]
@@ -642,6 +644,11 @@ def add_additional_eval_cols(df, args):
 
     df["overlaps"] = df["overlaps_left"] | df["overlaps_right"]
 
+    df["WEScore"] = (1 - df["correct"] - df["skipped_exon"]) / (1- df["skipped_exon"])
+
+    df["5prime"] = df["true_left"] / (1- df["skipped_exon"])
+    df["3prime"] = df["true_right"] / (1- df["skipped_exon"])
+
     # MEScore
     # total_number_of_true_exons = get_number_of_total_exons(args)
     # new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["fn_nt_on_exon"])).reset_index(name = "ME")
@@ -711,7 +718,7 @@ def eval_viterbi(args):
     _, parameters_with_less_than_one_arg = get_cols_to_group_by(args)
 
     cols_to_group_by, _ = get_cols_to_group_by(args)
-    eval_cols = ["sn_nt", "sp_nt", "f1_nt", "MCC", "ACP", "correct", "true_left", "true_right", "incomplete", "wrap",  "overlaps", "miss"]
+    eval_cols = ["sn_nt", "sp_nt", "f1_nt", "MCC", "ACP", "correct", "true_left", "true_right", "incomplete", "wrap",  "overlaps", "miss", "skipped_exon", "5prime", "3prime", "WEScore"]
     grouped = df.groupby(cols_to_group_by).mean()[eval_cols].reset_index().sort_values("f1_nt")
 
 

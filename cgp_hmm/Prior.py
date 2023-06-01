@@ -125,7 +125,7 @@ class Prior():
         print(description, len(df))
 
         print("left_pattern_len, right_patterh_len", left_pattern_len, right_patterh_len)
-        assert abs(df["prob"].sum() + missing_pseudo_count_prob - 1) < epsilon, f"sum of load_priors_splice_site is {df['prob'].sum()} + {missing_pseudo_count_prob} = {df['prob'].sum() + missing_pseudo_count_prob} and it should be one"
+        assert abs(df["prob"].sum() + missing_pseudo_count_prob - 1) < epsilon, f"sum of load_priors_splice_site is {df['prob'].sum()} + {missing_pseudo_count_prob} = {df['prob'].sum() + missing_pseudo_count_prob} and it should be one, also check config.ass_start / end, config.dss_start /end"
         return df, result_dict
 
     def load_intron(self, path, description = "EMISSION", order = 2) -> tuple[pd.DataFrame, dict]:
