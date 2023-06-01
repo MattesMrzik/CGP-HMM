@@ -945,5 +945,5 @@ def plot(column = "left_intron_len", \
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.legend()
-    plt.savefig(f"{column}_{limit}.png")
+    plt.savefig(f"{re.sub('_','-',column)}-{limit}.png")
     plt.savefig(f"hist.png")
