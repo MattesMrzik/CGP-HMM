@@ -572,26 +572,45 @@ import os
 
 
 # Create a sample DataFrame
+# data = {
+#     'A': [1, 2, 3],
+#     'B': [4, 5, 6],
+#     'C': [7, 8, 9]
+# }
+# df = pd.DataFrame(data)
+# import pandas as pd
+# import seaborn as sns
+# import matplotlib.pyplot as plt
+
+# # Assuming you have a DataFrame named 'df' containing floats
+
+# # Create a grid of subplots
+# fig, axes = plt.subplots(nrows=1, ncols=len(df.columns), figsize=(15, 5))
+
+# # Iterate over each column in the DataFrame and create a heatmap in the corresponding subplot
+# for i, column in enumerate(df.columns):
+#     sns.heatmap(df[[column]], cmap='YlGnBu', annot=True, fmt=".2f", cbar=False, ax=axes[i])
+#     axes[i].set_title(column)  # Set the title as the column name
+
+# plt.tight_layout()  # Adjust the spacing between subplots
+# plt.savefig('heatmap.png', bbox_inches='tight')
+# plt.close()
+
+
+################################################################################
+################################################################################
+################################################################################
 data = {
-    'A': [1, 2, 3],
-    'B': [4, 5, 6],
-    'C': [7, 8, 9]
+    'Column1': [1, 2, 3],
+    'Column2': ['A', 'B', 'C'],
+    'Column3': [4, 5, 6]
 }
 df = pd.DataFrame(data)
-import pandas as pd
-import seaborn as sns
-import matplotlib.pyplot as plt
 
-# Assuming you have a DataFrame named 'df' containing floats
+df["asdf"] = -1
+print(df)
+for index, row in df.iterrows():
+    # Access and modify specific columns within the row
+    row['asdf'] = index
 
-# Create a grid of subplots
-fig, axes = plt.subplots(nrows=1, ncols=len(df.columns), figsize=(15, 5))
-
-# Iterate over each column in the DataFrame and create a heatmap in the corresponding subplot
-for i, column in enumerate(df.columns):
-    sns.heatmap(df[[column]], cmap='YlGnBu', annot=True, fmt=".2f", cbar=False, ax=axes[i])
-    axes[i].set_title(column)  # Set the title as the column name
-
-plt.tight_layout()  # Adjust the spacing between subplots
-plt.savefig('heatmap.png', bbox_inches='tight')
-plt.close()
+print(df)
