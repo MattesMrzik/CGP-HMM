@@ -1,0 +1,7 @@
+__pycache__
+cgp_hmm/.vscode/settings.json
+cgp_hmm/Viterbi.o
+cgp_hmm/Viterbi
+cgp_hmm/make.doc
+cgp_hmm/helpers/*.png
+cgp_hmm/helpers/df6.csv

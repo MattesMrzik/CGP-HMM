@@ -346,9 +346,9 @@ def get_true_gene_strucutre_from_fasta_description_as_fasta(coords) -> tuple[str
          "right_intron_len" : right_intron_len}
     return true_seq, on_reverse_strand, d
 ################################################################################
-def get_coords_record(len_of_line_in_clw, coords, viterbi_as_fasta, on_reverse_strand):
+def get_coords_record(len_of_line_in_clw, coords, seq_len, on_reverse_strand):
     coords_fasta = ""
-    for line_id in range(len(viterbi_as_fasta)//len_of_line_in_clw):
+    for line_id in range(seq_len//len_of_line_in_clw):
         in_fasta = line_id*len_of_line_in_clw
         if not on_reverse_strand:
             coords_line = f"in this fasta {in_fasta}, in genome {in_fasta + coords['seq_start_in_genome_+_strand']}"
@@ -356,15 +356,15 @@ def get_coords_record(len_of_line_in_clw, coords, viterbi_as_fasta, on_reverse_s
             coords_line = f"in this fasta {in_fasta}, in genome {coords['seq_start_in_genome_cd_strand']- in_fasta}"
         coords_fasta += coords_line + " " * (len_of_line_in_clw - len(coords_line))
 
-    last_line_len = len(viterbi_as_fasta) - len(coords_fasta)
+    last_line_len = seq_len - len(coords_fasta)
     coords_fasta += " " * last_line_len
 
     coords_fasta_record = SeqRecord(seq = Seq(coords_fasta), id = "coords_fasta")
     return coords_fasta_record
 ################################################################################
-def get_numerate_line_record(viterbi_as_fasta, len_of_line_in_clw = 50):
+def get_numerate_line_record(seq_len, len_of_line_in_clw = 50):
     numerate_line = ""
-    for i in range(len(viterbi_as_fasta)):
+    for i in range(seq_len):
         i_line = i % len_of_line_in_clw
         if i_line % 10 == 0:
             numerate_line += "|"
@@ -386,24 +386,26 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
         return
 
     coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
-    l = read_viterbi_json(model, viterbi_out_path)
-    viterbi_as_fasta = viterbi_tuple_list_to_fasta(viterbi_out_path, human_fasta, l)
 
-    # out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
-    viterbi_as_fasta_path = re.sub("_cc_output", "", viterbi_out_path)
-    viterbi_as_fasta_path = re.sub(".json", ".fasta", viterbi_as_fasta_path)
+    if viterbi_out_path is not None:
+        l = read_viterbi_json(model, viterbi_out_path)
+        viterbi_as_fasta = viterbi_tuple_list_to_fasta(viterbi_out_path, human_fasta, l)
 
-    viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
-    with open(viterbi_as_fasta_path, "w") as viterbi_fa_file:
-        SeqIO.write(viterbi_record, viterbi_fa_file, "fasta")
+        # out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
+        viterbi_as_fasta_path = re.sub("_cc_output", "", viterbi_out_path)
+        viterbi_as_fasta_path = re.sub(".json", ".fasta", viterbi_as_fasta_path)
+
+        viterbi_record = SeqRecord(seq = Seq(viterbi_as_fasta), id = "viterbi_guess")
+        with open(viterbi_as_fasta_path, "w") as viterbi_fa_file:
+            SeqIO.write(viterbi_record, viterbi_fa_file, "fasta")
 
 
     true_seq, on_reverse_strand, _ = get_true_gene_strucutre_from_fasta_description_as_fasta(coords)
     true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
 
-    numerate_line_record = get_numerate_line_record(viterbi_as_fasta, len_of_line_in_clw = len_of_line_in_clw)
+    numerate_line_record = get_numerate_line_record(len(true_seq), len_of_line_in_clw = len_of_line_in_clw)
 
-    coords_fasta_record = get_coords_record(len_of_line_in_clw, coords, viterbi_as_fasta, on_reverse_strand)
+    coords_fasta_record = get_coords_record(len_of_line_in_clw, coords, len(true_seq), on_reverse_strand)
 
     exon_contains_ambiguous_bases = ""
     for base, e_or_i in zip(human_fasta.seq, true_seq_record.seq):

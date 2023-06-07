@@ -697,21 +697,25 @@ class My_Model(Model):
         # codons
         if state[0] == "c": # c_0,2   c_12,1
             codon_id = int(re.search(r"c_(\d+),\d+", state).group(1))
-            if codon_id not in [0, self.config.nCodons - 1]:
+            # if codon_id not in [0, self.config.nCodons - 1]:
+            if codon_id != 0:
                 norm = sum([self.prior.get_exon_prob(emission[:-1] + base, window = int(state[-1])) for base in "ACGT"])
                 assert abs(norm - 1 ) < 1e-3, f"norm is {norm} but should be one"
                 prior = self.prior.get_exon_prob(emission, window = int(state[-1])) / norm
                 initial_parameter = prior
-            if codon_id == 0:
-                assert self.config.ass_end == 2, " self.config.ass_end == 2 is assumed for the following code, but it is set to a different value"
-                if state[-1] == "0":
-                    pattern = f".{{{self.config.ass_start}}}AG{emission[-1]}.{{{self.config.ass_end-1}}}"
-                    norm_pattern = f".{{{self.config.ass_start}}}AG.{{{self.config.ass_end}}}"
-                    unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = pattern)
-                    norm = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = norm_pattern)
-                    assert norm != 0, f"norm is zero in state {state} and emission {emission}, with pattern {pattern}"
-                    prior = unscaled_prob/norm
-                    initial_parameter = prior
+
+            # i could use is for  if state[-1] == "0":  but cant for the other   if state[-1] == "1": or  if state[-1] == "2": by it may skew model
+            # if codon_id == 0:
+            #     assert self.config.ass_end == 2, " self.config.ass_end == 2 is assumed for the following code, but it is set to a different value"
+            #     if state[-1] == "0":
+            #         pattern = f".{{{self.config.ass_start}}}AG{emission[-1]}.{{{self.config.ass_end-1}}}"
+            #         norm_pattern = f".{{{self.config.ass_start}}}AG.{{{self.config.ass_end}}}"
+            #         unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = pattern)
+            #         norm = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = norm_pattern)
+            #         assert norm != 0, f"norm is zero in state {state} and emission {emission}, with pattern {pattern}"
+            #         prior = unscaled_prob/norm
+            #         initial_parameter = prior
+
                 # if state[-1] == "1": #  i dont think that this can be used
                 # since i dont know if this is emission right after AG (c_0,0 was skipped)
                 # , or c_0,0 was entered
@@ -762,6 +766,7 @@ class My_Model(Model):
 
         if state.startswith("do_"):
             do_id = int(re.search(r"do_(\d+)", state).group(1))
+            assert self.config.order == 2, "for this code snippet order is assumend to be 2"
             if do_id < self.config.dss_end:
                 if do_id == 0:
                     after_pattern = f"{emission[2:]}.{{{self.config.dss_end-1}}}"
