@@ -39,7 +39,7 @@ def load_hg38_refseq_bed(load_hg38_refseq_bed_file_path : str) -> pd.DataFrame:
     print("finished load_hg38_refseq_bed(). It took:", time.perf_counter() - start)
     return hg38_refseq_bed
 ################################################################################
-def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str,int,int, str], pd.Series]:
+def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str,int,int, str], list[pd.Series]]:
     '''
     gets exons that have at least one neigbhouring exon upsteam and downstream
     these exons are also required to be between thick start and thick end
@@ -68,8 +68,6 @@ def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str
 
     internal_exons = {} # key is chromosom, start and stop of exon in genome, value is list of rows that mapped to this exon range
     for index, row in NM_df.iterrows():
-        # if index > 200:
-        #     break
         if (index + 1) % num_tenths == 0:
             progress = (index + 1) // num_tenths
             print(f"{progress}0% of the get_internal_conding_exons loop completed")
@@ -80,8 +78,12 @@ def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str
         for exon_id, (exon_len, exon_start) in enumerate(zip(row["blockSizes"], row["blockStarts"])):
             exon_start_in_genome = row["chromStart"] + exon_start
             exon_end_in_genome = row["chromStart"] + exon_start + exon_len # the end id is not included
-
-            all_exon_intervalls.add((exon_start_in_genome, exon_end_in_genome))
+            chromosom = row["chrom"]
+            new_interval = (exon_start_in_genome, exon_end_in_genome)
+            if chromosom not in all_exon_intervalls:
+                all_exon_intervalls[chromosom] = set([new_interval])
+            else:
+                 all_exon_intervalls[chromosom].add(new_interval)
             # getting exons that are actually between ATG and Stop
             # these might still include the exons with start and stop codon
             # these still need to be exluded in the filtering step
@@ -97,45 +99,60 @@ def get_internal_conding_exons(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str
 
             assert row["chromStart"] <= row["chromEnd"], 'row["chromStart"] > row["chromEnd"]'
             assert row["thickStart"] <= row["thickEnd"], 'row["thickStart"] > row["thickEnd"]'
-            chromosom = row["chrom"]
             key = (chromosom, exon_start_in_genome, exon_end_in_genome, row["strand"])
             if key in internal_exons:
                 internal_exons[key].append(row)
             else:
                 internal_exons[key] = [row]
-    if args.v:
-        print("since the same exon occures in multiple genes, which may just be spliced differently")
-        for i, key in enumerate(sorted(internal_exons.keys())):
-            if len(internal_exons[key]) > 3:
-                print(f"key is exon = {key}")
-                print("value is list of df_rows:")
-                for df_row in internal_exons[key]:
-                    print(df_row)
-                break
+    # if args.v:
+    #     print("since the same exon occures in multiple genes, which may just be spliced differently")
+    #     for i, key in enumerate(sorted(internal_exons.keys())):
+    #         if len(internal_exons[key]) > 3:
+    #             print(f"key is exon = {key}")
+    #             print("value is list of df_rows:")
+    #             for df_row in internal_exons[key]:
+    #                 print(df_row)
+    #             break
 
     print("finished get_internal_conding_exons(). It took:", time.perf_counter() - start)
 
     print("len get_internal_conding_exons()", len(internal_exons))
 
     def two_different_spliced_froms(interval1, interval2) -> bool:
-        if interval1['start'] == interval2['start'] and interval1['stop'] == interval2['stop']:
+        if interval1[0] == interval2[0] and interval1[1] == interval2[1]:
             return False
-        if interval1['start'] <= interval2['stop'] and interval1['stop'] >= interval2['start']:
+        if interval1[0] <= interval2[1] and interval1[1] >= interval2[0]:
             return True
         else:
             return False
 
 
     exons_keys_to_be_removed = []
+    total_rows = len(internal_exons)
+    num_tenths = total_rows//10
+    for index, (key, row) in enumerate(internal_exons.items()):
 
-    for key, row in internal_exons.items():
-        for other_exon_interval in all_exon_intervalls:
+        if (index + 1) % num_tenths == 0:
+            progress = (index + 1) // num_tenths
+            print(f"{progress}0% of the get_internal_conding_exons loop completed")
+
+
+        for other_exon_interval in all_exon_intervalls[key[0]]:
             if two_different_spliced_froms((key[1], key[2]), other_exon_interval):
+                # print((key[1], key[2]), other_exon_interval)
                 exons_keys_to_be_removed.append(key)
 
-    print("exons_keys_to_be_removed bc it is alternatively spliced:", exons_keys_to_be_removed)
+    mprint = 10
+    print(f"exons_keys_to_be_removed bc it is alternatively spliced (printing first{mprint}/{len(exons_keys_to_be_removed)}):")
+    for i, exon_key_to_be_removed in enumerate(exons_keys_to_be_removed):
+        if i == mprint:
+            break
+        print(exon_key_to_be_removed)
     for key in exons_keys_to_be_removed:
-        internal_exons.pop(key)
+        try:
+            internal_exons.pop(key)
+        except: # it was already popped, since the relation of overlaping exons is reflexive
+            pass
 
 
     return internal_exons
@@ -868,7 +885,7 @@ def make_stats_table(args):
 # time hal2fasta /nas-hs/projs/CGP200/data/msa/241-mammalian-2020v2.hal Macaca_mulatta --start 66848804 --sequence CM002977.3 --length 15 --ucscSequenceNames > maxaxa_exon_left_seq.fa
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='python3 -i get_internal_exon.py --hal ../../../../CGP200/data/msa/241-mammalian-2020v2.hal --spe ../../../../CGP200/data/msa/species.names --hg ../../../iei-ranges/hg38-refseq.bed ')
+    parser = argparse.ArgumentParser(description='example python3 -i get_internal_exon.py --hal ../../../../CGP200/data/msa/241-mammalian-2020v2.hal --spe ../../../../CGP200/data/msa/species.names --hg ../../../iei-ranges/hg38-refseq.bed ')
     parser.add_argument('--hg38', help = 'path to hg38-refseq.bed')
     parser.add_argument('--hal', help = 'path to the .hal file')
     parser.add_argument('--species', help = 'path to species file, which are the target of liftover from human')
@@ -903,7 +920,8 @@ if __name__ == "__main__":
     assert args.hg38 and args.hal and args.species, "you must pass path to hg38, hal and species.lst"
     output_dir = get_output_dir()
 
-    # files
+    # files        if index > 200:
+            # break
     json_path = f"{output_dir}/seqs_to_be_lifted.json"
     print(f"writing to: {json_path}")
     if not os.path.exists(os.path.dirname(json_path)):
@@ -964,10 +982,10 @@ def plot(column = "left_intron_len", \
 ):
     plt.title(title)
     unfiltered_data = unfiltered_seqs_df[column][unfiltered_seqs_df[column] < limit]
-    plt.hist(unfiltered_data, bins = bins, color = "tab:blue", label = "unfiltered")
-    plt.hist(seqs_df[column][seqs_df[column] < limit], bins = bins, color = "tab:orange", label = "filtered", range = (min(unfiltered_data), max(unfiltered_data)))
+    plt.hist(unfiltered_data, bins = bins, color = "tab:blue", label = "unfiltered", alpha = .5)
+    plt.hist(seqs_df[column][seqs_df[column] < limit], bins = bins, color = "tab:orange", alpha = .5, label = "filtered", range = (min(unfiltered_data), max(unfiltered_data)))
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.legend()
-    plt.savefig(f"{column}_{limit}.png")
+    plt.savefig(f"{re.sub('_','-',column)}-{limit}.png")
     plt.savefig(f"hist.png")
