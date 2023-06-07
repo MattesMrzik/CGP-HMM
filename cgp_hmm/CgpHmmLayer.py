@@ -76,7 +76,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
         # todo: felix macht auch nochmal a und b
 
         # result = self.F(inputs, initial_state = self.C.get_initial_state(batch_size=tf.shape(inputs)[0])) #  build and call of CgpHmmCell are called
-        initial_state = self.C.get_initial_state(batch_size=tf.shape(inputs)[0])
+        initial_state = self.C.get_initial_state(batch_size = tf.shape(inputs)[0])
         # print("initial_state =", initial_state)
         _, result_first_init_call = self.C(inputs[:,0], initial_state, init = True, training = training)
 

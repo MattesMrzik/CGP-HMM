@@ -51,11 +51,12 @@ def run_augustus_for_dir(path : str) -> None:
     number_found = 0
     number_not_found = 0
     for i, file_or_dir in enumerate(dir_content):
-        full_path = os.path.join(path, file_or_dir)
-        if os.path.isdir(full_path):
+        exon_dir_path = os.path.join(path, file_or_dir)
+        if os.path.isdir(exon_dir_path):
 
-            hintsfile = create_gff_from_fasta_description(full_path)
-            command = f"{path_to_augustus_exe} --species=human --hintsfile={hintsfile} --strand=forward {full_path}/species_seqs/stripped/Homo_sapiens.fa"
+            hintsfile = create_gff_from_fasta_description(exon_dir_path)
+            command = f"{path_to_augustus_exe} --species=human --hintsfile={hintsfile} --/Constant/min_coding_len=9 --strand=forward {exon_dir_path}/species_seqs/stripped/Homo_sapiens.fa"
+            print()
             print("command", command)
             # stanke was zeigen wo es nicht funcktioniert
             # --minCoding_len 1
@@ -69,14 +70,15 @@ def run_augustus_for_dir(path : str) -> None:
                 non_comments = [line for line in out_array if (not line.startswith("#") and len(line) > 0)]
                 if len(non_comments) == 0:
                     number_not_found += 1
-                    print(f"nothing found for {full_path}")
+                    print(f"nothing found for {exon_dir_path}")
                     continue
                 non_comments = [line.split("\t") for line in non_comments]
                 df = pandas.DataFrame(non_comments)
                 print(i)
                 df.columns = ["seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"]
-                print(full_path)
+                print(exon_dir_path)
                 print(df)
+                df.to_csv(f"{exon_dir_path}/augustus.out")
                 number_found += 1
             except subprocess.CalledProcessError as e:
                 print("Error executing command:", e.output)
