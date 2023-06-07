@@ -403,7 +403,7 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
         if num_tenths != 0 and (i + 1) % num_tenths == 0:
             print(f"create_exon_data_sets_for_choosen_df [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
 
-        exon_dir = f"{output_dir}/exon_{row['seq']}_{row['start']}_{row['end']}"
+        exon_dir = f"{out_dir_path}/exon_{row['seq']}_{row['start']}_{row['end']}"
         bed_output_dir = f"{exon_dir}/species_bed"
         seqs_dir = f"{exon_dir}/species_seqs"
         non_stripped_seqs_dir = f"{seqs_dir}/non_stripped"
@@ -465,6 +465,7 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
 
             # create alignment of fasta and true splice sites
             if single_species == "Homo_sapiens":
+                print("homo sap ", stripped_fasta_file_path, exon_dir)
                 fasta_true_state_seq_and_optional_viterbi_guess_alignment(stripped_fasta_file_path, out_dir_path = exon_dir)
 
         # gather all usable fasta seqs in a single file
@@ -480,22 +481,75 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
 
     calc_stats_table(args)
 ################################################################################
-def plot(column = "left_intron_len", \
+def plot(dfs,
+         column = None,
+         plot_table = False,
          limit = 30000, \
          bins = 100,
-         title = "intron length distribution", \
-         xlabel = "intron length", \
+         title = None, \
+         xlabel = "value", \
          ylabel = "count" \
 ):
-    plt.title(title)
-    unfiltered_data = unfiltered_seqs_df[column][unfiltered_seqs_df[column] < limit]
-    plt.hist(unfiltered_data, bins = bins, color = "tab:blue", label = "unfiltered", alpha = .5)
-    plt.hist(seqs_df[column][seqs_df[column] < limit], bins = bins, color = "tab:orange", alpha = .5, label = "filtered", range = (min(unfiltered_data), max(unfiltered_data)))
+    if title is None:
+        if column is None:
+            title = "title"
+        else:
+            title = column
+
+    title += " " + "".join(np.random.choice([c for c in "qwerasdfyxcvbnhjlzup"], size = 5))
+    print(title)
+    plt.close()
+    if plot_table:
+        assert type(dfs) is not list,"when using plot_table dfs must the original df"
+        local_df = dfs
+        dfs = []
+        g = local_df[local_df["is_internal_and_thick"]]
+        dfs.append(g)
+        mask = ~g["is_alt_spliced"]
+        dfs.append(g[mask])
+
+        # dfs.append(g[g["len_req_met"]])
+
+        mask = (~g["is_alt_spliced"]) & (g["len_req_met"])
+        dfs.append(g[mask])
+
+        mask = (~g["is_alt_spliced"]) & (g["len_req_met"]) & (g["ieilen"]<5000)
+        dfs.append(g[mask])
+
+        # df1["ieilen"]=df1["exon_len"] + df1["left_intron_len"] + df1["right_intron_len"]
+
+    if type(dfs) is not list:
+        print("not list")
+        dfs = [dfs]
+
+    minimum = float("inf")
+    maximum = float("-inf")
+    for i, local_df in enumerate(dfs):
+        plt.title(title)
+        if column is not None:
+            data = local_df[column][local_df[column] < limit]
+        else:
+            data = local_df[local_df < limit]
+        minimum = min(min(data), minimum)
+        maximum = max(max(data), maximum)
+
+    for i, loop_df in enumerate(dfs):
+        plt.title(title)
+        if column is not None:
+            data = loop_df[column][loop_df[column] < limit]
+        else:
+            data = loop_df[loop_df < limit]
+
+        # tab:blue
+        plt.hist(data, bins = bins, \
+                 label = f"{i} len(data) {len(data)}", \
+                 alpha = .5, \
+                 range = (minimum, maximum))
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.legend()
-    plt.savefig(f"{re.sub('_','-',column)}-{limit}.png")
-    plt.savefig(f"hist.png")
+    # plt.savefig(f"{re.sub('_','-',column)}-{limit}.png")
+    plt.savefig(f"cache.png")
 ################################################################################
 # time halLiftover /nas-hs/projs/CGP200/data/msa/241-mammalian-2020v2.hal Homo_sapiens human_exon_to_be_lifted.bed Solenodon_paradoxus Solenodon_paradoxus.bed
 # time hal2fasta /nas-hs/projs/CGP200/data/msa/241-mammalian-2020v2.hal Macaca_mulatta --start 66848804 --sequence CM002977.3 --length 15 --ucscSequenceNames > maxaxa_exon_left_seq.fa

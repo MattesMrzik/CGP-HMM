@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import pandas as pd
 import os
+import json
 import time
 import re
+import numpy as np
 
 def load_hg38_refseq_bed(load_hg38_refseq_bed_file_path : str) -> pd.DataFrame:
     start = time.perf_counter()
@@ -32,8 +34,8 @@ def get_all_exons_df(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str,int,int, 
 
     internal_exons = {} # key is chromosom, start and stop of exon in genome, value is list of rows that mapped to this exon range
     for i, (index, row) in enumerate(NM_df.iterrows()):
-        if index == 100:
-            break
+        # if index == 100:
+        #     break
         if num_tenths != 0 and (i + 1) % num_tenths == 0:
             print(f"get_exons [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
 
@@ -195,7 +197,7 @@ def add_alternatively_spliced_flag_col(df):
             all_exon_intervalls[seq] = set([new_interval])
         else:
                 all_exon_intervalls[seq].add(new_interval)
-
+    print()
     df["is_alt_spliced"] = False
     for i,(index, row) in enumerate(df.iterrows()):
         print(f"alt spliced second pass [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
@@ -221,16 +223,26 @@ def add_internal_thick_exon_flag_col(df):
     res = 50
     num_tenths = total_rows//res
 
-    df["is_internal_and_thick"] = False
+    if "is_internal_and_thick" in df.columns:
+        df.loc[:,"is_internal_and_thick"] = False
+    else:
+        df["is_internal_and_thick"] = False
 
     for i,(index, row) in enumerate(df.iterrows()):
         if num_tenths != 0 and (i + 1) % num_tenths == 0:
             print(f"add_internal_thick_exon_flag [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
         exon_row = row["exon_row"]
-        if exon_row is None:
+        if type(exon_row) is str:
+            if exon_row in ["NaN","None"]:
+                continue
+            # print("exon_row", exon_row)
+            exon_row = json.loads(re.sub("'",'"',exon_row))
+
+        if exon_row is None or pd.isna(exon_row):
             continue
+
         if row["start"] > exon_row["thickStart"] and row["end"] < exon_row["thickEnd"] and row["exon_id"] != 0 and row["exon_id"] != exon_row["blockCount"]:
-            df["is_internal_and_thick"] = True
+            row["is_internal_and_thick"] = True
 
         df.iloc[index,:] = row
     # print("add_internal_thick_exon_flag")
@@ -345,6 +357,9 @@ def load_or_calc_df(args, csv_path):
                     print("your answer must be either y or n")
     else:
         should_get_calculated = True
+
+    print("should_get_calculated is hard coded to False")
+    should_get_calculated = False
 
     if should_get_calculated:
         df = load_hg38_refseq_bed(args.hg38)
