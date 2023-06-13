@@ -488,7 +488,8 @@ def plot(dfs,
          bins = 100,
          title = None, \
          xlabel = "value", \
-         ylabel = "count" \
+         ylabel = "count", \
+         ieilen = None
 ):
     if title is None:
         if column is None:
@@ -496,25 +497,42 @@ def plot(dfs,
         else:
             title = column
 
-    title += " " + "".join(np.random.choice([c for c in "qwerasdfyxcvbnhjlzup"], size = 5))
-    print(title)
+    if plot_table:
+        assert ieilen is not None, "ieilen must be set when using plot_table"
+
+    # title += " " + "".join(np.random.choice([c for c in "qwerasdfyxcvbnhjlzup"], size = 5))
+
+    labels = []
+
     plt.close()
+
+    # i want to increase the figure size
+    plt.figure(figsize=(8, 5))
     if plot_table:
         assert type(dfs) is not list,"when using plot_table dfs must the original df"
         local_df = dfs
         dfs = []
         g = local_df[local_df["is_internal_and_thick"]]
         dfs.append(g)
+        labels.append("is_internal_and_thick")
+
         mask = ~g["is_alt_spliced"]
         dfs.append(g[mask])
+        labels.append("not alt. spliced")
 
         # dfs.append(g[g["len_req_met"]])
 
         mask = (~g["is_alt_spliced"]) & (g["len_req_met"])
         dfs.append(g[mask])
+        labels.append("len_req_met")
 
-        mask = (~g["is_alt_spliced"]) & (g["len_req_met"]) & (g["ieilen"]<5000)
+        mask = (~g["is_alt_spliced"]) & (g["len_req_met"]) & (g["ieilen"]<1000)
         dfs.append(g[mask])
+        labels.append(f"human seqlen < 1000")
+
+        mask = (~g["is_alt_spliced"]) & (g["len_req_met"]) & (g["ieilen"]<15000)
+        dfs.append(g[mask])
+        labels.append(f"human seqlen < 15000")
 
         # df1["ieilen"]=df1["exon_len"] + df1["left_intron_len"] + df1["right_intron_len"]
 
@@ -542,7 +560,7 @@ def plot(dfs,
 
         # tab:blue
         plt.hist(data, bins = bins, \
-                 label = f"{i} len(data) {len(data)}", \
+                 label = labels[i] + f", #points = {len(data)}", \
                  alpha = .5, \
                  range = (minimum, maximum))
     plt.xlabel(xlabel)

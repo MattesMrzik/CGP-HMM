@@ -142,7 +142,9 @@ def make_dataset(config):
                 # bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
                 # number_of_equal_sized_batches = len(seqs)//config.batch_size
                 # bucket_boundaries = [config.batch_size] * number_of_equal_sized_batches
-                bucket_batch_sizes = [batch_size] * (len(bucket_boundaries) +1)
+
+                config.nBatches = len(bucket_boundaries) +1
+                bucket_batch_sizes = [batch_size] * config.nBatches
                 print("bucket_boundaries", bucket_boundaries)
                 print("bucket_batch_sizes", bucket_batch_sizes)
 
@@ -530,6 +532,12 @@ def fit_model(config):
 
 ################################################################################
     else:
+
+        if config.nBatches != -1:
+            config.steps_per_epoch = config.nBatches
+            print("setting steps_per_epoch to", config.steps_per_epoch)
+
+
         if num_gpu > 1 and not config.dont_use_mirrored_strategy:
             mirrored_strategy = tf.distribute.MirroredStrategy()
             with mirrored_strategy.scope():

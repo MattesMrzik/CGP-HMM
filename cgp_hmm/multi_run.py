@@ -11,7 +11,7 @@ import subprocess
 import matplotlib.pyplot as plt
 import seaborn as sns
 import traceback
-
+from Bio import SeqIO
 import argparse
 
 from helpers.add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
@@ -26,6 +26,7 @@ def get_multi_run_config():
 
     parser.add_argument('--train', action = 'store_true', help='train with args specified in the methods in this module and write output to calculated path based on current time')
     parser.add_argument('--mem', type = int, default = 20000, help='mem for slurm train')
+    parser.add_argument('--adaptive_ram', action = "store_true", help='adaptive mem for slurm train')
     # parser.add_argument('--mpi', type = int, default = 8, help='mpi for slurm train')
     parser.add_argument('--max_jobs', type = int, default = 8, help='max number of jobs for slurm train')
     parser.add_argument('--partition', default = "snowball", help='partition for slurm train')
@@ -48,12 +49,10 @@ def get_multi_run_config():
 
     assert args.train or args.viterbi_path or args.eval_viterbi or args.continue_training, "you must pass either --train or --viterbi_path or --eval_viterbi"
 
-    if args.continue_training:
-        print()
-        print("can only continue training if it was started withour slurm before")
-        time.sleep(3)
 
     return args
+
+################################################################################
 
 def get_cfg_without_args_that_are_switched():
 
@@ -65,11 +64,13 @@ def get_cfg_without_args_that_are_switched():
 
     pass
 
+################################################################################
+
 def get_cfg_with_args():
     cfg_with_args = {}
 
     # or read files in a passed dir
-    fasta_dir_path = "/home/s-mamrzi/cgp_data/good_exons_2"
+    fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/2023-06-06_20-01/good_exons_1"
     # exons = ["exon_chr1_8364055_8364255", \
     #         "exon_chr1_33625050_33625254"]
 
@@ -101,8 +102,8 @@ def get_cfg_with_args():
     # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
 
-    cfg_with_args["priorA"] = [10000,0]
-    cfg_with_args["priorB"] = [10000,0]
+    cfg_with_args["priorA"] = [10]
+    cfg_with_args["priorB"] = [10]
     # cfg_with_args["likelihood_influence_growth_factor"] = [0.2 ,0]
 
     cfg_with_args["akzeptor_pattern_len"] = [5]
@@ -110,20 +111,23 @@ def get_cfg_with_args():
 
     cfg_with_args["global_log_epsilon"] = [1e-20]
     cfg_with_args["epochs"] = [40]
-    cfg_with_args["learning_rate"] = [0.05]
+    cfg_with_args["learning_rate"] = [0.01]
     cfg_with_args["batch_size"] = [16]
     cfg_with_args["step"] = [16]
     cfg_with_args["clip_gradient_by_value"] = [5]
     # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
-    cfg_with_args["exon_skip_init_weight_factor"] = [1,5] # 0 is ni skip, 1 is cheaper than 5, 0s cost is infinite so 0 and 0.0001 are very different
+    # cfg_with_args["exon_skip_init_weight_factor"] = [1,5] # 0 is ni skip, 1 is cheaper than 5, 0s cost is infinite so 0 and 0.0001 are very different
+    cfg_with_args["exon_skip_init_weight"] = [-4]
     cfg_with_args["flatten_B_init"] = [0]
-    cfg_with_args["cesar_init"] = [0]
+    cfg_with_args["cesar_init"] = [1]
+    cfg_with_args["optimizer"] = ["Adam"]
 
     cfg_with_args["logsumexp"] = [1]
 
 
-
     return cfg_with_args
+
+################################################################################
 
 def get_bind_args_together(cfg_with_args):
     '''
@@ -132,11 +136,13 @@ def get_bind_args_together(cfg_with_args):
     bind_args_together = [set([key]) for key in cfg_with_args.keys()]
     bind_args_together += [{"fasta", "nCodons"}]
     # bind_args_together += [{"exon_skip_init_weight", "nCodons"}]
-    bind_args_together += [{"priorA", "priorB"}]
+    # bind_args_together += [{"priorA", "priorB"}]
     # bind_args_together += [{"priorA", "likelihood_influence_growth_factor"}]
     bind_args_together += [{"akzeptor_pattern_len", "donor_pattern_len"}]
 
     return bind_args_together
+
+################################################################################
 
 def get_cfg_without_args():
     cfg_without_args = '''
@@ -145,14 +151,17 @@ def get_cfg_without_args():
     bucket_by_seq_len
     exit_after_loglik_is_nan
     viterbi
-    exon_skip_const
-    left_intron_const
-    right_intron_const
     '''
+    # right_intron_const
+    # left_intron_const
+    # exon_skip_const
+
 
     cfg_without_args = re.split("\s+", cfg_without_args)[1:-1]
     return cfg_without_args
 
+
+################################################################################
 
 def get_and_make_dir():
     now = datetime.now()
@@ -163,6 +172,8 @@ def get_and_make_dir():
         os.makedirs(multi_run_dir)
     return multi_run_dir
 
+################################################################################
+
 def write_cfgs_to_file(multi_run_dir):
     cfg_with_args_path = f"{multi_run_dir}/cfg_with_args.json"
     with open(cfg_with_args_path, "w") as out_file:
@@ -171,6 +182,8 @@ def write_cfgs_to_file(multi_run_dir):
     cfg_without_args_path = f"{multi_run_dir}/cfg_without_args.json"
     with open(cfg_without_args_path, "w") as out_file:
         json.dump(get_cfg_without_args(), out_file)
+
+################################################################################
 
 def merge_one_step(inp : list[set]):
     for i in range(len(inp)):
@@ -184,6 +197,8 @@ def merge_one_step(inp : list[set]):
     inp.remove(inp[j])
     inp.remove(inp[i])
 
+################################################################################
+
 def no_overlapp(inp : list[set]) -> bool:
         for i in range(len(inp)):
             for j in range(i+1, len(inp)):
@@ -191,15 +206,21 @@ def no_overlapp(inp : list[set]) -> bool:
                     return False
         return True
 
+################################################################################
+
 def merge(inp : list[set[str]]) -> list[set[str]]:
     while not no_overlapp(inp):
         merge_one_step(inp)
+
+################################################################################
 
 def zip_args(inp : list[set]) -> list[tuple[set, zip]]:
     zipped_args = []
     for merged_args in inp:
         zipped_args.append((merged_args,(zip(*[get_cfg_with_args()[key] for key in merged_args]))))
     return zipped_args
+
+################################################################################
 
 def get_grid_points(zipped_args : list[tuple[set, zip]]) -> list[list[list]]:
     '''return list of grid points.
@@ -208,6 +229,7 @@ def get_grid_points(zipped_args : list[tuple[set, zip]]) -> list[list[list]]:
     binded parameters are in the same list'''
     return list(product(*[arg[-1] for arg in zipped_args]))
 
+################################################################################
 
 def run_training(args):
 
@@ -244,6 +266,8 @@ def run_training(args):
     args.continue_training = multi_run_dir
     continue_training(args)
 
+################################################################################
+
 def continue_training(parsed_args):
 
     with open(f"{parsed_args.continue_training}/todo_grid_points.json", "r") as grid_point_file:
@@ -257,6 +281,29 @@ def continue_training(parsed_args):
     for i, point_in_grid in enumerate(grid_points):
         print(f"calculating point in hyperparameter grid {i}/{len(grid_points)}")
         # [1e-20, 20, 8, 5, ' ../../cgp_data/priors/human/', -10, '../../cgp_data/good_exons_1/exon_chr1_1050426_1050591/combined.fasta', 55, 100, 100]
+
+        class BreakException(Exception):
+            pass
+        try:
+            for entry in os.listdir(parsed_args.continue_training):
+                full_path = os.path.join(parsed_args.continue_training, entry)
+                if not os.path.isdir(full_path):
+                    continue
+                grid_point_log_file_path = os.path.join(full_path, "grid_point.log")
+                with open(grid_point_log_file_path,"r") as grid_point_file:
+                    for i, line in enumerate(grid_point_file):
+                        assert i == 0, f"found more than one line in file {grid_point_log_file_path}"
+                        data  = json.loads(line.strip())
+                        if data == point_in_grid:
+                            before_fit_para_path = os.path.join(full_path, "before_fit_para")
+                            if os.path.exists(before_fit_para_path):
+                                print(f"found point that was already calculated, ie before fit para exists in {full_path}")
+                                raise BreakException
+        except BreakException:
+            # Continue the outer loop
+            continue
+
+
         args = [single for p in point_in_grid for single in p]
         pass_args = " ".join([f"--{arg_name} {arg}" for arg_name, arg in zip(arg_names, args)])
         pass_args += " " + " ".join([f"--{arg}" for arg in get_cfg_without_args()])
@@ -272,12 +319,23 @@ def continue_training(parsed_args):
         err_path = f"{run_dir}/err_train.log"
         out_path = f"{run_dir}/out_train.log"
 
+        # nochmal wenn kein before da ist
+        # da das heißt es wurde nicht gerechnet und
+        # es liegt nicht daran, dass es erst nach langem training fehl geschlagen ist
+
+
+
         command = f"./main_programm.py {pass_args} --passed_current_run_dir {run_dir}"
         print("running", command)
 
         path_to_command_file = f"{run_dir}/called_command.log"
         with open(path_to_command_file, "w") as out_file:
             out_file.write(command)
+            out_file.write("\n")
+
+        path_to_gridpoint_file = f"{run_dir}/grid_point.log"
+        with open(path_to_gridpoint_file, "w") as out_file:
+            out_file.write(json.dumps(point_in_grid))
             out_file.write("\n")
 
         if not parsed_args.slurm:
@@ -289,12 +347,21 @@ def continue_training(parsed_args):
                         print("exit_code:", exit_code)
         if parsed_args.slurm:
             submission_file_name = f"{run_dir}/slurm_train_submission.sh"
+
+            if not parsed_args.adaptive_ram:
+                mem = parsed_args.mem
+            else:
+                max_len = 0
+                for record in SeqIO.parse(fasta_path,"fasta"):
+                    max_len = max(max_len, len(record.seq))
+                mem = ((max_len//2000)+1) * 5000
+
             with open(submission_file_name, "w") as file:
                 file.write("#!/bin/bash\n")
                 file.write(f"#SBATCH -J l_{os.path.basename(run_dir)[-6:]}\n")
                 file.write(f"#SBATCH -N 1\n")
                 # file.write(f"#SBATCH -n {parsed_args.mpi}\n")
-                file.write(f"#SBATCH --mem {parsed_args.mem}\n")
+                file.write(f"#SBATCH --mem {mem}\n")
                 file.write(f"#SBATCH --partition={parsed_args.partition}\n")
                 file.write(f"#SBATCH -o {out_path}\n")
                 file.write(f"#SBATCH -e {err_path}\n")
@@ -349,6 +416,7 @@ def continue_training(parsed_args):
                     if user_input == "y":
                         os.system(f"rm -rf {run_dir}")
 
+################################################################################
 
 def get_run_sub_dirs(path):
     print(path)
@@ -366,6 +434,8 @@ def get_run_sub_dirs(path):
             continue
         subdirs.append(sub_path)
     return subdirs
+
+################################################################################
 
 def viterbi(parsed_args):
     run_sub_dirs = get_run_sub_dirs(args.viterbi_path)
@@ -428,8 +498,12 @@ def viterbi(parsed_args):
             print("running", command)
             subprocess.call(re.split("\s+", command))
 
+################################################################################
+
 def get_true_alignemnt_path(train_run_dir, after_or_before):
     return f"{train_run_dir}/true_alignment_{after_or_before}.clw"
+
+################################################################################
 
 def get_viterbi_aligned_seqs(train_run_dir, after_or_before):
     true_alignemnt_path = get_true_alignemnt_path(train_run_dir, after_or_before)
@@ -447,59 +521,7 @@ def get_viterbi_aligned_seqs(train_run_dir, after_or_before):
 
     return aligned_seqs
 
-def calc_run_stats(path) -> pd.DataFrame:
-
-    stats_list = []
-    sub_dir_and_after_or_before = list(product(get_run_sub_dirs(path), ["after", "before"]))
-    for i, (train_run_dir, after_or_before) in enumerate(sub_dir_and_after_or_before):
-        if i %1000 == 0:
-            print(f"getting stats {i}/{len(sub_dir_and_after_or_before)}")
-
-        run_stats = {}
-        if (aligned_seqs := get_viterbi_aligned_seqs(train_run_dir, after_or_before)) == -1:
-            continue
-
-        add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs, get_true_alignemnt_path(train_run_dir, after_or_before))
-        run_stats["after_or_before"] = after_or_before
-        run_stats["seq_len_from_multi_run"] = len(aligned_seqs["true_seq"].seq)
-
-        training_args = json.load(open(f"{train_run_dir}/passed_args.json"))
-        add_actual_epochs_to_run_stats(train_run_dir, run_stats, max_epochs = training_args['epochs'])
-        d = {**training_args, **run_stats}
-        stats_list.append(d)
-
-
-    df = pd.DataFrame(stats_list)
-
-    # remove cols, ie name of parameter for training runs, whos args are const across runs
-    cols_to_keep = df.columns[df.nunique() > 1]
-    # cols_discared = list(set(df.columns) - set(cols_to_keep))
-    # non_unique_args = df.iloc[0,:][cols_discared]
-    # print("non_unique_args", non_unique_args)
-    # i want to keep run stats even if those results are const across runs
-    cols_to_keep = list(set(list(cols_to_keep) + list(run_stats.keys())))
-    df = df[cols_to_keep]
-
-    df["fasta"] = df["fasta_path"].apply(os.path.dirname).apply(os.path.basename)
-    df["passed_current_run_dir"] = df["passed_current_run_dir"].apply(os.path.basename)
-
-    return df
-
-def add_actual_epochs_to_run_stats(sub_path, run_stats, max_epochs = None):
-    # Epoch 6/20
-    path_to_std_out = f"{sub_path}/out_train.log"
-    if not os.path.exists(path_to_std_out):
-        path_to_std_out = f"{sub_path}/out.log"
-
-    max_epoch = 0
-    with open(path_to_std_out, "r") as log_file:
-        regrex = f"Epoch\s(\d{{1,3}})/{max_epochs}"
-        for line in log_file:
-            line = line.strip()
-                # print(line)
-            if x :=re.search(regrex, line):
-                max_epoch = max(int(x.group(1)), max_epoch)
-    run_stats["actual_epochs"] = max_epoch
+################################################################################
 
 def add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs, true_alignemnt_path):
     run_stats["start"] = aligned_seqs["true_seq"].seq.index("E") # inclusive
@@ -518,6 +540,94 @@ def add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs, true
     if run_stats["v_start"] == -1 or run_stats["v_end"] == -1:
         assert run_stats["v_end"] + run_stats["v_start"] == -2, f"if viterbi didnt find start it is assumend that it also didnt find end, bc i dont want to handle this case, true_alignemnt_path = {true_alignemnt_path}"
 
+################################################################################
+
+def add_actual_epochs_to_run_stats(sub_path, run_stats, max_epochs = None):
+    # Epoch 6/20
+    path_to_std_out = f"{sub_path}/out_train.log"
+    if not os.path.exists(path_to_std_out):
+        path_to_std_out = f"{sub_path}/out.log"
+
+    max_epoch = 0
+    with open(path_to_std_out, "r") as log_file:
+        regrex = f"Epoch\s(\d{{1,3}})/{max_epochs}"
+        for line in log_file:
+            line = line.strip()
+                # print(line)
+            if x :=re.search(regrex, line):
+                max_epoch = max(int(x.group(1)), max_epoch)
+    run_stats["actual_epochs"] = max_epoch
+
+################################################################################
+
+def add_time_and_ram_to_run_stats(run_stats, train_run_dir):
+    path_to_bench = f"{train_run_dir}/bench.log"
+    RAM_in_mb_peak = 0
+    min_time = 0
+    max_time = 0
+    fitting_time = float("inf")
+    with open(path_to_bench, "r") as log_file:
+        for line in log_file:
+            data = json.loads(line.strip())
+            # print("data", data)
+            RAM_in_mb_peak = max(RAM_in_mb_peak, data["RAM in kb"]/1024)
+            min_time = min(min_time, data["time"])
+            max_time= max(max_time, data["time"])
+            if re.search("Training:model.fit\(\) end", data["description"]):
+                fitting_time = data["time since passed start time"]
+    total_time = max_time - min_time
+
+    if fitting_time == float("inf"):
+        RAM_in_mb_peak =  float("inf")
+        total_time = float("inf")
+
+    run_stats["mbRAM"] = RAM_in_mb_peak
+    run_stats["total_time"] = total_time
+    run_stats["fitting_time"] = fitting_time
+
+################################################################################
+
+def calc_run_stats(path) -> pd.DataFrame:
+
+    stats_list = []
+    sub_dir_and_after_or_before = list(product(get_run_sub_dirs(path), ["after", "before"]))
+    print(sub_dir_and_after_or_before)
+    for i, (train_run_dir, after_or_before) in enumerate(sub_dir_and_after_or_before):
+        if i %1000 == 0:
+            print(f"getting stats {i}/{len(sub_dir_and_after_or_before)}")
+
+        run_stats = {}
+        if (aligned_seqs := get_viterbi_aligned_seqs(train_run_dir, after_or_before)) == -1:
+            continue
+
+        add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs, get_true_alignemnt_path(train_run_dir, after_or_before))
+        run_stats["after_or_before"] = after_or_before
+        run_stats["seq_len_from_multi_run"] = len(aligned_seqs["true_seq"].seq)
+
+        training_args = json.load(open(f"{train_run_dir}/passed_args.json"))
+        add_actual_epochs_to_run_stats(train_run_dir, run_stats, max_epochs = training_args['epochs'])
+        add_time_and_ram_to_run_stats(run_stats, train_run_dir)
+
+        d = {**training_args, **run_stats}
+        stats_list.append(d)
+
+    df = pd.DataFrame(stats_list)
+
+    # remove cols, ie name of parameter for training runs, whos args are const across runs
+    cols_to_keep = df.columns[df.nunique() > 1]
+    # cols_discared = list(set(df.columns) - set(cols_to_keep))
+    # non_unique_args = df.iloc[0,:][cols_discared]
+    # print("non_unique_args", non_unique_args)
+    # i want to keep run stats even if those results are const across runs
+    cols_to_keep = list(set(list(cols_to_keep) + list(run_stats.keys())))
+    df = df[cols_to_keep]
+
+    df["fasta"] = df["fasta_path"].apply(os.path.dirname).apply(os.path.basename)
+    df["passed_current_run_dir"] = df["passed_current_run_dir"].apply(os.path.basename)
+
+    return df
+
+################################################################################
 
 def load_cfg_with_args(args) -> json:
     path_to_multi_run_dir = f"{args.eval_viterbi}/cfg_with_args.json"
@@ -525,9 +635,13 @@ def load_cfg_with_args(args) -> json:
         cfg_with_args = json.load(file)
     return cfg_with_args
 
+################################################################################
+
 def get_number_of_total_exons(args):
     cfg_with_args = load_cfg_with_args(args)
     return len(cfg_with_args["fasta"])
+
+################################################################################
 
 def get_cols_to_group_by(args):
 
@@ -649,6 +763,8 @@ def add_additional_eval_cols(df, args):
     df["5prime"] = df["true_left"] / (1- df["skipped_exon"])
     df["3prime"] = df["true_right"] / (1- df["skipped_exon"])
 
+    df["time_per_epoch"] = df["fitting_time"]/df["actual_epochs"]
+
     # MEScore
     # total_number_of_true_exons = get_number_of_total_exons(args)
     # new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["fn_nt_on_exon"])).reset_index(name = "ME")
@@ -722,6 +838,15 @@ def eval_viterbi(args):
     grouped = df.groupby(cols_to_group_by).mean()[eval_cols].reset_index().sort_values("f1_nt")
 
 
+    # Create a new column 'lens_group' by assigning the respective bin to each lens value
+    # df['total_len'] = pd.cut(df['seq_len_from_multi_run '], bins=bins, labels=False)
+
+
+
+    # add a new column right intron len
+    df["right_intron_len"] = df["seq_len_from_multi_run"] - df["end"]
+    # add a new column left intron len
+    df["left_intron_len"] = df["start"]
 
     # for heat map
     grouped["after_or_before"] = (grouped["after_or_before"] == "after").astype(int)
@@ -738,10 +863,7 @@ def eval_viterbi(args):
 def anova_for_one_hyper(df, group, hyper_grid_para, predicted_column = "f1_nt_on_exon"):
 
 
-
-
     # maybe if paras are binded like prior a and prior b i must pass a list ["priorA", "priorB"] to group
-
 
 
     '''
@@ -789,6 +911,7 @@ def anova_for_one_hyper(df, group, hyper_grid_para, predicted_column = "f1_nt_on
             print("in except")
             print(traceback.format_exc())
 
+################################################################################
 
 def heatmap_grouped(grouped, figsize = (15,7), angle1 = 90, angle2 = 60, eval_cols = None):
 
@@ -820,6 +943,8 @@ def heatmap_grouped(grouped, figsize = (15,7), angle1 = 90, angle2 = 60, eval_co
 
     print(f"made heatmap, it took {np.round(time.perf_counter() - start,3)}")
 
+################################################################################
+
 def load_or_calc_eval_df(path):
     path_to_out_csv = f"{path}/eval.csv"
     if os.path.exists(path_to_out_csv):
@@ -842,7 +967,79 @@ def load_or_calc_eval_df(path):
 # pd.set_option("display.max_rows", None)
 # df.sort_values(by = "true_p_nt_exon", ascending = 1)
 
+################################################################################
+def lin_reg():
 
+    x1 = "nCodons"
+    x2 = "seq_len_from_multi_run"
+    ys = ["mbRAM", "fitting_time", "time_per_epoch"]
+
+    X = df[[x1, x2]]
+
+    X.loc[:,x1] /= X[x1].max()
+    X.loc[:,x2] /= X[x2].max()
+    X['intercept'] = 1
+
+    for y in ys:
+        print(y)
+        ydata = df[y] / df[y].max()
+
+        # Add quadratic terms
+        X.loc[:,'x2'] = X[x1] ** 2
+        X.loc[:,'y2'] = X[x2] ** 2
+
+        # Add a column of ones to X for the intercept term
+
+        # Compute the regression coefficients using the normal equation (X'X)^-1 X'y
+        coefficients = np.linalg.inv(X.T.dot(X)).dot(X.T).dot(ydata)
+
+        # Retrieve the coefficients and intercept
+        intercept = coefficients[-1]
+        coefficients = coefficients[:-1]
+
+        # Print the coefficients and intercept
+        print(x1,x2,f"{x1}^2", f"{x2}^2")
+        print('Coefficients:', coefficients)
+        print('Intercept:', intercept)
+
+        print()
+
+################################################################################
+
+def len_groups(df, nbins = 10, mask = [1,1,1,1], eval_cols = None):
+
+    if eval_cols is None:
+        eval_cols = ["fn_nt_on_exon", "correct", "miss", "true_left", "true_right", "total_time", "mbRAM"]
+
+    groupby = ["total_len_group", "right_intron_len_group", "left_intron_len_group", "exon_len_group"]
+    groupby = [group for i, group in enumerate(groupby) if mask[i]]
+
+    # bins for right intron len, resulting in nbins groups
+    bins_right_intron = list(range(0, df["right_intron_len"].max() + 1, int(df["right_intron_len"].max()/nbins)))
+    # same for left intron
+    bins_left_intron = list(range(0, df["left_intron_len"].max() + 1, int(df["left_intron_len"].max()/nbins)))
+    # and the same for total len resulting in nbins groups
+    bins_total_len = list(range(0, df["seq_len_from_multi_run"].max() + 1, int(df["seq_len_from_multi_run"].max()/nbins)))
+    # add a column exon len
+    df["exon_len"] = df["end"] - df["start"]
+    # add the same for exon len
+    bins_exon_len = list(range(0, df["exon_len"].max() + 1, int(df["exon_len"].max()/nbins)))
+
+    # now cut df into the bins adding a column for each
+    df['right_intron_len_group'] = pd.cut(df['right_intron_len'], bins=bins_right_intron, labels=bins_right_intron[:-1])
+    df['left_intron_len_group'] = pd.cut(df['left_intron_len'], bins=bins_left_intron, labels=bins_left_intron[:-1])
+    df['total_len_group'] = pd.cut(df['seq_len_from_multi_run'], bins=bins_total_len, labels=bins_total_len[:-1] )
+    df['exon_len_group'] = pd.cut(df['exon_len'], bins=bins_exon_len, labels=bins_exon_len[:-1])
+
+    # what is the label parameter of df.cut() for?
+
+
+    # now group by the groups
+    len_groups = df.groupby(groupby).mean()[eval_cols].reset_index()
+
+    return len_groups
+
+################################################################################
 def toggle_col():
     pass
 

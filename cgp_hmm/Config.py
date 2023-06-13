@@ -11,8 +11,8 @@ import numpy as np
 def get_dir_path_from_fasta_nCodons_and_out_path(out_path, nCodons, fasta_path = None) -> str:
     random_id = "".join(np.random.choice(list("qwertzuioplkjhgfdsayxcvbm0123456789"), size=4))
     if fasta_path == None or fasta_path == -1:
-        return f"{out_path}/{get_date_str()}_{random_id}_generated_{nCodons}"
-    return f"{out_path}/{get_date_str()}_{random_id}_{get_exon_from_fasta_path(fasta_path)}_{nCodons}"
+        return os.path.join(out_path, f"{get_date_str()}_{random_id}_generated_{nCodons}")
+    return os.path.join(out_path,f"{get_date_str()}_{random_id}_{get_exon_from_fasta_path(fasta_path)}_{nCodons}")
 
 def get_date_str() -> str:
     from datetime import datetime
@@ -518,7 +518,8 @@ class Config():
         self.parser.add_argument('--add_noise_to_initial_weights', action = 'store_true', help = 'add noise to my initial guess for weights ')
         self.parser.add_argument('--left_intron_init_weight', type = float, default = 4, help = 'weight for left -> left, the para for leaving left is 0')
         self.parser.add_argument('--right_intron_init_weight', type = float, default = 4, help = 'weight for right -> right, the para for leaving right is 0')
-        self.parser.add_argument('--exon_skip_init_weight_factor', type = float, default = 1, help = 'initparameter for exon strip')
+        self.parser.add_argument('--exon_skip_init_weight', type = float, default = -2, help = 'initparameter for exon strip')
+        self.parser.add_argument('--exon_skip_init_weight_factor', type = float, default = 0, help = 'initparameter for exon strip')
         self.parser.add_argument('--flatten_B_init', type = float, default = 0, help = 'flatten the init parameters of B, ie priorB *C + uniform * (1-c)')
         self.parser.add_argument('--cesar_init', type = int, default = 0, help = 'try to use weights from cesar')
 

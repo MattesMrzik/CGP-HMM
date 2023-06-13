@@ -377,8 +377,13 @@ class My_Model(Model):
                                         )\
                                     )
             append_transition("left_intron", "right_intron", \
+                                trainable = not self.config.exon_skip_const, \
+                                initial_weights = exon_skip_init_prob)
+        else:
+            append_transition("left_intron", "right_intron", \
                             trainable = not self.config.exon_skip_const, \
-                            initial_weights = exon_skip_init_prob)
+                            initial_weights = self.config.exon_skip_init_weigh)
+
 
         append_transition("left_intron", "left_intron", trainable = not self.config.left_intron_const, initial_weights = self.config.left_intron_init_weight)
 
