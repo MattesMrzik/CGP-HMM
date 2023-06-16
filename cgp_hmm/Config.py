@@ -170,6 +170,16 @@ class Config():
 
         self.determine_attributes_that_only_depend_on_args_was_run = True
 
+        if self.dataset_identifier != "all":
+            if re.search("primates", self.dataset_identifier):
+                self.only_primates = self.dataset_identifier
+            elif re.search("max_diverse", self.dataset_identifier):
+                self.only_max_diverse_set_same_size_as_primates = self.dataset_identifier
+            else:
+                print("dataset_identifier not recognized")
+                exit(1)
+
+
         if self.logsumexp:
             if self.logsumexp != -1:
                 if self.logsumexp in ["0","False"]:
@@ -476,6 +486,14 @@ class Config():
         self.parser.add_argument('--model_size_factor', type = float, default = 1, help = 'change model size, ie nCodons, by this factor')
         self.parser.add_argument('--dont_shuffle_seqs', action = 'store_true', help = 'dont shuffle seqs')
         # self.parser.add_argument('--mask', action = 'store_true', help = 'mask the input for layer')
+
+
+        self.parser.add_argument('--only_primates', type = str, default = None, help = 'only_use_primates')
+        self.parser.add_argument('--primates_path', type = str, default = "../../cgp_data/primates.lst", help = 'path to primates used by only max diverse set')
+        self.parser.add_argument('--only_max_diverse_set_same_size_as_primates', type = str, default = None, help = 'only_max_diverse_set_same_size_as_primates and path to dir that contains all trees')
+        self.parser.add_argument('--dataset_identifier', type = str, default = "", help ='"all", "primates path", "max_diverse_set_same_size_as_primates path"')
+
+
 
         # what model
         self.parser.add_argument('--intron_model', action='store_true', help = 'use my model that includes introns')

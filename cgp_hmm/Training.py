@@ -229,7 +229,7 @@ def fit_model(config):
     print("Using", num_gpu_logical, "GPUs.tf.config.experimental.list_logical_devices('GPU')")
 
     # setting the optimizer
-    if config.optimizer == "Adam":
+    if config.optimizer.lower() == "adam":
         if config.clip_gradient_by_value:
             optimizer = tf.optimizers.Adam(config.learning_rate, clipvalue = config.clip_gradient_by_value)
             config.optimizer = f"Adam with learning_rate {config.learning_rate} and clipvalue {config.clip_gradient_by_value}"
@@ -238,7 +238,7 @@ def fit_model(config):
             config.optimizer = f"Adam with learning_rate {config.learning_rate} and no clipping"
         print("config.optimizer =", config.optimizer)
 
-    elif config.optimizer == "SGD":
+    elif config.optimizer.lower() == "sgd":
         optimizer = tf.optimizers.SGD(config.learning_rate)
         config.optimizer = f"SGD with learning_rate {config.learning_rate}"
         print("config.optimizer =", config.optimizer)

@@ -52,6 +52,8 @@ def get_call_backs(config, model):
     class batch_id_at_begin(tf.keras.callbacks.Callback):
         def on_train_batch_begin(self, batch, logs = None):
             tf.print("on_train_batch_begin_batch_id (1 based index) =", batch + 1)
+        def on_train_batch_end(self, batch, logs = None):
+            tf.print("on_train_batch_end_batch_id (1 based index) =", batch + 1)
 
     class write_inital_parameters_to_file(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs=None):
@@ -170,7 +172,7 @@ def get_call_backs(config, model):
     callbacks = [write_time_ram_epoch_start_callback(),
                  write_time_ram_epoch_end_callback()]
 
-    if config.print_batch_id:
+    if config.print_batch_id or True:
         callbacks += [batch_id_at_begin()]
     if config.exit_after_first_batch:
         callbacks += [exit_after_first_batch()]

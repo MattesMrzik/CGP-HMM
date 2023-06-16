@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import tensorflow as tf
 import numpy as np
 from Bio import SeqIO
@@ -51,8 +52,62 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
             return base_to_id_dict[b]
         except:
             return 5
+
+    with open(config.fasta_path,"r") as handle:
+        with open(config.primates_path, "r") as primates_handle:
+            primates = set()
+            # this file is just a list of ids of primates
+            for line in primates_handle:
+                primates.add(line.strip())
+
+        # a list containing the ids of the species that should be used as input
+        species_to_use = []
+        species_in_combinded_fasta = set()
+        number_of_primats_in_current_fasta = 0
+
+        for record in SeqIO.parse(handle,"fasta"):
+            species_name = re.search("(\w+?_\w+?)\.", record.id).group(1)
+            species_in_combinded_fasta.add(species_name)
+            if species_name in primates:
+                number_of_primats_in_current_fasta += 1
+                if config.only_primates:
+                    species_to_use.append(species_name)
+        print("number_of_primats_in_current_fasta", number_of_primats_in_current_fasta)
+
+        if config.only_max_diverse_set_same_size_as_primates:
+            # list all files in a dir whos path is stored in config.only_max_diverse_set_same_size_as_primates
+            all_files = []
+            for file in os.listdir(config.only_max_diverse_set_same_size_as_primates):
+                if file.endswith(".txt"):
+                    all_files.append(os.path.join(config.only_max_diverse_set_same_size_as_primates, file))
+            all_files = sorted(all_files)
+            for file in all_files:
+                print("checking file:", file)
+                species_in_file = set()
+                with open(file, "r") as file_handle:
+                    for line in file_handle:
+                        species_in_file.add(line.strip())
+                # find the size of the overlap of the set species_in_combinded_fasta and species_in_file
+                overlap = species_in_combinded_fasta.intersection(species_in_file)
+                print("species_in_combinded_fasta", species_in_combinded_fasta)
+                print("species_in_file", species_in_file)
+                if len(overlap) == number_of_primats_in_current_fasta:
+                    print("found file with same size as primates")
+
+                    # TODO i have to add human sqeuence to the input
+                    overlap.add("Homo_sapiens")
+                    species_to_use = list(overlap)
+                    break
+
     with open(config.fasta_path,"r") as handle:
         for record in SeqIO.parse(handle,"fasta"):
+            if config.only_primates or config.only_max_diverse_set_same_size_as_primates:
+                print("using species:", species_to_use)
+                species_name = re.search("(\w+?_\w+?)\.", record.id).group(1)
+                print("species_to_use", species_to_use)
+                print("species_name", species_name)
+                if species_name not in species_to_use:
+                    continue
             seq = record.seq
             seq_of_one_hot = []
             last_bases = [4] * config.order # 4 is padded left flank
@@ -83,6 +138,8 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
                 seq_of_one_hot.append(entry_of_one_hot)
             seqs.append(seq_of_one_hot)
     append_time_ram_stamp_to_file(f"read_data_one_hot_with_Ns_spread_str() end   {run_id}", config.bench_path, start)
+    assert len(seqs) != 0, "no seqs read"
+    print("actual number of species used as input id_3258utnfwe23:", len(seqs))
     return seqs
 # def read_data_one_hot_with_Ns_spread(config, add_one_terminal_symbol = False):
 #     seqs = []

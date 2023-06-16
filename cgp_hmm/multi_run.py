@@ -71,6 +71,7 @@ def get_cfg_with_args():
 
     # or read files in a passed dir
     fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/2023-06-06_20-01/good_exons_1"
+    fasta_dir_path = "/home/s-mamrzi/cgp_data/train_data_set/2023-06-06_19-15/good_exons_1"
     # exons = ["exon_chr1_8364055_8364255", \
     #         "exon_chr1_33625050_33625254"]
 
@@ -114,15 +115,17 @@ def get_cfg_with_args():
     cfg_with_args["learning_rate"] = [0.01]
     cfg_with_args["batch_size"] = [16]
     cfg_with_args["step"] = [16]
-    cfg_with_args["clip_gradient_by_value"] = [5]
+    cfg_with_args["clip_gradient_by_value"] = [4]
     # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
     # cfg_with_args["exon_skip_init_weight_factor"] = [1,5] # 0 is ni skip, 1 is cheaper than 5, 0s cost is infinite so 0 and 0.0001 are very different
-    cfg_with_args["exon_skip_init_weight"] = [-4]
+    cfg_with_args["exon_skip_init_weight"] = [-5]
     cfg_with_args["flatten_B_init"] = [0]
     cfg_with_args["cesar_init"] = [1]
-    cfg_with_args["optimizer"] = ["Adam"]
+    cfg_with_args["optimizer"] = ["Adam"] # SGD didnt work nice with 0.001 learning rate and 1 clip_gradient_by_value
 
     cfg_with_args["logsumexp"] = [1]
+
+    cfg_with_args["dataset_identifier"] = ["all", "../../cgp_data/primates.lst", "../../cgp_data/max_diverse_subtrees"]
 
 
     return cfg_with_args
@@ -151,9 +154,9 @@ def get_cfg_without_args():
     bucket_by_seq_len
     exit_after_loglik_is_nan
     viterbi
+    left_intron_const
+    right_intron_const
     '''
-    # right_intron_const
-    # left_intron_const
     # exon_skip_const
 
 
@@ -243,6 +246,22 @@ def run_training(args):
 
     grid_points = get_grid_points(zipped_args)
 
+    # every point in grid_points is a list of parameters i want to extract the sublist that contains the fasta and nCodons
+    def get_sort_values(point_in_grid):
+        for sublist in point_in_grid:
+            for item in sublist:
+                if type(item) is str and re.search("fasta", item):
+                    fasta = item
+                elif len(sublist) == 2:
+                    nCodons = item
+        path = os.path.join(os.path.dirname(fasta), "species_seqs/stripped/Homo_sapiens.fa")
+        with open(path, "r") as fasta_file:
+            seq = next(SeqIO.parse(fasta_file, "fasta"))
+            seq_len = len(seq.seq)
+        return seq_len * np.sqrt(nCodons)
+
+    # grid_points = sorted(grid_points, key = get_sort_values, reverse=True)
+
     print("len get_grid_points", len(grid_points))
 
     print("do you want to continue enter [y/n]")
@@ -319,6 +338,8 @@ def continue_training(parsed_args):
         err_path = f"{run_dir}/err_train.log"
         out_path = f"{run_dir}/out_train.log"
 
+        err_path = out_path
+
         # nochmal wenn kein before da ist
         # da das heißt es wurde nicht gerechnet und
         # es liegt nicht daran, dass es erst nach langem training fehl geschlagen ist
@@ -355,10 +376,12 @@ def continue_training(parsed_args):
                 for record in SeqIO.parse(fasta_path,"fasta"):
                     max_len = max(max_len, len(record.seq))
                 mem = ((max_len//2000)+1) * 5000
+                # if mem is greater than 20000 then set partition to vision and otherwise to snowball
+                # parsed_args.partition = "vision" if mem > 20000 else "snowball"
 
             with open(submission_file_name, "w") as file:
                 file.write("#!/bin/bash\n")
-                file.write(f"#SBATCH -J l_{os.path.basename(run_dir)[-6:]}\n")
+                file.write(f"#SBATCH -J {os.path.basename(run_dir)[17:21]}\n")
                 file.write(f"#SBATCH -N 1\n")
                 # file.write(f"#SBATCH -n {parsed_args.mpi}\n")
                 file.write(f"#SBATCH --mem {mem}\n")
@@ -719,8 +742,8 @@ def add_additional_eval_cols(df, args):
     new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["fn_nt_on_exon"])).reset_index(name = "fn_nt")
     df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
 
-    df["sn_nt"]                           = df["tp_nt"] / df["p_nt"]
-    df["sp_nt"]                           = df["tp_nt"] / df["predicted_p_nt"]
+    df["sn_nt"] = df["tp_nt"] / df["p_nt"]
+    df["sp_nt"] = df["tp_nt"] / df["predicted_p_nt"]
     df["f1_nt"] = 2 * df["sn_nt"] * df["sp_nt"] / (df["sn_nt"] + df["sp_nt"])
 
     df["MCC_numerator"] = df["tp_nt"] * df["tn_nt"] - df["fp_nt"] * df["fn_nt"]
@@ -764,6 +787,8 @@ def add_additional_eval_cols(df, args):
     df["3prime"] = df["true_right"] / (1- df["skipped_exon"])
 
     df["time_per_epoch"] = df["fitting_time"]/df["actual_epochs"]
+
+    df["f1"] = 2*df["correct"] / (2- df["skipped_exon"])
 
     # MEScore
     # total_number_of_true_exons = get_number_of_total_exons(args)
