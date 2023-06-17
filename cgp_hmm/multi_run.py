@@ -76,6 +76,7 @@ def get_cfg_with_args():
     #         "exon_chr1_33625050_33625254"]
 
     exons = [dir for dir in os.listdir(fasta_dir_path) if not os.path.isfile(os.path.join(fasta_dir_path, dir)) ]
+    exons = exons[:2]
 
     # TODO i need to determine the nCodons that should be used for each fasta,
     # are there other parameters that defend on the sequences?
@@ -99,8 +100,16 @@ def get_cfg_with_args():
     exon_nCodons = [get_exon_codons(exon) for exon in exons]
 
     cfg_with_args["nCodons"] = exon_nCodons
+    cfg_with_args["model_size_factor"] = [0.5,0.75,1,1.25,1.5]
     cfg_with_args["model_size_factor"] = [1]
-    # cfg_with_args["exon_skip_init_weight"] = [-2,-3,-4]
+
+    # ich habe inserts teurer gemacht um die die ergnisse für zu kurze modelle
+    # schlechter zu machen, aber ich könnte auch die deletions billiger machen
+    # damit einfach die model länge nicht so stark in die gewichtung eingeht
+    # vielleicht leider die ergebnisse nicht zu sehr darunter
+
+
+    # cfg_with_args["exon_sk    ip_init_weight"] = [-2,-3,-4]
     # cfg_with_args["learning_rate"] = [0.1, 0.01]
 
     cfg_with_args["priorA"] = [10]
@@ -126,6 +135,11 @@ def get_cfg_with_args():
     cfg_with_args["logsumexp"] = [1]
 
     cfg_with_args["dataset_identifier"] = ["all", "../../cgp_data/primates.lst", "../../cgp_data/max_diverse_subtrees"]
+    cfg_with_args["dataset_identifier"] = ["../../cgp_data/max_diverse_subtrees"]
+
+    cfg_with_args["left_intron_init_weight"] = [4.6] # this is usually 4 but left miss was way more often than right miss in eval data set
+
+    cfg_with_args["manual_delete_insert_init_continue_weights"] = ["\"-0.3, -0.5, -0.5\""]
 
 
     return cfg_with_args
@@ -151,13 +165,13 @@ def get_cfg_without_args():
     cfg_without_args = '''
     internal_exon_model
     my_initial_guess_for_parameters
-    bucket_by_seq_len
     exit_after_loglik_is_nan
     viterbi
     left_intron_const
     right_intron_const
     '''
     # exon_skip_const
+    # bucket_by_seq_len
 
 
     cfg_without_args = re.split("\s+", cfg_without_args)[1:-1]
@@ -609,7 +623,35 @@ def add_time_and_ram_to_run_stats(run_stats, train_run_dir):
     run_stats["fitting_time"] = fitting_time
 
 ################################################################################
+def add_history_stats_to_run_stats(run_stats, train_run_dir):
+    best_loss = float("inf")
+    aprior = float("inf")
+    bprior = float("inf")
+    path_to_history = f"{train_run_dir}/history.log"
+    if not os.path.exists(path_to_history):
+        # path to loss.log
+        path_to_history = f"{train_run_dir}/loss.log"
+        with open(path_to_history, "r") as log_file:
+            for i, line in enumerate(log_file):
+                loss = float(line.strip().split(" ")[0])
+                if loss < best_loss:
+                    best_loss = loss
+        return
 
+    with open(path_to_history, "r") as log_file:
+        data = json.load(log_file)
+        for i,loss in enumerate(data["loss"]):
+            if loss < best_loss:
+                best_loss = loss
+                aprior = data["A_prior"][i]
+                bprior = data["B_prior"][i]
+
+
+        run_stats["best_loss"] = best_loss
+        run_stats["A_prior"] = aprior
+        run_stats["B_prior"] = bprior
+
+################################################################################
 def calc_run_stats(path) -> pd.DataFrame:
 
     stats_list = []
@@ -630,6 +672,7 @@ def calc_run_stats(path) -> pd.DataFrame:
         training_args = json.load(open(f"{train_run_dir}/passed_args.json"))
         add_actual_epochs_to_run_stats(train_run_dir, run_stats, max_epochs = training_args['epochs'])
         add_time_and_ram_to_run_stats(run_stats, train_run_dir)
+        add_history_stats_to_run_stats(run_stats, train_run_dir)
 
         d = {**training_args, **run_stats}
         stats_list.append(d)
@@ -1063,6 +1106,89 @@ def len_groups(df, nbins = 10, mask = [1,1,1,1], eval_cols = None):
     len_groups = df.groupby(groupby).mean()[eval_cols].reset_index()
 
     return len_groups
+
+################################################################################
+
+def plot_model_size_factor_vs_best_loss_f1s(df, figsize = (20,7), angle1 = 90, angle2 = 60, eval_cols = None):
+    # as x axis i want model size factor which is categorical
+    # then for every model size factor i want 3 box plots, one for best loss one for f1_nt and one for f1
+    # i have a pandas df with columns model_size_factor, best_loss, f1_nt, f1
+
+    def scale_0_to_1(column):
+        return (column - column.min()) / (column.max() - column.min())
+
+    local_df = df.copy()
+
+
+    # select only the after or before == after
+    local_df = local_df[local_df["after_or_before"] == "after"]
+
+    # add a new column called measure that is the sum of the prior a and prior b but devided by the model size factor
+
+
+
+    # add a column called py that is best_loss - a prior - b prior
+    local_df["py"] = local_df["best_loss"] - local_df["A_prior"] - local_df["B_prior"]
+
+    columns_to_scale = ["best_loss", "f1_nt_on_exon", "A_prior", "B_prior", "py"]
+
+
+    make_bigger = 0.01
+    for column in columns_to_scale:
+        local_df[f"{column}_scaled"] = scale_0_to_1(local_df[column])
+        local_df[f"{column}_scaled"] = local_df[f"{column}_scaled"] + np.random.choice([-make_bigger, make_bigger], size=len(local_df))
+
+    # add a measure that is a prior_scaled + b prior_sclade / model size factor
+    local_df["measure"] = (local_df["A_prior_scaled"] + local_df["B_prior_scaled"]) / local_df["model_size_factor"]
+
+    measure_names = ["measure"]
+    for column in measure_names:
+        local_df[f"{column}_scaled"] = scale_0_to_1(local_df[column])
+
+
+    columns_single_points_in_plot = ["f1", "f1_nt"]
+    columns_single_points_in_plot = ["f1"]
+
+    # i want to group by model size factor and add the mean of f1 for every group to a new column
+    for column in columns_single_points_in_plot:
+        # local_df[f"{column}_scaled"] = local_df.groupby("model_size_factor").mean()[column].reset_index()[column]
+        # do similar to the line above but with transform mean
+        local_df[f"{column}_scaled"] = local_df.groupby("model_size_factor")[column].transform("mean")
+        print(local_df[f"{column}_scaled"])
+        print(local_df[f"{column}_scaled"].value_counts())
+        local_df[f"{column}_scaled"] = local_df[f"{column}_scaled"] + np.random.choice([-make_bigger, make_bigger], size=len(local_df))
+
+
+    value_vars = [f"{c}_scaled" for c in columns_to_scale + columns_single_points_in_plot + measure_names]
+
+    for column in value_vars:
+        print(column, local_df[column].min(), local_df[column].max())
+
+    df_melt = pd.melt(local_df, id_vars='model_size_factor', value_vars= value_vars)
+
+    plt.figure(figsize=figsize)
+    # df_melt_filtered = df_melt[df_melt['variable'].isin(['f1_nt_scaled', 'best_loss_scaled'])]
+    sns.boxplot(x='model_size_factor', y='value', hue='variable', data=df_melt)
+    # can you add texture to the boxplot?
+
+
+
+
+    # df_f1 = df_melt[df_melt['variable'] == 'f1'].groupby('model_size_factor', as_index=False).mean()
+
+    # sns.scatterplot(x='model_size_factor', y='value', hue = 'value', data=df_f1, color='red', zorder=5)
+
+    # df_f1 = df_melt[df_melt['variable'] == 'f1']
+    # means = df_f1.groupby('model_size_factor', as_index=False).mean()
+    # means['variable'] = 'f1'  # add variable column to match boxplot
+    # sns.scatterplot(x='model_size_factor', y='value', hue='variable', data=means, color='red', zorder=5)
+
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+
+
+    # sns.boxplot(x='model_size_factor', y='value', hue='variable', data=df_melt)
+    plt.savefig('model_size_factor_vs_best_loss_f1s.png', bbox_inches='tight')
+
 
 ################################################################################
 def toggle_col():

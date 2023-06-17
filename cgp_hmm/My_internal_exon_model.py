@@ -408,11 +408,17 @@ class My_Model(Model):
             append_transition(f"c_{i},0", f"c_{i},1", trainable = False) # TODO: do i want these trainable if i pass deletes after/before intron?
             append_transition(f"c_{i},1", f"c_{i},2", trainable = False)
 
+
+        if self.config.manual_delete_insert_init_continue_weights:
+            manual_delete_insert_init_continue_weights = [float(a) for a in self.config.manual_delete_insert_init_continue_weights.split(",")]
+            assert len(manual_delete_insert_init_continue_weights) == 3, "manual_delete_insert_init_continue_weights must be a list of length 3"
         # inserts
 
         #i dont have inserts right after or before splice site
         if self.config.cesar_init:
             append_transition(l = self.A_indices_begin_inserts, use_as_prior=True, initial_weights = [-.8] * len(self.A_indices_begin_inserts))
+        elif self.config.manual_delete_insert_init_continue_weights:
+            append_transition(l = self.A_indices_begin_inserts, use_as_prior=True, initial_weights = [manual_delete_insert_init_continue_weights[1]] * len(self.A_indices_begin_inserts))
         else:
             append_transition(l = self.A_indices_begin_inserts, use_as_prior=True)
 
@@ -421,8 +427,13 @@ class My_Model(Model):
             append_transition(f"i_{i},1", f"i_{i},2", trainable = False)
 
         if self.config.cesar_init:
+            # append_transition(l = self.A_indices_end_inserts,      initial_weights = [0] * len(self.A_indices_end_inserts), use_as_prior=True)
+            # append_transition(l = self.A_indices_continue_inserts, initial_weights = [1] * len(self.A_indices_end_inserts), use_as_prior=True)
+            append_transition(l = self.A_indices_end_inserts,      initial_weights = [.5] * len(self.A_indices_end_inserts), use_as_prior=True)
+            append_transition(l = self.A_indices_continue_inserts, initial_weights = [0] * len(self.A_indices_end_inserts), use_as_prior=True)
+        elif self.config.manual_delete_insert_init_continue_weights:
             append_transition(l = self.A_indices_end_inserts,      initial_weights = [0] * len(self.A_indices_end_inserts), use_as_prior=True)
-            append_transition(l = self.A_indices_continue_inserts, initial_weights = [1] * len(self.A_indices_end_inserts), use_as_prior=True)
+            append_transition(l = self.A_indices_continue_inserts, initial_weights = [manual_delete_insert_init_continue_weights[2]] * len(self.A_indices_end_inserts), use_as_prior=True)
         else:
             append_transition(l = self.A_indices_end_inserts, initial_weights = [single_high_prob_kernel] * len(self.A_indices_end_inserts), use_as_prior=True)
             append_transition(l = self.A_indices_continue_inserts, use_as_prior=True)
@@ -434,6 +445,8 @@ class My_Model(Model):
 
         if self.config.cesar_init:
             append_transition(l = A_indices_normal_deletes, initial_weights = [x-.5 for x in A_init_weights_normal_deletes], use_as_prior=True)
+        elif self.config.manual_delete_insert_init_continue_weights:
+            append_transition(l = A_indices_normal_deletes, initial_weights = [x+ manual_delete_insert_init_continue_weights[0] for x in A_init_weights_normal_deletes], use_as_prior=True)
         else:
             append_transition(l = A_indices_normal_deletes, initial_weights = A_init_weights_normal_deletes, use_as_prior=True)
 

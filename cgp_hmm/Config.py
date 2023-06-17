@@ -399,6 +399,7 @@ class Config():
 ################################################################################
 ################################################################################
     def asserts(self):
+
         if self.check_for_zeros:
             assert self.batch_begin_write_weights__layer_call_write_inputs, "if check_for_zeros also pass --batch"
 
@@ -491,7 +492,7 @@ class Config():
         self.parser.add_argument('--only_primates', type = str, default = None, help = 'only_use_primates')
         self.parser.add_argument('--primates_path', type = str, default = "../../cgp_data/primates.lst", help = 'path to primates used by only max diverse set')
         self.parser.add_argument('--only_max_diverse_set_same_size_as_primates', type = str, default = None, help = 'only_max_diverse_set_same_size_as_primates and path to dir that contains all trees')
-        self.parser.add_argument('--dataset_identifier', type = str, default = "", help ='"all", "primates path", "max_diverse_set_same_size_as_primates path"')
+        self.parser.add_argument('--dataset_identifier', type = str, default = "all", help ='"all", "primates path", "max_diverse_set_same_size_as_primates path"')
 
 
 
@@ -523,11 +524,15 @@ class Config():
         # self.parser.add_argument('--dss_start', type = int, default = 5, help = 'len of prior pattern before GT DSS splice site')
         # self.parser.add_argument('--dss_end', type = int, default = 2, help = 'len of prior pattern after GT DSS splice site')
 
+
+
         self.parser.add_argument('--ass_start', type = int, default = 7, help = 'len of prior pattern before AG ASS splice site')
         self.parser.add_argument('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
         self.parser.add_argument('--dss_start', type = int, default = 1, help = 'len of prior pattern before GT DSS splice site')
         self.parser.add_argument('--dss_end', type = int, default = 5, help = 'len of prior pattern after GT DSS splice site')
         self.parser.add_argument('--log_prior_epsilon', type = float, default = 0, help = '[0] log_prior = tf.math.log(B(B_kernel) + prior_log_epsilon)')
+
+        self.parser.add_argument('--manual_delete_insert_init_continue_weights', default = 0, help = "passe 3 floats, the first for delete, second for insert init and third for continue insert")
 
         # prior and initial weights
         self.parser.add_argument('--my_initial_guess_for_parameters', action='store_true', help = 'init A weights with my initial guess and B with priors')

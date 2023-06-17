@@ -71,7 +71,28 @@ def get_call_backs(config, model):
 
                 append_time_ram_stamp_to_file(f"Callbacks.write_initial_para end", config.bench_path, start)
 
+    class save_best_weights(tf.keras.callbacks.Callback):
+        def __init__(self):
+            super(save_best_weights, self).__init__()
+            self.best_weights = None
+            self.lowest_loss = float('inf')
 
+        def on_epoch_end(self, epoch, logs=None):
+            current_loss = logs.get('loss')
+            if current_loss < self.lowest_loss:
+                self.lowest_loss = current_loss
+                start = time.perf_counter()
+                append_time_ram_stamp_to_file(f"Callbacks.write_best_weights start", config.bench_path, start)
+
+                path = f"{config.current_run_dir}/after_fit_para/"
+                try:
+                    cell = model.get_layer("cgp_hmm_layer").C
+                    cell.write_weights_to_file(path)
+                except:
+                    pass
+                    # print("run of second model when likelihood_influence_growth_factor, write no init weights")
+
+                append_time_ram_stamp_to_file(f"Callbacks.write_best_weights end", config.bench_path, start)
 
     class write_initial_matrices_to_file(tf.keras.callbacks.Callback):
         def on_epoch_begin(self, epoch, logs = None):
@@ -154,6 +175,10 @@ def get_call_backs(config, model):
             self.wait = 0
 
         def on_epoch_end(self, epoch, logs=None):
+            # if still in epoch where not complete influence of likelihood is
+            # reached dont do early stopping
+            if config.likelihood_influence_growth_factor * (epoch + 1) < 1:
+                return
             current_value = logs.get(self.monitor)
             if current_value is None:
                 return
@@ -193,6 +218,7 @@ def get_call_backs(config, model):
 
     callbacks += [write_inital_parameters_to_file()]
     callbacks += [RelativeEarlyStopping()]
+    callbacks += [save_best_weights()]
 
     # callbacks += [tensorboard_callback]
 

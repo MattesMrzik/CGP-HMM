@@ -111,7 +111,7 @@ def make_dataset(config):
         if not config.dont_shuffle_seqs:
             np.random.shuffle(seqs)
 
-        def get_initial_data_set():
+        def     get_initial_data_set():
             dataset = tf.data.Dataset.from_generator(lambda: seqs, \
                                                      tf.string, \
                                                      output_shapes=[None])
@@ -148,6 +148,9 @@ def make_dataset(config):
                 print("bucket_boundaries", bucket_boundaries)
                 print("bucket_batch_sizes", bucket_batch_sizes)
 
+                if not config.dont_shuffle_seqs:
+                    dataset = dataset.shuffle(buffer_size = config.nSeqs, reshuffle_each_iteration = True)
+
                 dataset = dataset.bucket_by_sequence_length(
                     element_length_func = lambda elem: tf.shape(elem)[0],
                     bucket_boundaries = bucket_boundaries,
@@ -166,9 +169,7 @@ def make_dataset(config):
                 adjusted_batch_size += 1
                 dataset = get_initial_data_set()
                 dataset = bucket_seqs_of_dataset(dataset, adjusted_batch_size)
-
             print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a bucket batch beeing only a single seq")
-
 
         if not config.bucket_by_seq_len:
 
@@ -180,6 +181,7 @@ def make_dataset(config):
             adjusted_batch_size = get_adjusted_batch_size(config.nSeqs, config.batch_size)
             print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a batch beeing only a single seq")
             dataset = get_initial_data_set()
+            dataset = dataset.shuffle(buffer_size = config.nSeqs, reshuffle_each_iteration = True)
             dataset = dataset.padded_batch(adjusted_batch_size, None, padding_value)
 
 
@@ -194,7 +196,7 @@ def make_dataset(config):
 
         # print_data_set(dataset, "ds_str")
 
-    # TODO: shuffle dataset?
+
     dataset = dataset.repeat()
 
     # if config.viterbi:
