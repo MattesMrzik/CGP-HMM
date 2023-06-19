@@ -58,7 +58,7 @@ def create_lift_over_query_bed_file(row : pd.Series = None, \
                          name = f"{base_name}_{left_or_right}")
 
         # middle of exon
-        left_middle = (row["end"] + row['end'] - args.len_of_exon_middle_to_be_lifted)//2
+        left_middle = (row["start"] + row['end'] - args.len_of_exon_middle_to_be_lifted)//2
         right_middle = left_middle + args.len_of_exon_middle_to_be_lifted # this index is not part of the area to be lifted
         add_bed_line(start = str(left_middle), \
                      end = str(right_middle), \
@@ -99,11 +99,15 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
     bed_file_path = f"{bed_dir_path}/{species_name}.bed"
 
     if os.path.getsize(bed_file_path) == 0:
+        if re.search("errorcode", bed_file_path):
+            return False
         os.system(f"mv {bed_file_path} {bed_dir_path}/{species_name}_errorcode_empty.bed")
         return False
 
     species_bed_df = pd.read_csv(bed_file_path, delimiter = "\t", header = None)
     species_bed_df.columns = ["seq", "start", "stop", "name", "score", "strand"]
+
+    # print("species_bed_df", species_bed_df)
 
     species_bed_df["name"] = species_bed_df["name"].apply(lambda s: s.split("_")[-1])# only keep, left right or middle
 
@@ -152,30 +156,38 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
                 found_left_right_id = i
 
     if found_left_right_id == -1 and found_left_middle_right_id == -1:
+        if re.search("errorcode", bed_file_path):
+            return False
         os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_no_pair_found.bed")
         return False
     if found_left_middle_right_id == -1:
         if found_left_right_id != -1:
+            if re.search("no_middle", bed_file_path):
+                return False
             os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_no_middle.bed")
             species_bed_df = species_bed_df.iloc[found_left_right_id:found_left_right_id+2,:]
             # not returning False, just noting info that middle is missing
     else:
         species_bed_df = species_bed_df.iloc[found_left_middle_right_id:found_left_middle_right_id+3,:]
 
-    print(found_left_right_id, found_left_middle_right_id, species_bed_df)
+    # print(found_left_right_id, found_left_middle_right_id, species_bed_df)
     assert len(species_bed_df["seq"].unique()) == 1, f"unequal_seqs assertion error, {species_bed_df['seq'].unique()} {species_bed_df}"
     assert len(species_bed_df["strand"].unique()) == 1, f"unequal_strands assertion error, {species_bed_df['strand'].unique()} {species_bed_df}"
 
-    print(species_bed_df[species_bed_df["swapped_name"] == "right"]["stop"].values[0])
+    # print(species_bed_df[species_bed_df["swapped_name"] == "right"]["stop"].values[0])
     extra_seq_data["seq_start_in_genome"] = species_bed_df[species_bed_df["swapped_name"] == "left"]["stop"].values[0]
     extra_seq_data["seq_stop_in_genome"] =  species_bed_df[species_bed_df["swapped_name"] == "right"]["start"].values[0]
 
     if extra_seq_data["seq_start_in_genome"] > extra_seq_data["seq_stop_in_genome"]:
+        if re.search("errorcode", bed_file_path):
+            return False
         os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_start_greater_stop.bed")
         return False
 
 
     extra_seq_data["middle_exon"] = found_left_middle_right_id != -1
+    if extra_seq_data["middle_exon"]:
+        extra_seq_data["middle_exon_lift_start"] =  species_bed_df[species_bed_df["name"] == "middle"]["start"].values[0]
 
 
     extra_seq_data["on_reverse_strand"] = species_bed_df["strand"].unique()[0] == "-"
@@ -186,6 +198,8 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
     l1 = extra_seq_data["len_of_seq_substring_in_single_species"]
     l2 = extra_exon_data["len_of_seq_substring_in_human"]
     if abs(math.log10(l1) - math.log10(l2)) >= threshold:
+        if re.search("errorcode", bed_file_path):
+            return False
         os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_lengths_differ_substantially.bed")
         return False
 
