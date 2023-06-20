@@ -53,26 +53,29 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
         except:
             return 5
 
+
+
     with open(config.fasta_path,"r") as handle:
-        with open(config.primates_path, "r") as primates_handle:
-            primates = set()
-            # this file is just a list of ids of primates
-            for line in primates_handle:
-                primates.add(line.strip())
+        if config.only_primates or config.only_max_diverse_set_same_size_as_primates:
+            with open(config.primates_path, "r") as primates_handle:
+                primates = set()
+                # this file is just a list of ids of primates
+                for line in primates_handle:
+                    primates.add(line.strip())
 
-        # a list containing the ids of the species that should be used as input
-        species_to_use = []
-        species_in_combinded_fasta = set()
-        number_of_primats_in_current_fasta = 0
+            # a list containing the ids of the species that should be used as input
+            species_to_use = []
+            species_in_combinded_fasta = set()
+            number_of_primats_in_current_fasta = 0
 
-        for record in SeqIO.parse(handle,"fasta"):
-            species_name = re.search("(\w+?_\w+?)\.", record.id).group(1)
-            species_in_combinded_fasta.add(species_name)
-            if species_name in primates:
-                number_of_primats_in_current_fasta += 1
-                if config.only_primates:
-                    species_to_use.append(species_name)
-        print("number_of_primats_in_current_fasta", number_of_primats_in_current_fasta)
+            for record in SeqIO.parse(handle,"fasta"):
+                species_name = re.search("(\w+?_\w+?)\.", record.id).group(1)
+                species_in_combinded_fasta.add(species_name)
+                if species_name in primates:
+                    number_of_primats_in_current_fasta += 1
+                    if config.only_primates:
+                        species_to_use.append(species_name)
+            print("number_of_primats_in_current_fasta", number_of_primats_in_current_fasta)
 
         if config.only_max_diverse_set_same_size_as_primates:
             # list all files in a dir whos path is stored in config.only_max_diverse_set_same_size_as_primates

@@ -48,6 +48,7 @@ def read_true_alignment_with_out_coords_seq(true_alignment_path) -> AlignIO.Mult
 
     true_alignment = AlignIO.read(temp_file_path, "clustal")
     os.system(f"rm {temp_file_path}")
+
     return true_alignment
 
 

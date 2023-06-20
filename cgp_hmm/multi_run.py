@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from datetime import datetime
 import numpy as np
+import math
 import os
 import json
 import pandas as pd
@@ -70,17 +71,18 @@ def get_cfg_with_args():
     cfg_with_args = {}
 
     # or read files in a passed dir
-    fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/2023-06-06_20-01/good_exons_1"
     fasta_dir_path = "/home/s-mamrzi/cgp_data/train_data_set/2023-06-06_19-15/good_exons_1"
+    fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/2023-06-06_20-01/good_exons_1"
     # exons = ["exon_chr1_8364055_8364255", \
     #         "exon_chr1_33625050_33625254"]
 
     exons = [dir for dir in os.listdir(fasta_dir_path) if not os.path.isfile(os.path.join(fasta_dir_path, dir)) ]
-    exons = exons[:2]
 
     # TODO i need to determine the nCodons that should be used for each fasta,
     # are there other parameters that defend on the sequences?
 
+    cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/introns/combined.fasta" for exon in exons]
+    cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/missing_human_exon/combined.fasta" for exon in exons]
     cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/combined.fasta" for exon in exons]
     get_exon_len = lambda exon_string: (int(exon_string.split("_")[-1]) - int(exon_string.split("_")[-2]))
     get_exon_codons = lambda exon_string: get_exon_len(exon_string) // 3
@@ -139,7 +141,11 @@ def get_cfg_with_args():
 
     cfg_with_args["left_intron_init_weight"] = [4.6] # this is usually 4 but left miss was way more often than right miss in eval data set
 
-    cfg_with_args["manual_delete_insert_init_continue_weights"] = ["\"-0.3, -0.5, -0.5\""]
+    cfg_with_args["manual_delete_insert_init_continue_weights"] = ["\"0.1,-0.3,-1\""]
+
+    cfg_with_args["left_intron_const"] = [0,1]
+    cfg_with_args["right_intron_const"] = [0,1]
+
 
 
     return cfg_with_args
@@ -157,6 +163,9 @@ def get_bind_args_together(cfg_with_args):
     # bind_args_together += [{"priorA", "likelihood_influence_growth_factor"}]
     bind_args_together += [{"akzeptor_pattern_len", "donor_pattern_len"}]
 
+    # left and right intron const
+    bind_args_together += [{"left_intron_const", "right_intron_const"}]
+
     return bind_args_together
 
 ################################################################################
@@ -167,8 +176,6 @@ def get_cfg_without_args():
     my_initial_guess_for_parameters
     exit_after_loglik_is_nan
     viterbi
-    left_intron_const
-    right_intron_const
     '''
     # exon_skip_const
     # bucket_by_seq_len
@@ -542,25 +549,29 @@ def get_true_alignemnt_path(train_run_dir, after_or_before):
 
 ################################################################################
 
-def get_viterbi_aligned_seqs(train_run_dir, after_or_before):
-    true_alignemnt_path = get_true_alignemnt_path(train_run_dir, after_or_before)
+def get_viterbi_aligned_seqs(train_run_dir, after_or_before, true_alignemnt_path = "None", no_asserts = False):
+    if true_alignemnt_path =="None":
+        true_alignemnt_path = get_true_alignemnt_path(train_run_dir, after_or_before)
+
     try:
         true_alignemnt = read_true_alignment_with_out_coords_seq(true_alignemnt_path)
     except:
         print(f"couldnt read_true_alignment_with_out_coords_seq({true_alignemnt_path})")
         return -1
-
-    assert len(true_alignemnt) == 3, f"{true_alignemnt_path} doesnt contain the viterbi guess"
+    if not no_asserts:
+        assert len(true_alignemnt) == 3, f"{true_alignemnt_path} doesnt contain the viterbi guess"
     aligned_seqs = {} # reference_seq, true_seq, viterbi_guess
     for seq in true_alignemnt:
         aligned_seqs[seq.id] = seq
-    assert len(aligned_seqs) == 3, "some seqs had same id"
+
+    if not no_asserts:
+        assert len(aligned_seqs) == 3, "some seqs had same id"
 
     return aligned_seqs
 
 ################################################################################
 
-def add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs, true_alignemnt_path):
+def add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs):
     run_stats["start"] = aligned_seqs["true_seq"].seq.index("E") # inclusive
     run_stats["end"] = aligned_seqs["true_seq"].seq.index("r") # exclusive
 
@@ -650,6 +661,25 @@ def add_history_stats_to_run_stats(run_stats, train_run_dir):
         run_stats["best_loss"] = best_loss
         run_stats["A_prior"] = aprior
         run_stats["B_prior"] = bprior
+################################################################################
+def add_inserts(run_stats, aligned_seqs):
+    # find the number if i cahrs in the viterbi guess
+    inserts = 0
+    for i in range(len(aligned_seqs["viterbi_guess"].seq)):
+        if aligned_seqs["viterbi_guess"].seq[i] == "i":
+            inserts += 1
+
+    # last_index = 0
+    # number_of_deletions = 0
+    # for i in range(len(aligned_seqs["viterbi_guess"].seq)):
+    #     last_index = aligned_seqs["viterbi_guess"].seq[i]
+    #         if aligned_seqs["viterbi_guess"].seq[i] == "i":
+    #             inserts += 1
+
+
+
+    # add inserts to run_stats
+    run_stats["inserts"] = inserts
 
 ################################################################################
 def calc_run_stats(path) -> pd.DataFrame:
@@ -665,7 +695,9 @@ def calc_run_stats(path) -> pd.DataFrame:
         if (aligned_seqs := get_viterbi_aligned_seqs(train_run_dir, after_or_before)) == -1:
             continue
 
-        add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs, get_true_alignemnt_path(train_run_dir, after_or_before))
+        add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs)
+        add_inserts(run_stats, aligned_seqs)
+
         run_stats["after_or_before"] = after_or_before
         run_stats["seq_len_from_multi_run"] = len(aligned_seqs["true_seq"].seq)
 
@@ -728,8 +760,14 @@ def get_cols_to_group_by(args):
 
 
 def add_additional_eval_cols(df, args):
+
     df["p_nt_on_exon"]           = df["end"] -    df["start"]
     df["predicted_p_nt_on_exon"] = df["v_end"] - df["v_start"]
+
+
+    df["deletes"] = df["nCodons"] - np.ceil(df["predicted_p_nt_on_exon"] / 3) + df["inserts"]
+    # df[df["after_or_before"]=="after"][["inserts","deletes","passed_current_run_dir","nCodons", "predicted_p_nt_on_exon"]].sample(20)
+
 
     df["n_nt_on_exon"]           = df["seq_len_from_multi_run"] - df["p_nt_on_exon"]
     df["predicted_n_nt_on_exon"] = df["seq_len_from_multi_run"] - df["predicted_p_nt_on_exon"]
@@ -896,7 +934,6 @@ def eval_viterbi(args):
     # df = remove_cols(df)
     added_cols = list(set(df.columns) - set(loaded_cols))
 
-
     #TODO also rename grouped?
 
     _, parameters_with_less_than_one_arg = get_cols_to_group_by(args)
@@ -908,8 +945,6 @@ def eval_viterbi(args):
 
     # Create a new column 'lens_group' by assigning the respective bin to each lens value
     # df['total_len'] = pd.cut(df['seq_len_from_multi_run '], bins=bins, labels=False)
-
-
 
     # add a new column right intron len
     df["right_intron_len"] = df["seq_len_from_multi_run"] - df["end"]
@@ -1139,9 +1174,12 @@ def plot_model_size_factor_vs_best_loss_f1s(df, figsize = (20,7), angle1 = 90, a
         local_df[f"{column}_scaled"] = local_df[f"{column}_scaled"] + np.random.choice([-make_bigger, make_bigger], size=len(local_df))
 
     # add a measure that is a prior_scaled + b prior_sclade / model size factor
-    local_df["measure"] = (local_df["A_prior_scaled"] + local_df["B_prior_scaled"]) / local_df["model_size_factor"]
+    local_df["measure"] = (local_df["A_prior_scaled"] + local_df["B_prior_scaled"]) / local_df["nCodons"]
+    local_df["measure"] = (local_df["inserts"] + local_df["deletes"])
+    local_df["inserts"] = local_df["inserts"]
+    local_df["deletes"] = local_df["deletes"]
 
-    measure_names = ["measure"]
+    measure_names = ["measure", "inserts", "deletes"]
     for column in measure_names:
         local_df[f"{column}_scaled"] = scale_0_to_1(local_df[column])
 
@@ -1188,6 +1226,13 @@ def plot_model_size_factor_vs_best_loss_f1s(df, figsize = (20,7), angle1 = 90, a
 
     # sns.boxplot(x='model_size_factor', y='value', hue='variable', data=df_melt)
     plt.savefig('model_size_factor_vs_best_loss_f1s.png', bbox_inches='tight')
+################################################################################
+def plot_two_columns_box_plot(columns):
+    plt.boxplot(columns)
+    plt.xlabel('Columns')
+    plt.ylabel('Values')
+    plt.title('Boxplot of Column1 and Column2')
+    plt.savefig("2box_plots.png")
 
 
 ################################################################################

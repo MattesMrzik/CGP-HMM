@@ -415,7 +415,8 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
 
     for i,(index, row) in enumerate(choosen_exons_df.iterrows()):
         if num_tenths != 0 and (i + 1) % num_tenths == 0:
-            print(f"create_exon_data_sets_for_choosen_df [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
+            # print(f"create_exon_data_sets_for_choosen_df [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
+            print(f"create_exon_data_sets_for_choosen_df [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]")
 
         exon_dir = f"{out_dir_path}/exon_{row['seq']}_{row['start']}_{row['end']}"
         bed_output_dir = f"{exon_dir}/species_bed"

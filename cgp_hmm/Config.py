@@ -505,8 +505,13 @@ class Config():
         self.parser.add_argument('--inserts_at_intron_borders', action = 'store_true', help = 'inserts can come right after and before intron')
         self.parser.add_argument('--akzeptor_pattern_len', type = int, default = 5, help = 'akzeptor_pattern_len before AG')
         self.parser.add_argument('--donor_pattern_len', type = int, default = 5, help = 'donor_pattern_len after GT')
-        self.parser.add_argument('--left_intron_const', action = 'store_true', help = 'uses const transition left_intron loop')
-        self.parser.add_argument('--right_intron_const', action = 'store_true', help = 'uses const transition right_intron loop')
+
+        # self.parser.add_argument('--left_intron_const', action = 'store_true', help = 'uses const transition left_intron loop')
+        # self.parser.add_argument('--right_intron_const', action = 'store_true', help = 'uses const transition right_intron loop')
+
+        self.parser.add_argument('--left_intron_const', type = int, default = 0, help = 'uses const transition left_intron loop')
+        self.parser.add_argument('--right_intron_const', type = int, default = 0, help = 'uses const transition right_intron loop')
+
         self.parser.add_argument('--deletes_after_intron_to_codon', action = 'store_true', help = 'light green: deletes_after_intron_to_codon')
         self.parser.add_argument('--deletes_after_codon_to_intron', action = 'store_true', help = 'dark green: deletes_after_codon_to_intron')
         self.parser.add_argument('--deletes_after_insert_to_codon', action = 'store_true', help = 'red: deletes_after_insert_to_codon')

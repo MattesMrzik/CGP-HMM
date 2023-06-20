@@ -187,6 +187,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
 
             m = self.config.nSeqs
+            self.add_metric(m, "m")
             if self.config.priorA:
                 A_prior = self.config.model.get_A_log_prior(self.C.A_kernel) / m
                 self.add_metric(A_prior, "A_prior")
@@ -209,6 +210,7 @@ class CgpHmmLayer(tf.keras.layers.Layer):
 
             # self.add_metric(tf.math.reduce_max(self.C.I_dense),"I_max")
             # self.add_metric(tf.math.reduce_min(self.C.I_dense),"I_min")
+
 
             self.add_metric(tf.math.reduce_max(self.C.A_kernel),"tk_max")
             self.add_metric(tf.math.reduce_min(self.C.A_kernel),"tk_min")
