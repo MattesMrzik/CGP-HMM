@@ -23,6 +23,7 @@ def convert_kernel_files_to_matrices_files(config, dir_path):
         print("a file not found in convert_kernel_files_to_matrices_files", dir_path)
         return
 
+    print("nCodons =", config.nCodons)
     config.model.I_as_dense_to_json_file(f"{dir_path}/I.json", I_kernel)
     config.model.A_as_dense_to_json_file(f"{dir_path}/A.json", A_kernel)
     config.model.B_as_dense_to_json_file(f"{dir_path}/B.json", B_kernel)

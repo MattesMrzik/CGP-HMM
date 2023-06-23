@@ -13,6 +13,7 @@ from get_internal_exon import combine_fasta_files, extract_info_and_check_bed_fi
 
 
 import sys
+from add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
 sys.path.append("..")
 from multi_run import get_viterbi_aligned_seqs
 
@@ -21,17 +22,15 @@ def get_left_introns(dir_path):
     # read the stats table into a dataframe
     df = pd.read_csv(os.path.join(dir_path, "stats_table.csv"), sep = ";")
 
-    total_rows = len(df)
-    res = 50
-    num_tenths = total_rows//res
-
     # loop over the rows in the df
     for i, (index, row) in enumerate(df.iterrows()):
 
-        if num_tenths != 0 and (i + 1) % num_tenths == 0:
-            print(f"get_left_introns [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
 
         exon_dir = os.path.join(dir_path, row["exon"])
+
+        # if not re.search("chr18_23568822_23568998", exon_dir):
+        #     continue
+
         bed_dir_path = os.path.join(exon_dir, "species_bed")
 
         # create a new dir that holds the left inron seqs
@@ -45,18 +44,21 @@ def get_left_introns(dir_path):
         human_bed = pd.read_csv(path_to_human_bed, sep="\t", header=None)
         strand = human_bed.iloc[0, 5]
 
+        extra_exon_data = {}
+        # read table into df
+        extra_exon_data["human_strand"] = strand
+        # get the length of the substring in the human sequence
+        # get the len of the seq in this fasta using SeqIO
+        extra_exon_data["len_of_seq_substring_in_human"] = human_len
+
 
         for bed_file in os.listdir(bed_dir_path):
+            extra_seq_data = {}
             species_name = bed_file.split(".")[0]
             # this needs to contain the "human_strand" key and the "len_of_seq_substring_in_human" key
-            extra_exon_data = {}
-            # read table into df
-            extra_exon_data["human_strand"] = strand
-            # get the length of the substring in the human sequence
-            # get the len of the seq in this fasta using SeqIO
-            extra_exon_data["len_of_seq_substring_in_human"] = human_len
 
-            extra_seq_data = {}
+            # if re.search("Homo", species_name)
+            #     bed_dir_path = path_to_human_bed
 
             if not extract_info_and_check_bed_file(bed_dir_path, species_name, extra_seq_data, extra_exon_data):
                 continue
@@ -64,14 +66,21 @@ def get_left_introns(dir_path):
             if not extra_seq_data["middle_exon"]:
                 continue
 
-            ca_intron_stop = extra_seq_data["middle_exon_lift_start"] - extra_seq_data["seq_start_in_genome"] - row["exon_len"]//2
+            exon_middle = (extra_seq_data["middle_exon_lift_start"] + extra_seq_data["middle_exon_lift_stop"] ) // 2
 
+            if extra_seq_data["on_reverse_strand"]:
+                ca_intron_stop = extra_seq_data["seq_stop_in_genome"] - exon_middle - row["exon_len"]//2
+            else:
+                ca_intron_stop = exon_middle - extra_seq_data["seq_start_in_genome"] - row["exon_len"]//2
             if ca_intron_stop < 0:
                 continue
 
+            if re.search("Homo", bed_file):
+                print("extra_seq_data asdf23rwfrgd", extra_seq_data)
+
             # read the species fasta
             # path to stripped fasta seq of species
-            species_fast_seq = os.path.join(exon_dir, "species_seqs/non_stripped", species_name + ".fa")
+            species_fast_seq = os.path.join(exon_dir, "species_seqs/stripped", species_name + ".fa")
             try:
                 record = next(SeqIO.parse(species_fast_seq, "fasta"))
             except:
@@ -79,18 +88,31 @@ def get_left_introns(dir_path):
             id = record.id
             seq = str(record.seq)
             ori_len = len(seq)
-            intron_seq = seq[10 : ca_intron_stop-10]
+            intron_seq = seq[: ca_intron_stop-10]
+            des = record.description
 
             intron_path = os.path.join(intron_dir_path, species_name + ".fa")
             with open(intron_path, "w") as out_intron_handle:
-                record = SeqRecord(Seq(intron_seq), id=id)
+                record = SeqRecord(Seq(intron_seq), id=id, description=des)
                 SeqIO.write(record , out_intron_handle, "fasta")
 
             # i need to combine these
             # humna needs to be at first position
 
 
-        # combine the intron seqs
+        # for exon_dir in os.listdir(dir_path):
+        #     fullpath = os.path.join(dir_path, exon_dir)
+        #     print("fullpath", fullpath)
+        #     if os.path.isdir(fullpath):
+        #         # combine the intron seqs
+        #         path_to_true_alignment = os.path.join(fullpath, "true_alignment.clw")
+        #         if not os.path.exists(path_to_true_alignment):
+        #             continue
+        #         # read the alignment
+        #         aligned_seqs = read_true_alignment_with_out_coords_seq(path_to_true_alignment)
+        #         exon_start = aligned_seqs["true_seq"].seq.index("E")
+
+
         combined_fasta_path = os.path.join(exon_dir, "introns/combined.fasta")
         files = get_input_files_with_human_at_0(intron_dir_path)
         combine_fasta_files(combined_fasta_path, files)
@@ -126,8 +148,12 @@ def remove_only_human_exon(dir_path):
             for record in SeqIO.parse(path_to_combined_fasta, "fasta"):
                 if record.id == human_seq:
                     print("human_seq_without_exon", human_seq_without_exon)
-                    new_record = SeqRecord(Seq(human_seq_without_exon), id=record.id)
+                    print(record.description)
+                    new_record = SeqRecord(Seq(human_seq_without_exon), id = record.id, description = record.description)
                     records.append(new_record)
+                    homo_sapiens_out_file = os.path.join(path_to_missing_human_exon_dir, "Homo_sapiens.fa")
+                    with open(homo_sapiens_out_file, "w") as out_handle:
+                        SeqIO.write(new_record, out_handle, "fasta")
                 else:
                     records.append(record)
 
@@ -143,4 +169,4 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     get_left_introns(args.path)
-    remove_only_human_exon(args.path)
+    # remove_only_human_exon(args.path)

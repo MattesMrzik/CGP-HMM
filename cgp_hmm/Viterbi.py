@@ -385,8 +385,6 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
     if (human_fasta := retrieve_homo_sapiens_from_combinded_fasta(fasta_path)) is None:
         return
 
-    coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
-
     if viterbi_out_path is not None:
         l = read_viterbi_json(model, viterbi_out_path)
         viterbi_as_fasta = viterbi_tuple_list_to_fasta(viterbi_out_path, human_fasta, l)
@@ -400,6 +398,7 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
             SeqIO.write(viterbi_record, viterbi_fa_file, "fasta")
 
 
+    coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
     true_seq, on_reverse_strand, _ = get_true_gene_strucutre_from_fasta_description_as_fasta(coords)
     true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
 
@@ -416,6 +415,14 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
         records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record]
     else:
         records = [coords_fasta_record, numerate_line_record, human_fasta, true_seq_record, viterbi_record]
+
+    # print lens of seq of records
+    for record in records:
+        print(record.id, len(record.seq))
+
+    if re.search("intron", fasta_path):
+        for record in records:
+            record.seq = record.seq[:len(viterbi_record.seq)]
 
     alignment = MultipleSeqAlignment(records)
 
@@ -480,11 +487,11 @@ def main(config, overwrite_viterbi = True):
     print("done with converting kernels")
 
     seqs_json_path = f"{config.fasta_path}.json"
-    if not os.path.exists(seqs_json_path):
+    if not os.path.exists(seqs_json_path) or True:
         print("fa.json doesnt exist, so it it calculated")
         from ReadData import read_data_one_hot_with_Ns_spread_str
         from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
-        seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
+        seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True, remove_long_seqs_bool = False)
         seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
         with open(seqs_json_path, "w") as out_file:
             json.dump(seqs_out, out_file)

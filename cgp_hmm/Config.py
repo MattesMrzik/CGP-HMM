@@ -82,11 +82,11 @@ class Config():
 
         self.load_training_args()
         self.set_current_run_dir(use_existing = True) # from viterbi.args
-        self.determine_attributes_that_only_depend_on_args()
+        self.determine_attributes_that_only_depend_on_args(dont_multiply_model_size_factor = True)
 
         self.asserts()
 
-        self.get_model(only_prepare = True)
+        self.get_model()
 
 
     def init_for_training(self):
@@ -166,7 +166,7 @@ class Config():
 
 ################################################################################
 
-    def determine_attributes_that_only_depend_on_args(self):
+    def determine_attributes_that_only_depend_on_args(self, dont_multiply_model_size_factor = False):
 
         self.determine_attributes_that_only_depend_on_args_was_run = True
 
@@ -185,7 +185,8 @@ class Config():
                 if self.logsumexp in ["0","False"]:
                     self.logsumexp = False
 
-        self.args["nCodons"] = int(self.nCodons * self.model_size_factor)
+        if not dont_multiply_model_size_factor:
+            self.args["nCodons"] = int(self.nCodons * self.model_size_factor)
 
         self.called_determine_attributes_that_only_depend_on_args = True
         self.det_args["alphabet_size"] = 4

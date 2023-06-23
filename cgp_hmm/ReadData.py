@@ -36,7 +36,7 @@ import time
 def convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs) -> list[list[float]]:
     return list(map(lambda l: [[float(x) for x in i.split("_")] for i in l], seqs))
 
-def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False) -> list[list[str]]:
+def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False, remove_long_seqs_bool = True) -> list[list[str]]:
     '''
     bc i can only pad batches with scalar i have multi hot encoded strings for every base A,C,G,T,N,a,c,g,t
     and pad with str that encodes terminal emission
@@ -52,8 +52,6 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
             return base_to_id_dict[b]
         except:
             return 5
-
-
 
     with open(config.fasta_path,"r") as handle:
         if config.only_primates or config.only_max_diverse_set_same_size_as_primates:
@@ -75,7 +73,7 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
                     number_of_primats_in_current_fasta += 1
                     if config.only_primates:
                         species_to_use.append(species_name)
-            print("number_of_primats_in_current_fasta", number_of_primats_in_current_fasta)
+            # print("number_of_primats_in_current_fasta", number_of_primats_in_current_fasta)
 
         if config.only_max_diverse_set_same_size_as_primates:
             # list all files in a dir whos path is stored in config.only_max_diverse_set_same_size_as_primates
@@ -85,17 +83,17 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
                     all_files.append(os.path.join(config.only_max_diverse_set_same_size_as_primates, file))
             all_files = sorted(all_files)
             for file in all_files:
-                print("checking file:", file)
+                # print("checking file:", file)
                 species_in_file = set()
                 with open(file, "r") as file_handle:
                     for line in file_handle:
                         species_in_file.add(line.strip())
                 # find the size of the overlap of the set species_in_combinded_fasta and species_in_file
                 overlap = species_in_combinded_fasta.intersection(species_in_file)
-                print("species_in_combinded_fasta", species_in_combinded_fasta)
-                print("species_in_file", species_in_file)
+                # print("species_in_combinded_fasta", species_in_combinded_fasta)
+                # print("species_in_file", species_in_file)
                 if len(overlap) == number_of_primats_in_current_fasta:
-                    print("found file with same size as primates")
+                    # print("found file with same size as primates")
 
                     # TODO i have to add human sqeuence to the input
                     overlap.add("Homo_sapiens")
@@ -105,10 +103,10 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
     with open(config.fasta_path,"r") as handle:
         for record in SeqIO.parse(handle,"fasta"):
             if config.only_primates or config.only_max_diverse_set_same_size_as_primates:
-                print("using species:", species_to_use)
+                # print("using species:", species_to_use)
                 species_name = re.search("(\w+?_\w+?)\.", record.id).group(1)
-                print("species_to_use", species_to_use)
-                print("species_name", species_name)
+                # print("species_to_use", species_to_use)
+                # print("species_name", species_name)
                 if species_name not in species_to_use:
                     continue
             seq = record.seq
@@ -143,6 +141,32 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
     append_time_ram_stamp_to_file(f"read_data_one_hot_with_Ns_spread_str() end   {run_id}", config.bench_path, start)
     assert len(seqs) != 0, "no seqs read"
     print("actual number of species used as input id_3258utnfwe23:", len(seqs))
+
+    if remove_long_seqs_bool:
+        seqs = remove_long_seqs(seqs)
+
+
+    return seqs
+
+def remove_long_seqs(seqs):
+    len_of_seqs = [len(seq) for seq in seqs]
+    # median
+    med = np.median(len_of_seqs)
+    # create a list starting in 2 ending in 10 with step size 0.1
+    l = np.arange(2,10,0.1)
+    for f in l:
+        number_of_too_long_seqs = 0
+        for lenght in len_of_seqs:
+            if lenght > f * med:
+                number_of_too_long_seqs += 1
+        if number_of_too_long_seqs < 0.09 * len(seqs):
+            break
+
+    # remove all seqs that are longer than f * med
+    seqs = [seq for seq in seqs if len(seq) <= f * med]
+
+    # assert that there are still more than 90% of the seqs left
+    assert len(seqs) > 0.89 * len(len_of_seqs), "to many seqs removed"
     return seqs
 # def read_data_one_hot_with_Ns_spread(config, add_one_terminal_symbol = False):
 #     seqs = []
@@ -220,3 +244,4 @@ def get_batch_input_from_tf_printed_file(path):
         if len(seq) != 0:
             input.append(seq)
     return tf.constant(input, dtype = tf.float32)
+

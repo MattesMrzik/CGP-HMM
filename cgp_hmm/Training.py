@@ -19,7 +19,6 @@ from CgpHmmLayer import CgpHmmLayer
 from ReadData import read_data_with_order
 # from ReadData import read_data_one_hot_with_Ns_spread
 from ReadData import read_data_one_hot_with_Ns_spread_str
-from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
 from tensorflow.python.client import device_lib
 
 import time

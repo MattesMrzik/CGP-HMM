@@ -188,6 +188,7 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
     extra_seq_data["middle_exon"] = found_left_middle_right_id != -1
     if extra_seq_data["middle_exon"]:
         extra_seq_data["middle_exon_lift_start"] =  species_bed_df[species_bed_df["name"] == "middle"]["start"].values[0]
+        extra_seq_data["middle_exon_lift_stop"] =  species_bed_df[species_bed_df["name"] == "middle"]["stop"].values[0]
 
 
     extra_seq_data["on_reverse_strand"] = species_bed_df["strand"].unique()[0] == "-"
@@ -337,8 +338,12 @@ def calc_stats_table(args):
         exon_dir = os.path.join(dir, exon)
         if os.path.isdir(exon_dir):
             # exon might be st like: exon_chr1_67095234_67095421
-            exon_coords = list(map(int, exon.split("_")[-2:]))
-            exon_len = exon_coords[1] - exon_coords[0]
+            try:
+                exon_coords = list(map(int, exon.split("_")[-2:]))
+                exon_len = exon_coords[1] - exon_coords[0]
+            except:
+                print("exon_dir", exon_dir, "could not be parsed")
+                continue
             lens = []
             contains_middle_exon = 0
             for record in SeqIO.parse(f"{exon_dir}/combined.fasta","fasta"):

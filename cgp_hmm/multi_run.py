@@ -14,7 +14,7 @@ import seaborn as sns
 import traceback
 from Bio import SeqIO
 import argparse
-
+from ReadData import remove_long_seqs
 from helpers.add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
 
 out_path = "../../cgp_data"
@@ -71,8 +71,11 @@ def get_cfg_with_args():
     cfg_with_args = {}
 
     # or read files in a passed dir
-    fasta_dir_path = "/home/s-mamrzi/cgp_data/train_data_set/2023-06-06_19-15/good_exons_1"
-    fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/2023-06-06_20-01/good_exons_1"
+    # fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/2023-06-06_20-01/good_exons_1"
+    # fasta_dir_path = "/home/s-mamrzi/cgp_data/train_data_set/2023-06-06_19-15/good_exons_1"
+    fasta_dir_path = "/home/s-mamrzi/cgp_data/train_data_set/new_train/good_exons_1"
+    fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/good_exons_1_new"
+
     # exons = ["exon_chr1_8364055_8364255", \
     #         "exon_chr1_33625050_33625254"]
 
@@ -81,9 +84,11 @@ def get_cfg_with_args():
     # TODO i need to determine the nCodons that should be used for each fasta,
     # are there other parameters that defend on the sequences?
 
-    cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/introns/combined.fasta" for exon in exons]
     cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/missing_human_exon/combined.fasta" for exon in exons]
     cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/combined.fasta" for exon in exons]
+
+    cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/introns/combined.fasta" for exon in exons]
+
     get_exon_len = lambda exon_string: (int(exon_string.split("_")[-1]) - int(exon_string.split("_")[-2]))
     get_exon_codons = lambda exon_string: get_exon_len(exon_string) // 3
 
@@ -102,7 +107,7 @@ def get_cfg_with_args():
     exon_nCodons = [get_exon_codons(exon) for exon in exons]
 
     cfg_with_args["nCodons"] = exon_nCodons
-    cfg_with_args["model_size_factor"] = [0.5,0.75,1,1.25,1.5]
+    cfg_with_args["model_size_factor"] = [0.75, 0.875, 1, 1.125, 1.25]
     cfg_with_args["model_size_factor"] = [1]
 
     # ich habe inserts teurer gemacht um die die ergnisse für zu kurze modelle
@@ -122,30 +127,31 @@ def get_cfg_with_args():
     cfg_with_args["donor_pattern_len"] = [5]
 
     cfg_with_args["global_log_epsilon"] = [1e-20]
-    cfg_with_args["epochs"] = [40]
+
+
+    cfg_with_args["epochs"] = [30]
+
+
     cfg_with_args["learning_rate"] = [0.01]
     cfg_with_args["batch_size"] = [16]
     cfg_with_args["step"] = [16]
     cfg_with_args["clip_gradient_by_value"] = [4]
     # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
     # cfg_with_args["exon_skip_init_weight_factor"] = [1,5] # 0 is ni skip, 1 is cheaper than 5, 0s cost is infinite so 0 and 0.0001 are very different
-    cfg_with_args["exon_skip_init_weight"] = [-5]
+    cfg_with_args["exon_skip_init_weight"] = [0]
     cfg_with_args["flatten_B_init"] = [0]
     cfg_with_args["cesar_init"] = [1]
     cfg_with_args["optimizer"] = ["Adam"] # SGD didnt work nice with 0.001 learning rate and 1 clip_gradient_by_value
 
     cfg_with_args["logsumexp"] = [1]
 
-    cfg_with_args["dataset_identifier"] = ["all", "../../cgp_data/primates.lst", "../../cgp_data/max_diverse_subtrees"]
     cfg_with_args["dataset_identifier"] = ["../../cgp_data/max_diverse_subtrees"]
+    cfg_with_args["dataset_identifier"] = ["all"]
+    cfg_with_args["dataset_identifier"] = ["all", "../../cgp_data/primates.lst", "../../cgp_data/max_diverse_subtrees"]
 
-    cfg_with_args["left_intron_init_weight"] = [4.6] # this is usually 4 but left miss was way more often than right miss in eval data set
+    cfg_with_args["left_intron_init_weight"] = [4.35] # this is usually 4 but left miss was way more often than right miss in eval data set
 
     cfg_with_args["manual_delete_insert_init_continue_weights"] = ["\"0.1,-0.3,-1\""]
-
-    cfg_with_args["left_intron_const"] = [0,1]
-    cfg_with_args["right_intron_const"] = [0,1]
-
 
 
     return cfg_with_args
@@ -164,7 +170,6 @@ def get_bind_args_together(cfg_with_args):
     bind_args_together += [{"akzeptor_pattern_len", "donor_pattern_len"}]
 
     # left and right intron const
-    bind_args_together += [{"left_intron_const", "right_intron_const"}]
 
     return bind_args_together
 
@@ -177,8 +182,8 @@ def get_cfg_without_args():
     exit_after_loglik_is_nan
     viterbi
     '''
-    # exon_skip_const
     # bucket_by_seq_len
+    # exon_skip_const
 
 
     cfg_without_args = re.split("\s+", cfg_without_args)[1:-1]
@@ -520,7 +525,7 @@ def viterbi(parsed_args):
                 file.write(f"#SBATCH -J v_{os.path.basename(sub_path)[-6:]}\n")
                 file.write(f"#SBATCH -N 1\n")
                 file.write(f"#SBATCH -n 1\n")
-                file.write("#SBATCH --mem 2000\n")
+                file.write("#SBATCH --mem 6000\n")
                 file.write("#SBATCH --partition=snowball\n")
                 file.write(f"#SBATCH -o {sub_path}/slurm_viterbi_out/out.%j\n")
                 file.write(f"#SBATCH -e {sub_path}/slurm_viterbi_out/err.%j\n")
@@ -572,8 +577,13 @@ def get_viterbi_aligned_seqs(train_run_dir, after_or_before, true_alignemnt_path
 ################################################################################
 
 def add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs):
-    run_stats["start"] = aligned_seqs["true_seq"].seq.index("E") # inclusive
-    run_stats["end"] = aligned_seqs["true_seq"].seq.index("r") # exclusive
+
+    try:
+        run_stats["start"] = aligned_seqs["true_seq"].seq.index("E") # inclusive
+        run_stats["end"] = aligned_seqs["true_seq"].seq.index("r") # exclusive
+    except:
+        run_stats["start"] = -2
+        run_stats["end"] = -2
 
     for i in range(len(aligned_seqs["viterbi_guess"].seq)):
         if aligned_seqs["viterbi_guess"].seq[i:i+2] == "AG":
@@ -590,7 +600,7 @@ def add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs):
 
 ################################################################################
 
-def add_actual_epochs_to_run_stats(sub_path, run_stats, max_epochs = None):
+def actual_epochs_to_run_stats(sub_path, max_epochs = None):
     # Epoch 6/20
     path_to_std_out = f"{sub_path}/out_train.log"
     if not os.path.exists(path_to_std_out):
@@ -604,16 +614,19 @@ def add_actual_epochs_to_run_stats(sub_path, run_stats, max_epochs = None):
                 # print(line)
             if x :=re.search(regrex, line):
                 max_epoch = max(int(x.group(1)), max_epoch)
-    run_stats["actual_epochs"] = max_epoch
+    return max_epoch
 
 ################################################################################
 
-def add_time_and_ram_to_run_stats(run_stats, train_run_dir):
+def time_and_ram_to_run_stats(train_run_dir):
     path_to_bench = f"{train_run_dir}/bench.log"
     RAM_in_mb_peak = 0
     min_time = 0
     max_time = 0
     fitting_time = float("inf")
+    epoch_times = []
+
+    last_epoch_start = 0
     with open(path_to_bench, "r") as log_file:
         for line in log_file:
             data = json.loads(line.strip())
@@ -623,18 +636,32 @@ def add_time_and_ram_to_run_stats(run_stats, train_run_dir):
             max_time= max(max_time, data["time"])
             if re.search("Training:model.fit\(\) end", data["description"]):
                 fitting_time = data["time since passed start time"]
+
+            if data["description"] == "epoch_end_callback":
+                epoch_end = data["time"]
+                if last_epoch_start != 0:
+                    epoch_times.append(epoch_end - last_epoch_start)
+                    last_epoch_start = 0
+
+            if data["description"] == "epoch_begin_callback":
+                last_epoch_start = data["time"]
+
     total_time = max_time - min_time
 
-    if fitting_time == float("inf"):
-        RAM_in_mb_peak =  float("inf")
-        total_time = float("inf")
+    # strip first ever epoch from time
 
-    run_stats["mbRAM"] = RAM_in_mb_peak
-    run_stats["total_time"] = total_time
-    run_stats["fitting_time"] = fitting_time
+    epoch_times = epoch_times[1:]
+    try:
+        mean_epoch_time = sum(epoch_times)/len(epoch_times)
+    except:
+        return {"mbRAM": np.nan, "total_time": np.nan, "fitting_time": np.nan, "mean_epoch_time": np.nan}
+
+    if fitting_time == float("inf"):
+        return {"mbRAM": np.nan, "total_time": np.nan, "fitting_time": np.nan, "mean_epoch_time": np.nan}
+    return {"mbRAM": RAM_in_mb_peak, "total_time": total_time, "fitting_time": fitting_time, "mean_epoch_time": mean_epoch_time}
 
 ################################################################################
-def add_history_stats_to_run_stats(run_stats, train_run_dir):
+def history_stats(train_run_dir):
     best_loss = float("inf")
     aprior = float("inf")
     bprior = float("inf")
@@ -642,12 +669,14 @@ def add_history_stats_to_run_stats(run_stats, train_run_dir):
     if not os.path.exists(path_to_history):
         # path to loss.log
         path_to_history = f"{train_run_dir}/loss.log"
+        if not os.path.exists(path_to_history):
+            return {"best_loss": -1, "A_prior": -1, "B_prior": -1}
         with open(path_to_history, "r") as log_file:
             for i, line in enumerate(log_file):
                 loss = float(line.strip().split(" ")[0])
                 if loss < best_loss:
                     best_loss = loss
-        return
+        return {"best_loss": best_loss, "A_prior": -1, "B_prior": -1}
 
     with open(path_to_history, "r") as log_file:
         data = json.load(log_file)
@@ -657,10 +686,7 @@ def add_history_stats_to_run_stats(run_stats, train_run_dir):
                 aprior = data["A_prior"][i]
                 bprior = data["B_prior"][i]
 
-
-        run_stats["best_loss"] = best_loss
-        run_stats["A_prior"] = aprior
-        run_stats["B_prior"] = bprior
+    return {"best_loss": best_loss, "A_prior": aprior, "B_prior": bprior}
 ################################################################################
 def add_inserts(run_stats, aligned_seqs):
     # find the number if i cahrs in the viterbi guess
@@ -680,37 +706,117 @@ def add_inserts(run_stats, aligned_seqs):
 
     # add inserts to run_stats
     run_stats["inserts"] = inserts
+################################################################################
+def augustus_stats(train_run_dir):
+    # seach for the option that was passed to --fasta in the file called_command.log that is in the train_run_dir
+    fasta_path = get_dir_from_called_command_log_in_run_dir_to_base_dir_of_fasta(train_run_dir)
+
+    path_to_augustus = f"{fasta_path}/augustus.out"
+
+
+    if not os.path.exists(path_to_augustus):
+        return {"augustus_start": -1, "augustus_end": -1}
+    # read pd csv
+    df = pd.read_csv(path_to_augustus, sep = "\t")
+    # get the row where feature is CDS
+    df = df[df["feature"] == "CDS"]
+    # if there is no such row add -1 to run_stats with names "augustus_start" and "augustus_end"
+    if len(df) == 0:
+        return {"augustus_start": -1, "augustus_end": -1}
+    # if there are more than one row take the one with the longer CDS
+
+    if len(df) > 1:
+        df["length"] = df["end"] - df["start"]
+        df = df.sort_values(by = "length", ascending = False)
+        df = df.iloc[0,:]
+    # get the start and end of the CDS
+    return {"augustus_start": df["start"].item() -1, "augustus_end": df["end"].item()}
+
+def get_dir_from_called_command_log_in_run_dir_to_base_dir_of_fasta(train_run_dir):
+    path_to_called_command = f"{train_run_dir}/called_command.log"
+    with open(path_to_called_command, "r") as log_file:
+        for line in log_file:
+            if x := re.search("--fasta\s(\S+)", line):
+                fasta_path = x.group(1)
+                break
+
+    # from the fasta path extract the path that ends in the dir called something like exon_chr1_54853433_54853612
+    # using a while loop and os dirname until the basename matches the regex
+    while not re.match("exon_chr.+?_\d+_\d+", os.path.basename(fasta_path)):
+        fasta_path = os.path.dirname(fasta_path)
+    return fasta_path
+
+################################################################################
+def get_sum_of_seq_lens(run_dir):
+    dir_of_fasta = get_dir_from_called_command_log_in_run_dir_to_base_dir_of_fasta(run_dir)
+    # path to combined.fasta using ospath join
+    path_to_combined_fasta = os.path.join(dir_of_fasta, "combined.fasta")
+    # read fasta file
+    seqs = []
+    for record in SeqIO.parse(path_to_combined_fasta, "fasta"):
+        seqs.append(record.seq)
+    cured_seqs = remove_long_seqs(seqs)
+    sum_of_lens = sum([len(seq) for seq in cured_seqs])
+    max_of_lens = max([len(seq) for seq in cured_seqs])
+    return {"sum_of_lens": sum_of_lens, "max_of_lens": max_of_lens}
 
 ################################################################################
 def calc_run_stats(path) -> pd.DataFrame:
 
     stats_list = []
-    sub_dir_and_after_or_before = list(product(get_run_sub_dirs(path), ["after", "before"]))
-    print(sub_dir_and_after_or_before)
-    for i, (train_run_dir, after_or_before) in enumerate(sub_dir_and_after_or_before):
-        if i %1000 == 0:
-            print(f"getting stats {i}/{len(sub_dir_and_after_or_before)}")
-
-        run_stats = {}
-        if (aligned_seqs := get_viterbi_aligned_seqs(train_run_dir, after_or_before)) == -1:
-            continue
-
-        add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs)
-        add_inserts(run_stats, aligned_seqs)
-
-        run_stats["after_or_before"] = after_or_before
-        run_stats["seq_len_from_multi_run"] = len(aligned_seqs["true_seq"].seq)
+    run_sub_dirs = get_run_sub_dirs(path)
+    # print(sub_dir_and_after_or_before)
+    # print(sub_dir_and_after_or_before)
+    for i, train_run_dir in enumerate(run_sub_dirs):
+        if i %100 == 0:
+            print(f"getting stats {i}/{len(run_sub_dirs)}")
 
         training_args = json.load(open(f"{train_run_dir}/passed_args.json"))
-        add_actual_epochs_to_run_stats(train_run_dir, run_stats, max_epochs = training_args['epochs'])
-        add_time_and_ram_to_run_stats(run_stats, train_run_dir)
-        add_history_stats_to_run_stats(run_stats, train_run_dir)
+        actual_epochs =  actual_epochs_to_run_stats(train_run_dir, max_epochs = training_args['epochs'])
+        ram_and_time_dict = time_and_ram_to_run_stats(train_run_dir)
+        history_stats_dict = history_stats(train_run_dir)
+        sum_of_seq_lens_dict = get_sum_of_seq_lens(train_run_dir)
+        aligned_seqs_dict = {}
+        for after_or_before in ["after", "before", "augustus"]:
+            run_stats = {}
 
-        d = {**training_args, **run_stats}
-        stats_list.append(d)
+            if after_or_before == "augustus":
+                if "after" not in aligned_seqs_dict:
+                    continue
+                aligned_seqs = aligned_seqs_dict["after"]
+            else:
+                if (aligned_seqs := get_viterbi_aligned_seqs(train_run_dir,after_or_before)) == -1:
+                    continue
+                aligned_seqs_dict[after_or_before] = aligned_seqs
+
+            add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs)
+            add_inserts(run_stats, aligned_seqs)
+
+            run_stats["after_or_before"] = after_or_before
+            run_stats["seq_len_from_multi_run"] = len(aligned_seqs["true_seq"].seq)
+
+
+            if after_or_before == "augustus":
+                augustus_dict = augustus_stats(train_run_dir)
+                run_stats["v_start"] = augustus_dict["augustus_start"]
+                run_stats["v_end"] = augustus_dict["augustus_end"]
+
+            run_stats["actual_epochs"] = actual_epochs
+            run_stats["mbRAM"] = ram_and_time_dict["mbRAM"]
+            run_stats["total_time"] = ram_and_time_dict["total_time"]
+            run_stats["fitting_time"] = ram_and_time_dict["fitting_time"]
+            run_stats["mean_epoch_time"] = ram_and_time_dict["mean_epoch_time"]
+            run_stats["best_loss"] = history_stats_dict["best_loss"]
+            run_stats["A_prior"] = history_stats_dict["A_prior"]
+            run_stats["B_prior"] = history_stats_dict["B_prior"]
+            run_stats["sum_of_seq_lens"] = sum_of_seq_lens_dict["sum_of_lens"]
+            run_stats["max_of_seq_lens"] = sum_of_seq_lens_dict["max_of_lens"]
+
+            d = {**training_args, **run_stats}
+            stats_list.append(d)
+
 
     df = pd.DataFrame(stats_list)
-
     # remove cols, ie name of parameter for training runs, whos args are const across runs
     cols_to_keep = df.columns[df.nunique() > 1]
     # cols_discared = list(set(df.columns) - set(cols_to_keep))
@@ -722,6 +828,8 @@ def calc_run_stats(path) -> pd.DataFrame:
 
     df["fasta"] = df["fasta_path"].apply(os.path.dirname).apply(os.path.basename)
     df["passed_current_run_dir"] = df["passed_current_run_dir"].apply(os.path.basename)
+
+    print(df.columns)
 
     return df
 
@@ -760,6 +868,8 @@ def get_cols_to_group_by(args):
 
 
 def add_additional_eval_cols(df, args):
+
+    df["size_of_q"] = 1+5+2+3*df["nCodons"] + 3*(df["nCodons"]-1) +5 +2+ 2
 
     df["p_nt_on_exon"]           = df["end"] -    df["start"]
     df["predicted_p_nt_on_exon"] = df["v_end"] - df["v_start"]
@@ -952,7 +1062,7 @@ def eval_viterbi(args):
     df["left_intron_len"] = df["start"]
 
     # for heat map
-    grouped["after_or_before"] = (grouped["after_or_before"] == "after").astype(int)
+    # grouped["after_or_before"] = (grouped["after_or_before"] == "after").astype(int)
 
 
     g1 = df.groupby(cols_to_group_by).mean()[eval_cols].reset_index()
@@ -1071,11 +1181,62 @@ def load_or_calc_eval_df(path):
 # df.sort_values(by = "true_p_nt_exon", ascending = 1)
 
 ################################################################################
-def lin_reg():
+def lin_reg(order = 1):
+
+
+    import numpy as np
+    import statsmodels.api as sm
+    import statsmodels.formula.api as smf
+
+    # Assuming X and y are your predictors and response
+
+    # Linear model
+    y = df["mbRAM"]/df["mbRAM"].max()
+    x1 = "nCodons"
+    x2 = "max_of_seq_lens"
+    X = df[[x1,x2]]
+    X.loc[:,x1] /= X[x1].max()
+    X.loc[:,x2] /= X[x2].max()
+
+    model_linear = sm.OLS(y, sm.add_constant(X))
+    results_linear = model_linear.fit()
+    print(results_linear.summary())
+
+    # Quadratic model
+    X_quad = np.column_stack((X, X[x1]**2))
+    model_quad = sm.OLS(y, sm.add_constant(X_quad))
+    results_quad = model_quad.fit()
+    print(results_quad.summary())
+
+    # Cubic model
+    X_cubic = np.column_stack((X, X[x1]**2, X[x1]**3))
+    model_cubic = sm.OLS(y, sm.add_constant(X_cubic))
+    results_cubic = model_cubic.fit()
+    print(results_cubic.summary())
+
+
+
+
+    y = df["mbRAM"]/df["mbRAM"].max()
+    x1 = "nCodons"
+    x2 = "max_of_seq_lens"
+    log_x1 = np.log(df[x1] / df[x1].max())
+    log_x2 = np.log(df[x2] / df[x2].max())
+    log_y = np.log(y)
+
+    X = np.column_stack((log_x1, log_x2))
+    X = sm.add_constant(X)  # Adds a constant term, which will be our y-intercept
+    model = sm.OLS(log_y, X)
+    results = model.fit()
+
+    print(results.summary())
+
 
     x1 = "nCodons"
     x2 = "seq_len_from_multi_run"
+    x2 = "max_of_seq_lens"
     ys = ["mbRAM", "fitting_time", "time_per_epoch"]
+    ys = ["mbRAM"]
 
     X = df[[x1, x2]]
 
@@ -1088,10 +1249,16 @@ def lin_reg():
         ydata = df[y] / df[y].max()
 
         # Add quadratic terms
-        X.loc[:,'x2'] = X[x1] ** 2
-        X.loc[:,'y2'] = X[x2] ** 2
 
+        if order > 1:
+            X.loc[:,f'{x1}^2'] = X[x1] ** 2
+            X.loc[:,f'{x2}^2'] = X[x2] ** 2
+        if order > 2:
+            X.loc[:,f'{x1}^3'] = X[x1] ** 3
+            X.loc[:,f'{x2}^3'] = X[x2] ** 3
         # Add a column of ones to X for the intercept term
+
+        print(X)
 
         # Compute the regression coefficients using the normal equation (X'X)^-1 X'y
         coefficients = np.linalg.inv(X.T.dot(X)).dot(X.T).dot(ydata)
@@ -1109,42 +1276,106 @@ def lin_reg():
 
 ################################################################################
 
-def len_groups(df, nbins = 10, mask = [1,1,1,1], eval_cols = None):
 
-    if eval_cols is None:
-        eval_cols = ["fn_nt_on_exon", "correct", "miss", "true_left", "true_right", "total_time", "mbRAM"]
+        df['size_of_q_squared'] = df["size_of_q"] ** 2
 
-    groupby = ["total_len_group", "right_intron_len_group", "left_intron_len_group", "exon_len_group"]
-    groupby = [group for i, group in enumerate(groupby) if mask[i]]
+        # Fit the model
+    model = smf.ols(formula = 'y ~ size_of_q * max_of_seq_lens', data = df)
+    results = model.fit()
 
-    # bins for right intron len, resulting in nbins groups
-    bins_right_intron = list(range(0, df["right_intron_len"].max() + 1, int(df["right_intron_len"].max()/nbins)))
-    # same for left intron
-    bins_left_intron = list(range(0, df["left_intron_len"].max() + 1, int(df["left_intron_len"].max()/nbins)))
-    # and the same for total len resulting in nbins groups
-    bins_total_len = list(range(0, df["seq_len_from_multi_run"].max() + 1, int(df["seq_len_from_multi_run"].max()/nbins)))
-    # add a column exon len
-    df["exon_len"] = df["end"] - df["start"]
-    # add the same for exon len
-    bins_exon_len = list(range(0, df["exon_len"].max() + 1, int(df["exon_len"].max()/nbins)))
+    print(results.summary())
+    residuals = results.resid
 
-    # now cut df into the bins adding a column for each
-    df['right_intron_len_group'] = pd.cut(df['right_intron_len'], bins=bins_right_intron, labels=bins_right_intron[:-1])
-    df['left_intron_len_group'] = pd.cut(df['left_intron_len'], bins=bins_left_intron, labels=bins_left_intron[:-1])
-    df['total_len_group'] = pd.cut(df['seq_len_from_multi_run'], bins=bins_total_len, labels=bins_total_len[:-1] )
-    df['exon_len_group'] = pd.cut(df['exon_len'], bins=bins_exon_len, labels=bins_exon_len[:-1])
-
-    # what is the label parameter of df.cut() for?
-
-
-    # now group by the groups
-    len_groups = df.groupby(groupby).mean()[eval_cols].reset_index()
-
-    return len_groups
+    # Create a plot
+    plt.figure(figsize=(10, 6))
+    plt.scatter(results.fittedvalues, residuals, edgecolors = 'k', facecolors = 'none')
+    plt.axhline(y = 0, color = 'k', linestyle = '--')
+    plt.xlabel('Fitted values', fontsize = 14)
+    plt.ylabel('Residuals', fontsize = 14)
+    plt.title('Residuals vs Fitted values', fontsize = 16)
+    plt.show()
 
 ################################################################################
 
-def plot_model_size_factor_vs_best_loss_f1s(df, figsize = (20,7), angle1 = 90, angle2 = 60, eval_cols = None):
+def len_groups(df, nbins = 3, mask = [1,1,1], eval_cols = None, seq_len_bins = 3):
+
+    if eval_cols is None:
+        eval_cols = ["f1_nt_on_exon", "f1_nt", "f1", "correct", "miss", "true_left", "true_right", "total_time", "mbRAM", "mean_epoch_time"]
+
+    # df = df[(df["after_or_before"]=="after") & (df["dataset_identifier"]=="all")]
+    # df = df[(df["after_or_before"]=="after")]
+
+
+    df["exon_len"] = df["end"] - df["start"]
+    bins_exon_len = list(range(0, df["exon_len"].max() + 1, int(df["exon_len"].max()/nbins)))
+    df['exon_len_group'] = pd.cut(df['exon_len'], bins=bins_exon_len, labels=bins_exon_len[:-1])
+
+
+    bins_size_of_q = list(range(0, df["size_of_q"].max() + 1, int(df["size_of_q"].max()/nbins)))
+    df['size_of_q_group'] = pd.cut(df['size_of_q'], bins=bins_size_of_q, labels=bins_size_of_q[:-1] )
+
+    bins_human_len = list(range(0, df["seq_len_from_multi_run"].max() + 1, int(df["seq_len_from_multi_run"].max()/seq_len_bins)))
+    df['human_len_group'] = pd.cut(df['seq_len_from_multi_run'], bins=bins_human_len, labels=bins_human_len[:-1] )
+
+    bins_sum_len = list(range(0, df["sum_of_seq_lens"].max() + 1, int(df["sum_of_seq_lens"].max()/seq_len_bins)))
+    df['sum_len_group'] = pd.cut(df['sum_of_seq_lens'], bins=bins_sum_len, labels=bins_sum_len[:-1] )
+
+    bins_max_len = list(range(0, df["max_of_seq_lens"].max() + 1, int(df["max_of_seq_lens"].max()/seq_len_bins)))
+    df['max_len_group'] = pd.cut(df['max_of_seq_lens'], bins=bins_max_len, labels=bins_max_len[:-1] )
+
+    print("exon_len_group", df["exon_len_group"])
+    print("human_len_group", df["human_len_group"])
+    print("sum_len_group", df["sum_len_group"])
+    print("max_len_group", df["max_len_group"])
+    print("size_of_q_group", df["size_of_q_group"])
+
+
+    for value, pivot in zip(["mbRAM", "mean_epoch_time"],["max_len_group", "sum_len_group"]):
+        groupby = [pivot, "size_of_q_group"]
+        len_groups = df.groupby(groupby).mean()[eval_cols].reset_index()
+        len_groups_std = df.groupby(groupby).std()[eval_cols].reset_index()
+        len_groups_counts = df.groupby(groupby).count()[eval_cols].reset_index()
+        m = len_groups.pivot(pivot, "size_of_q_group", value)
+        s = len_groups_std.pivot(pivot, "size_of_q_group", value)
+        c = len_groups_counts.pivot(pivot, "size_of_q_group", value)
+
+        print(f"pivot table for {value}\\\\")
+        for i in range(seq_len_bins):
+            print(" & ". join([f"{m.iloc[i,j]:.0f} & $\pm${s.iloc[i,j]:.0f} & \\multicolumn{{1}}{{c|}}{{{c.iloc[i,j]}}}" for j in range(nbins)]), end = " \\\\ \n")
+        print()
+
+    groupby = ["human_len_group", "exon_len_group"]
+    len_groups = df.groupby(groupby).mean()[eval_cols].reset_index()
+    len_groups_counts = df.groupby(groupby).count()[eval_cols].reset_index()
+    f1_nt = len_groups.pivot("human_len_group", "exon_len_group", "f1_nt_on_exon")
+    f1_exon = len_groups.pivot("human_len_group", "exon_len_group", "f1")
+    c = len_groups_counts.pivot("human_len_group", "exon_len_group", "f1") # or f1_nt_on_exon, its the same since the two other args to the method are the same
+
+
+    print(f"pivot table for f1\\\\")
+    for i in range(seq_len_bins):
+        print(" & ". join([f"{f1_nt.iloc[i,j]:.3f} & {f1_exon.iloc[i,j]:.3f} & \\multicolumn{{1}}{{c|}}{{{c.iloc[i,j]}}}" for j in range(nbins)]), end = " \\\\ \n")
+    print()
+
+
+    groupby = ["human_len_group", "sum_len_group", "exon_len_group"]
+    groupby = [group for i, group in enumerate(groupby) if mask[i]]
+
+    len_groups = df.groupby(groupby).mean()[eval_cols].reset_index()
+    len_groups_std = df.groupby(groupby).std()[eval_cols].reset_index()
+    len_groups_counts = df.groupby(groupby).count()[eval_cols].reset_index()
+
+    # mt = len_groups.pivot("human_len_group", "exon_len_group", "mean_epoch_time")
+    # st = len_groups_std.pivot("human_len_group", "exon_len_group", "mean_epoch_time")
+    # ct = len_groups_counts.pivot("human_len_group", "exon_len_group", "mean_epoch_time")
+
+
+
+    return len_groups, len_groups_std, len_groups_counts
+
+################################################################################
+
+def plot_model_size_factor_vs_best_loss_f1s(df, figsize = (20,7), angle1 = 90, angle2 = 60, eval_cols = None, anchor = (1,0.5)):
     # as x axis i want model size factor which is categorical
     # then for every model size factor i want 3 box plots, one for best loss one for f1_nt and one for f1
     # i have a pandas df with columns model_size_factor, best_loss, f1_nt, f1
@@ -1166,26 +1397,26 @@ def plot_model_size_factor_vs_best_loss_f1s(df, figsize = (20,7), angle1 = 90, a
     local_df["py"] = local_df["best_loss"] - local_df["A_prior"] - local_df["B_prior"]
 
     columns_to_scale = ["best_loss", "f1_nt_on_exon", "A_prior", "B_prior", "py"]
+    columns_to_scale = ["f1_nt_on_exon"]
 
 
-    make_bigger = 0.01
+    make_bigger = 0.008
     for column in columns_to_scale:
         local_df[f"{column}_scaled"] = scale_0_to_1(local_df[column])
         local_df[f"{column}_scaled"] = local_df[f"{column}_scaled"] + np.random.choice([-make_bigger, make_bigger], size=len(local_df))
 
     # add a measure that is a prior_scaled + b prior_sclade / model size factor
-    local_df["measure"] = (local_df["A_prior_scaled"] + local_df["B_prior_scaled"]) / local_df["nCodons"]
-    local_df["measure"] = (local_df["inserts"] + local_df["deletes"])
+    # local_df["measure"] = (local_df["A_prior_scaled"] + local_df["B_prior_scaled"]) / local_df["nCodons"]
+    # local_df["measure"] = (local_df["inserts"] + local_df["deletes"])
     local_df["inserts"] = local_df["inserts"]
     local_df["deletes"] = local_df["deletes"]
 
-    measure_names = ["measure", "inserts", "deletes"]
+    measure_names = ["inserts", "deletes"]
     for column in measure_names:
         local_df[f"{column}_scaled"] = scale_0_to_1(local_df[column])
 
 
-    columns_single_points_in_plot = ["f1", "f1_nt"]
-    columns_single_points_in_plot = ["f1"]
+    columns_single_points_in_plot = ["f1_nt", "f1"]
 
     # i want to group by model size factor and add the mean of f1 for every group to a new column
     for column in columns_single_points_in_plot:
@@ -1206,12 +1437,17 @@ def plot_model_size_factor_vs_best_loss_f1s(df, figsize = (20,7), angle1 = 90, a
 
     plt.figure(figsize=figsize)
     # df_melt_filtered = df_melt[df_melt['variable'].isin(['f1_nt_scaled', 'best_loss_scaled'])]
-    sns.boxplot(x='model_size_factor', y='value', hue='variable', data=df_melt)
+    ax = sns.boxplot(x='model_size_factor', y='value', hue='variable', data=df_melt)
     # can you add texture to the boxplot?
 
+    ax.legend(loc='center left', bbox_to_anchor=anchor)
+    legend = ax.get_legend()
+    new_labels = [r'exon family specific $F_1^{nt}$', r'$F_1^{nt}$', '$F_1^{exon}$',  'number of insertions',  'number of deletions'] # specify new labels here
+    for t, l in zip(legend.texts, new_labels): t.set_text(l)
 
-
-
+    ax.set_xlabel("Model Size Factor")
+    ax.set_ylabel("values scaled to be in [0,1]")
+    ax.set_title("The Influence of the Model Size Factor on the Exon Prediction Performance")
     # df_f1 = df_melt[df_melt['variable'] == 'f1'].groupby('model_size_factor', as_index=False).mean()
 
     # sns.scatterplot(x='model_size_factor', y='value', hue = 'value', data=df_f1, color='red', zorder=5)
@@ -1221,7 +1457,6 @@ def plot_model_size_factor_vs_best_loss_f1s(df, figsize = (20,7), angle1 = 90, a
     # means['variable'] = 'f1'  # add variable column to match boxplot
     # sns.scatterplot(x='model_size_factor', y='value', hue='variable', data=means, color='red', zorder=5)
 
-    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
 
     # sns.boxplot(x='model_size_factor', y='value', hue='variable', data=df_melt)

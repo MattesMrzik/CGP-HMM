@@ -6,6 +6,12 @@ import subprocess
 import pandas
 from Bio import SeqIO
 import json
+import argparse
+import sys
+
+sys.path.insert(0, "..")
+
+from multi_run import get_dir_from_called_command_log_in_run_dir_to_base_dir_of_fasta
 
 def create_gff_from_fasta_description(exon_dir_path : str) -> None:
     path_to_human_fasta = f"{exon_dir_path}/species_seqs/stripped/Homo_sapiens.fa"
@@ -30,23 +36,33 @@ def create_gff_from_fasta_description(exon_dir_path : str) -> None:
             exon_start = description["seq_start_in_genome_cd_strand"] - description["exon_start_in_human_genome_cd_strand"] # checked this with picture and it seemes correct
             exon_end = description["seq_start_in_genome_cd_strand"] - description["exon_stop_in_human_genome_cd_strand"]
 
-        def write_gff(name, start, stop,):
+        def write_gff(name, start, stop, seq_len = "None"):
             with open(name, "w") as out:
-                line = [record.id, "description", "CDS", str(start), str(stop), "0", "+", ".", "src=M"]
+                if seq_len != "None":
+                    line = [record.id, "description", "intronpart", "1", "1", "0", "+", ".", "src=M"]
+                    out.write("\t".join(line))
+                    out.write("\n")
+                line = [record.id, "description", "CDSpart", str(start), str(stop), "0", "+", ".", "src=M"]
                 out.write("\t".join(line))
                 out.write("\n")
+
+                if seq_len != "None":
+                    line = [record.id, "description", "intronpart", str(seq_len), str(seq_len), "0", "+", ".", "src=M"]
+                    out.write("\t".join(line))
+                    out.write("\n")
 
         out_file_path = f"{exon_dir_path}/human.gff"
         write_gff(out_file_path, exon_start, exon_end)
         hints_file_path = f"{exon_dir_path}/augustus_hints.gff"
         exon_len = exon_end - exon_start
 
-        size_of_hints_cds = 11 # since min exon len is 24
+        size_of_hints_cds = 1 # since min exon len is 24
 
-        write_gff(hints_file_path, exon_start + exon_len//2 - size_of_hints_cds, exon_start + exon_len//2 + size_of_hints_cds)
+        write_gff(hints_file_path, exon_start + exon_len//2 - size_of_hints_cds, exon_start + exon_len//2 + size_of_hints_cds, seq_len = len(record.seq)-1)
         return hints_file_path
 
-def run_augustus_for_dir(path : str) -> None:
+def run_augustus_for_dir(args) -> None:
+    path = args.path if args.path else args.intron if args.intron else args.strip
     dir_content = sorted(list(os.listdir(path)))
     number_found = 0
     number_not_found = 0
@@ -54,8 +70,13 @@ def run_augustus_for_dir(path : str) -> None:
         exon_dir_path = os.path.join(path, file_or_dir)
         if os.path.isdir(exon_dir_path):
 
-            hintsfile = create_gff_from_fasta_description(exon_dir_path)
-            command = f"{path_to_augustus_exe} --species=human --hintsfile={hintsfile} --/Constant/min_coding_len=9 --strand=forward {exon_dir_path}/species_seqs/stripped/Homo_sapiens.fa"
+            if args.path:
+                hintsfile = create_gff_from_fasta_description(exon_dir_path)
+                command = f"{path_to_augustus_exe} --species=human --hintsfile={hintsfile} --/Constant/min_coding_len=9 --strand=forward {exon_dir_path}/species_seqs/stripped/Homo_sapiens.fa"
+            if args.intron:
+                command = f"{path_to_augustus_exe} --species=human --strand=forward {exon_dir_path}/introns/Homo_sapiens.fa"
+            if args.strip:
+                command = f"{path_to_augustus_exe} --species=human --strand=forward {exon_dir_path}/missing_human_exon/Homo_sapiens.fa"
             print()
             print("command", command)
             # stanke was zeigen wo es nicht funcktioniert
@@ -78,7 +99,8 @@ def run_augustus_for_dir(path : str) -> None:
                 df.columns = ["seqname", "source", "feature", "start", "end", "score", "strand", "frame", "attribute"]
                 print(exon_dir_path)
                 print(df)
-                df.to_csv(f"{exon_dir_path}/augustus.out")
+
+                df.to_csv(f"{exon_dir_path}/augustus.out", sep = "\t")
                 number_found += 1
             except subprocess.CalledProcessError as e:
                 print("Error executing command:", e.output)
@@ -90,6 +112,16 @@ def run_augustus_for_dir(path : str) -> None:
     print(f"number_found {number_found}, number_not_found {number_not_found}")
 
 if __name__ == "__main__":
-    path = "/home/s-mamrzi/cgp_data/good_exons_2"
+
+    # add argument parser
+    parser = argparse.ArgumentParser(description='Run augustus for all exons in a dir')
+    # add arg path to iei dir
+    parser.add_argument('--path', type=str, help='path to dir containing exons and not multi run')
+    # add path to intron dir
+    parser.add_argument('--intron', type=str, help='path to dir containing exons, but run for introns')
+    parser.add_argument('--strip', type=str, help='path to dir containing exons, but run for human exon striped seqs')
+
     path_to_augustus_exe ="/home/s-mamrzi/Augustus/bin/augustus"
-    run_augustus_for_dir(path)
+
+    args = parser.parse_args()
+    run_augustus_for_dir(args)
