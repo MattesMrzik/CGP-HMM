@@ -361,6 +361,14 @@ class Config():
             print("viterbi_exe is not executable for user. Use 'chmod u+x Viterbi' to make it executable")
             exit(1)
 
+        if not os.path.exists(self.fasta_path):
+            print("fasta not found at", self.fasta_path)
+            exit(1)
+
+        if os.path.isdir(self.fasta_path):
+            print("fasta_path is a dir, but should be a fasta file")
+            exit(1)
+
         if self.check_for_zeros:
             assert self.batch_begin_write_weights__layer_call_write_inputs, "if check_for_zeros also pass --batch"
 
@@ -410,7 +418,6 @@ class Config():
         self.parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true')
         self.parser.add_argument('--learning_rate', help ="learning_rate", type = float, default = 0.05)
         self.parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
-        self.parser.add_argument('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
         self.parser.add_argument('--bucket_by_seq_len', action = 'store_true', help = 'bucket seqs by their lengths')
         self.parser.add_argument('--ll_growth_factor', type = float, default = 0, help = 'if 1, likelihood is used as usual, but if for example 0.1. then likelihood in first epoch is scaled by .1 then in second by 0.2 ...')
         self.parser.add_argument('--prior_only', action = 'store_true', help = 'use prior and no likelihood')

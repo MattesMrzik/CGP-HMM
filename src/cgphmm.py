@@ -27,12 +27,9 @@ def main(config):
     plt.plot(history.history['loss'])
     plt.savefig(f"{config.current_run_dir}/loss.png")
 
-    config.force_over_write = True
-    # write convert fasta file to json (not one hot)
-    # see make_dataset in Training.py
+
     from Viterbi import main
     config.only_first_seq = True
-    config.force_overwrite = True
     config.after_or_before = "a"
     main(config)
     config.after_or_before = "b"

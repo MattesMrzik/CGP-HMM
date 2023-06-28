@@ -8,52 +8,28 @@ import os
 import tensorflow as tf
 
 def non_class_A_log_prior(A, prior_matrix, prior_indices):
-        epsilon = 1e-2
-
         alphas = tf.gather_nd(prior_matrix, prior_indices)
         tf.debugging.Assert(tf.math.reduce_all(alphas != 0), [alphas], name = "some_A_alphas_are_zero")
         tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alphas)), [alphas], name = "some_A_alphas_are_not_finite")
 
 
         ps = tf.gather_nd(A, prior_indices)
-
-        # this shouldnt be a formal requirement
+        # this shouldnt be a formal requirement, but would result in inf loglikelihood
         tf.debugging.Assert(tf.math.reduce_all(ps != 0), [ps], name = "some_A_ps_are_zero")
         tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ps)), [ps], name = "some_A_ps_are_not_finite")
-
-
-        # epsilon = tf.cast(self.config.log_prior_epsilon, self.config.dtype)
-
 
         def is_greater_0(tensor):
             ones_mask = tf.math.greater(tensor, 0)
             return ones_mask
 
+        # this should not be a formal requirement, since this is indipendent of the parameters
+        # it is still done to get sensible results for the prior
         def lbeta_row_positive_values(row):
             return tf.math.lbeta(tf.boolean_mask(row, is_greater_0(row)))
 
-        # def lbeta_row_positive_values(row):
-        #     return tf.boolean_mask(row, is_greater_0(row))
-
-
         log_z = tf.map_fn(lbeta_row_positive_values, prior_matrix)
 
-
         log_z = tf.math.reduce_sum(tf.boolean_mask(log_z, tf.math.is_finite(log_z)))
-        # some rows dont have values, so only zeros, these have no prior and are therefore discared
-
-        # if a parameter gets zero lbeta yields inf
-        # and i cant just only take positive values since that might
-        # neglet some prior parameters since some might be zero,
-        # which is forbidden, and asserted above
-
-        # def is_close_to_one(tensor, epsilon):
-        #     ones_mask = tf.math.less_equal(tf.math.abs(tensor - 1), epsilon)
-        #     return ones_mask
-
-
-        # tf.print("rows_that_have_prior", rows_that_have_prior, summarize = -1)
-        # log_z = tf.math.reduce_sum(tf.boolean_mask(log_z, rows_that_have_prior))
 
         before_reduce_sum = tf.math.xlogy((alphas-1), ps)
         return tf.math.reduce_sum(before_reduce_sum) - log_z
@@ -66,7 +42,7 @@ def non_class_B_log_prior(B, prior_matrix, prior_indices, alphabet_size):
 
         ps = tf.gather_nd(B, prior_indices)
 
-        # this shouldnt be a formal requirement
+        # this shouldnt be a formal requirement, but would result in inf loglikelihood
         tf.debugging.Assert(tf.math.reduce_all(ps != 0), [ps, tf.boolean_mask(prior_indices, ps == 0)], name = "some_B_ps_are_zero")
         tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(ps)), [ps], name = "some_B_ps_are_not_finite")
 
@@ -80,16 +56,10 @@ def non_class_B_log_prior(B, prior_matrix, prior_indices, alphabet_size):
         def lbeta_row_positive_values(row):
             return tf.math.lbeta(tf.boolean_mask(row, is_greater_0(row)))
 
-        # def lbeta_row_positive_values(row):
-        #     return tf.boolean_mask(row, is_greater_0(row))
 
         log_z = tf.map_fn(lbeta_row_positive_values, prior_matrix_transposed_reshaped)
 
         log_z = tf.math.reduce_sum(tf.boolean_mask(log_z, tf.math.is_finite(log_z)))
-        # some rows dont have values, so only zeros, these have no prior and are therefore discared
-
-        # tf.print("rows_that_have_prior", rows_that_have_prior, summarize = -1)
-        # log_z = tf.math.reduce_sum(tf.boolean_mask(log_z, rows_that_have_prior))
 
         before_reduce_sum = tf.math.xlogy((alphas-1), ps)
 
@@ -97,23 +67,21 @@ def non_class_B_log_prior(B, prior_matrix, prior_indices, alphabet_size):
 
 class CGP_HMM(Model):
 
-    # this overwrites the init from Model. alternatively i can omit it
     def __init__(self, config):
         Model.__init__(self, config)
         self.is_prepared = False
         self.is_made = False
 
     def prepare_model(self):
-        self.insert_low = 0 if self.config.inserts_at_intron_borders else 1
-        self.insert_high = self.config.nCodons + 1 if self.config.inserts_at_intron_borders else self.config.nCodons
-
         # =================> states <============================================
         self.id_to_state, self.state_to_id = self.get_state_id_description_dicts()
         self.number_of_states = self.get_number_of_states()
+
         # =================> emissions <========================================
         self.emissions_state_size = self.get_emissions_state_size()
         self.number_of_emissions = self.get_number_of_emissions()
-        self.emi_to_id, self.id_to_emi = self.get_dicts_for_emission_tuple_and_id_conversion() # these are dicts
+        # dictionaries to convert between emission tuples and ids
+        self.emi_to_id, self.id_to_emi = self.get_dicts_for_emission_tuple_and_id_conversion()
         self.A_is_dense = self.config.A_is_dense
         self.A_is_sparse = self.config.A_is_sparse
         self.B_is_dense = self.config.B_is_dense
@@ -129,26 +97,10 @@ class CGP_HMM(Model):
         self.I_indices = self.get_I_indices()
 
         # A
-        self.A_indices_for_weights, \
-        self.A_indices_for_constants, \
-        self.A_initial_weights_for_trainable_parameters, \
-        self.A_initial_weights_for_constants = self.A_indices_and_initial_weights()
-        self.A_indices = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
+        self.make_preparations_for_A()
 
+        # this holds the concentration paramteres for the prior of the transition matrix
         self.get_A_prior_matrix()
-
-        if self.config.use_weights_for_consts:
-
-            self.A_indices_for_weights = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
-            self.A_indices_for_constants = []
-            self.A_initial_weights_for_trainable_parameters = np.concatenate([self.A_initial_weights_for_trainable_parameters, self.A_initial_weights_for_constants])
-            self.A_initial_weights_for_constants = []
-
-
-        # if self.config.use_thesis_weights:
-        #     self.A_my_initial_guess_for_parameters = self.get_A_my_initial_guess_for_parameters()
-
-        # self.A_consts = self.get_A_consts()
 
         # B
         self.make_preparations_for_B()
@@ -173,8 +125,6 @@ class CGP_HMM(Model):
                 os.mkdir(dir_name)
             self.B_as_dense_to_file(f"{dir_name}/B_init_parameters_after_conversion.csv", self.B_initial_weights_for_trainable_parameters, with_description = True)
 
-        if self.config.use_weights_for_consts:
-            self.B_indices = sorted(self.B_indices)
 
         self.is_made = True
 
@@ -205,7 +155,7 @@ class CGP_HMM(Model):
         codons = ["c_" + str(i) + "," + str(j) for i in range(self.config.nCodons) for j in range(3)]
         states += codons
 
-        inserts = ["i_" + str(i) + "," + str(j) for i in range(self.insert_low, self.insert_high) for j in range(3)]
+        inserts = ["i_" + str(i) + "," + str(j) for i in range(1, self.config.nCodons) for j in range(3)]
         states += inserts
 
         states += ["G", "GT"]
@@ -310,8 +260,6 @@ class CGP_HMM(Model):
         return len(self.A_indices_for_weights)
 
     def B_kernel_size(self):
-        if self.config.use_weights_for_consts:
-            return len(self.B_indices_for_weights) + len(self.B_indices_for_constants)
         return len(self.B_indices_for_trainable_parameters)
 ################################################################################
 ################################################################################
@@ -330,7 +278,7 @@ class CGP_HMM(Model):
 ################################################################################
 ################################################################################
 ################################################################################
-    def A_indices_and_initial_weights(self):
+    def make_preparations_for_A(self):
         single_high_prob_kernel = self.config.single_high_prob_kernel
         # für weights die trainable sind und gleich viele einer ähnlichen art sind,
         # die in eine separate methode auslagen, damit ich leichter statistiken
@@ -402,7 +350,7 @@ class CGP_HMM(Model):
 
         append_transition(l = self.A_indices_begin_inserts, use_as_prior=True, initial_weights = [-0.2] * len(self.A_indices_begin_inserts))
 
-        for i in range(self.insert_low, self.insert_high):
+        for i in range(1, self.config.nCodons):
             append_transition(f"i_{i},0", f"i_{i},1", trainable = False)
             append_transition(f"i_{i},1", f"i_{i},2", trainable = False)
 
@@ -413,9 +361,7 @@ class CGP_HMM(Model):
         A_indices_normal_deletes, A_init_weights_normal_deletes = self.A_indices_and_init_weights_normal_deletes
         # print("A_init_weights_normal_deletes", A_init_weights_normal_deletes)
 
-
         append_transition(l = A_indices_normal_deletes, initial_weights = [x + 0.1 for x in A_init_weights_normal_deletes], use_as_prior=True)
-
 
 
         # exit last codon
@@ -437,18 +383,18 @@ class CGP_HMM(Model):
         append_transition("right_intron", "ter", trainable = not self.config.right_intron_const, initial_weights = 0)
         append_transition("ter", "ter")
 
-        # print("trainable")
-        # for index in indices_for_trainable_parameters:
-        #     print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
-        #
-        # print("const")
-        # for index in indicies_for_constant_parameters:
-        #     print(self.state_id_to_str(index[0]),"\t", self.state_id_to_str(index[1]))
 
-
+        # I think i can only set initial weights wiht float32,
         initial_weights_for_consts = np.array(initial_weights_for_consts, dtype = np.float32)
         initial_weights_for_trainable_parameters = np.array(initial_weights_for_trainable_parameters, dtype = np.float32)
-        return indices_for_trainable_parameters, indicies_for_constant_parameters, initial_weights_for_trainable_parameters, initial_weights_for_consts
+
+
+        self.A_indices_for_weights = indices_for_trainable_parameters
+
+        self.A_indices_for_constants = indicies_for_constant_parameters
+        self.A_initial_weights_for_trainable_parameters = initial_weights_for_trainable_parameters
+        self.A_initial_weights_for_constants = initial_weights_for_consts
+        self.A_indices = np.concatenate([self.A_indices_for_weights, self.A_indices_for_constants])
 
     @property
     def A_indices_enter_next_codon(self):
@@ -512,14 +458,14 @@ class CGP_HMM(Model):
         for i in range(self.config.nCodons - 1):
             indices += [[self.str_to_state_id(f"c_{i},2"), self.str_to_state_id(f"i_{i+1},0")]]
         if self.config.inserts_at_intron_borders:
-            indices += [[self.str_to_state_id(f"c_{self.config.nCodons-1},0"), self.str_to_state_id(f"i_{self.insert_high},0")]]
-            indices += [[self.str_to_state_id(f"c_{self.config.nCodons-1},1"), self.str_to_state_id(f"i_{self.insert_high},0")]]
-            indices += [[self.str_to_state_id(f"c_{self.config.nCodons-1},2"), self.str_to_state_id(f"i_{self.insert_high},0")]]
+            indices += [[self.str_to_state_id(f"c_{self.config.nCodons-1},0"), self.str_to_state_id(f"i_{self.config.nCodons},0")]]
+            indices += [[self.str_to_state_id(f"c_{self.config.nCodons-1},1"), self.str_to_state_id(f"i_{self.config.nCodons},0")]]
+            indices += [[self.str_to_state_id(f"c_{self.config.nCodons-1},2"), self.str_to_state_id(f"i_{self.config.nCodons},0")]]
         return indices
     @property
     def A_indices_end_inserts(self):
         indices = []
-        for i in range(self.insert_low, self.config.nCodons):
+        for i in range(1, self.config.nCodons):
             indices += [[self.str_to_state_id(f"i_{i},2"), self.str_to_state_id(f"c_{i},0")]]
          # including last insert -> GT
         if self.config.inserts_at_intron_borders:
@@ -528,7 +474,7 @@ class CGP_HMM(Model):
     @property
     def A_indices_continue_inserts(self):
         indices = []
-        for i in range(self.insert_low, self.insert_high):
+        for i in range(1, self.config.nCodons):
             indices += [[self.str_to_state_id(f"i_{i},2"), self.str_to_state_id(f"i_{i},0")]]
         return indices
 ################################################################################

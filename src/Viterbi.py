@@ -402,8 +402,44 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
         with open(viterbi_as_fasta_path, "w") as viterbi_fa_file:
             SeqIO.write(viterbi_record, viterbi_fa_file, "fasta")
 
+        viterbi_as_gff_path = re.sub(".fasta", ".gff", viterbi_as_fasta_path)
+        with open(viterbi_as_gff_path, "w") as file:
+            start = viterbi_as_fasta.find("AG")
+            end = viterbi_as_fasta.find("GT")
 
-    coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
+            if start != -1 and end != -1:
+                file.write(human_fasta.id)
+                file.write("\t")
+                file.write("viterbi")
+                file.write("\t")
+                file.write("exon")
+                file.write("\t")
+                file.write(str(start + 1))
+                file.write("\t")
+                file.write(str(end + 2))
+                file.write("\t")
+                file.write(".")
+                file.write("\t")
+                file.write("+")
+                file.write("\t")
+                file.write(".")
+                file.write("\t")
+                file.write("ID=exon1;")
+                file.write("\n")
+
+    try:
+        coords = json.loads(re.search("({.*})", human_fasta.description).group(1))
+        coords["seq_start_in_genome_+_strand"]
+        coords["exon_start_in_human_genome_cd_strand"]
+        coords["exon_start_in_human_genome_+_strand"]
+        coords["exon_stop_in_human_genome_+_strand"]
+        coords["exon_stop_in_human_genome_cd_strand"]
+        coords["seq_stop_in_genome_cd_strand"]
+        coords["seq_stop_in_genome_+_strand"]
+    except:
+        print("description of fasta doenst contain the data necessary to build .clw file")
+        return
+
     true_seq, on_reverse_strand, _ = get_true_gene_strucutre_from_fasta_description_as_fasta(coords)
     true_seq_record = SeqRecord(seq = Seq(true_seq), id = "true_seq")
 
@@ -459,10 +495,9 @@ def run_cc_viterbi(config, matr_dir):
     only_first_seq = f"--only_first_seq" if config.only_first_seq else ""
 
     after_or_before = os.path.basename(matr_dir).split("_")[0]
-    assert after_or_before in ["before", "after"], "Viterbi.py. Folder of matrices must begin with either 'before' or 'after'"
+    assert after_or_before in ["before", "after"], "Viterbi.py. Directories of matrices must begin with either 'before' or 'after'"
     out_path = f"--out_path {config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
 
-    if not os.path.exists(config.viterbi_exe):
 
     command = f"{config.viterbi_exe} -j {config.viterbi_threads} {seq_path} {only_first_seq} {out_path} --dir_path_for_para {matr_dir}"
     print("starting", command)
@@ -476,22 +511,20 @@ def main(config):
 
     after_or_before = "after_fit_para" if config.after_or_before == "a" else "before_fit_para"
     matr_dir = f"{config.current_run_dir}/{after_or_before}"
-    # if not os.path.exists(f"{matr_dir}/A.json"):
 
     print("start converting kernels to matrices")
     convert_kernel_files_to_matrices_files(config, matr_dir)
     print("done with converting kernels")
 
     seqs_json_path = f"{config.fasta_path}.json"
-    if not os.path.exists(seqs_json_path) or True:
-        print("fa.json doesnt exist, so it it calculated")
-        from ReadData import read_data_one_hot_with_Ns_spread_str
-        from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
-        seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
-        seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
-        with open(seqs_json_path, "w") as out_file:
-            json.dump(seqs_out, out_file)
-        print("finished calculating fa.json")
+    print("fasta.json is calculated")
+    from ReadData import read_data_one_hot_with_Ns_spread_str
+    from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
+    seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
+    seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
+    with open(seqs_json_path, "w") as out_file:
+        json.dump(seqs_out, out_file)
+    print("finished calculating fasta.json")
 
     after_or_before = os.path.basename(matr_dir).split("_")[0]
     assert after_or_before in ["before", "after"], "Viterbi.py. Folder of matrices must begin with either 'before_' or 'after_'"
@@ -505,10 +538,9 @@ def main(config):
     if not config.in_viterbi_path:
         run_cc_viterbi(config, matr_dir)
 
-        print("before fasta_true_state_seq_and_optional_viterbi_guess_alignment")
         fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, out_viterbi_file_path, config.model, out_dir_path = config.current_run_dir)
-        print("adter fasta_true_state_seq_and_optional_viterbi_guess_alignment")
 
+    os.system(f"rm {seqs_json_path}")
 
 if __name__ == "__main__":
 
