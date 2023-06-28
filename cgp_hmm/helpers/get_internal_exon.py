@@ -527,7 +527,7 @@ def plot(dfs,
     plt.close()
 
     # i want to increase the figure size
-    plt.figure(figsize=(8, 5))
+
     if plot_table:
         assert type(dfs) is not list,"when using plot_table dfs must the original df"
         local_df = dfs

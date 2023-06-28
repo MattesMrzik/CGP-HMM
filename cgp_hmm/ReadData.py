@@ -48,13 +48,48 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
     seqs = []
     base_to_id_dict = dict([(base, id) for id, base in enumerate("ACGTI")])
     def base_to_id(b):
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+        # b = b.upper()
+
+
+
+
+
+
+
+
+
+
+
+
+
         try:
             return base_to_id_dict[b]
         except:
             return 5
 
     with open(config.fasta_path,"r") as handle:
-        if config.only_primates or config.only_max_diverse_set_same_size_as_primates:
+        print(config.only_primates)
+        print(config.only_diverse)
+        print(config.only_human_to_train)
+        if config.only_primates or config.only_diverse:
             with open(config.primates_path, "r") as primates_handle:
                 primates = set()
                 # this file is just a list of ids of primates
@@ -75,12 +110,12 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
                         species_to_use.append(species_name)
             # print("number_of_primats_in_current_fasta", number_of_primats_in_current_fasta)
 
-        if config.only_max_diverse_set_same_size_as_primates:
-            # list all files in a dir whos path is stored in config.only_max_diverse_set_same_size_as_primates
+        if config.only_diverse and config.only_diverse != -1:
+            # list all files in a dir whos path is stored in config.only_diverse
             all_files = []
-            for file in os.listdir(config.only_max_diverse_set_same_size_as_primates):
+            for file in os.listdir(config.only_diverse):
                 if file.endswith(".txt"):
-                    all_files.append(os.path.join(config.only_max_diverse_set_same_size_as_primates, file))
+                    all_files.append(os.path.join(config.only_diverse, file))
             all_files = sorted(all_files)
             for file in all_files:
                 # print("checking file:", file)
@@ -102,13 +137,23 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
 
     with open(config.fasta_path,"r") as handle:
         for record in SeqIO.parse(handle,"fasta"):
-            if config.only_primates or config.only_max_diverse_set_same_size_as_primates:
+            if config.only_primates or config.only_diverse:
                 # print("using species:", species_to_use)
                 species_name = re.search("(\w+?_\w+?)\.", record.id).group(1)
                 # print("species_to_use", species_to_use)
                 # print("species_name", species_name)
                 if species_name not in species_to_use:
                     continue
+
+            if config.only_human_to_train:
+                species_name = re.search("(\w+?_\w+?)\.", record.id).group(1)
+                # print("species_to_use", species_to_use)
+                # print("species_name", species_name)
+                if not re.search("Homo_sap",species_name):
+                    continue
+
+            print("getting a seq")
+
             seq = record.seq
             seq_of_one_hot = []
             last_bases = [4] * config.order # 4 is padded left flank
@@ -142,8 +187,13 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
     assert len(seqs) != 0, "no seqs read"
     print("actual number of species used as input id_3258utnfwe23:", len(seqs))
 
-    if remove_long_seqs_bool:
+    if remove_long_seqs_bool and not config.only_human_to_train:
         seqs = remove_long_seqs(seqs)
+
+    if config.only_human_to_train:
+        seqs.append(seqs[0])
+        print("added human sequence to input")
+        print("len(seqs)", len(seqs))
 
 
     return seqs

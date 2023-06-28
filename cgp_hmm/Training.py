@@ -104,6 +104,7 @@ def make_dataset(config):
         # when mapping
         # Use tf.py_function, which allows you to write arbitrary Python code but will generally result in worse performance than 1). For example:
         # https://www.tensorflow.org/api_docs/python/tf/data/Dataset
+        # seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True, remove_long_seqs_bool=False)
         seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
         config.nSeqs = len(seqs)
 
@@ -179,6 +180,7 @@ def make_dataset(config):
                 return adjusted_batch_size
             adjusted_batch_size = get_adjusted_batch_size(config.nSeqs, config.batch_size)
             print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a batch beeing only a single seq")
+            config.nBatches = config.nSeqs // adjusted_batch_size + 1
             dataset = get_initial_data_set()
             dataset = dataset.shuffle(buffer_size = config.nSeqs, reshuffle_each_iteration = True)
             dataset = dataset.padded_batch(adjusted_batch_size, None, padding_value)
@@ -538,6 +540,8 @@ def fit_model(config):
             config.steps_per_epoch = config.nBatches
             print("setting steps_per_epoch to", config.steps_per_epoch)
 
+        # set this only if steps was not specified by user
+
 
         if num_gpu > 1 and not config.dont_use_mirrored_strategy:
             mirrored_strategy = tf.distribute.MirroredStrategy()
@@ -559,7 +563,7 @@ def fit_model(config):
                 history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
                 append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
         else:
-            if not config.likelihood_influence_growth_factor:
+            if not config.ll_growth_factor:
                 model, cgp_hmm_layer = make_model(config)
                 model.summary()
 
@@ -586,12 +590,12 @@ def fit_model(config):
                 #         if step >= config.steps_per_epoch:
                 #             break
                 #         with
-            if config.likelihood_influence_growth_factor:
+            if config.ll_growth_factor:
                 dir_path = f"{config.current_run_dir}/after_fit_para"
                 if not os.path.exists(dir_path):
                         os.system(f"mkdir -p {dir_path}")
                 for current_epoch in range(config.epochs):
-                    if config.likelihood_influence_growth_factor * (current_epoch + 1) >= 1:
+                    if config.ll_growth_factor * (current_epoch + 1) >= 1:
                         break
                     if current_epoch != 0:
                         config.init_weights_from = dir_path

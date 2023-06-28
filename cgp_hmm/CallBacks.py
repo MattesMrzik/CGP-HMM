@@ -67,7 +67,7 @@ def get_call_backs(config, model):
                     cell.write_weights_to_file(path)
                 except:
                     pass
-                    # print("run of second model when likelihood_influence_growth_factor, write no init weights")
+                    # print("run of second model when ll_growth_factor, write no init weights")
 
                 append_time_ram_stamp_to_file(f"Callbacks.write_initial_para end", config.bench_path, start)
 
@@ -90,7 +90,7 @@ def get_call_backs(config, model):
                     cell.write_weights_to_file(path)
                 except:
                     pass
-                    # print("run of second model when likelihood_influence_growth_factor, write no init weights")
+                    # print("run of second model when ll_growth_factor, write no init weights")
 
                 append_time_ram_stamp_to_file(f"Callbacks.write_best_weights end", config.bench_path, start)
 
@@ -177,7 +177,7 @@ def get_call_backs(config, model):
         def on_epoch_end(self, epoch, logs=None):
             # if still in epoch where not complete influence of likelihood is
             # reached dont do early stopping
-            if config.likelihood_influence_growth_factor * (epoch + 1) < 1:
+            if config.ll_growth_factor * (epoch + 1) < 1:
                 return
             current_value = logs.get(self.monitor)
             if current_value is None:

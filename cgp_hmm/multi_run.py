@@ -76,6 +76,7 @@ def get_cfg_with_args():
     fasta_dir_path = "/home/s-mamrzi/cgp_data/train_data_set/new_train/good_exons_1"
     fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/good_exons_1_new"
 
+    fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/good_exons_2"
     # exons = ["exon_chr1_8364055_8364255", \
     #         "exon_chr1_33625050_33625254"]
 
@@ -84,10 +85,12 @@ def get_cfg_with_args():
     # TODO i need to determine the nCodons that should be used for each fasta,
     # are there other parameters that defend on the sequences?
 
-    cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/missing_human_exon/combined.fasta" for exon in exons]
-    cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/combined.fasta" for exon in exons]
 
+    cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/missing_human_exon/combined.fasta" for exon in exons]
     cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/introns/combined.fasta" for exon in exons]
+
+    cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/combined.fasta" for exon in exons]
+    # revert change remove_long_seqs_bool=False in Training.py
 
     get_exon_len = lambda exon_string: (int(exon_string.split("_")[-1]) - int(exon_string.split("_")[-2]))
     get_exon_codons = lambda exon_string: get_exon_len(exon_string) // 3
@@ -104,9 +107,14 @@ def get_cfg_with_args():
 
     # if i pass more than one parameter to an arg, they have to be non unifrom
 
-    exon_nCodons = [get_exon_codons(exon) for exon in exons]
 
+    exon_nCodons = [get_exon_codons(exon) for exon in exons]
     cfg_with_args["nCodons"] = exon_nCodons
+
+
+    # cfg_with_args["seq_len"] = [i * 1000 for i in range(1, 11)]
+    # cfg_with_args["nCodons"] = [i * 20 for i in range(1, 11)]
+
     cfg_with_args["model_size_factor"] = [0.75, 0.875, 1, 1.125, 1.25]
     cfg_with_args["model_size_factor"] = [1]
 
@@ -116,12 +124,15 @@ def get_cfg_with_args():
     # vielleicht leider die ergebnisse nicht zu sehr darunter
 
 
-    # cfg_with_args["exon_sk    ip_init_weight"] = [-2,-3,-4]
-    # cfg_with_args["learning_rate"] = [0.1, 0.01]
+
+
+
+
+##### danger set good exons 2
 
     cfg_with_args["priorA"] = [10]
     cfg_with_args["priorB"] = [10]
-    # cfg_with_args["likelihood_influence_growth_factor"] = [0.2 ,0]
+    # cfg_with_args["ll_growth_factor"] = [0.2 ,0]
 
     cfg_with_args["akzeptor_pattern_len"] = [5]
     cfg_with_args["donor_pattern_len"] = [5]
@@ -136,22 +147,20 @@ def get_cfg_with_args():
     cfg_with_args["batch_size"] = [16]
     cfg_with_args["step"] = [16]
     cfg_with_args["clip_gradient_by_value"] = [4]
-    # cfg_with_args["exon_skip_init_weight"] = [-2, -4, -10]
-    # cfg_with_args["exon_skip_init_weight_factor"] = [1,5] # 0 is ni skip, 1 is cheaper than 5, 0s cost is infinite so 0 and 0.0001 are very different
-    cfg_with_args["exon_skip_init_weight"] = [0]
-    cfg_with_args["flatten_B_init"] = [0]
+    cfg_with_args["exon_skip_init_weight"] = [-1,2]
     cfg_with_args["cesar_init"] = [1]
     cfg_with_args["optimizer"] = ["Adam"] # SGD didnt work nice with 0.001 learning rate and 1 clip_gradient_by_value
 
     cfg_with_args["logsumexp"] = [1]
 
-    cfg_with_args["dataset_identifier"] = ["../../cgp_data/max_diverse_subtrees"]
-    cfg_with_args["dataset_identifier"] = ["all"]
+    # cfg_with_args["dataset_identifier"] = ["../../cgp_data/max_diverse_subtrees"]
+    # cfg_with_args["dataset_identifier"] = ["all"]
     cfg_with_args["dataset_identifier"] = ["all", "../../cgp_data/primates.lst", "../../cgp_data/max_diverse_subtrees"]
+    cfg_with_args["dataset_identifier"] = ["human"]
 
     cfg_with_args["left_intron_init_weight"] = [4.35] # this is usually 4 but left miss was way more often than right miss in eval data set
 
-    cfg_with_args["manual_delete_insert_init_continue_weights"] = ["\"0.1,-0.3,-1\""]
+    cfg_with_args["manual_delete_insert_init_continue_weights"] = ["\"0.1,-0.2,-1\""]
 
 
     return cfg_with_args
@@ -163,10 +172,25 @@ def get_bind_args_together(cfg_with_args):
     cant bind args without parameter
     '''
     bind_args_together = [set([key]) for key in cfg_with_args.keys()]
+
+
+
+
+
+
+
+
+
     bind_args_together += [{"fasta", "nCodons"}]
+
+
+
+
+
+
     # bind_args_together += [{"exon_skip_init_weight", "nCodons"}]
     # bind_args_together += [{"priorA", "priorB"}]
-    # bind_args_together += [{"priorA", "likelihood_influence_growth_factor"}]
+    # bind_args_together += [{"priorA", "ll_growth_factor"}]
     bind_args_together += [{"akzeptor_pattern_len", "donor_pattern_len"}]
 
     # left and right intron const
@@ -177,13 +201,14 @@ def get_bind_args_together(cfg_with_args):
 
 def get_cfg_without_args():
     cfg_without_args = '''
-    internal_exon_model
     my_initial_guess_for_parameters
     exit_after_loglik_is_nan
     viterbi
     '''
     # bucket_by_seq_len
     # exon_skip_const
+    # dont_strip_flanks
+
 
 
     cfg_without_args = re.split("\s+", cfg_without_args)[1:-1]
@@ -725,12 +750,27 @@ def augustus_stats(train_run_dir):
         return {"augustus_start": -1, "augustus_end": -1}
     # if there are more than one row take the one with the longer CDS
 
+    path_to_hints = f"{fasta_path}/augustus_hints.gff"
+    if os.path.exists(path_to_hints):
+        pd_hints = pd.read_csv(path_to_hints, sep = "\t", header = None)
+
+        pd_hints = pd_hints[pd_hints[2] == "CDSpart"]
+        exon_middle = pd_hints[3] + 1
+
+    number_of_augustus_predictions = len(df)
+
     if len(df) > 1:
-        df["length"] = df["end"] - df["start"]
-        df = df.sort_values(by = "length", ascending = False)
-        df = df.iloc[0,:]
+        df = df[(df["end"]>exon_middle.item()) & (df["start"]< exon_middle.item())]
+
+
+    # if len(df) > 1:
+    #     df["length"] = df["end"] - df["start"]
+    #     df = df.sort_values(by = "length", ascending = False)
+    #     df = df.iloc[0,:]
     # get the start and end of the CDS
-    return {"augustus_start": df["start"].item() -1, "augustus_end": df["end"].item()}
+    return {"augustus_start": df["start"].item() -1, "augustus_end": df["end"].item(), "number_of_augustus_predictions": number_of_augustus_predictions}
+
+################################################################################
 
 def get_dir_from_called_command_log_in_run_dir_to_base_dir_of_fasta(train_run_dir):
     path_to_called_command = f"{train_run_dir}/called_command.log"
@@ -800,6 +840,7 @@ def calc_run_stats(path) -> pd.DataFrame:
                 augustus_dict = augustus_stats(train_run_dir)
                 run_stats["v_start"] = augustus_dict["augustus_start"]
                 run_stats["v_end"] = augustus_dict["augustus_end"]
+                run_stats["number_of_augustus_predictions"] = augustus_dict["number_of_augustus_predictions"]
 
             run_stats["actual_epochs"] = actual_epochs
             run_stats["mbRAM"] = ram_and_time_dict["mbRAM"]
@@ -952,8 +993,6 @@ def add_additional_eval_cols(df, args):
     t4 = df["tn_nt"] / (df["tn_nt"] + df["fn_nt"])
     df["ACP"] = (t1 + t2 + t3 + t4) / 4
 
-    # that cehckts and then assert that all values are true
-    cnew_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["fn_nt_on_exon"])).reset_index(name = "fn_nt")
 
     df["skipped_exon"] = df.apply(lambda x: True if x["v_start"] == -1 and x["v_end"] == -1 else False, axis=1)
     new_col = df.groupby(cols_to_group_by)["skipped_exon"].mean().reset_index(name = "skipped_exon_mean")
@@ -979,7 +1018,37 @@ def add_additional_eval_cols(df, args):
 
     df["time_per_epoch"] = df["fitting_time"]/df["actual_epochs"]
 
-    df["f1"] = 2*df["correct"] / (2- df["skipped_exon"])
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["correct"])).reset_index(name = "sum_correct")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["skipped_exon"])).reset_index(name = "sum_skipped_exon")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
+    # same for sum miss, wrap, incomplete, overlaps
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["miss"])).reset_index(name = "sum_miss")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["wrap"])).reset_index(name = "sum_wrap")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["incomplete"])).reset_index(name = "sum_incomplete")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
+    new_col = df.groupby(cols_to_group_by).apply(lambda x: sum(x["overlaps"])).reset_index(name = "sum_overlaps")
+    df = pd.merge(df, new_col, on = cols_to_group_by, how = "left")
+
+    number_of_exons = df["sum_correct"] + df["sum_skipped_exon"] + df["sum_miss"] + df["sum_wrap"] + df["sum_incomplete"] + df["sum_overlaps"]
+
+    df["f1"] = 2*df["sum_correct"] / (2*(number_of_exons)- df["sum_skipped_exon"])
+
+    # c = df["sum_correct"]
+    # m = df["sum_skipped_exon"]
+    # sn = c
+    # sp = c / (c + (1-m-c))
+    # df["sn"] = sn
+    # df["sp"] = sp
+    # df["f1"] = sn*sp / (sn + sp) *2
+    print(df["f1"])
 
     # MEScore
     # total_number_of_true_exons = get_number_of_total_exons(args)
@@ -1049,7 +1118,7 @@ def eval_viterbi(args):
     _, parameters_with_less_than_one_arg = get_cols_to_group_by(args)
 
     cols_to_group_by, _ = get_cols_to_group_by(args)
-    eval_cols = ["sn_nt", "sp_nt", "f1_nt", "MCC", "ACP", "correct", "true_left", "true_right", "incomplete", "wrap",  "overlaps", "miss", "skipped_exon", "5prime", "3prime", "WEScore"]
+    eval_cols = ["sn_nt", "sp_nt", "f1_nt", "MCC", "ACP", "correct", "true_left", "true_right", "incomplete", "wrap",  "overlaps", "miss", "skipped_exon", "5prime", "3prime", "WEScore", "f1"]
     grouped = df.groupby(cols_to_group_by).mean()[eval_cols].reset_index().sort_values("f1_nt")
 
 
@@ -1302,7 +1371,11 @@ def len_groups(df, nbins = 3, mask = [1,1,1], eval_cols = None, seq_len_bins = 3
     if eval_cols is None:
         eval_cols = ["f1_nt_on_exon", "f1_nt", "f1", "correct", "miss", "true_left", "true_right", "total_time", "mbRAM", "mean_epoch_time"]
 
-    # df = df[(df["after_or_before"]=="after") & (df["dataset_identifier"]=="all")]
+    df = df[(df["after_or_before"]=="after") & (df["dataset_identifier"]=="all") & (df["exon_skip_init_weight"]==-1)]
+
+
+
+
     # df = df[(df["after_or_before"]=="after")]
 
 
@@ -1348,13 +1421,17 @@ def len_groups(df, nbins = 3, mask = [1,1,1], eval_cols = None, seq_len_bins = 3
     len_groups = df.groupby(groupby).mean()[eval_cols].reset_index()
     len_groups_counts = df.groupby(groupby).count()[eval_cols].reset_index()
     f1_nt = len_groups.pivot("human_len_group", "exon_len_group", "f1_nt_on_exon")
-    f1_exon = len_groups.pivot("human_len_group", "exon_len_group", "f1")
-    c = len_groups_counts.pivot("human_len_group", "exon_len_group", "f1") # or f1_nt_on_exon, its the same since the two other args to the method are the same
+    # f1_exon = len_groups.pivot("human_len_group", "exon_len_group", "f1") this is a single value for the entire data set so same across all groups
+    f1_exon = len_groups.pivot("human_len_group", "exon_len_group", "correct")
+    c = len_groups_counts.pivot("human_len_group", "exon_len_group", "f1_nt_on_exon") # or f1_nt_on_exon, its the same since the two other args to the method are the same
 
 
     print(f"pivot table for f1\\\\")
     for i in range(seq_len_bins):
-        print(" & ". join([f"{f1_nt.iloc[i,j]:.3f} & {f1_exon.iloc[i,j]:.3f} & \\multicolumn{{1}}{{c|}}{{{c.iloc[i,j]}}}" for j in range(nbins)]), end = " \\\\ \n")
+        if i > 2:
+            print(" & ". join([f"{f1_nt.iloc[i,j]*100:.1f} & {f1_exon.iloc[i,j]*100:.1f} & \\multicolumn{{1}}{{c|}}{{{c.iloc[i,j]}}}" for j in range(nbins)]), end = " \\\\ \n")
+        else:
+            print(" & ". join([f"{f1_nt.iloc[i,j]:.3f} & {f1_exon.iloc[i,j]:.3f} & \\multicolumn{{1}}{{c|}}{{{c.iloc[i,j]}}}" for j in range(nbins)]), end = " \\\\ \n")
     print()
 
 

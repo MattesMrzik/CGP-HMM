@@ -165,7 +165,6 @@ class Config():
 
 
 ################################################################################
-
     def determine_attributes_that_only_depend_on_args(self, dont_multiply_model_size_factor = False):
 
         self.determine_attributes_that_only_depend_on_args_was_run = True
@@ -173,11 +172,25 @@ class Config():
         if self.dataset_identifier != "all":
             if re.search("primates", self.dataset_identifier):
                 self.only_primates = self.dataset_identifier
+                self.only_human_to_train = False
+                self.only_diverse = False
             elif re.search("max_diverse", self.dataset_identifier):
-                self.only_max_diverse_set_same_size_as_primates = self.dataset_identifier
+                self.only_diverse = self.dataset_identifier
+                self.only_primates  = False
+                self.only_human_to_train = False
+            elif re.search("human", self.dataset_identifier):
+                self.only_human_to_train = self.dataset_identifier
+                self.only_primates = False
+                self.only_diverse = False
             else:
                 print("dataset_identifier not recognized")
                 exit(1)
+        else:
+            self.only_human_to_train = False
+            self.only_primates = False
+            self.only_diverse = False
+
+
 
 
         if self.logsumexp:
@@ -234,19 +247,22 @@ class Config():
         start = time.perf_counter()
         append_time_ram_stamp_to_file(f"Config.get_model() start", self.bench_path, start)
 
-        # import
-        if self.intron_model:
-            from My_Model_with_introns import My_Model
-            self.model = My_Model(self)
-        elif self.internal_exon_model:
-            from My_internal_exon_model import My_Model
-            self.model = My_Model(self)
-        elif self.msa_model:
-            from Felix_hard_coded_model import My_Model
-            self.model = My_Model(self)
-        else:
-            from My_Model import My_Model
-            self.model = My_Model(self)
+        # # import
+        # if self.intron_model:
+        #     from My_Model_with_introns import My_Model
+        #     self.model = My_Model(self)
+        # elif self.internal_exon_model:
+        #     from My_internal_exon_model import My_Model
+        #     self.model = My_Model(self)
+        # elif self.msa_model:
+        #     from Felix_hard_coded_model import My_Model
+        #     self.model = My_Model(self)
+        # else:
+        #     from My_Model import My_Model
+        #     self.model = My_Model(self)
+
+        from My_internal_exon_model import My_Model
+        self.model = My_Model(self)
 
 
         self.model.prepare_model()
@@ -483,7 +499,7 @@ class Config():
         self.parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
         self.parser.add_argument('--use_weights_for_consts', action='store_true', help ="use weights for transitions that become 1 after softmax")
         self.parser.add_argument('--bucket_by_seq_len', action = 'store_true', help = 'bucket seqs by their lengths')
-        self.parser.add_argument('--likelihood_influence_growth_factor', type = float, default = 0, help = 'if 1, likelihood is used as usual, but if for example 0.1. then likelihood in first epoch is scaled by .1 then in second by 0.2 ...')
+        self.parser.add_argument('--ll_growth_factor', type = float, default = 0, help = 'if 1, likelihood is used as usual, but if for example 0.1. then likelihood in first epoch is scaled by .1 then in second by 0.2 ...')
         self.parser.add_argument('--prior_only', action = 'store_true', help = 'use prior and no likelihood')
         self.parser.add_argument('--model_size_factor', type = float, default = 1, help = 'change model size, ie nCodons, by this factor')
         self.parser.add_argument('--dont_shuffle_seqs', action = 'store_true', help = 'dont shuffle seqs')
@@ -492,15 +508,15 @@ class Config():
 
         self.parser.add_argument('--only_primates', type = str, default = None, help = 'only_use_primates')
         self.parser.add_argument('--primates_path', type = str, default = "../../cgp_data/primates.lst", help = 'path to primates used by only max diverse set')
-        self.parser.add_argument('--only_max_diverse_set_same_size_as_primates', type = str, default = None, help = 'only_max_diverse_set_same_size_as_primates and path to dir that contains all trees')
-        self.parser.add_argument('--dataset_identifier', type = str, default = "all", help ='"all", "primates path", "max_diverse_set_same_size_as_primates path"')
+        self.parser.add_argument('--only_diverse', type = str, default = None, help = 'only_max_diverse_set_same_size_as_primates and path to dir that contains all trees')
+        self.parser.add_argument('--dataset_identifier', type = str, default = "all", help ='"all", "primates path", "max_diverse_set_same_size_as_primates path", "human"')
 
 
 
         # what model
-        self.parser.add_argument('--intron_model', action='store_true', help = 'use my model that includes introns')
+        # self.parser.add_argument('--intron_model', action='store_true', help = 'use my model that includes introns')
 
-        self.parser.add_argument('--msa_model', action = "store_true", help = "use a hard coded felix msa model with nucleodite emission to check if i can produce NaN, bc felix doesnt get NaN even for long seqs")
+        # self.parser.add_argument('--msa_model', action = "store_true", help = "use a hard coded felix msa model with nucleodite emission to check if i can produce NaN, bc felix doesnt get NaN even for long seqs")
 
         self.parser.add_argument('--internal_exon_model', action = 'store_true', help = 'finde ein exon welches von zwei introns begrenzt ist')
         self.parser.add_argument('--inserts_at_intron_borders', action = 'store_true', help = 'inserts can come right after and before intron')
@@ -548,7 +564,6 @@ class Config():
         self.parser.add_argument('--left_intron_init_weight', type = float, default = 4, help = 'weight for left -> left, the para for leaving left is 0')
         self.parser.add_argument('--right_intron_init_weight', type = float, default = 4, help = 'weight for right -> right, the para for leaving right is 0')
         self.parser.add_argument('--exon_skip_init_weight', type = float, default = -2, help = 'initparameter for exon strip')
-        self.parser.add_argument('--exon_skip_init_weight_factor', type = float, default = 0, help = 'initparameter for exon strip')
         self.parser.add_argument('--flatten_B_init', type = float, default = 0, help = 'flatten the init parameters of B, ie priorB *C + uniform * (1-c)')
         self.parser.add_argument('--cesar_init', type = int, default = 0, help = 'try to use weights from cesar')
 

@@ -49,7 +49,7 @@ def main(config):
 
     # for i in range(config.epochs-1):
     #     try:
-    #         model.get_layer(f"cgp_hmm_layer{'_' + str(i) if config.likelihood_influence_growth_factor else ''}").C.write_weights_to_file(path)
+    #         model.get_layer(f"cgp_hmm_layer{'_' + str(i) if config.ll_growth_factor else ''}").C.write_weights_to_file(path)
     #         break
     #     except:
     #         pass

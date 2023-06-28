@@ -177,9 +177,9 @@ class CgpHmmLayer(tf.keras.layers.Layer):
             if not self.config.prior_only:
                 self.add_metric(loglik_mean, "loglik_mean")
                 # normed likelihood by batchsize
-                if self.config.likelihood_influence_growth_factor and self.config.likelihood_influence_growth_factor != 1:
+                if self.config.ll_growth_factor and self.config.ll_growth_factor != 1:
                     self.add_metric(self.current_epoch, "self.current_epoch")
-                    loglik_mean = loglik_mean * min(1, self.config.likelihood_influence_growth_factor * self.current_epoch)
+                    loglik_mean = loglik_mean * min(1, self.config.ll_growth_factor * self.current_epoch)
                     self.add_metric(loglik_mean, "scaled_loglik_mean")
                 loss = - loglik_mean
             else:
