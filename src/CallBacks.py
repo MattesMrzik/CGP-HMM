@@ -82,7 +82,7 @@ def get_call_backs(config, model):
                 cell = model.get_layer("cgp_hmm_layer").C
 
                 # json format dense matrices
-                config.model.I_as_dense_to_json_file(f"{path}/I.json", cell.I_kernel)
+                config.model.I_as_dense_to_json_file(f"{path}/I.json")
                 config.model.A_as_dense_to_json_file(f"{path}/A.json", cell.A_kernel)
                 config.model.B_as_dense_to_json_file(f"{path}/B.json", cell.B_kernel)
 

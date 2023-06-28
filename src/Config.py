@@ -517,7 +517,7 @@ class Config():
         self.parser.add_argument('-n', '--exit_after_loglik_is_nan', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
         self.parser.add_argument('--manual_training_loop', action='store_true', help ="manual_training_loop")
         self.parser.add_argument('--check_assert', action='store_true', help ="check_assert")
-        self.parser.add_argument('--run_eagerly', action='store_true', help ='run model.fit in eager execution')
+        self.parser.add_argument('--eager_execution', action='store_true', help ='run model.fit in eager execution')
         self.parser.add_argument('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
         self.parser.add_argument('--init_weights_from', help = 'dir that contain I/A/B_kernel.json')
         self.parser.add_argument('--no_deletes', action='store_true', help = 'the delete transitions in A are removed')

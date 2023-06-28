@@ -441,7 +441,7 @@ def fit_model(config):
                 start = time.perf_counter()
                 run_id = randint(0,100)
                 append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
-                model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
+                model.compile(optimizer = optimizer, run_eagerly = config.eager_execution)
                 append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
 
                 # fit model
@@ -459,7 +459,7 @@ def fit_model(config):
                 start = time.perf_counter()
                 run_id = randint(0,100)
                 append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
-                model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
+                model.compile(optimizer = optimizer, run_eagerly = config.eager_execution)
                 append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
 
                 # fit model
@@ -495,7 +495,7 @@ def fit_model(config):
                     start = time.perf_counter()
                     run_id = randint(0,100)
                     append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
-                    model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
+                    model.compile(optimizer = optimizer, run_eagerly = config.eager_execution)
                     append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
 
                     # fit model
@@ -516,7 +516,7 @@ def fit_model(config):
                 start = time.perf_counter()
                 run_id = randint(0,100)
                 append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
-                model.compile(optimizer = optimizer, run_eagerly = config.run_eagerly)
+                model.compile(optimizer = optimizer, run_eagerly = config.eager_execution)
                 append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
 
                 # fit model

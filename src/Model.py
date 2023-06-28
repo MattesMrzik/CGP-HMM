@@ -20,20 +20,14 @@ class Model(ABC):
 
     # kernel sizes
     @abstractmethod
-    def I_kernel_size(self):
-        pass
-
     def A_kernel_size(self):
         pass
 
+    @abstractmethod
     def B_kernel_size(self):
         pass
 
     # matrices
-    @abstractmethod
-    def I(self, weights):
-        pass
-
     @abstractmethod
     def A(self, weights):
         pass
@@ -64,9 +58,6 @@ class Model(ABC):
     def emission_id_to_str():
         pass
 
-    @abstractmethod
-    def str_to_emission_id():
-        pass
 
     def write_model(self):
         pass
@@ -87,17 +78,6 @@ class Model(ABC):
             B = self.B(B_weights) if self.B_is_dense else tf.sparse.to_dense(self.B(B_weights))
 
         return A, B
-
-    # def get_most_likely_emission_seq_from_B(self, A_weights, B_weights, A, B):
-    #     '''starting in initial state. what base has highest emission prob
-    #     fix this base and look in next state, what base has highest emisson prob
-    #     given the fixed base. repeat and return the base seq'''
-
-    #     result = ""
-
-    #     A, B = self.get_dense_A_and_B(A_weights, B_weights, A, B)
-
-    #     for state_id in range(self.number_of_emissions):
 
 
 

@@ -60,14 +60,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
             A_initializer="random_normal"
             B_initializer="random_normal"
 
-        # this will cause
-        # WARNING:tensorflow:Gradients do not exist for variables ['cgp_hmm_layer/cgp_hmm_cell/I_kernel:0'] when minimizing the loss. If you're using `model.compile()`, did you forget to provide a `loss` argument?
-        # Since the current kernel only allows the model to start in the upstream intron
-        # since this might be changed in the future, we keep this here
-        self.I_kernel = self.add_weight(shape = (self.config.model.I_kernel_size(),),
-                                        initializer = I_initializer,
-                                        dtype = self.config.dtype,
-                                        trainable = True, name = "I_kernel")
 
         self.A_kernel = self.add_weight(shape = (self.config.model.A_kernel_size(),),
                                         initializer = A_initializer,
@@ -88,7 +80,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
 ################################################################################
     @property
     def I(self):
-        return self.config.model.I(self.I_kernel)
+        return self.config.model.I()
 
     @property
     def A(self):
@@ -271,7 +263,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(alpha)), [alpha], name = "E_finite", summarize = self.config.assert_summarize)
 ################################################################################
     def write_weights_to_file(self, path): # is this sufficient to get reproducable behaviour?
-        ik = [float(x) for x in self.I_kernel.numpy()]
+        ik = []
         ak = [float(x) for x in self.A_kernel.numpy()]
         bk = [float(x) for x in self.B_kernel.numpy()]
 
