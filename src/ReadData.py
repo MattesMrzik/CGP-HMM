@@ -15,7 +15,7 @@ def convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs) -> list[list[float]
 
 def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False) -> list[list[str]]:
     '''
-    bc i can only pad batches with scalar i have multi hot encoded strings for every base A,C,G,T,N,a,c,g,t
+    bc i can only pad batches with scalar, i have multi hot encoded strings for every base
     and pad with str that encodes terminal emission
     then i can convert these a string corresponding to a base to its multi hot encoded version
     '''
@@ -52,27 +52,24 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
                         species_to_use.append(species_name)
             # print("number_of_primats_in_current_fasta", number_of_primats_in_current_fasta)
 
-        if config.only_diverse and config.only_diverse != -1:
+        if config.only_diverse and config.only_diverse:
             # list all files in a dir whos path is stored in config.only_diverse
             all_files = []
-            for file in os.listdir(config.only_diverse):
+            for file in os.listdir(config.diverse_trees_path):
                 if file.endswith(".txt"):
-                    all_files.append(os.path.join(config.only_diverse, file))
+                    all_files.append(os.path.join(config.diverse_trees_path, file))
             all_files = sorted(all_files)
+            print(all_files)
             for file in all_files:
-                # print("checking file:", file)
                 species_in_file = set()
                 with open(file, "r") as file_handle:
                     for line in file_handle:
                         species_in_file.add(line.strip())
                 # find the size of the overlap of the set species_in_combinded_fasta and species_in_file
                 overlap = species_in_combinded_fasta.intersection(species_in_file)
-                # print("species_in_combinded_fasta", species_in_combinded_fasta)
-                # print("species_in_file", species_in_file)
+                print("species_in_combinded_fasta", len(species_in_combinded_fasta))
+                print("species_in_file", len(species_in_file))
                 if len(overlap) == number_of_primats_in_current_fasta:
-                    # print("found file with same size as primates")
-
-                    # TODO i have to add human sqeuence to the input
                     overlap.add("Homo_sapiens")
                     species_to_use = list(overlap)
                     break
@@ -87,7 +84,7 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
                 if species_name not in species_to_use:
                     continue
 
-            if config.only_human_to_train:
+            if config.only_human:
                 species_name = re.search("(\w+?_\w+?)\.", record.id).group(1)
                 # print("species_to_use", species_to_use)
                 # print("species_name", species_name)
@@ -97,7 +94,7 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
 
             seq = record.seq
             seq_of_one_hot = []
-            last_bases = [4] * config.order # 4 is padded left flank
+            last_bases = [4] * config.order # 4 is padded left flank by place holder symbol
             for i, base in enumerate(seq):
                 t = (last_bases + [base_to_id(base)])
                 matching_ids = [] # t might contain N, so more that one id match to this tuple
@@ -128,7 +125,7 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
     assert len(seqs) != 0, "no seqs read"
     print("actual number of species used as input:", len(seqs))
 
-    if config.only_human_to_train:
+    if config.only_human:
         seqs.append(seqs[0])
         print("added human sequence to input")
         print("len(seqs)", len(seqs))

@@ -6,11 +6,12 @@ import os
 import numpy as np
 
 
-def get_dir_path_from_fasta_nCodons_and_out_path(out_path, nCodons, fasta_path = None) -> str:
-    random_id = "".join(np.random.choice(list("qwertzuioplkjhgfdsayxcvbm0123456789"), size=4))
-    if fasta_path == None or fasta_path == -1:
-        return os.path.join(out_path, f"{get_date_str()}_{random_id}_generated_{nCodons}")
-    return os.path.join(out_path,f"{get_date_str()}_{random_id}_{get_exon_from_fasta_path(fasta_path)}_{nCodons}")
+
+def get_exon_from_fasta_path(fasta_path) -> str:
+    try:
+        return re.search("exon_(.+?_\d+_\d+)", fasta_path).group(1)
+    except:
+        return "no-exon-name-found"
 
 def get_date_str() -> str:
     from datetime import datetime
@@ -18,11 +19,11 @@ def get_date_str() -> str:
     date_string = now.strftime("%Y-%m-%d_%H-%M")
     return date_string
 
-def get_exon_from_fasta_path(fasta_path) -> str:
-    try:
-        return re.search("exon_(.+?_\d+_\d+)", fasta_path).group(1)
-    except:
-        return "no-exon-name-found"
+def get_dir_path_from_fasta_nCodons_and_out_path(out_path, nCodons, fasta_path = None) -> str:
+    random_id = "".join(np.random.choice(list("qwertzuioplkjhgfdsayxcvbm0123456789"), size=4))
+    if fasta_path == None or fasta_path == -1:
+        return os.path.join(out_path, f"{get_date_str()}_{random_id}_generated_{nCodons}")
+    return os.path.join(out_path,f"{get_date_str()}_{random_id}_{get_exon_from_fasta_path(fasta_path)}_{nCodons}")
 
 
 class Config():
@@ -31,13 +32,14 @@ class Config():
         self.args = {}
         self.det_args = {}
 
+
     def init_for_matrix_diff(self):
         self.get_args_for_add_str_to_matrices()
         self.add_args_from_parser()
 
         self.load_training_args()
         self.set_current_run_dir(use_existing = True) # from viterbi.args
-        self.determine_attributes_that_only_depend_on_args()
+        self.determine_attributes_that_only_depend_on_args(dont_multiply_model_size_factor = True)
 
         self.get_model(only_prepare = True)
 
@@ -47,8 +49,7 @@ class Config():
 
         self.load_training_args()
         self.set_current_run_dir(use_existing = True) # from viterbi.args
-        self.determine_attributes_that_only_depend_on_args()
-        # self.asserts()
+        self.determine_attributes_that_only_depend_on_args(dont_multiply_model_size_factor = True)
 
         self.get_model()
 
@@ -57,9 +58,8 @@ class Config():
         self.add_args_from_parser()
 
         self.load_training_args()
-        self.set_current_run_dir(use_existing = True) # from viterbi.args
-        self.determine_attributes_that_only_depend_on_args()
-        # self.asserts()
+        self.set_current_run_dir(use_existing = True)
+        self.determine_attributes_that_only_depend_on_args(dont_multiply_model_size_factor = True)
 
         self.get_model(only_prepare = True)
 
@@ -68,8 +68,8 @@ class Config():
         self.add_args_from_parser()
 
         self.load_training_args()
-        self.set_current_run_dir(use_existing = True) # from viterbi.args
-        self.determine_attributes_that_only_depend_on_args()
+        self.set_current_run_dir(use_existing = True)
+        self.determine_attributes_that_only_depend_on_args(dont_multiply_model_size_factor = True)
         self.asserts()
 
         self.get_model()
@@ -79,11 +79,10 @@ class Config():
         self.add_args_from_parser()
 
         self.load_training_args()
-        self.set_current_run_dir(use_existing = True) # from viterbi.args
+        self.set_current_run_dir(use_existing = True)
         self.determine_attributes_that_only_depend_on_args(dont_multiply_model_size_factor = True)
 
         self.asserts()
-
         self.get_model()
 
 
@@ -106,41 +105,17 @@ class Config():
         parsed_args = self.parser.parse_args()
         self.args = parsed_args.__dict__
 
-    def load_training_args(self): # this is only when Viterbi is run on its own
-        '''load most recent run dir if no viterbi in path is specified'''
-
-        # print("self.parent_input_dir", self.parent_input_dir)
-        # print("self.path_to_dir_where_most_recent_dir_is_selected", self.path_to_dir_where_most_recent_dir_is_selected)
-
-        assert self.parent_input_dir or self.path_to_dir_where_most_recent_dir_is_selected, "if run viterbi, args are loaded from file, so path must be specified"
-
-        if self.parent_input_dir is None:
-            print("parent_input_dir was not passed so try to get the most recent dir")
-            # parent_input_dir was not set, so try to retrieve the most recent output dir
-            p = self.path_to_dir_where_most_recent_dir_is_selected
-            regex = r"(\d{4}-\d{2}-\d{2}_\d{2}-\d{2})"
-            subdirs = [os.path.join(p, subdir) for subdir in os.listdir(p) if (os.path.isdir(os.path.join(p, subdir)) and re.search(regex, subdir))]
-            print("selecting most recent run dir from:", subdirs)
-            # Define a regular expression to match the date and time in the directory name
-            # Sort the subdirectories by their datetime
-            sorted_subdirs = sorted(subdirs, key=lambda subdir: re.search(regex, subdir).group(1), reverse=True)
-            # Get the path to the most recent subdirectory
-            most_recent_subdir = sorted_subdirs[0]
-            print("most_recent_subdir", most_recent_subdir)
-            self.parent_input_dir = most_recent_subdir
-
+    def load_training_args(self):
         args_json_path = f"{self.parent_input_dir}/passed_args.json"
         with open(args_json_path, "r") as file:
             loaded_training_args = json.load(file)
-        # print("loaded_training_args", loaded_training_args)
         for key, value in loaded_training_args.items():
-            if key not in self.args: # loading args only if viterbi.py is run, so i dont want to overwrite viterbi args passed to it with the values from main_programm.cfg
+            if key not in self.args:
                 self.args[key] = value
 
 ################################################################################
     def get_current_run_dir(self, use_existing = False) -> str:
-        if use_existing: # if args are loaded
-            # the rhs needs to be called the same in the different modules that use use_existing = True
+        if use_existing:
             return self.parent_input_dir
 
         if self.passed_current_run_dir: # if main is called from multi_run
@@ -150,50 +125,18 @@ class Config():
 
 
     def set_current_run_dir(self, use_existing = False):
-        ''' shou be run before determine_attributes_that_only_depend_on_args'''
+        # should be run before determine_attributes_that_only_depend_on_args
         self.det_args["current_run_dir"] = self.get_current_run_dir(use_existing)
-
 ################################################################################
     def determine_attributes_that_only_depend_on_args(self, dont_multiply_model_size_factor = False):
-
-        self.determine_attributes_that_only_depend_on_args_was_run = True
-
-        if self.dataset_identifier != "all":
-            if re.search("primates", self.dataset_identifier):
-                self.only_primates = self.dataset_identifier
-                self.only_human_to_train = False
-                self.only_diverse = False
-            elif re.search("max_diverse", self.dataset_identifier):
-                self.only_diverse = self.dataset_identifier
-                self.only_primates  = False
-                self.only_human_to_train = False
-            elif re.search("human", self.dataset_identifier):
-                self.only_human_to_train = self.dataset_identifier
-                self.only_primates = False
-                self.only_diverse = False
-            else:
-                print("dataset_identifier not recognized")
-                exit(1)
-        else:
-            self.only_human_to_train = False
-            self.only_primates = False
-            self.only_diverse = False
-
-
-
         if not dont_multiply_model_size_factor:
             self.args["nCodons"] = int(self.nCodons * self.model_size_factor)
 
         self.det_args["alphabet_size"] = 4
+        self.det_args["order"] = 2
         self.det_args["write_return_sequnces"] = False
 
         self.det_args["bench_path"] = f"{self.current_run_dir}/bench.log"
-        if not self.fasta_path:
-            self.det_args["manual_passed_fasta"] = False
-            self.det_args["fasta_path"] = f"{self.current_run_dir}/seqs.fa"
-        else:
-            self.det_args["manual_passed_fasta"] = True
-            self.det_args["generate_new_seqs"] = False
 
         self.det_args["dtype"] = np.float64 if self.dtype64 else np.float32
         self.det_args["learning_rate"] = self.learning_rate if not self.no_learning else 0
@@ -209,12 +152,8 @@ class Config():
             self.det_args["l_epsilon"] = self.global_log_epsilon
             self.det_args["log_prior_epsilon"] = self.global_log_epsilon
 
-
-
 ################################################################################
 ################################################################################
-################################################################################
-
     def get_model(self, only_prepare = False) -> None:
         from Utility import append_time_ram_stamp_to_file
         # split into prepare model and build
@@ -229,30 +168,20 @@ class Config():
             self.model.make_model()
 
         append_time_ram_stamp_to_file(f"Config.get_model() end", self.bench_path, start)
-
-
-################################################################################
 ################################################################################
 ################################################################################
     def write_passed_args_to_file(self, dir_path = None):
 
-        # this is because nCodons is changed by two args and the modified one should be wirtten to the file
         try:
             assert self.determine_attributes_that_only_depend_on_args_was_run, "determine_attributes_that_only_depend_on_args_was_not_run_before_write_args_to_file"
         except:
             print("determine_attributes_that_only_depend_on_args_was_not_run_before_write_args_to_file")
 
-        # TODO: auch viterbi args to file, wenn nicht im main gecalled?
         if dir_path is None:
             dir_path = self.current_run_dir
         if not os.path.exists(dir_path):
             os.system(f"mkdir -p {dir_path}")
 
-        # common_keys = set(self.args.keys()) & set(self.det_args.keys())
-        # # assert len(common_keys) == 0, f"merging args and det args failed, bc keys had intersection: {common_keys}"
-        # print(f"merging args and det args keys had intersection: {common_keys}")
-        # att = {**self.args, **self.det_args} # if key occured in both, the value from the second dir is used
-        # att = dict(sorted(att.items()))
         out_path = f"{dir_path}/passed_args.json"
         print("writing cfg to file:", out_path)
         with open(out_path, "w") as file:
@@ -260,7 +189,7 @@ class Config():
 
 
     def __getattr__(self, name):
-        '''det_args have higher priority'''
+        # det_args have higher priority
         try:
             return self.det_args[name]
         except:
@@ -282,16 +211,6 @@ class Config():
             print(key, value)
 
         print("==============> printing args done <===========================")
-
-    # def get_args_as_str(self, for_what): # for_what \in {"small_bench", "main_programm"}
-    #     s = ""
-    #     for key in self.manuall_arg_lists[for_what]:
-    #         value = self.__dict__[key[0]] if key[0] in self.__dict__ else self.parsed_args.__dict__[key[0]]
-    #         if type(value) == bool:
-    #             s += key[1] + key[0] + " " if value else ""
-    #         else:
-    #             s += key[1] + key[0]  + " " + str(value) + " " if value != None else ""
-    #     return(s)
 
 ################################################################################
 ################################################################################
@@ -369,11 +288,7 @@ class Config():
             print("fasta_path is a dir, but should be a fasta file")
             exit(1)
 
-        if self.check_for_zeros:
-            assert self.batch_begin_write_weights__layer_call_write_inputs, "if check_for_zeros also pass --batch"
 
-        if self.manual_training_loop:
-            assert self.batch_size == 32, "if you pass manual_training_loop, then batch_size must be 32 (=default)"
         assert self.batch_size > 0, "batch_size must be greater than 0"
         assert self.AB in ["dd", "ds", "sd", "ss"], "-AB must be in ['dd', 'ds', 'sd', 'ss']"
 
@@ -381,13 +296,9 @@ class Config():
         if self.manual_forward:
             assert self.AB == "dd", "manula forward only works with dense matrices, so pass -AB dd"
 
-
-        if (self.priorA or self.priorB) and self.internal_exon_model:
+        if (self.priorA or self.priorB):
             assert self.nCodons > 1, "when using prior and internal model you must use more than 1 codon since for 1 codon there are no priors for the transition matrix"
-            assert self.internal_exon_model, "if passing prior you must use internal_exon_model"
 
-        if self.calc_parameter_diff == True: # not simply just if bool: bc it can be -1
-            assert self.write_matrices_after_fit, "if calc_parameter_diff you must pass write_matrices_after_fit"
 
         assert self.flatten_B_init >= 0 and self.flatten_B_init <= 1, f"self.flatten_B_init must be in [0,1] but is {self.flatten_B_init}"
 
@@ -398,76 +309,58 @@ class Config():
     def get_args_for_training(self):
         self.parser = argparse.ArgumentParser(description='Config module description')
 
-        self.parser.add_argument('-c', '--nCodons', type = int, default = 1, help='number of codons')
-        self.parser.add_argument('-AB', default = 'sd', help = '[sd (default), ds, sd, ss] specify the sparse or denseness of A and B')
-        self.parser.add_argument('--order', type = int, default = 2, help = '[order] many preceeding emissions before the current one')
+        self.parser.add_argument('-c', '--nCodons', type = int, default = 2, help='Model size n, ie number of codons.')
+        self.parser.add_argument('-AB', default = 'sd', help = '[sd (default), ds, sd, ss] specify the sparse or denseness of A and B.')
 
-
-        self.parser.add_argument('--fasta_path', required=1, help = 'path to fasta file where the traning seqs are')
-        self.parser.add_argument('--out_path', default = "../../cgp_output", help='path to paranet output dir')
-        self.parser.add_argument('--passed_current_run_dir', help='path to current run dir, if not passed one is generated')
-        self.parser.add_argument('--primates_path', type = str, default = "../../data/phylogenetic_data/primates.lst", help = 'path to primates used by only max diverse set')
-        self.parser.add_argument('--viterbi_exe', default = '../viterbi_cc/Viterbi', help = 'path to c++ Viterbi exe')
+        self.parser.add_argument('--fasta_path', required=1, help = 'Path to fasta file where the training seqs are')
+        self.parser.add_argument('--out_path', default = "../../cgp_output", help='Path to otput dir')
+        self.parser.add_argument('--passed_current_run_dir', help='If nothing is passed, then on is generated.')
+        self.parser.add_argument('--primates_path', type = str, default = "../../data/phylogenetic_data/primates.lst", help = 'Path to primates.list.')
+        self.parser.add_argument('--viterbi_exe', default = '../viterbi_cc/Viterbi', help = 'Path to c++ Viterbi executable.')
+        self.parser.add_argument('--prior_path', default = "../data/human_priors/", help = 'Path to the directory containing exon and intron.pbl.')
+        self.parser.add_argument('--diverse_trees_path', default = "../../data/phylogenetic_data/max_diverse_subtrees", help = 'Path to directory containin the files that contain the leaves of diverse species.')
 
         # learning
         self.parser.add_argument('--optimizer', default = "Adam", help = 'Adam, SGD [Adam]')
-        self.parser.add_argument('--epochs', default = 2, type = int, help = 'how many epochs [2]')
-        self.parser.add_argument('--steps_per_epoch', default = 4, type = int, help = 'how many steps (i think batches) per epoch [4] (bc #seqs=100 batch_size=32 -> every seq is used)')
-        self.parser.add_argument('-d', '--dtype64', action='store_true', help='using dytpe float64')
-        self.parser.add_argument('--batch_size', type = int, default = 32, help = 'the batch_size, default si 32')
-        self.parser.add_argument('--no_learning', help ="learning_rate is set to 0", action='store_true')
-        self.parser.add_argument('--learning_rate', help ="learning_rate", type = float, default = 0.05)
-        self.parser.add_argument('--clip_gradient_by_value', help ="clip_gradient_by_values", type = float)
-        self.parser.add_argument('--bucket_by_seq_len', action = 'store_true', help = 'bucket seqs by their lengths')
-        self.parser.add_argument('--ll_growth_factor', type = float, default = 0, help = 'if 1, likelihood is used as usual, but if for example 0.1. then likelihood in first epoch is scaled by .1 then in second by 0.2 ...')
-        self.parser.add_argument('--prior_only', action = 'store_true', help = 'use prior and no likelihood')
-        self.parser.add_argument('--model_size_factor', type = float, default = 1, help = 'change model size, ie nCodons, by this factor')
-        self.parser.add_argument('--dont_shuffle_seqs', action = 'store_true', help = 'dont shuffle seqs')
-        # self.parser.add_argument('--mask', action = 'store_true', help = 'mask the input for layer')
+        self.parser.add_argument('--epochs', default = 2, type = int, help = 'How many epochs [2]')
+        self.parser.add_argument('--steps_per_epoch', default = 0, type = int, help = 'If zero, the number of steps is set such that all sequences are seen once per epoch.')
+        self.parser.add_argument('-d', '--dtype64', action='store_true', help='Switch to using dytpe float64')
+        self.parser.add_argument('--batch_size', type = int, default = 16, help = 'Batch size [16]')
+        self.parser.add_argument('--no_learning', action='store_true', help ="Learning rate is set to 0")
+        self.parser.add_argument('--learning_rate', type = float, default = 0.05, help ="Learning rate [0.05]")
+        self.parser.add_argument('--clip_gradient_by_value', type = float, help ="Clip gradient by value [0]")
+        self.parser.add_argument('--bucket_by_seq_len', action = 'store_true', help = 'Bucket seqs by their lengths.')
+        self.parser.add_argument('--ll_growth_factor', type = float, default = 0, help = 'If 1, likelihood is used as usual, but if for example 0.1. then likelihood in first epoch is scaled by .1 then in second by 0.2 ... until 1.0')
+        self.parser.add_argument('--model_size_factor', type = float, default = 1, help = 'Change model length by this factor.')
+        self.parser.add_argument('--dont_shuffle_seqs', action = 'store_true', help = 'Dont shuffle sequences before creating batches')
+        self.parser.add_argument('--global_log_epsilon', type = float, default = 1e-20, help = 'Sets all epsilon values that are used in the Farward algorithm to this to this value [1e-20]')
+        self.parser.add_argument('--log_prior_epsilon', type = float, default = 0, help = 'epsilon for prior calculation with log [0]')
+        self.parser.add_argument('--l_epsilon', type = float, default = 0, help = 'epsilon for the likelihod calculation with log [0]')
+        self.parser.add_argument('--R_epsilon', type = float, default = 0, help = 'epsilon for R calculation with log [0]')
+        self.parser.add_argument('--E_epsilon', type = float, default = 0, help = 'epsilon for E calculation with log [0]')
 
-        self.parser.add_argument('--only_primates', type = str, default = None, help = 'only_use_primates')
-        self.parser.add_argument('--only_diverse', type = str, default = None, help = 'only_max_diverse_set_same_size_as_primates and path to dir that contains all trees')
-        self.parser.add_argument('--dataset_identifier', type = str, default = "all", help ='"all", "primates path", "max_diverse_set_same_size_as_primates path", "human"')
+        self.parser.add_argument('--only_primates', action = "store_true", help = 'only use primates to train')
+        self.parser.add_argument('--only_human', action = "store_true", help = 'only use human to train')
+        self.parser.add_argument('--only_diverse', action = "store_true", help = 'only use max_diverse_set_same_size_as_primates to train')
 
-        # what model
-        # self.parser.add_argument('--intron_model', action='store_true', help = 'use my model that includes introns')
-
-        # self.parser.add_argument('--msa_model', action = "store_true", help = "use a hard coded felix msa model with nucleodite emission to check if i can produce NaN, bc felix doesnt get NaN even for long seqs")
-
-        self.parser.add_argument('--inserts_at_intron_borders', action = 'store_true', help = 'inserts can come right after and before intron')
+        # model
         self.parser.add_argument('--akzeptor_pattern_len', type = int, default = 5, help = 'akzeptor_pattern_len before AG')
         self.parser.add_argument('--donor_pattern_len', type = int, default = 5, help = 'donor_pattern_len after GT')
 
-        # self.parser.add_argument('--left_intron_const', action = 'store_true', help = 'uses const transition left_intron loop')
-        # self.parser.add_argument('--right_intron_const', action = 'store_true', help = 'uses const transition right_intron loop')
-
         self.parser.add_argument('--left_intron_const', type = int, default = 0, help = 'uses const transition left_intron loop')
         self.parser.add_argument('--right_intron_const', type = int, default = 0, help = 'uses const transition right_intron loop')
-
-        self.parser.add_argument('--deletes_after_intron_to_codon', action = 'store_true', help = 'light green: deletes_after_intron_to_codon')
-        self.parser.add_argument('--deletes_after_codon_to_intron', action = 'store_true', help = 'dark green: deletes_after_codon_to_intron')
-        self.parser.add_argument('--deletes_after_insert_to_codon', action = 'store_true', help = 'red: deletes_after_insert_to_codon')
-        self.parser.add_argument('--deletes_after_codon_to_insert', action = 'store_true', help = 'pink: deletes_after_codon_to_insert')
-        self.parser.add_argument('--pattern_length_before_intron_loop', type = int, default = 2, help = 'number of states before intron loop')
-        self.parser.add_argument('--pattern_length_after_intron_loop', type = int, default = 2, help = 'number of states after intron loop')
-        self.parser.add_argument('--deletions_and_insertions_not_only_between_codons', action = 'store_true', help = 'deletions_and_insertions_not_only_between_codons. ie not after insertion or intron')
         self.parser.add_argument('--exon_skip_const', action = 'store_true', help = 'transition from left intron to rigth intron is not learend')
         # prior
         self.parser.add_argument('--priorB', type = float, default = 0, help = 'use prior for B and scale the alphas')
         self.parser.add_argument('--priorA', type = float, default = 0, help = 'use prior for A and scale the alphas')
-        self.parser.add_argument('--prior_path', default = "../data/human_priors/", help = ' path to the dir containing exon and intron .pbl')
 
         self.parser.add_argument('--ass_start', type = int, default = 7, help = 'len of prior pattern before AG ASS splice site')
         self.parser.add_argument('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
         self.parser.add_argument('--dss_start', type = int, default = 1, help = 'len of prior pattern before GT DSS splice site')
         self.parser.add_argument('--dss_end', type = int, default = 5, help = 'len of prior pattern after GT DSS splice site')
 
-        self.parser.add_argument('--log_prior_epsilon', type = float, default = 0, help = '[0] log_prior = tf.math.log(B(B_kernel) + prior_log_epsilon)')
-
-        self.parser.add_argument('--manual_delete_insert_init_continue_weights', default = 0, help = "passe 3 floats, the first for delete, second for insert init and third for continue insert")
-
         # prior and initial weights
-        self.parser.add_argument('--use_thesis_weights', action='store_true', help = 'init A weights with my initial guess and B with priors')
+        self.parser.add_argument('--use_thesis_weights', type = bool, default = True, help = 'init A weights with my initial guess and B with priors')
         self.parser.add_argument('--single_high_prob_kernel', type = float, default = 3, help = 'if my_initial_guess_for_parameters, this value is for high prob transitions, all other transitions get kernel weight 1')
         self.parser.add_argument('--diminishing_factor', type = float, default = 4, help = 'deletes get initialized with [[-(to_codon - from_codon)/config.diminishing_factor]]')
         self.parser.add_argument('--left_intron_init_weight', type = float, default = 4, help = 'weight for left -> left, the para for leaving left is 0')
@@ -475,57 +368,34 @@ class Config():
         self.parser.add_argument('--exon_skip_init_weight', type = float, default = -2, help = 'initparameter for exon strip')
         self.parser.add_argument('--flatten_B_init', type = float, default = 0, help = 'flatten the init parameters of B, ie priorB *C + uniform * (1-c)')
 
-        s = "else case to no model passed, ie the ATG CCC CCC STP model without introns"
-        self.parser.add_argument('--ig5_const_transition', type = float, default = 0, help = "uses const transition from ig5 -> ig5 (weight = --ig5) and ig5 -> startA (weight = 1) and softmax applied")
-        self.parser.add_argument('--ig3_const_transition', type = float, default = 0, help = "uses const transition from ig3 -> ig3 (weight = --ig3) and ig3 -> terminal (weight = 1) and softmax applied")
-        self.parser.add_argument('--regularize', action= 'store_true', help = 'regularize the parameters')
-        self.parser.add_argument('--inserts_punish_factor', type = float, default = 1, help = 'inserts_punish_factor')
-        self.parser.add_argument('--deletes_punish_factor', type = float, default = 1, help = 'deletes_punish_factor')
-
-
-        # self.parser.add_argument('--logsumexp', nargs = "?", const = 1, help = "logsumexp")
-
-        self.parser.add_argument('--global_log_epsilon', type = float, default = 1e-20, help = 'set l_, R_, E_ and prior_log_epsilon to this value')
-        self.parser.add_argument('--l_epsilon', type = float, default = 0, help = '[0] loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + config.epsilon_l, axis = 1, keepdims = True)) + m_alpha')
-        self.parser.add_argument('--R_epsilon', type = float, default = 0, help = '[0] R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + config.epsilon_R, A)) + m_alpha')
-        self.parser.add_argument('--E_epsilon', type = float, default = 0, help = '[0] unscaled_alpha = tf.math.log(E + config.epsilon_E) + R')
-
-
         # hardware
         self.parser.add_argument('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
         self.parser.add_argument('--dont_use_mirrored_strategy', action='store_true', help ="dont_use_mirrored_strategy")
 
         # verbose
-        self.parser.add_argument('-v', '--verbose', default = 0, type = int, help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")
-        self.parser.add_argument('-o', '--remove_verbose_at_batch_begin', action='store_true', help ="only_keep_verbose_of_last_batch")
-        self.parser.add_argument('-s', '--verbose_to_stdout', action='store_true', help ="verbose to stdout instead of to file")
+        self.parser.add_argument('--verbose', default = 0, type = int, help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")
+        self.parser.add_argument('--remove_verbose_at_batch_begin', action='store_true', help ="only_keep_verbose_of_last_batch")
+        self.parser.add_argument('--verbose_to_stdout', action='store_true', help ="verbose to stdout instead of to file")
         self.parser.add_argument('--cpu_gpu', action='store_true', help ="print whether gpu or cpu is used")
         self.parser.add_argument('--assert_summarize', type = int, default = 5, help = 'assert_summarize [5]')
         self.parser.add_argument('--print_batch_id', action='store_true', help = 'prints the batch id via on_train_batch_begin callback')
-        self.parser.add_argument('--write_initial_matrices_to_file')
-        self.parser.add_argument('--write_matrices_after_fit', action ='store_true', help ='after fit write matrices to file')
-        self.parser.add_argument('--write_parameters_after_fit', action = 'store_true', help = 'after fit write kernels to file')
         self.parser.add_argument('--init_png', action='store_true', help = 'create dot for initial parameters')
         self.parser.add_argument('--after_fit_png', action='store_true', help = 'create dot for learned parameters')
-        self.parser.add_argument('--calc_parameter_diff', action = 'store_true', help = 'write A_init - A_after_fit to file')
         self.parser.add_argument('--trace_verbose', action = 'store_true', help = 'actiave some print() calls to see if function get retraced')
-
-
+        self.parser.add_argument('--print_to_file', action='store_true', help = 'print to file instead of stdout')
 
         # debugging
         self.parser.add_argument('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
         self.parser.add_argument('-n', '--exit_after_loglik_is_nan', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
-        self.parser.add_argument('--manual_training_loop', action='store_true', help ="manual_training_loop")
-        self.parser.add_argument('--check_assert', action='store_true', help ="check_assert")
+        # self.parser.add_argument('--manual_training_loop', action='store_true', help ="manual_training_loop")
+        # self.parser.add_argument('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
+        # self.parser.add_argument('--check_for_zeros', action='store_true', help = 'must be passed together with --batch, checks for zeros in parameters')
+        # self.parser.add_argument('--autograph_verbose', action = 'store_true', help = 'set tf.autograph.set_verbosity(3, True)')
         self.parser.add_argument('--eager_execution', action='store_true', help ='run model.fit in eager execution')
-        self.parser.add_argument('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
-        self.parser.add_argument('--init_weights_from', help = 'dir that contain I/A/B_kernel.json')
-        self.parser.add_argument('--no_deletes', action='store_true', help = 'the delete transitions in A are removed')
-        self.parser.add_argument('--no_inserts', action='store_true', help = 'the insert transitions in A are removed')
-        self.parser.add_argument('--check_for_zeros', action='store_true', help = 'must be passed together with --batch, checks for zeros in parameters')
+        self.parser.add_argument('--check_assert', action='store_true', help ="check_assert")
         self.parser.add_argument('--use_constant_initializer', action='store_true', help = 'init weights with all ones')
+        self.parser.add_argument('--init_weights_from', help = 'dir that contain I/A/B_kernel.json')
         self.parser.add_argument('--manual_forward', action = 'store_true', help = 'gets mean likelihood of with manual loop')
-        self.parser.add_argument('--autograph_verbose', action = 'store_true', help = 'set tf.autograph.set_verbosity(3, True)')
 
 
         self.parser.add_argument('--viterbi', action='store_true', help = 'run viterbi after training')

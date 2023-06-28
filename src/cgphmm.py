@@ -1,20 +1,15 @@
 #!/usr/bin/env python3
 
-
 def main(config):
     import tensorflow as tf
-    import matplotlib.pyplot as plt
     from Training import fit_model
-    import time
     import json
     import datetime
 
-    if config.autograph_verbose:
-        tf.autograph.set_verbosity(3, True)
 
     model, history = fit_model(config)
 
-    # writing the loss history to file
+    # writing the loss history and metrics to file
     with open(f"{config.current_run_dir}/loss.log", "w") as file:
         for loss in history.history['loss']:
             file.write(str(loss) + " " + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
@@ -22,10 +17,6 @@ def main(config):
 
     with open(f"{config.current_run_dir}/history.log", "w") as file:
         file.write(json.dumps(history.history))
-
-
-    plt.plot(history.history['loss'])
-    plt.savefig(f"{config.current_run_dir}/loss.png")
 
 
     from Viterbi import main

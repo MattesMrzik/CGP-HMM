@@ -431,9 +431,6 @@ class CGP_HMM(Model):
         indices = []
         for i in range(1, self.config.nCodons):
             indices += [[self.str_to_state_id(f"i_{i},2"), self.str_to_state_id(f"c_{i},0")]]
-         # including last insert -> GT
-        if self.config.inserts_at_intron_borders:
-                indices += [[self.str_to_state_id(f"i_{self.config.nCodons},2"), self.str_to_state_id("G")]]
         return indices
     @property
     def A_indices_continue_inserts(self):
