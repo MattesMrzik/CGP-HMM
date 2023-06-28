@@ -1,0 +1,2016 @@
+[33mcommit e2f514e4dbf6d79635952b67b4eec446d05ef4b8[m[33m ([m[1;36mHEAD -> [m[1;32mmaster[m[33m)[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jun 28 14:38:29 2023 +0200
+
+    more clean up
+
+[33mcommit d0277a71f132776a2f056d7fdaaa25f1e6f8f6ee[m[33m ([m[1;31morigin/master[m[33m, [m[1;31morigin/HEAD[m[33m)[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jun 28 13:53:41 2023 +0200
+
+    preparation for usbstick 01
+
+[33mcommit ab0e64e51e20642364b65e3f38e5f5410fc67a7f[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jun 28 07:26:24 2023 +0000
+
+    before cleaning
+
+[33mcommit 707747a8428ccdcc3f1a2a5f8ff8f60b9b5fb02f[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Jun 23 17:41:51 2023 +0000
+
+    dont mult factor twice whne loading model. augutsu stats to eval. lin reg and len group. handle long seqs. handle intron in viterbi py. fix get intron. run augustus also for introns
+
+[33mcommit a17a0bdf90218822be1a6e466b5ca1085a16091c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jun 20 14:55:32 2023 +0000
+
+    get intron seqs
+
+[33mcommit 465dc32817f8c0c9b507fd02cca999c328b5e5fc[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jun 19 12:48:52 2023 +0000
+
+    fixed middle exon coords bug in get_internal_exon
+
+[33mcommit ea770481d2bc01b74e8e5e9164ca924d907f0d88[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sat Jun 17 15:13:52 2023 +0000
+
+    shuffle seqs. manul transition weighs. plot model size factor boxplots. write best weights not last.
+
+[33mcommit 803e7fa38e9231d4e8aef41954632545ab21a484[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Jun 16 16:14:50 2023 +0000
+
+    run with only primates or max diverse subset
+
+[33mcommit 4e4b645dc9cc76e5592c3e122f124429f4113e08[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jun 13 09:21:28 2023 +0000
+
+    set stepsize to match nbatches, get internal more to plot. const exons skip not dependant on model len anymore. mulit run continu training and time and ram to df.
+
+[33mcommit 5ba2a6df8b8e5be5cb4893bc6bb9a73df67ca85f[m
+Merge: 03a8b32 2cfe7b4
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jun 7 14:19:32 2023 +0000
+
+    Merge branch 'convertGetExonsToDF' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 03a8b32c700bfcd57240c92e322913a9108863b1[m
+Merge: a6d1be6 2416de5
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jun 7 14:13:57 2023 +0000
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 2cfe7b49bcfff0b9eeda1c66bd9d775dc925c4b7[m[33m ([m[1;31morigin/convertGetExonsToDF[m[33m)[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jun 7 16:09:53 2023 +0200
+
+    get exon df fixed thick col bug. get internal exon fixed small bug fo output dir, new plot. fixed bug in viterbi fasta_true_state_seq_and_optional_viterbi_guess_alignment . no prior for c00
+
+[33mcommit a6d1be62f967eedaa87ddb6ce5f598abad06717a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jun 7 14:06:01 2023 +0000
+
+    run augustus out to file
+
+[33mcommit 48d8df82a81066c81923e9dfce959b0ed9e6d315[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jun 5 11:41:37 2023 +0200
+
+    moved get exon df to new module. and ordered get_internal_exons.py
+
+[33mcommit 2416de554f4567bfe945de7e7e133bf60c6a6f5e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Jun 2 09:15:52 2023 +0200
+
+    filter alt. splived exons
+
+[33mcommit a17b2a8dfd5258971f6a25f8615775e8b4a187a2[m
+Merge: ea5d678 d103b8f
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Jun 1 14:35:53 2023 +0200
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit ea5d6782647ffeb1e76a91e96ca2a210e1a8219f[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Jun 1 14:35:48 2023 +0200
+
+    image name change in get internal exon
+
+[33mcommit d103b8f3910fefe8db91c8ca3648eea6282c937c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Jun 1 12:17:30 2023 +0000
+
+    more eval scores. fixed exon skipp init weight = 0 bug. get internal exon dont take alternative spliced middle exons
+
+[33mcommit cca607cf76d86b1069efd680ec7d52a7aa2f751a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 29 13:00:27 2023 +0000
+
+    changed ass dss start and end. cesar init weights transition. fixed anove code. fixed pseudocount in B prior
+
+[33mcommit 71dbb1c5bedc8f272704fb3cff73ed30c4c8edad[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri May 26 14:07:37 2023 +0000
+
+    changed sp. fix numeric ovrflow in mcc. ANOVA
+
+[33mcommit 936c81ac8de712eaddd0bb01ff939597ff4f8d73[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri May 26 08:18:09 2023 +0000
+
+    logsumexp can get 0 or 1 as arg. args with unique para is removed from df, but can be printed. added ACP and MCC, reworked tf tn fp tp.
+
+[33mcommit 16ee0c0d83c66b59f7e024bd54d254e28053d88f[m
+Merge: be2dd13 879d860
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed May 24 07:23:53 2023 +0000
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit be2dd13c8d6e6c486d3798a6bcaf1350deda82dd[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed May 24 07:23:29 2023 +0000
+
+    allow donor and ak pattern len of longer than 10, init the ones with intron prior if no ss prior is available.
+
+[33mcommit 879d86065cd43a3ebef259c08c6aae85d2849ab9[m
+Merge: 0474561 8aefa0f
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 23 16:13:43 2023 +0200
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 8aefa0f3359384e24f0023c50bd1ef0cbad2a9f6[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 23 14:13:32 2023 +0000
+
+    gff in run_augustus
+
+[33mcommit 0474561e39b08155d11d4c03d270bfd3c5bf1500[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 23 16:12:08 2023 +0200
+
+    some work on gff in get_internal
+
+[33mcommit bed4e48cfdf6113bd401305f4c77f90a6c510d57[m
+Merge: 6a7d77f e9ac5bb
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 23 12:50:33 2023 +0000
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 6a7d77f58f30e2d63f02c75c1b7ca8693acd4d19[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 23 12:50:25 2023 +0000
+
+    run augustus
+
+[33mcommit e9ac5bbe7d424b1248170519f9b983eff08a38b5[m
+Merge: ad46c52 ee11549
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 23 14:49:09 2023 +0200
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit ad46c5281c0e5ce203f059d74ed30f425e926e24[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 23 14:47:54 2023 +0200
+
+    get_internal_exon: plot. new way to select spit seqs from bed or paralogs, Viterbi.py get exon coords in fasta from fasta descrption.
+
+[33mcommit ee11549086086c0c34621a876603576951bec9d0[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 22 09:56:43 2023 +0000
+
+    when growing scale factor of likelihood reaches 1, dont compile every epoch
+
+[33mcommit 7f338817da15c766df4a17695a7b73cd34df94bc[m
+Merge: a1b758e e7f01fa
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 22 09:39:38 2023 +0000
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit a1b758e2f758a5634e3ee4b52259461bcda3165e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 22 09:37:57 2023 +0000
+
+    scale loglike vs prior dynamically with epoch, but compiling model every epoch. viterbi in main_programm. hash codes of input and weights.
+
+[33mcommit e7f01fa50960ef6ebee95c4b5deba19a48398006[m
+Merge: 850b3e1 594a738
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 22 11:34:02 2023 +0200
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 850b3e13d46a2c7318b9ec8bf93a64e8c97a57da[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 22 11:33:54 2023 +0200
+
+    diri plot ipynb
+
+[33mcommit 594a738a4dcd20816cf197b3815a8976f461737c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sat May 20 16:25:21 2023 +0000
+
+    speed up eval viterbi, get cols to group by from file: to eval even when hard coded args are changed
+
+[33mcommit bd17fc7d30b175ff9690698745ddad6751f3062c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sat May 20 11:21:27 2023 +0000
+
+    prior not for c_0,1, some refractoring of multi run, viterby.py also wirte viterbi fasta to its own file,
+
+[33mcommit f42229ab49ae21546891b86d65a36078d0250b2e[m
+Merge: 321c280 d34c80c
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 16 14:51:23 2023 +0000
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 321c2803334e83ed4dfaf5dff0ad8c223fc2c4a6[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 16 14:51:16 2023 +0000
+
+    can flatten init B paras, prior values for init even if priorA or B = 0
+
+[33mcommit d34c80c70a11325ba9a75be71695eda57085a248[m
+Merge: 501bc9e 782769a
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 16 15:58:46 2023 +0200
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 501bc9ea13b40d43c0b293b3f06126c5b1d91c5b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 16 15:58:37 2023 +0200
+
+    get prior matrixes and values for init even if prior == 0. Playground: new procedure to select left and right flanks in get_internal_exon. Some work in get_internal_exon: unfiltered seqs df for plots, info about middle exin
+
+[33mcommit 782769a450a5c55efc09db2d4c08eade874fc931[m
+Merge: 5fbe2cf ad40e8d
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 16 13:54:56 2023 +0000
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 5fbe2cf82d9a714d293b636952db6d67152bbde7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 16 13:54:46 2023 +0000
+
+    additional para in viterbi eval col
+
+[33mcommit ad40e8d062d7a66ac5842a935563a60e2f0b8c16[m
+Merge: 98b0485 41fd63f
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 15 16:44:06 2023 +0200
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 98b0485989d95860a625386624db170e1297b954[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 15 16:44:02 2023 +0200
+
+    get_internal_exons: pass subsetted df of seqs_to_be_lifted_to liftover and hal2fasta. cant use old fasta and beds anymore due to dir restructuring
+
+[33mcommit 41fd63f435ac44ca41ec4f798a08f9e298f0b91c[m
+Merge: 8d58737 8101c5c
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 15 14:41:45 2023 +0000
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 8d58737b84903b5d8ab5885db34a451acf5b29f4[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 15 14:41:31 2023 +0000
+
+    multi run: train with slurm. too big and more stats to eval viterbi
+
+[33mcommit 8101c5c036e9123ff909b00cd5489640dcc8bf6c[m
+Merge: f54355d 6255caf
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 15 10:01:30 2023 +0200
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit f54355d8ef412aa5ce95f1445dcdece24f69a55e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 15 10:00:18 2023 +0200
+
+    get_internal_exon.py rework, to first created df of human query .bed files, choose subset of those, then create liftover and hal2fasta
+
+[33mcommit 6255cafdff1368a0ea1bf6ad558db987d9a27ee3[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu May 11 15:11:47 2023 +0000
+
+    some fix in helpers
+
+[33mcommit e641611797a723129c8f37470cc234854f3d7b2a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu May 11 09:41:23 2023 +0000
+
+    continue training in multi run, and small bugfix
+
+[33mcommit 80ad833c82531edb9e7c7ae0fe82d5447566cf1d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu May 11 09:39:49 2023 +0000
+
+    assert p and alphas uneual to zero, aslo add epsilon
+
+[33mcommit afd33842992b008c60ce26d87f8791251be468ec[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu May 11 09:37:14 2023 +0000
+
+    change batch_size if a batch with size 1 would have been created
+
+[33mcommit 1180caf80cf7d188d976609c626b11bd78f6ff7b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu May 11 09:36:16 2023 +0000
+
+    callbacks updated exit on loss NaN
+
+[33mcommit e2c21d985446cbaeda217c08d51a7e5650404644[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu May 11 09:31:21 2023 +0000
+
+    fixed bug in viterbi.py when converting kernels to json matrices. missing config add for helper diff commit
+
+[33mcommit 8c0841e67f4a2dc7aa1d1c0eb74e1ab9271f9a57[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu May 11 09:28:52 2023 +0000
+
+    avoid stop codons in find orfs, not tested
+
+[33mcommit f67ccee51afb7da6713a7a88aef6cebc1c055e0e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu May 11 09:28:32 2023 +0000
+
+    helper get diff of matrices
+
+[33mcommit d66da710c3b1baebcffe4ad3283a5d0f27b0ab3d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 8 16:38:26 2023 +0200
+
+    add small values to priors that are zero in B, because some are calculated to be 0 in the splice site, adding this is like pseudocount
+
+[33mcommit 4df72528c4e0bab302dbadc595ec6ae8818d33c7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 8 13:51:41 2023 +0000
+
+    reworked priors, B doenst work yet. fixed bug: shuffel seqs. convert kernels to matrices in helper dir.
+
+[33mcommit a6d66e9196976c027ab542e931b7b5cf245ee6d6[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri May 5 12:47:54 2023 +0000
+
+    cleaned multirun. bucket seqs median len buckets first. force overwrite flag matrices in viterbi.py wasnt taking effect
+
+[33mcommit 14c50b924e0f67013f07391f9ff4f7570d8cc27d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed May 3 14:53:51 2023 +0000
+
+    multi run write err and out to file. after and before in multi_run eval. Bucket by seq len now working, using simple split.
+
+[33mcommit eba58e217d04e8d4ad59bef66f435dfd9d95d3d7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 2 17:19:40 2023 +0000
+
+    forgot to add viterbi.py
+
+[33mcommit f1c76581a18df61f2fb6490e1d0822a8673be8bb[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 2 17:19:18 2023 +0000
+
+    early_stop callback. Viterbi after and before to different files. cleaned up fasta_true_state_seq_and_optional_viterbi_guess_alignment. multi run cant handle after and before viterbi. this must be implemented
+
+[33mcommit 55a6d7ce48840f7b4e73240f206e74390c3481be[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 2 15:19:35 2023 +0200
+
+    masking and bucketing. multirun can submit viterbi to slurm. VIterbi.cc outputname before and after fit paras.  added init_weight_from_path,
+
+[33mcommit a8c6d9ab5911114d84f30238e20b52dd3c4c3eb7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 1 12:51:27 2023 +0000
+
+    added option for print() to check if funtions get retraced
+
+[33mcommit 38e9ebb3412b4ff2424e6d3971137b1d559b3e93[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 1 12:20:47 2023 +0000
+
+    Revert "trying to make graph execution work, before creating branch one commit earlier than this commit"
+    
+    This reverts commit 6d4de815cf8dc9ba443e9fe03f09a85fc66fcbb7.
+
+[33mcommit 6d4de815cf8dc9ba443e9fe03f09a85fc66fcbb7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 1 09:47:10 2023 +0000
+
+    trying to make graph execution work, before creating branch one commit earlier than this commit
+
+[33mcommit 9afa8e0dc03e61658e9aa375737c29fb6b84efb1[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon May 1 10:00:29 2023 +0200
+
+    moved helper modules to subdir. always write weights. matrices are optional to write. viterbi can calculate them if needed.
+
+[33mcommit 543eb5993a8e97464f729c423816429d3d3588e0[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 28 18:46:22 2023 +0200
+
+    dont print start and stop but add to bench.log
+
+[33mcommit 610185a1b9f6ee70d82638564adc91fd97d3cf9e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 28 17:24:15 2023 +0200
+
+    fixed bugs in select_good_exons_for_training
+
+[33mcommit 4f259fc42148c288382d1a8c5a4cef2d56712585[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 28 16:04:46 2023 +0200
+
+    reworked add_gene_structure_to_alignment. multi_run: eval viterib. select_good_exons_for_training.
+
+[33mcommit bb7234226ee957fa73bb46f3165b98a4674f1f02[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Apr 26 13:42:20 2023 +0200
+
+    multi run calls train or viterbi. fixed bug in internal exon model with prior path. reworked overwrite and after and before matrices in viterbi.py
+
+[33mcommit d4912aacee9a8b10412676800303a8e8a2013486[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Apr 24 19:02:23 2023 +0200
+
+    multi run can set args and get girdseach points can also bind args together
+
+[33mcommit 399ba37ebf48cd089bb461098e46a9cfb36bd2dd[m
+Merge: 70e8b16 8e1445a
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Apr 24 00:43:59 2023 +0200
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 70e8b1645e732d0ce56cf3aa99f277232b6cc0bc[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Apr 24 00:42:04 2023 +0200
+
+    beginning of multi_run.py. before merge
+
+[33mcommit 8e1445a2355cd19b1f1fa60da652515ac6369e6d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sun Apr 23 22:40:33 2023 +0000
+
+    dont_overwrite viterbi args by loaded main_args. bugfix when manually calling viterbi.py
+
+[33mcommit 0289bbd3f19b0c5cd976c9247cacd17816dd4b38[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sun Apr 23 19:59:45 2023 +0200
+
+    restructured Config.py. viterbi args can be passed to main_programm and to viterbi.py. prepare model for id to str conversion, make_model for matrices and priors. Viterbi.cc with arg path to parameter dir. this sill needs some clean up.
+
+[33mcommit 4944d502b552f3c80bc4b622b231734b50c74e90[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Apr 20 22:10:36 2023 +0200
+
+    reworked output dir. export gv beginning and end. split prior term into A and B. write config att to json file.
+
+[33mcommit 75b328d532f0aa5134509d3edd307972bded98e8[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Apr 19 11:39:45 2023 +0200
+
+    intron loops: separate config.paras for const and init value. config add args clean up
+
+[33mcommit d1c7b73efecdd67aa3232a6f5d923c5e491811df[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Apr 18 20:28:31 2023 +0200
+
+    add_gene_structure_to alignment. find orfs. view stats table
+
+[33mcommit b762723be33e7a37ef6aef459a7606f2e9bb52d6[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Apr 17 21:41:33 2023 +0200
+
+    find_orfs. write I.json for viterbi.
+
+[33mcommit a202966d933a079958b79ea97d51fa909833e0d7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Apr 17 12:04:08 2023 +0000
+
+    Viterbi.py correct 3 letter code of viterbi guess
+
+[33mcommit 0317ff32f3ac18055441d482e500d72328cf33ac[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Apr 17 13:13:08 2023 +0200
+
+    left and right intron loops init weight and non trainable bug fix. scale prior and scale alphas seperatly. max of derichlet. Viterbi write codon and insert ids to viterbi guess clw
+
+[33mcommit efd4e65568ef1d5665dd22052c662d9ff416d6c9[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sat Apr 15 12:58:13 2023 +0200
+
+    cell.init. also init with B initial weights.
+
+[33mcommit bb448cc55d15ced3a6dfdba7a7ce7e9b9379bd32[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sat Apr 15 11:34:21 2023 +0200
+
+    some comments regarding thick start
+
+[33mcommit 775cf1b88330edda82490cc0d83c71351d8c5de7[m
+Merge: 5631876 aaec586
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 16:16:08 2023 +0200
+
+    Merge branch 'master' of https://github.com/MattesMrzik/CGP-HMM
+
+[33mcommit 5631876640efd30af4335d8056f6e6784e4e34e3[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 16:15:24 2023 +0200
+
+    get_internal_exon: exon start was relative to genom_start
+
+[33mcommit aaec586d69743212b914e51c291fecae35c9ce5f[m
+Merge: 6168487 58a78e7
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 14:03:35 2023 +0000
+
+    merged
+
+[33mcommit 6168487373ce2e8de501316102a07f023f645a44[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 14:01:28 2023 +0000
+
+    geting A, B diff in Utility and writing reselt to file required tensor and not nested list, fixed this big
+
+[33mcommit 58a78e7a30890d4cc7b0101d5bac2e8ff5677464[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 15:57:42 2023 +0200
+
+    get_internal_exon Only NM_ and if it is in thick start.
+
+[33mcommit df72899bebeabde2791de221e0c19feacdc8c64e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 14:55:02 2023 +0200
+
+    Utility spelling mistake
+
+[33mcommit 2127c8e04e0cb7fd9bc570af95beea78554e54a7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 14:46:56 2023 +0200
+
+    always write matrices before and after fit to file
+
+[33mcommit 9dc09cd34c6257a483dab22a5de3fad75cc6758c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 14:44:04 2023 +0200
+
+    diff before and after A,B to csv file in Utility. always write with description before fit matr to file. without prior mode to config. converting fa to fs.json in Viterbi.py
+
+[33mcommit a0b426467be4b234fbbc71f931e0cbde6acbf210[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 13:19:26 2023 +0200
+
+    convert seq.fa to seq.fa.json in viterbi if it doesnt exist
+
+[33mcommit 9ddbbeb78c7d64c8482f796631e79f0687f2ee7d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 11:49:43 2023 +0200
+
+    forgot ; in cc
+
+[33mcommit ec742f3159c7ba39ae209c95dd93693b2127e3df[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 11:49:19 2023 +0200
+
+    adjusted init of model to not calc priors when run from viterbi. adjusted path in viterbi.cc to the dir outside the git repo. fixed bug in viterbi.py
+
+[33mcommit 5e6ec856fac9f0a9ddc5875d0c992accae9672a8[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Apr 14 10:08:23 2023 +0200
+
+    fixed bug in prior calc where values to A init where ints. Path to priors.pbl. adjusted default values to delete probs. get_internal_exon outpath outside git repo.
+
+[33mcommit c7b3a0f912b1fa6bc41882338fbf112b89779f6e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Apr 13 13:29:25 2023 +0200
+
+    A setting initial weights and calculate init params and use use of those for prior. Config.py misspelled arg
+
+[33mcommit df355afb67ac7f906ea1e670763d29c83548a4b3[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Apr 12 10:21:30 2023 +0200
+
+    saved porgress
+
+[33mcommit a60474eb1b028c6e888f93cd8c87d4e8ba941ef3[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Apr 6 19:46:43 2023 +0200
+
+    forgot file
+
+[33mcommit b82517062a39928f61030a87ac3d3e78cddfe7f9[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Apr 6 19:45:51 2023 +0200
+
+    load priors: get_splice_site_matching_pattern_probs. More Priors. only last codon before slicesite is missing
+
+[33mcommit a8e39c18a6f9e68af8d8ccd2656cb1469c05c637[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Apr 4 17:51:12 2023 +0200
+
+    make_preparations_for_B with indices, ids for indices, priors and initial parameters and make initial weights from initial parameters. load priors, outpath arg sutch that data is not in scr dir.
+
+[33mcommit 5ed8507ccb8670d3d103b7a4cb00fc98ce94e053[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 31 13:25:01 2023 +0200
+
+    fixed convert_short_acgt_to_ACGT
+
+[33mcommit d13c26a06519973962d2b9e3e8e60c7e3287b062[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 31 09:56:17 2023 +0200
+
+    some cleanup and bigfixes in get_internal_exons.py
+
+[33mcommit ea72f50756a0d7f2995714ff3602ff22ad20e365[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Mar 30 13:23:09 2023 +0200
+
+    some bugfix in Viterbi.py and My_internal_exon_model.py. Split methods of get_internal_exon.py into into smaller onces, might still contain bugs, bc i only test on greifsserv3
+
+[33mcommit 900b95170ba453cc378e0143e798dabb2911f628[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Mar 29 09:57:59 2023 +0200
+
+    remodeled viterbi.py to also work with manually passed fasta. and writing the alignment file
+
+[33mcommit a160204761fbaf4bbd6ffa899ca3ef32b9d2b7cf[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Mar 28 16:48:31 2023 +0200
+
+    forgot to add files
+
+[33mcommit 70c3df4caf08b9920d944fdf6f955b8ccdb1f633[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Mar 28 16:46:36 2023 +0200
+
+    also write matrices after init to file if callback is called. args to modify initial weights in internal_exon_model. moved write true alignment to viterbi.py. write ti stats table if exon contains ambiguous bases
+
+[33mcommit c840f49b307792ac1e05b31ac884411a0c6ebe12[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 27 14:13:59 2023 +0200
+
+    make stats table about the exons
+
+[33mcommit a19f1d22331bd1e9b703287a7304465f8a9bf0fc[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 27 11:41:35 2023 +0200
+
+    fixed small bug in get_internal_exon.py. note if exon contains ambiguous bases. also extended bed files with additional lines
+
+[33mcommit 8dd62c15ce2b2c3d41e5daddc679c225d68058ac[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 27 10:20:59 2023 +0200
+
+    moved write_true_exon_pos to get_internal_exon.py
+
+[33mcommit 43e27ea1ada4fbb9d498ce95f0dbf67a3fd86fd4[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 27 10:11:42 2023 +0200
+
+    write true exon pos to aligment for every exon in hg38
+
+[33mcommit e8d1d85b034afa328df189ec9a149a1b94dd0d72[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 27 09:30:52 2023 +0200
+
+    some finishing in alignment of fasta, true state seq and viterbi.
+
+[33mcommit 2edad62dd1f135832fb93dd95b7612adea8ca3d2[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 24 15:15:10 2023 +0100
+
+    fixed bugs with coords when exon was in - strand
+
+[33mcommit c15b84207d4d33c0d351a7086872e1bf40b9627b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 24 14:17:43 2023 +0100
+
+    also print coordinates to clw file. The start and stop are now correct even if the strand has been reversed and complemented
+
+[33mcommit 452833af8257c89d266945a5dcf2c281e299e817[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 24 11:19:55 2023 +0100
+
+    Model.py create clw of human.fa viterbi guess and true gene structure.
+
+[33mcommit 80a2b9ef648a32b0db6174bcd373297d0d6ba48d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Mar 23 13:48:35 2023 +0100
+
+    Model.py can print json state seq to state_id_to_str. get_internal_exons.py write start and stop to record.description
+
+[33mcommit 3927ddb92fb883a08bf3a0748dea0c89526aa857[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Mar 23 11:29:50 2023 +0100
+
+    dont write seqs.fa.json unless it is necessary
+
+[33mcommit 945fb5eb37ce4cb0635cdca438dfada5ddfdc5e3[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Mar 23 10:41:15 2023 +0100
+
+    eta for viterbi.cc
+
+[33mcommit 2e1d925a6454b81afcf5c604be662918892e305c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Mar 22 16:24:18 2023 +0000
+
+    submit viterbi on brain via ssh
+
+[33mcommit 8d73e2d08a0ad4ee13986f01fcb6f1fa35074e25[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Mar 22 16:06:00 2023 +0100
+
+    files inside [n]codons dir are simplyfied. Moved export model to png to parent class. added out_path to viterbi.cc
+
+[33mcommit 4171948e784f9b09a6333275037e7f0f4670b5b8[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Mar 22 11:41:55 2023 +0100
+
+    only first seq as arg to main. when only_first_seq in .cc write only first seq and non empty ones to json. Viterbi.py break if only one seq after first seq in done
+
+[33mcommit 93578538137b0f9781aff59d4797cc8ac57b0eb5[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Mar 22 11:19:02 2023 +0100
+
+    small fix in ReadData.py. viterbi.cc small fix with seq_path. viterby.py pass manual fasta_path to .cc
+
+[33mcommit 136be66a33c3187d21e32c866e04c82952248c67[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Mar 22 10:43:39 2023 +0100
+
+    main: dont compare viterbi if manual fasta_path is passed, felix_a_model can export a and b with sep instead of always just space. ReadData can convert string spread N to numbers. get internal exon: put human at first in combined.fasta. Viterbi.cc boost programm options. can calculate only first seq
+
+[33mcommit 7646c00cb725b4eb4b9b18b4ea56c25cbd85300e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Mar 21 21:12:52 2023 +0100
+
+    fixed bug in ReadData. Viterbi.cc now converts json to 2d vector, which should be faster, also viterbi for a single seq can leverage parallel computing, viterbi should also work with multi hot encoded data when seqs contain Ns, still needs testing if its correct
+
+[33mcommit 6eaed8d5e1cc3dc80197504a66687915f8677b72[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Mar 21 11:03:43 2023 +0100
+
+    felix hard coded model to check if i can get NaN, bc felix got no NaN
+
+[33mcommit 1e019872e68744ec3387a5579d26b5b07752ac2b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 20 12:22:07 2023 +0100
+
+    check uf middle exon is between had wrong sign
+
+[33mcommit 9708aaf6bff4cddffd7183dd444cd2aeacdf83f2[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 20 11:07:42 2023 +0100
+
+    if liftover hits more than one coordinate, select the one with the largest span
+
+[33mcommit 62df27c06e81d671762d0c2533a62d5758f54d8b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 17 16:48:29 2023 +0100
+
+    another bugfix, sorry for many commits, i can only test in greifserv3 since i dont have halLiftover locally installed
+
+[33mcommit 2920ce6472b0ad0ce79c7bdfd27687dca67674ce[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 17 16:27:38 2023 +0100
+
+    small bug fix
+
+[33mcommit 12f4134e3f6c3d044ba2c008afbddd762bd6700c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 17 16:18:00 2023 +0100
+
+    in fasta as arg. liftover middle and check if it is between lifetd left and right neighbouring exons
+
+[33mcommit 2f4d775d6c305b7ecf413272179ae57436b7ed6a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Mar 16 16:40:41 2023 +0100
+
+    no upper in hal2fasta. Read_data_one_hot_with_Ns_spread, weired workaround with strings that code for spreaded onehots. bucket_seqs
+
+[33mcommit 0ac2b348bcaf6248c58dade8a8d772133ee07d76[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Mar 14 17:40:28 2023 +0100
+
+    get_internal_exon seems to work, still want perform alignment to check whether liftover and hal2fasta worked
+
+[33mcommit e80824fb14b77a43aff56fde7a975d5bdd70febe[m
+Merge: aabd92d 9a37064
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 13 20:49:04 2023 +0100
+
+    test for why combinded fasta doesnt include seq ids
+
+[33mcommit aabd92d40cc4a1546ada82c28ab1a5cf53b99edc[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 13 20:41:33 2023 +0100
+
+    hard coded possibility to turn of halliftover or hal2fasta. can now pass initial weights to append_transition()
+
+[33mcommit 9a370642568cd95272cb12b657bedea8dd6ed0a6[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 13 20:37:56 2023 +0100
+
+    bigfix, where combinded fasta doesnt write seq id
+
+[33mcommit d2573f021fa86d96ddcede7b1a7ceae4a1d98e9f[m
+Merge: 4a19c90 029b0fd
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 13 10:01:01 2023 +0100
+
+    merged
+
+[33mcommit 4a19c9007a8cc5777c768413d329f5eb951b73f9[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 13 09:48:59 2023 +0100
+
+    strip seqs in get_internal_exon.py, check if human and lifted seqs have approx same len, My_Model began to move init my weights to append_transition method
+
+[33mcommit 029b0fd5684ff123b3672e5c5fc6a673e06829fd[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Mar 13 09:44:40 2023 +0100
+
+    some bug fixes in get_internal_exon.py
+
+[33mcommit a40e0065ad8c5c09fdbb3ea8bd8816ff855a85b6[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sat Mar 11 10:55:57 2023 +0100
+
+    flip start stop when strands are inversed
+
+[33mcommit bf41e55471c6d06ed538dd402849bbd3ef3044c4[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 10 15:51:27 2023 +0100
+
+    forgot to actually run commands in get_internal_exon.py
+
+[33mcommit 875d99cfaf67cc8b29255a91b89a1f2026ab8fd7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 10 15:42:45 2023 +0100
+
+    removed count and return seqs, added get_internal_exon.py
+
+[33mcommit b19e0599ee5598865c2f89ee2e8e55bc9086bbd3[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 3 22:58:15 2023 +0100
+
+    no more if cell.call count == 0, but intitial state in A and old_forward initialized
+
+[33mcommit 8ebd609d40d7a274f86d86815c0122454ee12a47[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Mar 3 16:41:01 2023 +0100
+
+    internes exon model
+
+[33mcommit 30786091984bedf2f2a4fb54540231dffc3c66ec[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Feb 27 16:30:57 2023 +0100
+
+    when choosing deletion and insertion positions np.random.choice was missing replace = False
+
+[33mcommit 430d31c0b124d57b075cb6d7ae7709be312b67fe[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Feb 27 13:53:35 2023 +0100
+
+    how many state seqs are 100% correctly predicted
+
+[33mcommit 410bf6f5346885a91aea13d3af47b037731fd095[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Feb 27 11:48:02 2023 +0100
+
+    bench batch_size
+
+[33mcommit 305f02860e28baaeea5b547cb7529e85a38d1c9d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Feb 27 11:23:01 2023 +0100
+
+    bench for seqlen
+
+[33mcommit ed84560436f21c37c315681a6d78601094bb4829[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Feb 24 15:34:26 2023 +0100
+
+    first steps to model introns, not finished yet
+
+[33mcommit 6a97b9cf058f7b1099ad5bbc0a6b43eb0e680093[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Feb 23 13:18:15 2023 +0100
+
+    init A weights by hand, fixed stopPos bug in useMSAgen
+
+[33mcommit 2d78746302f575f170f541a4414634b76312fead[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 22 16:11:56 2023 +0100
+
+    fixed another bug in useMSAgen where insert was interpreted as codon in trueMSAstateSeq
+
+[33mcommit 431c8efb645f205973bc65d87ec935a58073667b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 22 15:19:30 2023 +0100
+
+    fixed bug in useMSAgen first line of trueMSA.txt. regularization now without loops -> massive speedup. Viterbi.py has main
+
+[33mcommit 5001c7d8d25023afd7e14a86f36c1bd9ab17211b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 22 09:54:55 2023 +0100
+
+    bug fix
+
+[33mcommit dbddd8aebb9e4a79de10139337675d4ea28e4bbc[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 22 09:49:23 2023 +0100
+
+    indices in A needen for reg are now calculated in model and not when call in layer
+
+[33mcommit 4fc23d59b9b7331113b4d4d2d4df74e1ff09d162[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Feb 21 15:21:53 2023 +0100
+
+    renamed epsilon parameters
+
+[33mcommit 99fc10d48d4475a96c00f76867fcbf64f21b69c2[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Feb 21 15:15:51 2023 +0100
+
+    write weights before fit to file as option, decorated append_time_ram_stamp_to_file to hide no autograph convertion
+
+[33mcommit e3e5090ff07c49b52e2a1552fecc8e4579fe3646[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Feb 21 14:21:11 2023 +0100
+
+    view some parameter statistics
+
+[33mcommit 1ad35273f00c76ef8afbb8c13a68279ad9205ea7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Feb 20 15:03:34 2023 +0100
+
+    only positive coeffs in time and ram fit
+
+[33mcommit c3f1b5103fe4dfdcd5488563cbe382a0a7d5de20[m
+Merge: c84516a 6c5115b
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Feb 20 14:05:02 2023 +0100
+
+    merged
+
+[33mcommit c84516a25244e633bc10ae51d96ca14c056e6f9f[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Feb 20 14:03:34 2023 +0100
+
+    before minor merge
+
+[33mcommit 6c5115be3de746dca0ed9c64f889eb6b0e3c38c0[m
+Author: Mattes Mrzik <mattes@mrzik.de>
+Date:   Mon Feb 20 13:02:02 2023 +0000
+
+    nicer ram and time plot
+
+[33mcommit 063e1f84db707bdb8623f514873ad243aa2e6b0d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Feb 17 17:10:15 2023 +0100
+
+    reworked plot ram and time
+
+[33mcommit e7174f7689d9c8b814f0f78d7b873da232805fe9[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Feb 17 12:17:35 2023 +0100
+
+    write true MSA, true state_seq and viterbi guess to file, insert and deletion regularization
+
+[33mcommit 796a94ca9d52a81af5eec503e0af68e331dde3e9[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Feb 13 16:55:24 2023 +0100
+
+    error in calculation differences in kernel and matrices between epsilon and no epsilon
+
+[33mcommit 949916cde3f6daf1d006001ede2f947df5297e7b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Feb 13 16:38:59 2023 +0100
+
+    compare training runs with and without epsilon
+
+[33mcommit 5a2f1f079aa44c2007ce628f3de67fee0f37ecdc[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Feb 13 15:16:59 2023 +0100
+
+    test for how good epsilon learning is for optimizing no epsilon loss
+
+[33mcommit c41cf7648a88e2514eaaed665055e812434643b8[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Feb 10 18:24:00 2023 +0100
+
+    json.hpp
+
+[33mcommit 690e891bf4953b63f890b35c8e11be41e4e3637d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Feb 10 18:07:50 2023 +0100
+
+    multi thread viterbi on seq level, maybe on state level is better, such that if i run viterbi for a single seq multi thread can also be leveraged
+
+[33mcommit a042571e1398d47b60a390f8b1696dbbb3882fab[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Feb 10 15:17:29 2023 +0100
+
+    reworked viterbi
+
+[33mcommit 71bd2c69b5afaae1cda6b6a2d3c85a0e2a62a0d4[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Feb 9 15:37:54 2023 +0100
+
+    added epsilon when dividing by z in felix_modified
+
+[33mcommit f91a921c4b77dcbaeea5fd1cb1109d9cd85a7e1b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Feb 9 15:09:29 2023 +0100
+
+    option to add epsilon before log when scale_with_conditional and felix_modified_scale
+
+[33mcommit 1dadf3fdda610ce3dcb1b3818eb7413c7e2b2fdf[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Feb 9 14:27:03 2023 +0100
+
+    fixed bug when using AB ss
+
+[33mcommit 7eb2251aec5ea82f6bc9d81cd7a4f5dfd99543e4[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Feb 9 11:59:36 2023 +0100
+
+    logsumexp + option to add epsilons, for 1 codon the results are the same. does this also hold for longer seqs
+
+[33mcommit 9077adc7961ba8ea5b3366c8e244ecb023b3fb4d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 8 17:42:11 2023 +0100
+
+    added basic tensorboard, ig3 const transition
+
+[33mcommit fc32ca7f1cda2d5257b2ae29b24d9032f7d5f302[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 8 15:04:48 2023 +0100
+
+    write kernel in callback only of first batch to file
+
+[33mcommit 2d64bcc8d55f60a46336842e4ce9c61d6d64470e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 8 14:54:49 2023 +0100
+
+    ig5 is now programm parameter to set weight of ig5 -> ig5
+
+[33mcommit 9c8c70aa999ac0d7c670e43242e526ca4fffe511[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 8 14:43:56 2023 +0100
+
+    asserts got some renames
+
+[33mcommit 3b73c2c7f87b0c6731b69fd0818d3d0d14646354[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 8 14:18:02 2023 +0100
+
+    small changes before runs on brain
+
+[33mcommit 6cc5305632dbc98889bf4bfaa1426bb9119e4516[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 8 11:53:58 2023 +0100
+
+    bugfix from last commit
+
+[33mcommit 0b6947afbbe14d05df40c28be07f06789a77dc65[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Feb 8 11:46:21 2023 +0100
+
+    loglik of scale with const and condition is now also calculated in cell.call even though this is not needed in layer.call
+
+[33mcommit 92413afe6392b85f05432309951e3e5c4ca4760b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Feb 7 16:52:29 2023 +0100
+
+    can use const transition from ih5
+
+[33mcommit cbc5e3ed3e15e114e148600e53c266ef54b8df78[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Feb 7 16:20:05 2023 +0100
+
+    logsumexp forward works, but even for nCodons 1 no grad can be computed
+
+[33mcommit cefbf9f5574abb168bbebeda910ccd77dc268fa7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Feb 2 15:05:40 2023 +0100
+
+    scale with conditional const should also work
+
+[33mcommit 1f53a468a343adc9993cdaf4c16830a927e50257[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Feb 2 12:01:55 2023 +0100
+
+    scale with const, scale wiht only one reduce sum, scale with 2 reduced sums, correct loglikes by all 3 methods, manual dp tables that get the same results as model.fit
+
+[33mcommit 742b65f483cdebc00e2f1c525145b4ce913c9290[m
+Merge: 9c00185 bf33d37
+Author: Mattes Mrzik <mattes@mrzik.de>
+Date:   Mon Jan 30 15:23:30 2023 +0000
+
+    merged
+
+[33mcommit 9c00185307b1b71d5e0e6fd1246f954303fb05a6[m
+Author: Mattes Mrzik <mattes@mrzik.de>
+Date:   Mon Jan 30 15:20:31 2023 +0000
+
+    assertcallback before write weights
+
+[33mcommit bf33d373e8e5ccbdd474f052ab816d3217b78474[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jan 30 16:18:49 2023 +0100
+
+    forward can now be scaled with constant factor
+
+[33mcommit c71577baaff26da0828d82b89261d8f6ca0bb021[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jan 30 14:04:40 2023 +0100
+
+    reworked write and load weights in cell.py
+
+[33mcommit 306b080c978e2af4b977b5a3d44d8b0921999eae[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jan 30 11:39:11 2023 +0100
+
+    added constant weight initializer
+
+[33mcommit eb440c63424f03fb9c0d5c4cfdc790d1778b2cd3[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jan 30 11:28:42 2023 +0100
+
+    fixed small bug
+
+[33mcommit afae2d9695b815fb23a89d170ad3b174b477accc[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jan 30 11:25:48 2023 +0100
+
+    some cleanup
+
+[33mcommit 39ddcac8e5ac3d0c75c053298282b21cfdd2379e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jan 30 10:47:50 2023 +0100
+
+    removed call_type argument
+
+[33mcommit 31309d899ca3760dca1ef8eef61cbc4c0ad84960[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jan 30 09:57:16 2023 +0100
+
+    changed export to png
+
+[33mcommit e2a70058ef099390395108630decde2de40a9d16[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sun Jan 29 16:13:49 2023 +0100
+
+    dense version of my model, during creation of sparse b use transpose twice bc sparse softmax can only along last axis
+
+[33mcommit d21e7452d7443ea0be01e3e7a1b3e2f26f15fac5[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sat Jan 28 17:03:18 2023 +0100
+
+    moved model to its own module
+
+[33mcommit 4e3ed2f28a3ff679b9484ab27f3ebd3a284ee383[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Jan 26 10:31:39 2023 +0100
+
+    moved methods to Model.py, doenst work yet
+
+[33mcommit 16d5390fad600a6fd2a1333101bd633980d0c4b7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jan 25 09:57:28 2023 +0100
+
+    batch_size and print_batch_id as options to find seq that produces nan via batchsize 1
+
+[33mcommit 6b23e2045649192e556ef09b901c70b877d5d098[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jan 24 18:27:40 2023 +0100
+
+    small_bench for the night
+
+[33mcommit b548b7273a4fc9afd2e6769843772fdd60ab7bbe[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jan 24 16:57:37 2023 +0100
+
+    option from last commit didnt seem to have a noticeable effect, so now create sparse full model a list of indices is used
+
+[33mcommit 061fa88a69d7746f6c9fe944fc8fbfaa297e7e2f[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jan 24 15:22:38 2023 +0100
+
+    option to convert dense full model to sparse full model
+
+[33mcommit 5c72f8390ca9c75dd4bb28b55235179fbca10cf4[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jan 24 14:02:24 2023 +0100
+
+    added tf version to readme, tf_version gets printed from config.py
+
+[33mcommit 46febe9cbbbca7e4875d758d4799c0732f8dc32c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jan 24 13:38:51 2023 +0100
+
+    programm again works with full model
+
+[33mcommit 74a5a75d06a9142156d38709f04df48444477669[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jan 17 13:29:53 2023 +0000
+
+    check for zeros in matrices
+
+[33mcommit 7e082081588056586b17cbc2c6904d8cba90c4e3[m
+Merge: 0d49df7 132c744
+Author: Mattes Mrzik <mattes@mrzik.de>
+Date:   Thu Jan 12 13:01:21 2023 +0000
+
+    merged
+
+[33mcommit 0d49df73a23cceb0dd608a5a7ff849bf18595176[m
+Author: Mattes Mrzik <mattes@mrzik.de>
+Date:   Thu Jan 12 12:57:42 2023 +0000
+
+    no alpha in smallbench
+
+[33mcommit 132c74436bd3bdf056b0f944ede79d07f077cf5e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Jan 12 12:56:40 2023 +0000
+
+    forced gene structure through emissions
+
+[33mcommit f4c89463dc64035b1a5838ef0443b8add5605a65[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jan 11 12:18:19 2023 +0000
+
+    option to not use inserts and delete transitions
+
+[33mcommit 3b05c25ce5b794ef931857dcfd4a727a8742a132[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jan 3 11:53:55 2023 +0000
+
+    when only_C div B by 1000
+
+[33mcommit 8fa5e5a9673381b45f5f8b77a76c9016d53b9176[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jan 3 09:36:47 2023 +0000
+
+    only_C except start and stop to determine whether something is wrong with my model and code or the gradient errors may divide by an underflow
+
+[33mcommit 2f80a582737b67a8ea83dca4222b527e826f2b8b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sat Dec 31 14:53:00 2022 +0000
+
+    manual training loop doenst calc the gradient of y (which is [batchsize] dimensional) but instead of reduce_mean(y). Why is manual traning slower than graph (not time wise but lesser learning with same epochs and steps)
+
+[33mcommit ea250b61489490455e4e3cf5869c55ea2770e404[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sat Dec 31 13:20:34 2022 +0000
+
+    alpha i gradient as arg to small_bench
+
+[33mcommit 22937d007820deed0c1c4a584cbcdda5feddbd06[m
+Author: Mattes Mrzik <mattes@mrzik.de>
+Date:   Sat Dec 31 12:44:03 2022 +0000
+
+    write manual alpha i gradient to file
+
+[33mcommit e882b4be6fd467a176466f663af99f2e398e46b1[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Dec 30 11:26:09 2022 +0000
+
+    can now differentiate alpha_i wrt to kernels in manual traning loop
+
+[33mcommit 0b3c047b94a6037fcdd7dcea8ba6b71144c018da[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Dec 28 10:17:06 2022 +0000
+
+    for revision
+
+[33mcommit 434e9f63da9841b92e1f2e9871b461840afd225a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Dec 28 09:32:51 2022 +0000
+
+    fixed error when scaling gradient wiht learning rate in manual training loop
+
+[33mcommit b20591503febf49cc9a5581c1983c94f3e32bfcc[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Dec 28 08:31:34 2022 +0000
+
+    assert callback had bug
+
+[33mcommit e5ce081899c591593f3954654b854e535e32dd5b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 27 09:48:13 2022 +0000
+
+    some clean up
+
+[33mcommit 2158d5a49cbe98f01bb61931bbd38df59ac683a4[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 26 11:36:48 2022 +0000
+
+    added 3 dummy cols to B bc reshaped softmax needs div by 4 and concating the terminal state made grad none
+
+[33mcommit a486bf3cae6393ee7e04c40e21d1c7a6e2d565e2[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Dec 21 20:01:54 2022 +0000
+
+    rework of softmax B and removed columns like AIA
+
+[33mcommit 129878d2b799f2eaf85c242af71bd449bc5b393a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 20 18:23:58 2022 +0000
+
+    new style to config.print()
+
+[33mcommit ec250a928fb02878714e5bdb6e5902c4c76513a8[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 20 13:16:31 2022 +0000
+
+    small bugfix
+
+[33mcommit b68a1b1bdae515657135c3979135b695fc0c72b7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 20 13:04:10 2022 +0000
+
+    check loglike finite
+
+[33mcommit e8e0de8436693331da6c7ea0178f6d6d7d0abdc5[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 20 12:14:32 2022 +0000
+
+    at least one X at end of seqs
+
+[33mcommit 43a6da473a28df94ca733225a17c1df5edf83a2e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 20 10:21:41 2022 +0000
+
+    fixed some small bugs in config and main_programm
+
+[33mcommit 91eed6cea0940c05e01c7184512e1a755aa31c7c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Dec 16 10:20:04 2022 +0100
+
+    changes access of attributes of config, such that i can assign values from outside, ie from smallbench
+
+[33mcommit 74b5d1a0b7a41ccc94d89b733a6bd893b9997173[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Dec 15 13:59:58 2022 +0100
+
+    dont use gpu as arg
+
+[33mcommit 248337ba4ac543dd3b448b17634a9807e6a63dd3[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Dec 15 13:47:41 2022 +0100
+
+    small error that only occured when gpu is avail, v2
+
+[33mcommit 0381dbd48e15a26fdc78df0127a9e356bec6e190[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Dec 15 13:46:53 2022 +0100
+
+    small error that only occured when gpu is avail
+
+[33mcommit 48514f50c90a74d196a906929428bb3866f01959[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Dec 15 13:41:57 2022 +0100
+
+    args are now complete moved to config.py, programm works with it
+
+[33mcommit e6458c892056fd1d4e99023b22666d4414914487[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Dec 14 15:30:13 2022 +0100
+
+    cleaned calls in cell, config.py should be ready to be used
+
+[33mcommit e57be1f93850a97a647ac0d2c3eff3b9e11a6574[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 13 15:35:59 2022 +0100
+
+    correct MSAgen.py import in useMSAgen
+
+[33mcommit e3fda1ac21073dc3763201344b9fb8ccb7dbb842[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 13 15:17:54 2022 +0100
+
+    added include path as arg in useMSAgen.py
+
+[33mcommit 38319d6c9de724ba96a9fb6d0d78044b9e9df3fe[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 13 14:25:40 2022 +0100
+
+    arg to no strip flanks, use_simple_seq_gen can also be in no strip mode
+
+[33mcommit 7da8ee5665b146b8f44318822f7060debdace234[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 13 10:29:55 2022 +0100
+
+    use_simple_gen_seq all same len
+
+[33mcommit 59c487781d63c52a6bf338757f3f6f59bfcb0984[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 12 10:50:41 2022 +0100
+
+    view current inputs.txt in Utility
+
+[33mcommit b958da85a3eae4047e47b1bacead9597e758a1fe[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 12 09:34:16 2022 +0100
+
+    trying to find the seq that fails
+
+[33mcommit ff57ff7e5e4bf67a7d38494153480c5a68912e13[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 12 09:11:02 2022 +0100
+
+    more args to smallbench
+
+[33mcommit 704c60e75f9ee1d02d194aaaf818b6a12791472a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 12 09:02:19 2022 +0100
+
+    added config.py which is not in use yet
+
+[33mcommit b27eb8e047cab5b925ff86adeb9316a2e4acd78e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 12 09:00:07 2022 +0100
+
+    forgot to add main
+
+[33mcommit 7d4b580f4fd04c1cf41dbc81fb72c06d086fa397[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 12 08:56:48 2022 +0100
+
+    lo_learning in smallbench
+
+[33mcommit d5185f9e90ff69263a0475ab7d06a33521e648c5[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Dec 9 09:19:34 2022 +0100
+
+    added run_viterbi argument, fixed use_simple_seq_gen where everything was written to a single line
+
+[33mcommit 19db34c65646f5a826b7288d8609cd218fceb646[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Dec 8 15:36:16 2022 +0100
+
+    added coding and non coding dist as parameter, to see if seqs are to similar, st parameter gets 0 but there is a seq the need that parameter to be greater 0
+
+[33mcommit 1e96a69949271adac1fb698f41ea5f1af8ae9683[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Dec 8 14:35:19 2022 +0100
+
+    fixed [a:-0] bug, now it is at least [a:-1]
+
+[33mcommit b3a54e0a8810dfcd00583a008769424c9904642d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Dec 8 09:24:09 2022 +0100
+
+    added missing np import
+
+[33mcommit 11204451a960cbb1604ff80bdcda9bbf0dbe0b9f[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Dec 8 09:13:14 2022 +0100
+
+    modified: strip flanks in useMSAgen, this might resolve nan during training
+
+[33mcommit 4c58d50fea95addfa5701960d570a4371ee72f5d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Dec 7 16:33:11 2022 +0100
+
+    avoid inframe stop in basic seq gen
+
+[33mcommit be9dc8a144c681746540bd8623e2d47988ef495a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Dec 7 16:21:27 2022 +0100
+
+    use_simple_seq_gen seqs are called my_generated_seq_id
+
+[33mcommit 876351c60896472d62948e805a6fa0f34e7c925d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Dec 7 16:12:20 2022 +0100
+
+    dont use MSAgen but a very basic seq gen
+
+[33mcommit 27223bdb052cfa5e1e748cf5330763e5003d1489[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Dec 7 14:38:53 2022 +0100
+
+    spelling
+
+[33mcommit 1e2d8ec97252c53e1501e08113cc24f05bec7fe6[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Dec 7 14:35:30 2022 +0100
+
+    convert json to csv, print generated seqs, small_bench can have --dont_gen_new_seqs as arg
+
+[33mcommit 673703f13a02847ea7b96c501ee858d3a8f8311e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 6 15:56:42 2022 +0100
+
+    tiny
+
+[33mcommit b65891851964c91c616cd999192484bc17dfb20e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 6 15:48:40 2022 +0100
+
+    incompatible shapes in assert, trying to fix it
+
+[33mcommit 384103a59d55a3805d2c034d56756ae1b5ef42ab[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 6 15:41:23 2022 +0100
+
+    another small fix
+
+[33mcommit 59bd9f1f0fea967442e542522e214ac6739a6c35[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 6 15:32:46 2022 +0100
+
+    spelling mistake
+
+[33mcommit cce02a60993b1e2175fa129c1517e2f5b85705bb[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 6 15:28:13 2022 +0100
+
+    more asserts in manual call
+
+[33mcommit 676dc2e91f5840df547778c08bdfa7f9377a5074[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 6 15:06:35 2022 +0100
+
+    assert_summarize [int] as argument
+
+[33mcommit 2533a8ac961a1601698ad248f8ed13febccc760c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 6 14:48:24 2022 +0100
+
+    manual_traning_loop
+
+[33mcommit d96e45b4616c44a46544cf02b5da2a7b19581a63[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Dec 6 11:24:50 2022 +0100
+
+    small_bench exit on nan
+
+[33mcommit 9277701a9ca9c2da1d43dba944239188691732c7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 5 15:58:02 2022 +0100
+
+    small bench to check SGD
+
+[33mcommit 2b679bcab61a6cef314cabbc0f823010c88f83a0[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 5 10:54:23 2022 +0100
+
+    spelling error
+
+[33mcommit 40feb5d396e2fac017137b3e672d63f55ffbc8f6[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 5 10:52:36 2022 +0100
+
+    callback doesnt break when calltype = 4 ie fullmodel
+
+[33mcommit a7168ea4b3c2bba1afe6801542c8d27eeb779e6c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 5 10:37:56 2022 +0100
+
+    fixed missing import
+
+[33mcommit f6daa9c5a54fd38d4662ddae71978451cf8766ba[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Dec 5 10:09:15 2022 +0100
+
+    when get gradient, set kernel from saved model, started to write unit test forward from current.txt output
+
+[33mcommit cb8dd7e14d48fa7b6dbe44f29c0145b8594ecb51[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Dec 2 09:14:20 2022 +0100
+
+    trying to debug
+
+[33mcommit 25daac9f182ecbd7d81407a7a9c04c4b989de4ff[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Dec 2 09:10:04 2022 +0100
+
+    git added CgpHmmLayer_non_recursive.py which was a try to get gradient when calling layer but it didnt work
+
+[33mcommit b9fff2c04861920703698692803c420adc60b228[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Dec 2 09:08:00 2022 +0100
+
+    actually added callbacks module
+
+[33mcommit 8cd26f1e5100471e85724d3325d03e2cb702c6b0[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Dec 2 09:04:28 2022 +0100
+
+    init cell weights from current.txt in Cell.py, bc when doing so before layer call it would be no use, since cell.build is automatically called again, use const initializer, callbacks module
+
+[33mcommit e5cb7ddfa2790deb2ec55120b9a85c3f19ce1b6e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Nov 29 18:19:00 2022 +0100
+
+    assert gradient is not nan when option --get_gradient_for_current_txt
+
+[33mcommit cc503ad934d9b2c1de8bc2e1ffdd65ccc1bf6ca2[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Nov 28 18:26:29 2022 +0100
+
+    write most recent A,I,B to json file, if they dont contain nan, also write current inputs to file, exit when nan. Read those files and calculate corresponding gradient
+
+[33mcommit 66941f94f62d73ff7106070292a95da1fbb94eb8[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Nov 28 10:55:46 2022 +0100
+
+    get gradient for first batch, slight modification to emissions, visualize after build, learning rate as parameter
+
+[33mcommit 6e854e2929f722591f3ec6e82813cb90db3ebc97[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Nov 25 09:28:59 2022 +0100
+
+    useMSA gen strips flanks differently, which might have been the cause to nan during traning
+
+[33mcommit cee03ded1498a8e4fa75f8e4696c6e0ba842e1a4[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Nov 24 13:19:47 2022 +0100
+
+    parameter to disable new seq generation
+
+[33mcommit b8d3cba2982652ab35ad68ef56c9ad7cdc060290[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Nov 24 09:38:21 2022 +0100
+
+    removed assert in @property, clip_gradient_by_value as argsparse
+
+[33mcommit 7af7ffea87c2c02ce3c62d604da520b946ff7937[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Nov 24 09:22:29 2022 +0100
+
+    clip the gradient at value
+
+[33mcommit f1cb79e091b4a044dcb03216df6074b16f3efa03[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Nov 23 13:54:57 2022 +0100
+
+    small fix
+
+[33mcommit 6a1c0c6b83856d223449fdf033713cc6950c5c00[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Nov 23 13:46:12 2022 +0100
+
+    weaken softmax to see whether this prevents underflow in A B and I and therefore prevents nan in these
+
+[33mcommit 77730ea92360ab27679db479bf21d91a4501cddc[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Nov 22 09:43:49 2022 +0100
+
+    also check for nen zero z
+
+[33mcommit fc6f4186c13bb6d596411e84442bff441cbd0db9[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Nov 21 15:22:04 2022 +0100
+
+    print more in assertion
+
+[33mcommit d4a20e4be4dc2fa8f48ec3f4bd97348887f97530[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Nov 21 14:47:12 2022 +0100
+
+    assert now reduce_all instead of reduce_any
+
+[33mcommit 351fff6d4abf39f1b2c7b6cebf913abffedfe71a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Nov 21 14:11:24 2022 +0100
+
+    use tf.debugging.Assert to check for nan in algo during graph execution
+
+[33mcommit 2be85023cfcda3f0a82d4a92ec87989dbcbe333c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Nov 21 11:03:11 2022 +0100
+
+    delete verbose after batch callback
+
+[33mcommit a96c309e42acecdae10850fbb4bde2074ec00730[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Nov 15 16:43:50 2022 +0100
+
+    logical gpus
+
+[33mcommit b23217080f684f40fda8471b410c1eab3747f96c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Nov 14 14:40:56 2022 +0100
+
+    try float64 as arg and see whether ncodons = 100 works now
+
+[33mcommit 5961ff17a9387c445783a522d8478b623e4024f7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Nov 14 11:43:01 2022 +0100
+
+    print verbose to file as arg
+
+[33mcommit 3b71579d787c40401afdee6a557b5284aaa26418[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Nov 14 11:08:53 2022 +0100
+
+    added verbose option to config
+
+[33mcommit 8a164939db5d526438eab402c7808e4bc8662b1d[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Nov 11 11:39:58 2022 +0100
+
+    removed regularization that may be the cause to nans in gradient or A and B when running with ncodons = 100
+
+[33mcommit ec0c9b5185fef363929676791e7de51dfac40847[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Nov 10 15:25:00 2022 +0100
+
+    exit after loglik is nan
+
+[33mcommit 699c61f32c4394d59ac23643ca954f609f8e1b74[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Nov 10 15:09:15 2022 +0100
+
+    exit() if loglik_mean is nan
+
+[33mcommit be3ee00b6c6db137686d00d1d1bb02de06be8657[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Nov 10 09:52:35 2022 +0100
+
+    argsparse to utility to transform verbose txt to csv
+
+[33mcommit 6c848d94e3d18fe564d8853c19aada7a15ccbb3a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Nov 9 16:32:13 2022 +0100
+
+    run typ 3 with verbose and exit after first batch
+
+[33mcommit 9c788fdb47a441b2634261cfc5eea1c07f370957[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Nov 9 15:33:25 2022 +0100
+
+    fixed bugs introduced in last 2 commits
+
+[33mcommit 94b04f54730a3041f0f7e319ccbfbc5c6d822596[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Nov 9 14:20:21 2022 +0100
+
+    some speed up in Utility for WriteData B csv
+
+[33mcommit ed45ccc817bec5681c9760bd103487025d39e618[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Nov 9 14:12:51 2022 +0100
+
+    some speed up in Utility for get_indices_for_weights_emission_matrix
+
+[33mcommit bbdee983a8354655fca99b5638d7c6997a17a514[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Nov 9 10:16:57 2022 +0100
+
+    in frame stop are forbidden, wrote tests for it, small bench takes arguments
+
+[33mcommit ece0a8d88fc8221d9797fb2b8477f38e5c07bdc1[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Nov 8 14:51:27 2022 +0100
+
+    run from Utility not from pyutils
+
+[33mcommit 97d6db65a813239e52f7b8b77087fd00bea4be81[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Nov 8 14:42:19 2022 +0100
+
+    unit test for forward works fine
+
+[33mcommit a7336d40937679bc90205236f5bf573bc722ef1a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Nov 7 09:40:11 2022 +0100
+
+    added print to check if main_programms continues after fit() on brain
+
+[33mcommit 641194a1808c1170113bb065e1c6757666f8058a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Nov 2 15:01:09 2022 +0100
+
+    before exporting get_indices method for A and B to seperate module, such that it is not incorperated in graph construction
+
+[33mcommit 43e595b0d83bd623cf40bc1b919e8e98adc50088[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Nov 1 18:21:25 2022 +0100
+
+    plot bench, cell.call different methods for sparse, dense, only A, or only B sparse, this needs still to be incorperated in the bench, also bench with not ordertransformed input
+
+[33mcommit ae3f82c3d3834e5fd4d77407b368e0a38e04cfc1[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Oct 28 13:26:56 2022 +0200
+
+    sparse works batchwise and even IIBase is learned well, better than in 47e8027700ae445ac163e5d039b6ae51ce373a1e
+
+[33mcommit 831e37f4efeaf385ca3f721a037323109d45a251[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Oct 26 15:23:47 2022 +0200
+
+    now all seqs are read, not only one. adjusted cell.call() to function batchwise, runs now but produces nan. tf.print() to file works, but not quite in the desired format
+
+[33mcommit f3fe0c33f756c2c7c3e31f3e1be9fddbbc31c413[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Oct 21 14:28:38 2022 +0200
+
+    sparse is learned, dont have parameters to differentiate between sparse-dense-ordertransformediput but comment the parts out, such that the function call might be easier to differentiate
+
+[33mcommit 1fd8ed4f89b91a587c4401d545bb8589dc87f34e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Oct 21 10:20:20 2022 +0200
+
+    sparse runs, but parameters arent well learned
+
+[33mcommit 47e8027700ae445ac163e5d039b6ae51ce373a1e[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Oct 20 12:00:21 2022 +0200
+
+    emission matrix B uses now order transformed input, learned matrix looks allright, needs to be checked, bc first emission IIBase doenst seem perfekt
+
+[33mcommit 31cc4f6216998e81ac4c639f9d081a9561895b2d[m
+Author: Mattes Mrzik <mattes@mrzik.de>
+Date:   Fri Sep 2 11:44:23 2022 +0200
+
+    Update README.md
+
+[33mcommit 0e53c4051b131aa99a448173cbd166b27ff98149[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Fri Sep 2 11:41:02 2022 +0200
+
+    use cell.init = True to use initial probs to forward algo, fails to calc gradient
+
+[33mcommit ac0443d9f0d65daf4e4e9a897b2c4b99f32459b3[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Sep 1 17:59:03 2022 +0200
+
+    typo
+
+[33mcommit cb7daefe15360ef4f7486157633271b9f121a6ed[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Sep 1 17:57:18 2022 +0200
+
+    added readme
+
+[33mcommit 6f995d6c592c90bc1ab341f230a2c399f6a58198[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Sep 1 17:40:55 2022 +0200
+
+    added MSAgen as submodule, changes paths such that everything should be able to run if this repo is cloned
+
+[33mcommit 95a33e31ed56399c2e28344ef27d66eacada7dab[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Sep 1 12:20:10 2022 +0200
+
+    outputfiles are no in separate dir
+
+[33mcommit 50b53159ff9d9b70131591f5b72baf4274c2b34b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Aug 25 09:59:09 2022 +0200
+
+    transition probs in graph vis, small fix in main_programm, comments in cell
+
+[33mcommit 9242b30dcc5e742eccc19340c6b5d07130c2ffcf[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Aug 24 17:41:30 2022 +0200
+
+    visualize model, transition prob as label for edges are missing
+
+[33mcommit 461307d11e02cb3e7048c67e47cc7594d06b385a[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Aug 2 13:16:55 2022 +0200
+
+    first simple statistics for found start and stop codons, still just at end of main_program and not tidily outsourced to seperate module
+
+[33mcommit 09d78ea749e475b9c072a32bcdccb91bf7cf477b[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Aug 1 17:47:06 2022 +0200
+
+    parameter ncodons are shared somewhat classes and programms
+
+[33mcommit c3efe939bc4583a916a19cdbf42edf6f243e97fe[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Aug 1 11:56:00 2022 +0200
+
+    c++ code for viterbi is working, viterbi with 22 codons partially takes delete und detour trough inserts instead of taking the codon path, finds start and stop codons
+
+[33mcommit eba22a52c45f133d4ebf3580545b5da7f09901c5[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jul 26 10:47:32 2022 +0200
+
+    added init kernel
+
+[33mcommit 0465cbf48d13a67b61bd429b0b4d74c27ba02d08[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jul 25 16:05:26 2022 +0200
+
+    emission matrix b is variable to order, added terminal_2 state such that it can emit terminal symbol X*order as its only emission
+
+[33mcommit 809cb465a4c1e9e4645e60a2edd6575a7eb784e6[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Jul 21 12:51:14 2022 +0200
+
+    order is now variable, if the matrix B is adjusted accordingly
+
+[33mcommit 919f34bddb445d76cc9086c74dca9a58c68ccaed[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Jul 21 09:49:17 2022 +0200
+
+    code cleaned up a bit
+
+[33mcommit 34062ea2e2d8233a0a5a8d8d32508895c1919fe7[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jul 20 13:03:51 2022 +0200
+
+    higher order runs through, code note cleaned up and not tested
+
+[33mcommit c2d973558bd1c30064e2cae4b847b96f910619fa[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jul 18 18:08:14 2022 +0200
+
+    added playground, which contains working higher order inputs multiplication with emission matrix
+
+[33mcommit 2028f875cd27fabbcbb7bc200594b9a2e85bca19[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Sun Jul 17 17:47:47 2022 +0200
+
+    emission matrix indices and values for higher order model should be oke, checked by hand
+
+[33mcommit 23323a9f594fa0d18f3398dfda90504f5363079c[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue Jul 5 10:07:59 2022 +0200
+
+    added terminal symbol, now variable length seqs can be used as input, both flanking regions must be at least of length one
+
+[33mcommit 13bc0872f07176a68a4766705d5b83525b6feeee[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Thu Jun 30 19:26:52 2022 +0200
+
+    simple model without inserts finds correct profile for codons in emission parameters
+
+[33mcommit 88a869e1fd99415da3ce5217369f2b72bd974864[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Mon Jun 13 16:18:09 2022 +0200
+
+    fill sparse matrix with values and convert it to dense, make calculations with dense, toy model is learned, sparse calculations didnt work bc method takes 2 2d matrices, and input has batchsize
+
+[33mcommit 04ba4239cf82a4c405c806b4f21c177cf8eeb209[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jun 1 16:53:04 2022 +0200
+
+    implemented scaled forward in tf, training seems to work, still need to write test for it
+
+[33mcommit af3a2a47bb7b4e7feb7d13b69ff91006f250ccdf[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed Jun 1 15:04:38 2022 +0200
+
+    unittest tf log same as manual log forward, dont manually build cell in layer, cell is build in call of layer when calling F
+
+[33mcommit ff0720f38d6eb595ed10eadca2914a95ad9801e4[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 31 19:20:47 2022 +0200
+
+    created utility.py, viterbi etc methods work with a0, test of viterbi seems to work
+
+[33mcommit a13bee0b3acec6995e5fa8d4919e25ba3e1c1a58[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Wed May 25 10:20:49 2022 +0200
+
+    loglik as loss, parms can be learned to fit the seqs generated by simple 2-states-4-emissions-hmm
+
+[33mcommit 9b4a1533a014cda6b2ae6072142eead4c7c00137[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 24 19:21:01 2022 +0200
+
+    added callback to print model pars during training, but the are const and not changed in the direction of the gradient, is gradient somehow 0, or just not applied?
+
+[33mcommit fdd59b07b93efe0223aed48dddf36f9f4a548c78[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 24 18:28:14 2022 +0200
+
+    added loss, gradient can be computed, the loss is not yet suited to change the parms to fit the data, still need to check whether parms are changed in fit interations
+
+[33mcommit e9d2bf01a9e26018b2b1dbd2febe7c64a2fae0e6[m
+Author: MattesMrzik <mattes@mrzik.de>
+Date:   Tue May 24 16:33:07 2022 +0200
+
+    forward works for toy model for explicit call of the rnn layer, fitting doesnt work yet, since no loss function is found

@@ -1,15 +1,18 @@
 
 ## Install
 
-contact mattes@mrzik.de or github: mabl3 to get promoted to collaborator for MSAgen (which is a required submodule)
+contact mattes@mrzik.de
 
 * git clone --recursive https://github.com/MattesMrzik/CGP-HMM
+* cd viterbi_cc
 * make
+* chmod u+x Viterbi
 
 ## Run
 
 * navigate to cgp_hmm
-* ./main_programm
+* cd src
+* python3 cgphmm.py
 
 ## Info
 Unit tests are not up to date.

@@ -8,7 +8,12 @@ from Bio import SeqIO, AlignIO
 from Bio.Align import MultipleSeqAlignment
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from helpers.convert_kernels_to_matrices import convert_kernel_files_to_matrices_files
+
+import sys
+
+sys.path.insert(0, "../scripts")
+from convert_kernels_to_matrices import convert_kernel_files_to_matrices_files
+
 
 def get_true_state_seqs_from_true_MSA(config):
     # calc true state seq from true MSA
@@ -449,39 +454,30 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
 ################################################################################
 ################################################################################
 def run_cc_viterbi(config, matr_dir):
-    import multiprocessing
     start = time.perf_counter()
     seq_path = f"--seqs_path {config.fasta_path}.json"
     only_first_seq = f"--only_first_seq" if config.only_first_seq else ""
-    # if config.manual_passed_fasta:
-    #     out_dir_path = os.path.dirname(config.fasta_path)
-    #     out_path = f"--out_path {out_dir_path}/viterbi_cc_output.json"
-    # else:
-    #     out_path = ""
 
     after_or_before = os.path.basename(matr_dir).split("_")[0]
     assert after_or_before in ["before", "after"], "Viterbi.py. Folder of matrices must begin with either 'before' or 'after'"
     out_path = f"--out_path {config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
-    # command = f"{config.out_path}/Viterbi -c {config.nCodons} -j {multiprocessing.cpu_count()-1} {seq_path} {only_first_seq} {out_path}"
-    print("matr_dir passed to cc viterbi", matr_dir)
 
-    # finding the Viterbi exe
+    if not os.path.exists(config.viterbi_exe):
+
     command = f"{config.viterbi_exe} -j {config.viterbi_threads} {seq_path} {only_first_seq} {out_path} --dir_path_for_para {matr_dir}"
     print("starting", command)
     os.system(command)
     print("done viterbi. it took ", time.perf_counter() - start)
 ################################################################################
-def main(config, overwrite_viterbi = True):
+def main(config):
     # (if not passed parent_input_dir it is set to current run dir but this is different when calling viterbi
     # when parent_input_dir is not set and viterby.py is called d viterbi.py should select the newest dir)
 
-    # check if matrices exists, if not convert kernels
 
     after_or_before = "after_fit_para" if config.after_or_before == "a" else "before_fit_para"
     matr_dir = f"{config.current_run_dir}/{after_or_before}"
     # if not os.path.exists(f"{matr_dir}/A.json"):
 
-    # TODO maybe dont convert if files already exist
     print("start converting kernels to matrices")
     convert_kernel_files_to_matrices_files(config, matr_dir)
     print("done with converting kernels")
@@ -491,7 +487,7 @@ def main(config, overwrite_viterbi = True):
         print("fa.json doesnt exist, so it it calculated")
         from ReadData import read_data_one_hot_with_Ns_spread_str
         from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers
-        seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True, remove_long_seqs_bool = False)
+        seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
         seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
         with open(seqs_json_path, "w") as out_file:
             json.dump(seqs_out, out_file)
@@ -507,24 +503,11 @@ def main(config, overwrite_viterbi = True):
 
     out_viterbi_file_path = f"{config.current_run_dir}/viterbi_cc_output_{after_or_before}.json"
     if not config.in_viterbi_path:
-        if os.path.exists(out_viterbi_file_path):
-            if overwrite_viterbi:
-                run_cc_viterbi(config, matr_dir)
-            else:
-                print(f"{out_viterbi_file_path} already exists and --force_overwrite was not passed")
-        else:
-            run_cc_viterbi(config, matr_dir)
+        run_cc_viterbi(config, matr_dir)
 
-        # if config.manual_passed_fasta:
         print("before fasta_true_state_seq_and_optional_viterbi_guess_alignment")
         fasta_true_state_seq_and_optional_viterbi_guess_alignment(config.fasta_path, out_viterbi_file_path, config.model, out_dir_path = config.current_run_dir)
         print("adter fasta_true_state_seq_and_optional_viterbi_guess_alignment")
-        # if not config.manual_passed_fasta:
-        #     viterbi_guess = load_viterbi_guess(config)
-        #     true_state_seqs = get_true_state_seqs_from_true_MSA(config)
-        #     compare_guess_to_true_state_seq(true_state_seqs, viterbi_guess)
-        #     write_viterbi_guess_to_true_MSA(config, true_state_seqs, viterbi_guess)
-        #     eval_start_stop(config, viterbi_guess)
 
 
 if __name__ == "__main__":
@@ -535,10 +518,6 @@ if __name__ == "__main__":
     config = Config()
     config.init_for_viterbi()
     print("done with making config in vertbi.py")
-
-    # print("viterbi with after_fit_matrices or before_fit_matrices [a/b]")
-    # while (a_or_b := input()) not in "ab":
-    #     pass
 
     main(config)
 

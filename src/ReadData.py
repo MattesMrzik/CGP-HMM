@@ -8,87 +8,29 @@ from Utility import run
 import re
 from Utility import append_time_ram_stamp_to_file
 from itertools import product
-from random import randint
 import time
-
-# def read_data_one_hot(path, alphabet = ["A","C","G","T"]):
-#     seqs = []
-#     base_to_id = dict([(base, id) for id, base in enumerate(alphabet)])
-#     with open(path,"r") as handle:
-#         for record in SeqIO.parse(handle,"fasta"):
-#             seq = record.seq
-#             seq = list(map(lambda x: base_to_id[x], seq))
-#             seqs.append(seq)
-#
-#     return tf.one_hot(seqs, len(alphabet))
-#
-# def read_data(path, alphabet = ["A","C","G","T"]):
-#     seqs = []
-#     base_to_id = dict([(base, id) for id, base in enumerate(alphabet)])
-#     with open(path,"r") as handle:
-#         for record in SeqIO.parse(handle,"fasta"):
-#             seq = record.seq
-#             seq = list(map(lambda x: base_to_id[x], seq))
-#             seqs.append(seq)
-#
-#     return seqs
 
 def convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs) -> list[list[float]]:
     return list(map(lambda l: [[float(x) for x in i.split("_")] for i in l], seqs))
 
-def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False, remove_long_seqs_bool = True) -> list[list[str]]:
+def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False) -> list[list[str]]:
     '''
     bc i can only pad batches with scalar i have multi hot encoded strings for every base A,C,G,T,N,a,c,g,t
     and pad with str that encodes terminal emission
     then i can convert these a string corresponding to a base to its multi hot encoded version
     '''
     start = time.perf_counter()
-    run_id = randint(0,100)
-    append_time_ram_stamp_to_file(f"read_data_one_hot_with_Ns_spread_str() start {run_id}", config.bench_path, start)
+    append_time_ram_stamp_to_file(f"read_data_one_hot_with_Ns_spread_str() start ", config.bench_path, start)
     seqs = []
     base_to_id_dict = dict([(base, id) for id, base in enumerate("ACGTI")])
     def base_to_id(b):
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        # b = b.upper()
-
-
-
-
-
-
-
-
-
-
-
-
-
+        b = b.upper()
         try:
             return base_to_id_dict[b]
         except:
             return 5
 
     with open(config.fasta_path,"r") as handle:
-        print(config.only_primates)
-        print(config.only_diverse)
-        print(config.only_human_to_train)
         if config.only_primates or config.only_diverse:
             with open(config.primates_path, "r") as primates_handle:
                 primates = set()
@@ -152,7 +94,6 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
                 if not re.search("Homo_sap",species_name):
                     continue
 
-            print("getting a seq")
 
             seq = record.seq
             seq_of_one_hot = []
@@ -183,18 +124,14 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
                 entry_of_one_hot = "_".join([str(x) for x in entry_of_one_hot])
                 seq_of_one_hot.append(entry_of_one_hot)
             seqs.append(seq_of_one_hot)
-    append_time_ram_stamp_to_file(f"read_data_one_hot_with_Ns_spread_str() end   {run_id}", config.bench_path, start)
+    append_time_ram_stamp_to_file(f"read_data_one_hot_with_Ns_spread_str() end ", config.bench_path, start)
     assert len(seqs) != 0, "no seqs read"
-    print("actual number of species used as input id_3258utnfwe23:", len(seqs))
-
-    if remove_long_seqs_bool and not config.only_human_to_train:
-        seqs = remove_long_seqs(seqs)
+    print("actual number of species used as input:", len(seqs))
 
     if config.only_human_to_train:
         seqs.append(seqs[0])
         print("added human sequence to input")
         print("len(seqs)", len(seqs))
-
 
     return seqs
 

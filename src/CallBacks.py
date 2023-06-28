@@ -197,7 +197,7 @@ def get_call_backs(config, model):
     callbacks = [write_time_ram_epoch_start_callback(),
                  write_time_ram_epoch_end_callback()]
 
-    if config.print_batch_id or True:
+    if config.print_batch_id:
         callbacks += [batch_id_at_begin()]
     if config.exit_after_first_batch:
         callbacks += [exit_after_first_batch()]

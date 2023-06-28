@@ -1,0 +1,26 @@
+wget http://bioinf.uni-greifswald.de/bioinf/downloads/data/aug-test/train.1784.gb.gz
+# manually edit the human metaparameters
+
+ diff human_parameters.cfg.backup human_parameters.cfg
+ 79c79
+ < /Constant/decomp_num_steps            2
+ ---
+ > /Constant/decomp_num_steps            1
+ 107c107
+ < /ExonModel/k                  4
+ ---
+ > /ExonModel/k                  2
+ 123c123
+ < /IntronModel/k                  4
+ ---
+ > /IntronModel/k                  2
+ 140c140
+ < /UtrModel/k                     4
+ ---
+ > /UtrModel/k                     2
+
+
+# train new parameters, this time only order 2 and no different GC content classes
+~mario/Augustus/bin/etraining --species=human train.1784.gb --UTR=on
+
+# On cs3: /home/mario/Augustus/config/species/human

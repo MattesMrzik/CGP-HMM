@@ -4,14 +4,12 @@ from Bio import SeqIO
 import re
 import time
 from random import randint
-import tensorflow as tf
 from resource import getrusage
 from resource import RUSAGE_SELF
-from itertools import product
 import os
 import json
 from scipy.optimize import curve_fit
-
+import tensorflow as tf
 
 ##############################################################################
 ################################################################################
@@ -90,6 +88,7 @@ def find_indices_in_sparse_A_that_are_zero(config = None, \
 ################################################################################
 ################################################################################
 def from_before_and_after_json_matrices_calc_diff_and_write_csv(config = None):
+    import tensorflow as tf
     dir_before_fit = f"{config.current_run_dir}/before_fit_para"
     dir_after_fit  = f"{config.current_run_dir}/after_fit_para"
     print("started getting diff for a")
@@ -549,179 +548,6 @@ def view_current_inputs_txt(path):
 ################################################################################
 ################################################################################
 ################################################################################
-# type is either I, A, B
-# def transform_json_to_csv(path, I_or_A_or_B, nCodons):
-#     import json
-#     print("I_or_A_or_B =", I_or_A_or_B)
-#     with open(path, "r") as file:
-#         data = json.load(file)
-#     print("data shape =", tf.shape(data))
-#     if I_or_A_or_B == "I":
-#         data = data[0]
-#         with open(path + ".csv", "w") as file:
-#             for id, value in enumerate(data):
-#                 file.write(state_id_to_description(id, nCodons))
-#                 file.write(";")
-#                 file.write(str(value))
-#                 file.write("\n")
-#     elif I_or_A_or_B == "A":
-#         with open(path + ".csv", "w") as file:
-#             file.write(";")
-#             for state in range(len(data)):
-#                 file.write(state_id_to_description(state, nCodons))
-#                 file.write(";")
-#             file.write("\n")
-#             for id, row in enumerate(data):
-#                 file.write(state_id_to_description(id, nCodons))
-#                 file.write(";")
-#                 for value in row:
-#                     file.write(str(value))
-#                     file.write(";")
-#                 file.write("\n")
-#     elif I_or_A_or_B == "B":
-#         print("B")
-#         id_to_emi = get_dicts_for_emission_tuple_and_id_conversion(alphabet_size = 4, order = 2)[1]
-#         with open(path + ".csv", "w") as file:
-#             file.write(";")
-#             for state in range(len(data[0])):
-#                 file.write(state_id_to_description(state, nCodons))
-#                 file.write(";")
-#             file.write("\n")
-#             print("data =", str(data)[:50], "...")
-#             for id, row in enumerate(data):
-#                 if not id in id_to_emi:
-#                     break
-#                 # print("id_to_emi[id] =", id_to_emi[id])
-#                 file.write(emi_tuple_to_str(id_to_emi[id]))
-#                 file.write(";")
-#                 for value in row:
-#                     file.write(str(value))
-#                     file.write(";")
-#                 file.write("\n")
-
-################################################################################
-# def transform_verbose_txt_to_csv(path, nCodons):
-#     log = {}
-#     with open(path,"r") as file:
-#         for line in file:
-#             line = line.strip().split(";")
-#             # beginning of data entry
-#             if len(line) == 4:
-#                 if line[2][0] != ">":
-#                     continue
-#                 count = int(line[0])
-#                 run_id = int(line[1])
-#                 description = line[2][1:]
-#                 data = [round(float(x),3) for x in re.sub("[\[\]]","", line[3]).split(" ")]
-#             else:
-#                 data = [round(float(x),3) for x in re.sub("[\[\]]","", line[0]).split(" ")]
-#             if count not in log:
-#                 e = {description : [data]}
-#                 log[count] = {run_id : e}
-#             else:
-#                 if run_id not in log[count]:
-#                     e = {description : [data]}
-#                     log[count][run_id] = e
-#                 else:
-#                     if description not in log[count][run_id]:
-#                         log[count][run_id][description] = [data]
-#                     else:
-#                         log[count][run_id][description].append(data)
-#     # for count in log.keys():
-#     #     for id in log[count].keys():
-#     #         for description in log[count][id].keys():
-#     #             for data in log[count][id][description]:
-#     #                 print(count,id,description,data, sep = "\t")
-#
-#     with open(path + ".csv","w") as file:
-#         import numpy as np
-#         sep = ";"
-#         decimal_seperator = ","
-#         file.write("A\n" + sep*2)
-#         for id in log[1]:
-#             for i in range(len(log[1][id]["A"])):
-#                 file.write(state_id_to_description(i, nCodons))
-#                 file.write(sep)
-#             file.write("\n")
-#             for row_id, data in enumerate(log[1][id]["A"]):
-#                 file.write(sep)
-#                 file.write(state_id_to_description(row_id, nCodons))
-#                 file.write(sep)
-#                 file.write(sep.join(list(map(str,data))).replace(".",decimal_seperator))
-#                 file.write("\n")
-#             break
-#         file.write("B\n" + sep*2)
-#         for id in log[1]:
-#             for i in range(len(log[1][id]["A"])):
-#                 file.write(state_id_to_description(i, nCodons))
-#                 file.write(sep)
-#             file.write("\n")
-#             for row_id, data in enumerate(log[1][id]["B"]):
-#                 alphabet_size = 4
-#                 order = 2
-#                 file.write("".join(["ACGTIT"[b] for b in id_to_higher_order_emission(row_id, alphabet_size, order)]))
-#                 file.write(sep)
-#                 file.write(str(row_id))
-#                 file.write(sep)
-#                 file.write(sep.join(list(map(str,data))).replace(".",decimal_seperator))
-#                 file.write("\n")
-#             break
-#
-#         for i in sorted(list(log)): # sort by count
-#             for id in log[i]:
-#                 file.write(str(id)+"_")
-#                 max_len = max([len(v) for k,v in log[i][id].items() if k not in ["A","B"]])
-#                 inputs = sep.join("i") # since i will decode the one_hot encoding
-#                 E = sep.join("E" * len(log[i][id]["E"][0]))
-#                 R = sep.join("R" * len(log[i][id]["R"][0]))
-#                 a = sep.join("a" * len(log[i][id]["forward"][0]))
-#                 l = sep.join("l" * len(log[i][id]["loglik"][0]))
-#                 file.write(f"{i}{sep}{inputs}{sep}{E}{sep}{R}{sep}{a}{sep}{l}\n")
-#                 for row in range(max_len):
-#                     file.write(str(i))
-#                     file.write(sep)
-#                     try:
-#                         file.write(str(np.argmax(log[i][id]["inputs"][row])).replace(".",decimal_seperator))
-#                         file.write(sep)
-#                     except:
-#                         file.write(sep)
-#                         file.write(sep)
-#                     try:
-#                         file.write(sep.join(list(map(str, log[i][id]["E"][row]))).replace(".",decimal_seperator))
-#                         file.write(sep)
-#                     except:
-#                         file.write(sep * (len(log[i][id]["E"][0])-1))
-#                         file.write(sep)
-#                     try:
-#                         file.write(sep.join(list(map(str, log[i][id]["R"][row]))).replace(".",decimal_seperator))
-#                         file.write(sep)
-#                     except:
-#                         file.write(sep * (len(log[i][id]["R"][0])-1))
-#                         file.write(sep)
-#                     try:
-#                         file.write(sep.join(list(map(str, log[i][id]["forward"][row]))).replace(".",decimal_seperator))
-#                         file.write(sep)
-#                     except:
-#                         file.write(sep * (len(log[i][id]["forward"][0])-1))
-#                         file.write(sep)
-#                     try:
-#                         file.write(sep.join(list(map(str, log[i][id]["loglik"][row]))).replace(".",decimal_seperator))
-#                         file.write(sep)
-#                     except:
-#                         file.write(sep * (len(log[i][id]["loglik"][0])-1).replace(".",decimal_seperator))
-#                         file.write(sep)
-#                     file.write("\n")
-
-################################################################################
-################################################################################
-################################################################################
-def append_time_stamp_to_file(time, description, path):
-    with open(path, "a") as file:
-        file.write(f"{time}\t{description}\n")
-################################################################################
-# WARNING:tensorflow:AutoGraph could not transform <function _make_iterencode at 0x7fd619f7c550> and will run it as-is.
-# Cause: generators are not supported
-# To silence this warning, decorate the function with @tf.autograph.experimental.do_not_convert
 @tf.autograph.experimental.do_not_convert
 def append_time_ram_stamp_to_file(description, bench_file_path, start = None, ):
     if not os.path.exists('/'.join(bench_file_path.split('/')[:-1])):
@@ -737,13 +563,20 @@ def append_time_ram_stamp_to_file(description, bench_file_path, start = None, ):
 
         json.dump(d, file)
         file.write("\n")
+################################################################################
+################################################################################
+################################################################################
+################################################################################
+def append_time_stamp_to_file(time, description, path):
+    with open(path, "a") as file:
+        file.write(f"{time}\t{description}\n")
+################################################################################
+# WARNING:tensorflow:AutoGraph could not transform <function _make_iterencode at 0x7fd619f7c550> and will run it as-is.
+# Cause: generators are not supported
+# To silence this warning, decorate the function with @tf.autograph.experimental.do_not_convert
 
 ################################################################################
 ################################################################################
-################################################################################
-def tfprint(s):
-    print("py: ", s)
-    tf.print("tf: ", s)
 ################################################################################
 ################################################################################
 ################################################################################
@@ -766,41 +599,7 @@ def run(command):
 ################################################################################
 ################################################################################
 ################################################################################
-# def generate_state_emission_seqs(a,b,n,l, a0 = [], one_hot = False):
-#
-#     state_space_size = len(a)
-#     emission_space_size = len(b[0])
-#
-#     states = 0
-#     emissions = 0
-#
-#     def loaded_dice(faces, p):
-#         return np.argmax(np.random.multinomial(1,p))
-#
-#     # todo just use else case, this can be converted by tf.one_hot
-#     if one_hot:
-#         states = np.zeros((n,l,state_space_size), dtype = np.int64)
-#         emissions = np.zeros((n,l,emission_space_size), dtype = np.int64)
-#         for i in range(n):
-#             states[i,0,0 if len(a0) == 0 else loaded_dice(state_space_size, a0)] = 1
-#             emissions[i,0, loaded_dice(emission_space_size, b[np.argmax(states[i,0,:])])] = 1
-#             for j in range(1,l):
-#                 states[i,j, loaded_dice(state_space_size, a[np.argmax(states[i,j-1])])] = 1
-#                 emissions[i,j, loaded_dice(emission_space_size, b[np.argmax(states[i,j-1])])] = 1
-#             # emssions.write(seq + "\n")
-#             # states.write(">id" + str(i) + "\n")
-#             # states.write(state_seq + "\n")
-#     else:
-#         states = np.zeros((n,l), dtype = np.int64)
-#         emissions = np.zeros((n,l), dtype = np.int64)
-#         for i in range(n):
-#             states[i,0] = 0 if len(a0) == 0 else loaded_dice(state_space_size, a0)
-#             emissions[i,0] = loaded_dice(emission_space_size, b[states[i,0]])
-#             for j in range(1,l):
-#                 states[i,j] = loaded_dice(state_space_size, a[states[i,j-1]])
-#                 emissions[i,j] = loaded_dice(emission_space_size, b[states[i,j-1]])
-#
-#     return states, emissions
+
 ################################################################################
 ################################################################################
 ################################################################################
@@ -849,6 +648,7 @@ def forward_log_version(a,b,y, a0 = []):
     return alpha, p
 
 def forward_felix_version(a,b,y, a0 = []):
+    import tensorflow as tf
     b = tf.transpose(b)
     num_states = len(a)
     alpha = np.zeros((num_states,len(y)))

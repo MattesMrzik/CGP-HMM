@@ -428,7 +428,7 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
         seqs_dir = f"{exon_dir}/species_seqs"
         non_stripped_seqs_dir = f"{seqs_dir}/non_stripped"
         stripped_seqs_dir = f"{seqs_dir}/stripped"
-        capitalzed_subs_seqs_dir = f"{exon_dir}/combined_fast_capitalized_{args.convert_short_acgt_to_ACGT}"
+        # capitalzed_subs_seqs_dir = f"{exon_dir}/combined_fast_capitalized_{args.convert_short_acgt_to_ACGT}"
         extra_exon_data = {}
 
         for d in [exon_dir, bed_output_dir, seqs_dir, non_stripped_seqs_dir, stripped_seqs_dir, capitalzed_subs_seqs_dir]:
@@ -495,9 +495,9 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
 
         combine_fasta_files(output_file = output_file, input_files = input_files )
 
-        output_file = f"{capitalzed_subs_seqs_dir}/combined.fasta"
-        if args.convert_short_acgt_to_ACGT > 0:
-            convert_short_acgt_to_ACGT(output_file, input_files, threshold = args.convert_short_acgt_to_ACGT)
+        # output_file = f"{capitalzed_subs_seqs_dir}/combined.fasta"
+        # if args.convert_short_acgt_to_ACGT > 0:
+        #     convert_short_acgt_to_ACGT(output_file, input_files, threshold = args.convert_short_acgt_to_ACGT)
 
     calc_stats_table(args)
 ################################################################################

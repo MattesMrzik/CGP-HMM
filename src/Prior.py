@@ -1,24 +1,109 @@
 #!/usr/bin/env python3
 import pandas as pd
 import re
+import os
+import json
 
 class Prior():
     def __init__(self, config):
+        print("getting concentration for prior and initial paramters")
         self.config = config
         prios_dir_path = config.prior_path
-        intron_pbl_path = f"{prios_dir_path}/human_intron_probs.pbl"
-        exon_pbl_path = f"{prios_dir_path}/human_exon_probs.pbl"
-        self.ASS_aux = self.get_auxilary_data(intron_pbl_path, "ASS")
-        self.DSS_aux = self.get_auxilary_data(intron_pbl_path, "DSS")
-        self.exon_prior_df = self.load_priors_exon_priors(exon_pbl_path)
-        # self.ASS_df = self.load_priors_splice_site(f"{prios_dir_path}/human_intron_probs.dss_start5_ass_start5.pbl", description="ASS", left_pattern_len=config.ass_start, right_patterh_len=config.ass_end)
-        self.ASS_df = self.load_priors_splice_site(intron_pbl_path, description="ASS", left_pattern_len=config.ass_start, right_patterh_len=config.ass_end)
-        # self.DSS_df = self.load_priors_splice_site(f"{prios_dir_path}/human_intron_probs.dss_start5_ass_start5.pbl", description="DSS", left_pattern_len=config.dss_start, right_patterh_len=config.dss_end)
-        self.DSS_df = self.load_priors_splice_site(intron_pbl_path, description="DSS", left_pattern_len=config.dss_start, right_patterh_len=config.dss_end)
-        self.intron_prior_df = self.load_intron(intron_pbl_path)
+        intron_pbl_path = os.path.join(prios_dir_path,"human_intron_probs.pbl")
+        exon_pbl_path = os.path.join(prios_dir_path,"human_exon_probs.pbl")
 
-        print("ASS_aux", self.ASS_aux)
-        print("DSS_aux", self.DSS_aux)
+        dir_name = f"n{config.nCodons}_assstart{config.ass_start}_assend{config.ass_end}_dssstart{config.dss_start}_dssend{config.dss_end}"
+        path_to_dir_that_to_save_precal = os.path.join(config.out_path, "precalculated_emission_priors", dir_name)
+
+        if not os.path.exists(path_to_dir_that_to_save_precal):
+            os.makedirs(path_to_dir_that_to_save_precal)
+
+        ass_aux_path = os.path.join(path_to_dir_that_to_save_precal, "ass_aux.json")
+        dss_aux_path = os.path.join(path_to_dir_that_to_save_precal, "dss_aux.json")
+
+        exon_prior_path_df = os.path.join(path_to_dir_that_to_save_precal, "exon.csv")
+        exon_prior_path_dict = os.path.join(path_to_dir_that_to_save_precal, "exon.json")
+
+        intron_prior_path_df = os.path.join(path_to_dir_that_to_save_precal, "intron.csv")
+        intron_prior_path_dict = os.path.join(path_to_dir_that_to_save_precal, "intron.json")
+
+        ass_prior_path_df = os.path.join(path_to_dir_that_to_save_precal, "ass.csv")
+        ass_prior_path_dict = os.path.join(path_to_dir_that_to_save_precal, "ass.json")
+
+        dss_prior_path_df = os.path.join(path_to_dir_that_to_save_precal, "dss.csv")
+        dss_prior_path_dict = os.path.join(path_to_dir_that_to_save_precal, "dss.json")
+
+
+        # aux
+        if os.path.exists(ass_aux_path):
+            with open(ass_aux_path, "r") as file:
+                print("loading", ass_aux_path)
+                self.ASS_aux = json.load(file)
+        else:
+            self.ASS_aux = self.get_auxilary_data(intron_pbl_path, "ASS")
+            with open(ass_aux_path, "w") as file:
+                 json.dump(self.ASS_aux, file)
+
+        if os.path.exists(dss_aux_path):
+            with open(dss_aux_path, "r") as file:
+                print("loading", dss_aux_path)
+                self.DSS_aux = json.load(file)
+        else:
+            self.DSS_aux = self.get_auxilary_data(intron_pbl_path, "DSS")
+            with open(dss_aux_path, "w") as file:
+                 json.dump(self.DSS_aux, file)
+
+
+        # exon
+        if os.path.exists(exon_prior_path_df) and os.path.exists(exon_prior_path_dict):
+            print("loading", exon_prior_path_df)
+            self.exon_prior_df = pd.read_csv(exon_prior_path_df)
+            print("loading", exon_prior_path_dict)
+            with open(exon_prior_path_dict, "r") as file:
+                self.exon_prior_dict = json.load(file)
+        else:
+            self.exon_prior_df, self.exon_prior_dict = self.load_priors_exon_priors(exon_pbl_path)
+            with open(exon_prior_path_dict, "w") as file:
+                 json.dump(self.exon_prior_dict, file)
+            self.exon_prior_df.to_csv(exon_prior_path_df)
+
+        # intron
+        if os.path.exists(intron_prior_path_df) and os.path.exists(intron_prior_path_dict):
+            print("loading", intron_prior_path_df)
+            self.intron_prior_df = pd.read_csv(intron_prior_path_df)
+            print("loading", intron_prior_path_dict)
+            with open(intron_prior_path_dict, "r") as file:
+                self.intron_prior_dict = json.load(file)
+        else:
+            self.intron_prior_df, self.intron_prior_dict = self.load_intron(intron_pbl_path)
+            with open(intron_prior_path_dict, "w") as file:
+                 json.dump(self.intron_prior_dict, file)
+            self.intron_prior_df.to_csv(intron_prior_path_df)
+
+        # ass
+        if os.path.exists(ass_prior_path_df) and os.path.exists(ass_prior_path_dict):
+            print("loading", ass_prior_path_df)
+            self.ASS_df = pd.read_csv(ass_prior_path_df)
+            print("loading", ass_prior_path_dict)
+            with open(ass_prior_path_dict, "r") as file:
+                self.ASS_dict = json.load(file)
+        else:
+            self.ASS_df, self.ASS_dict = self.load_priors_splice_site(intron_pbl_path, description="ASS", left_pattern_len=config.ass_start, right_patterh_len=config.ass_end)
+            with open(ass_prior_path_dict, "w") as file:
+                 json.dump(self.ASS_dict, file)
+            self.ASS_df.to_csv(ass_prior_path_df)
+        # dss
+        if os.path.exists(dss_prior_path_df) and os.path.exists(dss_prior_path_dict):
+            print("loading", dss_prior_path_df)
+            self.DSS_df = pd.read_csv(dss_prior_path_df)
+            print("loading", dss_prior_path_dict)
+            with open(dss_prior_path_dict, "r") as file:
+                self.DSS_dict = json.load(file)
+        else:
+            self.DSS_df, self.DSS_dict = self.load_priors_splice_site(intron_pbl_path, description="DSS", left_pattern_len=config.dss_start, right_patterh_len=config.dss_end)
+            with open(dss_prior_path_dict, "w") as file:
+                 json.dump(self.DSS_dict, file)
+            self.DSS_df.to_csv(dss_prior_path_df)
 
 
     def load_priors_exon_priors(self, path, description = "EMISSION", order = 2):
@@ -122,9 +207,7 @@ class Prior():
         assert len(result_dict) == df['seq'].nunique()
         epsilon = 2e-3
         missing_pseudo_count_prob = self.get_sum_of_missing_values_added_pseudocount(description, len(df))
-        print(description, len(df))
 
-        print("left_pattern_len, right_patterh_len", left_pattern_len, right_patterh_len)
         assert abs(df["prob"].sum() + missing_pseudo_count_prob - 1) < epsilon, f"sum of load_priors_splice_site is {df['prob'].sum()} + {missing_pseudo_count_prob} = {df['prob'].sum() + missing_pseudo_count_prob} and it should be one, also check config.ass_start / end, config.dss_start /end"
         return df, result_dict
 
@@ -159,56 +242,20 @@ class Prior():
         return df, result_dict
 
     def get_intron_prob(self, pattern):
-        return float(self.intron_prior_df[1][pattern.lower()]["prob"])
+        return float(self.intron_prior_dict[pattern.lower()]["prob"])
 
     def get_exon_prob(self, pattern, window = None):
-        return float(self.exon_prior_df[1][pattern.lower()][f"win{window}"])
+        return float(self.exon_prior_dict[pattern.lower()][f"win{window}"])
 
     def get_splice_site_matching_pattern_probs(self, description = None, pattern = None):
         assert description in ["ASS", "DSS"], "description in get_splice_site_matching_pattern_probs must be either ASS or DSS"
-        df = self.ASS_df[0] if description == "ASS" else self.DSS_df[0]
+        df = self.ASS_df if description == "ASS" else self.DSS_df
         try:
-            # print(len(df))
-            # print("df sum ",df["prob"].sum())
-            # print(description)
-            # print(pattern)
-            # print(df.groupby(df['seq'].str.match(pattern))["prob"].count()[True])
             number_of_matching_entries_in_df = df.groupby(df['seq'].str.match(pattern))["prob"].count()[True]
-            # print("number_of_matching_entries_in_df", number_of_matching_entries_in_df)
             how_many_bases_in_pattern = sum([c.lower() in "acgt" for c in pattern])
-            # print("how_many_bases_in_pattern", how_many_bases_in_pattern)
-            # print("df.iloc[", df.iloc[0]["seq"])
             how_many_patterns_shoud_match = 4**(len(df.iloc[0]["seq"]) - how_many_bases_in_pattern)
-            # print("how_many_patterns_shoud_match", how_many_patterns_shoud_match)
             number_of_matching_patterns_that_are_not_in_df = how_many_patterns_shoud_match - number_of_matching_entries_in_df
-            # print("number_of_matching_patterns_that_are_not_in_df", number_of_matching_patterns_that_are_not_in_df)
             missing_prob = number_of_matching_patterns_that_are_not_in_df*self.get_pseudocount_prob(description)
-            # print("missing_prob", missing_prob)
             return df.groupby(df['seq'].str.match(pattern))['prob'].sum()[True]
         except:
             return 0
-        # return(self.ASS_df[0][self.ASS_df[0].str.contains(pattern)]["probs"].sum())
-
-class Config_impostor():
-    def __init__(self):
-        self.ass_start = 5
-        self.ass_end = 2
-        self.dss_start = 5
-        self.dss_end = 2
-
-if __name__ == "__main__":
-    config = Config_impostor()
-    p = Prior(config, "/home/mattes/Documents/cgp_data/priors/human/")
-    print(p.ASS_df[0])
-    # aaa = p.get_splice_site_matching_pattern_probs("ASS", r".{0}gaa.{2}AG.*")
-    # aac = p.get_splice_site_matching_pattern_probs("ASS", r"gac.{2}AG.*")
-    # aag = p.get_splice_site_matching_pattern_probs("ASS", r"gag.{2}AG.*")
-    # aat = p.get_splice_site_matching_pattern_probs("ASS", r"gat.{2}AG.*")
-    # aa = p.get_splice_site_matching_pattern_probs("ASS", r"ga.{3}AG.*")
-    # print(aa, aaa+aac+aag+aat)
-    # print(f"aaa {aaa}, aa {aa}, aaa/aa {aaa/aa}")
-    # print(f"aaa {aaa}, aa {aa}, aaa/aa {aac/aa}")
-    # print(f"aaa {aaa}, aa {aa}, aaa/aa {aag/aa}")
-    # print(f"aaa {aaa}, aa {aa}, aaa/aa {aat/aa}")
-
-    print(p.get_splice_site_matching_pattern_probs("ASS", ".{0}aaa.{2}AG.*"))

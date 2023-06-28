@@ -48,7 +48,7 @@ class My_Model(Model):
             self.A_initial_weights_for_constants = []
 
 
-        # if self.config.my_initial_guess_for_parameters:
+        # if self.config.use_thesis_weights:
         #     self.A_my_initial_guess_for_parameters = self.get_A_my_initial_guess_for_parameters()
 
         # self.A_consts = self.get_A_consts()

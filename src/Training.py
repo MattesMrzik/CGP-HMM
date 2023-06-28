@@ -28,7 +28,6 @@ def make_model(config, current_epoch = None):
     run_id = randint(0,100)
 
     # TODO: https://www.tensorflow.org/guide/keras/masking_and_padding
-
     append_time_ram_stamp_to_file(f"Traning.make_model() start {run_id}", config.bench_path, start)
 
     # another None added automatically for yet unkown batch_size
@@ -53,22 +52,6 @@ def make_dataset(config):
     run_id = randint(0,100)
     append_time_ram_stamp_to_file(f"Training.make_dataset() start {run_id}", config.bench_path, start)
 
-    if config.generate_new_seqs and not config.manual_passed_fasta:
-        command = f"python3 ./useMSAgen.py -c {config.nCodons} \
-                        {'-n 100'} \
-                        {'-l' + str(config.seq_len)} \
-                        {'-cd ' + str(config.coding_dist) if config.coding_dist else ''} \
-                        {'-ncd ' + str(config.noncoding_dist) if config.noncoding_dist else ''}\
-                        {'--dont_strip_flanks' if config.dont_strip_flanks else ''} \
-                        {'--MSAgen_dir ' + config.path_to_MSAgen_dir} \
-                        {'--out_path ' + config.current_run_dir} \
-                        {'--insertions ' if config.simulate_insertions else ''} \
-                        {'--deletions ' if config.simulate_deletions else ''}"
-
-        command = re.sub("\s+", " ", command)
-        run(command)
-
-
     def print_data_set(ds, name):
         dsout = open(name,"w")
         for batch_id, batch in enumerate(ds):
@@ -81,138 +64,108 @@ def make_dataset(config):
                     json.dump([float(x) for x in one_hot_entry.numpy()], dsout)
                     dsout.write("\n")
 
-    use_old_read_seqs = 0
 
     # if use_old_read_seqs:
     index_of_terminal = config.model.emission_tuple_to_id("X")
-    if use_old_read_seqs:
-        seqs = read_data_with_order(config, add_one_terminal_symbol = True)
-        ds = tf.data.Dataset.from_generator(lambda: seqs,
-                                             tf.as_dtype(tf.int32), # has to be int, bc one_hot doesnt work for floats
-                                             tf.TensorShape([None]))
 
-        ds = ds.padded_batch(config.batch_size, padding_values = index_of_terminal)
 
-        def to_one_hot(seq): # shoud this rather be called seqs? (plural)
-            return tf.cast(tf.one_hot(seq, config.model.number_of_emissions), dtype=config.dtype)
+    # when mapping
+    # Use tf.py_function, which allows you to write arbitrary Python code but will generally result in worse performance than 1). For example:
+    # https://www.tensorflow.org/api_docs/python/tf/data/Dataset
+    seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
+    config.nSeqs = len(seqs)
 
-        ds = ds.map(to_one_hot)
+    if not config.dont_shuffle_seqs:
+        np.random.shuffle(seqs)
 
-        # print_data_set(ds,"ds")
+    def get_initial_data_set():
+        dataset = tf.data.Dataset.from_generator(lambda: seqs, \
+                                                    tf.string, \
+                                                    output_shapes=[None])
+        return dataset
 
-    if not use_old_read_seqs:
-        # when mapping
-        # Use tf.py_function, which allows you to write arbitrary Python code but will generally result in worse performance than 1). For example:
-        # https://www.tensorflow.org/api_docs/python/tf/data/Dataset
-        # seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True, remove_long_seqs_bool=False)
-        seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
-        config.nSeqs = len(seqs)
+    padding_value = "_".join(["1.0" if i == index_of_terminal else "0.0" for i in range(config.model.number_of_emissions)])
 
-        if not config.dont_shuffle_seqs:
-            np.random.shuffle(seqs)
 
-        def     get_initial_data_set():
-            dataset = tf.data.Dataset.from_generator(lambda: seqs, \
-                                                     tf.string, \
-                                                     output_shapes=[None])
+    if config.bucket_by_seq_len:
+
+        def batch_sizes_are_unequal_one(dataset):
+            for batch_id, batch in enumerate(dataset):
+                if len(batch) < 2:
+                    return False
+            return True
+
+        def bucket_seqs_of_dataset(dataset, batch_size):
+            sorted_seq_lens = sorted([len(seq) for seq in seqs])
+            print("sorted_seq_lens", sorted_seq_lens)
+            bucket_boundaries = [length +1 for i, length in enumerate(sorted_seq_lens) if (i +1) % batch_size == 0]
+
+            # sort bucket_boundries, st the ones closest to the median seqlen come first,
+            # and buckets that differ much from the median are trained at the end
+
+            median_seq_len = np.median(sorted_seq_lens)
+            bucket_boundaries = sorted(bucket_boundaries, key = lambda x: abs(x - median_seq_len))
+
+            # bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
+            # number_of_equal_sized_batches = len(seqs)//config.batch_size
+            # bucket_boundaries = [config.batch_size] * number_of_equal_sized_batches
+
+            config.nBatches = len(bucket_boundaries) +1
+            bucket_batch_sizes = [batch_size] * config.nBatches
+            print("bucket_boundaries", bucket_boundaries)
+            print("bucket_batch_sizes", bucket_batch_sizes)
+
+            if not config.dont_shuffle_seqs:
+                dataset = dataset.shuffle(buffer_size = config.nSeqs, reshuffle_each_iteration = True)
+
+            dataset = dataset.bucket_by_sequence_length(
+                element_length_func = lambda elem: tf.shape(elem)[0],
+                bucket_boundaries = bucket_boundaries,
+                padded_shapes = tf.TensorShape(None),  # Each sequence has 2 values
+                padding_values = padding_value,
+                bucket_batch_sizes = bucket_batch_sizes)
+
             return dataset
 
-        padding_value = "_".join(["1.0" if i == index_of_terminal else "0.0" for i in range(config.model.number_of_emissions)])
+        adjusted_batch_size = config.batch_size
 
+        dataset = get_initial_data_set()
+        dataset = bucket_seqs_of_dataset(dataset, adjusted_batch_size)
 
-        if config.bucket_by_seq_len:
-
-            def batch_sizes_are_unequal_one(dataset):
-                for batch_id, batch in enumerate(dataset):
-                    if len(batch) < 2:
-                        return False
-                return True
-
-            def bucket_seqs_of_dataset(dataset, batch_size):
-                sorted_seq_lens = sorted([len(seq) for seq in seqs])
-                print("sorted_seq_lens", sorted_seq_lens)
-                bucket_boundaries = [length +1 for i, length in enumerate(sorted_seq_lens) if (i +1) % batch_size == 0]
-
-                # sort bucket_boundries, st the ones closest to the median seqlen come first,
-                # and buckets that differ much from the median are trained at the end
-
-                median_seq_len = np.median(sorted_seq_lens)
-                bucket_boundaries = sorted(bucket_boundaries, key = lambda x: abs(x - median_seq_len))
-
-                # bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
-                # number_of_equal_sized_batches = len(seqs)//config.batch_size
-                # bucket_boundaries = [config.batch_size] * number_of_equal_sized_batches
-
-                config.nBatches = len(bucket_boundaries) +1
-                bucket_batch_sizes = [batch_size] * config.nBatches
-                print("bucket_boundaries", bucket_boundaries)
-                print("bucket_batch_sizes", bucket_batch_sizes)
-
-                if not config.dont_shuffle_seqs:
-                    dataset = dataset.shuffle(buffer_size = config.nSeqs, reshuffle_each_iteration = True)
-
-                dataset = dataset.bucket_by_sequence_length(
-                    element_length_func = lambda elem: tf.shape(elem)[0],
-                    bucket_boundaries = bucket_boundaries,
-                    padded_shapes = tf.TensorShape(None),  # Each sequence has 2 values
-                    padding_values = padding_value,
-                    bucket_batch_sizes = bucket_batch_sizes)
-
-                return dataset
-
-            adjusted_batch_size = config.batch_size
-
+        while not batch_sizes_are_unequal_one(dataset):
+            adjusted_batch_size += 1
             dataset = get_initial_data_set()
             dataset = bucket_seqs_of_dataset(dataset, adjusted_batch_size)
+        print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a bucket batch beeing only a single seq")
 
-            while not batch_sizes_are_unequal_one(dataset):
+    if not config.bucket_by_seq_len:
+
+        def get_adjusted_batch_size(nSeqs, initial_batch_size):
+            adjusted_batch_size = initial_batch_size
+            while nSeqs % adjusted_batch_size == 1:
                 adjusted_batch_size += 1
-                dataset = get_initial_data_set()
-                dataset = bucket_seqs_of_dataset(dataset, adjusted_batch_size)
-            print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a bucket batch beeing only a single seq")
-
-        if not config.bucket_by_seq_len:
-
-            def get_adjusted_batch_size(nSeqs, initial_batch_size):
-                adjusted_batch_size = initial_batch_size
-                while nSeqs % adjusted_batch_size == 1:
-                    adjusted_batch_size += 1
-                return adjusted_batch_size
-            adjusted_batch_size = get_adjusted_batch_size(config.nSeqs, config.batch_size)
-            print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a batch beeing only a single seq")
-            config.nBatches = config.nSeqs // adjusted_batch_size + 1
-            dataset = get_initial_data_set()
-            dataset = dataset.shuffle(buffer_size = config.nSeqs, reshuffle_each_iteration = True)
-            dataset = dataset.padded_batch(adjusted_batch_size, None, padding_value)
+            return adjusted_batch_size
+        adjusted_batch_size = get_adjusted_batch_size(config.nSeqs, config.batch_size)
+        print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a batch beeing only a single seq")
+        config.nBatches = config.nSeqs // adjusted_batch_size + 1
+        dataset = get_initial_data_set()
+        dataset = dataset.shuffle(buffer_size = config.nSeqs, reshuffle_each_iteration = True)
+        dataset = dataset.padded_batch(adjusted_batch_size, None, padding_value)
 
 
-            # dataset = dataset.padded_batch(config.batch_size, None, padding_value)
-            # if len(seqs) % config.batch_size == 1:
-            #     print(f"batch {batch_id} has only one seq, choose different batchsize")
-            #     exit()
+        # dataset = dataset.padded_batch(config.batch_size, None, padding_value)
+        # if len(seqs) % config.batch_size == 1:
+        #     print(f"batch {batch_id} has only one seq, choose different batchsize")
+        #     exit()
 
-        dataset = dataset.map(lambda x: tf.strings.to_number(tf.strings.split(x,'_')))
-        dataset = dataset.map(lambda x: x.to_tensor()) # bc it is ragged
-        np.set_printoptions(linewidth=200)
+    dataset = dataset.map(lambda x: tf.strings.to_number(tf.strings.split(x,'_')))
+    dataset = dataset.map(lambda x: x.to_tensor()) # bc it is ragged
+    np.set_printoptions(linewidth=200)
 
-        # print_data_set(dataset, "ds_str")
+    # print_data_set(dataset, "ds_str")
 
 
     dataset = dataset.repeat()
-
-    # if config.viterbi:
-    #     seqs_json_path = f"{config.fasta_path}.json"
-    #     export_seqs_json = True
-    #     if os.path.exists(seqs_json_path):
-    #         if config.manual_passed_fasta:
-    #             export_seqs_js
-    #         # not manual passed fasta
-    #         if config.dont_generate_new_seqs:
-    #             export_seqs_json = False
-    #     if export_seqs_json:
-    #         seqs_out = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
-    #         with open(seqs_json_path, "w") as out_file:
-    #             json.dump(seqs_out, out_file)
 
 
     append_time_ram_stamp_to_file(f"Training.make_dataset() end   {run_id}", config.bench_path, start)
@@ -254,71 +207,7 @@ def fit_model(config):
     index_of_terminal = config.model.emission_tuple_to_id("X")
 
 ################################################################################
-    if config.get_gradient_for_current_txt or config.get_gradient_from_saved_model_weights:
-        print("get_gradient_for_current_txt, get_gradient_from_saved_model_weights is decrepated")
-        exit()
-        # when accessing config["model"] in cell.call -> recursion error
-        model, cgp_hmm_layer = make_model(config)
-        model.compile(optimizer = optimizer)
-        if config.get_gradient_from_saved_model_weights:
-            model.load_weights(f"{config.current_run_dir}/batch_begin_write_weights__layer_call_write_inputs/current_weights")
-            # config["model"] = model
-            # print('config["model"]', config["model"])
-            config.weights = model.get_weights()
-
-        layer = CgpHmmLayer(config)
-        layer.build(None)
-        layer.C.build(None)
-        import ReadData
-        # assuming that inputs are formatted in shape batch, seq_len, one_hot_dim = 32, l, 126
-        input = ReadData.get_batch_input_from_tf_printed_file(f"{config.out_path}/output/{config.nCodons}codons/batch_begin_write_weights__layer_call_write_inputs/current_inputs.txt")
-        with tf.GradientTape() as tape:
-            y, alpha_seq = layer(input) # eventuell wird hier die cell nochmal gebaut und das weight setzen davor bringt nichts
-
-            dy_dx = tape.gradient(y,  [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel])
-
-            for g, name in zip(dy_dx, "IAB"):
-                tf.print(f"gradient for {name}", g)
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(g)), [g], name = name, summarize = -1)
-
-
-        exit()
-################################################################################
-    elif config.get_gradient_of_first_batch:
-        print("get_gradient_of_first_batch is decrepated")
-        exit()
-        layer = CgpHmmLayer(config)
-        layer.build(None)
-        layer.C.build(None)
-
-        first_batch = seqs[:32] # not one hot, not padded
-        # pad seqs:
-        max_len_seq_in_batch = max([len(seq) for seq in first_batch])
-        #                                                                              every seq has at least one terminal symbol
-        first_batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq) + 1) for seq in first_batch]
-
-        # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
-
-        # one_hot:
-        first_batch = tf.one_hot(first_batch, n_emission_columns_in_B(config.alphabet_size, config.order)) # bc terminal symbol is not counted in emissions_state_size
-
-        # print("first_batch =", "\n".join([str(seq) for seq in first_batch]))
-        with tf.GradientTape() as tape:
-            tape.watch([layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel])
-            y = layer(first_batch)
-            dy_dx = tape.gradient(y,  [layer.C.I_kernel, layer.C.A_kernel, layer.C.B_kernel])
-            if not dy_dx:
-                print("list dy_dx =", round(dy_dx,3))
-            print()
-            for g in dy_dx:
-                print("dy_dx =", g)
-                # print("dy_dx.numpy() =", g.numpy())
-                print()
-        exit()
-
-
-################################################################################
-    elif config.manual_forward:
+    if config.manual_forward:
 
             layer = CgpHmmLayer(config)
 
@@ -536,9 +425,8 @@ def fit_model(config):
 ################################################################################
     else:
 
-        if config.nBatches != -1:
-            config.steps_per_epoch = config.nBatches
-            print("setting steps_per_epoch to", config.steps_per_epoch)
+        config.steps_per_epoch = config.nBatches
+        print("setting steps_per_epoch to", config.steps_per_epoch)
 
         # set this only if steps was not specified by user
 
@@ -578,9 +466,7 @@ def fit_model(config):
                 start = time.perf_counter()
                 run_id = randint(0,100)
                 append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
-                print("optimizer.iterations should be 0:", optimizer.iterations)
                 history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-                print("optimizer.iterations should be larger 0:", optimizer.iterations)
                 append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
 
             # TODO: maybe it would be faster if i do a manual training loop here
@@ -616,9 +502,7 @@ def fit_model(config):
                     start = time.perf_counter()
                     run_id = randint(0,100)
                     append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
-                    print("optimizer.iterations should be 0:", optimizer.iterations)
                     history = model.fit(skipeed_data_set, epochs = 1, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-                    print("optimizer.iterations should be larger 0:", optimizer.iterations)
                     append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
 
                     model.get_layer(f"cgp_hmm_layer{'_' + str(current_epoch) if current_epoch > 0 else ''}").C.write_weights_to_file(dir_path)
@@ -639,9 +523,7 @@ def fit_model(config):
                 start = time.perf_counter()
                 run_id = randint(0,100)
                 append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
-                print("optimizer.iterations should be 0:", optimizer.iterations)
                 history = model.fit(skipeed_data_set, epochs = config.epochs - current_epoch, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-                print("optimizer.iterations should be larger 0:", optimizer.iterations)
                 append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
 
                 model.get_layer(f"cgp_hmm_layer{'_' + str(current_epoch) if current_epoch > 0 else ''}").C.write_weights_to_file(dir_path)

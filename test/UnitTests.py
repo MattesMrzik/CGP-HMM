@@ -2,31 +2,10 @@
 import unittest
 import numpy as np
 import tensorflow as tf
-import Training
-from CgpHmmLayer import CgpHmmLayer
-from CgpHmmCell import CgpHmmCell
-import Utility
 from itertools import product
 import os
 import re
 
-# config = {}
-# config["nCodons"] = 1
-# config["order"] = 2
-# config["order_transformed_input"] = True
-# config["call_type"] = 3 # 0:A;B sparse, 1:A dense, 2:B dense, 3:A;B dense, 4:fullmodel
-
-# config["alphabet_size"] = 4
-# config["bench_path"] = f"./bench/unittest"
-# config["out_path"] = "."
-# config["dtype"] = tf.float32
-# config["get_gradient_for_current_txt"] = False
-# config["get_gradient_from_saved_model_weights"] = False
-# config["use_weights_for_consts"] = False
-# config["verbose"] = False
-# config["weaken_softmax"] = False
-# config["get_gradient_in_layer"] = False
-# Utility.get_indices_for_config(config)
 
 
 import argparse

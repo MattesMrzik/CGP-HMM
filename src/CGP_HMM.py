@@ -95,7 +95,7 @@ def non_class_B_log_prior(B, prior_matrix, prior_indices, alphabet_size):
 
         return tf.math.reduce_sum(before_reduce_sum) - log_z
 
-class My_Model(Model):
+class CGP_HMM(Model):
 
     # this overwrites the init from Model. alternatively i can omit it
     def __init__(self, config):
@@ -145,7 +145,7 @@ class My_Model(Model):
             self.A_initial_weights_for_constants = []
 
 
-        # if self.config.my_initial_guess_for_parameters:
+        # if self.config.use_thesis_weights:
         #     self.A_my_initial_guess_for_parameters = self.get_A_my_initial_guess_for_parameters()
 
         # self.A_consts = self.get_A_consts()
@@ -360,8 +360,6 @@ class My_Model(Model):
             for entry, weight in zip(l, initial_weights):
                 if use_as_prior:
                     self.A_prior_indices.append(entry)
-                if self.config.add_noise_to_initial_weights:
-                    weight += "small variance random normal"
                 if trainable:
                     indices_for_trainable_parameters.append(entry)
                     initial_weights_for_trainable_parameters.append(weight)
@@ -402,50 +400,23 @@ class My_Model(Model):
             assert len(manual_delete_insert_init_continue_weights) == 3, "manual_delete_insert_init_continue_weights must be a list of length 3"
         # inserts
 
-        #i dont have inserts right after or before splice site
-        if self.config.cesar_init:
-            append_transition(l = self.A_indices_begin_inserts, use_as_prior=True, initial_weights = [-.8] * len(self.A_indices_begin_inserts))
-        elif self.config.manual_delete_insert_init_continue_weights:
-            append_transition(l = self.A_indices_begin_inserts, use_as_prior=True, initial_weights = [manual_delete_insert_init_continue_weights[1]] * len(self.A_indices_begin_inserts))
-        else:
-            append_transition(l = self.A_indices_begin_inserts, use_as_prior=True)
+        append_transition(l = self.A_indices_begin_inserts, use_as_prior=True, initial_weights = [-0.2] * len(self.A_indices_begin_inserts))
 
         for i in range(self.insert_low, self.insert_high):
             append_transition(f"i_{i},0", f"i_{i},1", trainable = False)
             append_transition(f"i_{i},1", f"i_{i},2", trainable = False)
 
-        if self.config.cesar_init:
-            # append_transition(l = self.A_indices_end_inserts,      initial_weights = [0] * len(self.A_indices_end_inserts), use_as_prior=True)
-            # append_transition(l = self.A_indices_continue_inserts, initial_weights = [1] * len(self.A_indices_end_inserts), use_as_prior=True)
-            append_transition(l = self.A_indices_end_inserts,      initial_weights = [.5] * len(self.A_indices_end_inserts), use_as_prior=True)
-            append_transition(l = self.A_indices_continue_inserts, initial_weights = [0] * len(self.A_indices_end_inserts), use_as_prior=True)
-        elif self.config.manual_delete_insert_init_continue_weights:
-            append_transition(l = self.A_indices_end_inserts,      initial_weights = [0] * len(self.A_indices_end_inserts), use_as_prior=True)
-            append_transition(l = self.A_indices_continue_inserts, initial_weights = [manual_delete_insert_init_continue_weights[2]] * len(self.A_indices_end_inserts), use_as_prior=True)
-        else:
-            append_transition(l = self.A_indices_end_inserts, initial_weights = [single_high_prob_kernel] * len(self.A_indices_end_inserts), use_as_prior=True)
-            append_transition(l = self.A_indices_continue_inserts, use_as_prior=True)
+        append_transition(l = self.A_indices_end_inserts,      initial_weights = [0] * len(self.A_indices_end_inserts), use_as_prior=True)
+        append_transition(l = self.A_indices_continue_inserts, initial_weights = [-1] * len(self.A_indices_end_inserts), use_as_prior=True)
 
         # deletes
         A_indices_normal_deletes, A_init_weights_normal_deletes = self.A_indices_and_init_weights_normal_deletes
         # print("A_init_weights_normal_deletes", A_init_weights_normal_deletes)
 
 
-        if self.config.cesar_init:
-            append_transition(l = A_indices_normal_deletes, initial_weights = [x-.5 for x in A_init_weights_normal_deletes], use_as_prior=True)
-        elif self.config.manual_delete_insert_init_continue_weights:
-            append_transition(l = A_indices_normal_deletes, initial_weights = [x+ manual_delete_insert_init_continue_weights[0] for x in A_init_weights_normal_deletes], use_as_prior=True)
-        else:
-            append_transition(l = A_indices_normal_deletes, initial_weights = A_init_weights_normal_deletes, use_as_prior=True)
+        append_transition(l = A_indices_normal_deletes, initial_weights = [x + 0.1 for x in A_init_weights_normal_deletes], use_as_prior=True)
 
-        if self.config.deletes_after_intron_to_codon:
-            append_transition(l = self.A_indices_deletes_after_intron_to_codon)
-        if self.config.deletes_after_codon_to_intron:
-            append_transition(l = self.A_indices_deletes_after_codon_to_intron)
-        if self.config.deletes_after_insert_to_codon:
-            append_transition(l = self.A_indices_deletes_after_insert_to_codon)
-        if self.config.deletes_after_codon_to_insert:
-            append_transition(l = self.A_indices_deletes_after_codon_to_insert)
+
 
         # exit last codon
         append_transition(f"c_{self.config.nCodons-1},0", "G")
@@ -505,6 +476,7 @@ class My_Model(Model):
             for j in range(3):
                 indices += [[self.str_to_state_id("AG"), self.str_to_state_id(f"c_{i},{j}")]]
         return indices
+
     @property
     def A_indices_deletes_after_codon_to_intron(self):
         indices = []
@@ -512,6 +484,7 @@ class My_Model(Model):
             for j in range(3):
                 indices += [[self.str_to_state_id(f"c_{i},{j}"), self.str_to_state_id("G")]]
         return indices
+
     @property
     def A_indices_deletes_after_insert_to_codon(self):
         indices = []
@@ -519,6 +492,7 @@ class My_Model(Model):
             for insert_id in range(2, self.config.nCodons):
                 indices += [[self.str_to_state_id(f"c_{codon_id},2"), self.str_to_state_id(f"i_{insert_id}, 0")]]
         return indices
+
     @property
     def A_indices_deletes_after_codon_to_insert(self):
         indices = []
@@ -560,48 +534,6 @@ class My_Model(Model):
 ################################################################################
     def A_indices(self):
         return self.A_indices_for_weights + self.A_indices_for_constants
-################################################################################
-    # def get_A_consts(self):
-    #     if self.config.left_intron_const:
-    #         # return tf.cast(tf.concat([[5.0,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
-    #         if self.config.right_intron_const:
-    #             return tf.cast(tf.concat([[self.config.left_intron_const,1], [1.0] * (len(self.A_indices_for_constants) -4), [self.config.right_intron_const,1]], axis = 0),dtype = self.config.dtype)
-    #         else:
-    #             return tf.cast(tf.concat([[self.config.left_intron_const,1], [1.0] * (len(self.A_indices_for_constants) -2)], axis = 0),dtype = self.config.dtype)
-    #     return tf.cast([1.0] * len(self.A_indices_for_constants), dtype = self.config.dtype)
-################################################################################
-    # def get_A_my_initial_guess_for_parameters(self):
-    #     # für die ordnung die asserts vielleicht nach Config.py verschieben
-    #     assert self.config.ig5_const_transition, "when using my initial guess for parameters also pass ig5_const_transition"
-    #     assert self.config.ig3_const_transition, "when using my initial guess for parameters also pass ig3_const_transition"
-    #     assert not self.config.no_deletes, "when using my initial guess for parameters do not pass no_deletes"
-    #     assert not self.config.no_inserts, "when using my initial guess for parameters do not pass no_inserts"
-    #     assert not self.config.use_weights_for_consts, "when using my initial guess for parameters do not pass use_weights_for_consts"
-    #
-    #     my_weights = []
-    #     # enter codon
-    #     my_weights += [4] * len(self.A_indices_enter_next_codon)
-    #
-    #     # begin_inserts
-    #     my_weights += [1] * len(self.A_indices_begin_inserts)
-    #
-    #     # end inserts
-    #     my_weights += [4] * len(self.A_indices_end_inserts)
-    #
-    #     # continue inserts
-    #     my_weights += [1] * len(self.A_indices_continue_inserts)
-    #
-    #     # enter stop
-    #     my_weights += [4]
-    #
-    #     # deletes                                  2 is just an arbitrary factor
-    #     my_weights += [1 - j/2 for i in range(self.config.nCodons) for j in range(self.config.nCodons - i)]
-    #
-    #     # cast
-    #     # my_weights = tf.cast(my_weights, dtype = self.config.dtype)
-    #
-    #     return my_weights
-
 ################################################################################
 ################################################################################
 ################################################################################
@@ -686,11 +618,9 @@ class My_Model(Model):
 
         return allowed_ho_emissions
 ################################################################################
-    def prior_and_initial_parameter_for_state_and_emission(self, state, emission):
+    def prior_and_initial_parameter_for_state_and_emission(self, state:str, emission:str):
         emission = emission.lower()
-        # state and emission should be string
 
-        # TODO i think i dont have to norm left_intron and codon and insert since they should already be normed in the file
         prior = -1.0
         initial_parameter = -1.0
 
@@ -709,29 +639,6 @@ class My_Model(Model):
                 assert abs(norm - 1 ) < 1e-3, f"norm is {norm} but should be one"
                 prior = self.prior.get_exon_prob(emission, window = int(state[-1])) / norm
                 initial_parameter = prior
-
-            # i could use is for  if state[-1] == "0":  but cant for the other   if state[-1] == "1": or  if state[-1] == "2": by it may skew model
-            # if codon_id == 0:
-            #     assert self.config.ass_end == 2, " self.config.ass_end == 2 is assumed for the following code, but it is set to a different value"
-            #     if state[-1] == "0":
-            #         pattern = f".{{{self.config.ass_start}}}AG{emission[-1]}.{{{self.config.ass_end-1}}}"
-            #         norm_pattern = f".{{{self.config.ass_start}}}AG.{{{self.config.ass_end}}}"
-            #         unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = pattern)
-            #         norm = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = norm_pattern)
-            #         assert norm != 0, f"norm is zero in state {state} and emission {emission}, with pattern {pattern}"
-            #         prior = unscaled_prob/norm
-            #         initial_parameter = prior
-
-                # if state[-1] == "1": #  i dont think that this can be used
-                # since i dont know if this is emission right after AG (c_0,0 was skipped)
-                # , or c_0,0 was entered
-                #     pattern = f".{{{self.config.ass_start}}}AG{emission[1:]}.{{{self.config.ass_end-2}}}"
-                #     norm_pattern = f".{{{self.config.ass_start}}}AG{emission[1]}.{{{self.config.ass_end-1}}}"
-                #     unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = pattern)
-                #     norm = self.prior.get_splice_site_matching_pattern_probs(description = "ASS", pattern = norm_pattern)
-                #     assert norm != 0, f"norm is zero in state {state} and emission {emission}, with pattern {pattern}"
-                #     prior = unscaled_prob/norm
-                #     initial_parameter = prior
 
         # inserts
         if state[0] == "i":
@@ -759,11 +666,6 @@ class My_Model(Model):
                 assert norm != 0, "norm in ak is zero 0923htui4"
                 prior = unscaled_prob/norm
                 initial_parameter = prior
-                # TODO if prior is zero maybe dont set initial para to zero
-                # TODO are pseudo count also added to non occuring patterns?
-
-                # prior 0 is forbidden since dirichlet uses alpha > 0
-                # so i set zero priors and zero init paras to epsilon in downstream code
             else:
                 norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
                 assert abs(norm - 1 ) < 1e-4, f"norm is {norm} but should be one"
@@ -792,22 +694,6 @@ class My_Model(Model):
                 assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
                 prior = unscaled_prob/norm
                 initial_parameter = prior
-            # if do_id == 0:
-            #     pattern = f".{{{self.config.dss_start}}}GT{emission[-1]}.{{{self.config.dss_end-1}}}"
-            #     norm_pattern = f".{{{self.config.dss_start}}}GT.{{{self.config.dss_end}}}"
-            #     unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = pattern)
-            #     norm = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = norm_pattern)
-            #     assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
-            #     prior = unscaled_prob/norm
-            #     initial_parameter = prior
-            # elif do_id == 1:
-            #     pattern = f".{{{self.config.dss_start}}}GT{emission[1:]}.{{{self.config.dss_end-2}}}"
-            #     norm_pattern = f".{{{self.config.dss_start}}}GT{emission[1]}.{{{self.config.dss_end-1}}}"
-            #     unscaled_prob = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = pattern)
-            #     norm = self.prior.get_splice_site_matching_pattern_probs(description = "DSS", pattern = norm_pattern)
-            #     assert norm != 0, "norm in ak is zero 2ß30tu9z8wg"
-            #     prior = unscaled_prob/norm
-            #     initial_parameter = prior
             else:
                 norm = sum([self.prior.get_intron_prob(emission[:-1] + base) for base in "ACGT"])
                 assert abs(norm - 1 ) < 1e-3, f"norm is {norm} but should be one"
@@ -853,14 +739,12 @@ class My_Model(Model):
 
         # A mask for priors
         self.A_prior_indices = tf.cast(self.A_prior_indices, tf.int32)
-        # tf.print("self.A_prior_indices", self.A_prior_indices, summarize = -1)
-        # tf.print("len self.A_prior_indices", len(self.A_prior_indices), summarize = -1)
-        # tf.print("[1.0] * len(self.A_prior_indices)", [1.0] * len(self.A_prior_indices), summarize = -1)
 
         self.A_prior_mask = tf.scatter_nd(self.A_prior_indices, \
                                    [1.0] * len(self.A_prior_indices), \
                                    dense_shape)
-
+        A_init_stochastic = tf.cast(A_init_stochastic, self.config.dtype)
+        self.A_prior_mask = tf.cast(self.A_prior_mask, self.config.dtype)
         self.A_prior_matrix = tf.cast(A_init_stochastic * self.A_prior_mask, dtype = self.config.dtype) * self.config.priorA
 
         # write results to file for inspection
@@ -957,10 +841,6 @@ class My_Model(Model):
 
         return non_class_B_log_prior(self.B(B_kernel), self.B_prior_matrix, self.B_prior_indices, self.config.alphabet_size)
 
-        # exponent = self.B_prior_matrix * self.config.priorB - 1
-        # log_prior = tf.math.log(self.B(B_kernel) + self.config.log_prior_epsilon)
-        # before_reduce_sum = (exponent * log_prior)
-        # return tf.math.reduce_sum(tf.gather_nd(before_reduce_sum, self.B_prior_indices))
 ################################################################################
 ################################################################################
 ################################################################################
@@ -978,7 +858,6 @@ class My_Model(Model):
             p,i =  self.prior_and_initial_parameter_for_state_and_emission(state, self.emission_tuple_to_str(ho_emission))
 
             if i == 0:
-                print("setting init para to epsilon")
                 i = 1e-3
 
             initial_parameters.append(i)
@@ -986,7 +865,6 @@ class My_Model(Model):
             if p != -1:
 
                 if p == 0:
-                    print("setting prior to epsilon")
                     p = 1e-3
                 self.B_priors.append(p)
                 self.B_prior_indices.append(index)
@@ -1043,7 +921,6 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
     def I(self, weights):
-        # initial_matrix = tf.scatter_nd([[0,0]], [1.0], [self.number_of_states,1])
         initial_matrix = tf.scatter_nd([[0,0]], [1.0], [1, self.number_of_states])
         return initial_matrix
 
@@ -1051,10 +928,7 @@ class My_Model(Model):
     def A(self, weights):
         if self.config.trace_verbose:
             print("model.A")
-        if self.config.use_weights_for_consts:
-            values = weights
-        else:
-            values = tf.concat([weights, self.A_initial_weights_for_constants], axis = 0)
+        values = tf.concat([weights, tf.cast(self.A_initial_weights_for_constants,self.config.dtype)], axis = 0)
         dense_shape = [self.number_of_states, self.number_of_states]
 
         if self.config.A_is_sparse:
@@ -1076,7 +950,6 @@ class My_Model(Model):
 
         return transition_matrix
 ################################################################################
-    # TODO falls dieses nicht get cann ich vielleicht tf dont convert machen
     def make_B_initial_weights(self):
         initial_parameters_for_weights = np.zeros(len(self.B_indices_for_trainable_parameters))
         initial_parameters_for_consts = np.zeros(len(self.B_indices_for_constant_parameters))
@@ -1143,9 +1016,9 @@ class My_Model(Model):
             print("model.B")
         # consts = tf.cast([1.0] * len(self.B_indices_for_constants), dtype = self.config.dtype)
         try:
-            consts = self.B_initial_weights_for_constant_parameters
+            consts = tf.cast(self.B_initial_weights_for_constant_parameters, self.config.dtype)
         except:
-            consts = self.B_initial_constant_para_setting
+            consts = tf.cast(self.B_initial_constant_para_setting, self.config.dtype)
         values = tf.concat([weights, consts], axis = 0)
         dense_shape = [self.number_of_emissions, \
                        self.number_of_states]
@@ -1187,56 +1060,6 @@ class My_Model(Model):
 ################################################################################
 ################################################################################
 ################################################################################
-    # def export_to_dot_and_png(self, A_weights, B_weights, out_path = "this is still hard coded"):
-    #     # TODO: add I parameters???
-    #     import numpy as np
-    #     n_labels = self.number_of_emissions ** (self.config.order + 1)
-    #     nCodons = self.config.nCodons
-    #
-    #     A = self.A(A_weights) if self.A_is_dense else tf.sparse.to_dense(self.A(A_weights))
-    #     B = self.B(B_weights) if self.B_is_dense else tf.sparse.to_dense(self.B(B_weights))
-    #
-    #     B_reshaped = tf.reshape(B, shape = (-1, self.config.alphabet_size, self.number_of_states))
-    #     B_argmax = np.argmax(B_reshaped, axis = 1)
-    #
-    #     id_to_base = {0:"A", 1:"C",2:"G",3:"T",4:"I",5:"Ter"}
-    #     with open(f"output/{nCodons}codons/graph.{nCodons}codons.gv", "w") as graph:
-    #         graph.write("DiGraph G{\nrankdir=LR;\n")
-    #         # graph.write("nodesep=0.5; splines=polyline;")
-    #         for from_state, row in enumerate(A):
-    #             from_state_str = self.state_id_to_str(from_state)
-    #             write_B = False
-    #             graph.write("\"" + from_state_str + "\"\n") #  this was to_state before
-    #             if write_B:
-    #
-    #                 graph.write("[\n")
-    #                 graph.write("\tshape = none\n")
-    #                 graph.write("\tlabel = <<table border=\"0\" cellspacing=\"0\"> \n")
-    #                 try:
-    #                     color = {"c_":"teal", "i_": "crimson"}[from_state_str[0:2]]
-    #                 except:
-    #                     color = "white"
-    #
-    #                 graph.write(f"\t\t<tr><td port=\"port1\" border=\"1\" bgcolor=\"{color}\">" + from_state_str + "</td></tr>\n")
-    #
-    #                 for k, most_likely_index in enumerate(B_argmax[:,from_state]):
-    #                     emission_id = most_likely_index + k * self.config.alphabet_size
-    #                     emission_str = self.emission_id_to_str(emission_id)
-    #                     emi_prob = str(np.round(B[emission_id, from_state].numpy(),4))
-    #                     graph.write(f"\t\t<tr><td port=\"port{k+2}\" border=\"1\">({emission_str + ' ' +emi_prob})</td></tr>\n" )
-    #                 graph.write("\t </table>>\n")
-    #                 graph.write("]\n")
-    #
-    #             for to_state, prob in enumerate(row):
-    #                 to_state_str = self.state_id_to_str(to_state)
-    #                 if prob > 0:
-    #                     prob = prob.numpy()
-    #                     graph.write(f"\"{from_state_str}\" -> \"{to_state_str}\" [label = {str(np.round(prob, 4))[:6]} fontsize=\"{30*prob + 5}pt\"]\n")
-    #
-    #         graph.write("}")
-    #     # run(f"cat graph.{nCodons}codons.gv")
-    #     from Utility import run
-    #     run(f"dot -Tpng output/{nCodons}codons/graph.{nCodons}codons.gv -o output/{nCodons}codons/graph.{nCodons}codons.png")
 
     def I_as_dense_to_json_file(self, path, weights):
         with open(path, "w") as out_file:

@@ -90,7 +90,6 @@ def get_cfg_with_args():
     cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/introns/combined.fasta" for exon in exons]
 
     cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/combined.fasta" for exon in exons]
-    # revert change remove_long_seqs_bool=False in Training.py
 
     get_exon_len = lambda exon_string: (int(exon_string.split("_")[-1]) - int(exon_string.split("_")[-2]))
     get_exon_codons = lambda exon_string: get_exon_len(exon_string) // 3
@@ -122,9 +121,6 @@ def get_cfg_with_args():
     # schlechter zu machen, aber ich könnte auch die deletions billiger machen
     # damit einfach die model länge nicht so stark in die gewichtung eingeht
     # vielleicht leider die ergebnisse nicht zu sehr darunter
-
-
-
 
 
 
@@ -160,7 +156,7 @@ def get_cfg_with_args():
 
     cfg_with_args["left_intron_init_weight"] = [4.35] # this is usually 4 but left miss was way more often than right miss in eval data set
 
-    cfg_with_args["manual_delete_insert_init_continue_weights"] = ["\"0.1,-0.2,-1\""]
+    # cfg_with_args["manual_delete_insert_init_continue_weights"] = ["\"0.1,-0.2,-1\""]
 
 
     return cfg_with_args
@@ -172,21 +168,7 @@ def get_bind_args_together(cfg_with_args):
     cant bind args without parameter
     '''
     bind_args_together = [set([key]) for key in cfg_with_args.keys()]
-
-
-
-
-
-
-
-
-
     bind_args_together += [{"fasta", "nCodons"}]
-
-
-
-
-
 
     # bind_args_together += [{"exon_skip_init_weight", "nCodons"}]
     # bind_args_together += [{"priorA", "priorB"}]

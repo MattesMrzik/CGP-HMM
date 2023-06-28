@@ -79,7 +79,6 @@ if check_seq_len:
     seq_lens = [(config.nCodons * 4 + 8) * factor for factor in range(1,10)]
     seq_lens += [5000,10000]
     for seq_len in seq_lens:
-        config.seq_len = seq_len
         command = f"./main_programm.py {config.get_args_as_str('main_programm')}"
         print("running:", command)
         status = os.system(command)

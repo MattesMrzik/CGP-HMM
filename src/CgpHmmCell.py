@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 from Utility import append_time_ram_stamp_to_file
-from Utility import tfprint
 
 import os
 import time
@@ -12,10 +11,7 @@ import json
 
 
 class CgpHmmCell(tf.keras.layers.Layer):
-# class CgpHmmCell(tf.keras.layers.Layer):
     def __init__(self, config):
-        # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell init")
-        # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell init: tf")
 
         start = time.perf_counter()
         run_id = randint(0,100)
@@ -26,55 +22,26 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         self.nCodons = config.nCodons
 
-        self.alphabet_size = config.alphabet_size # without terminal symbol and without "papped left flank" symbol
-    # order = 0 -> emission prob depends only on current emission
+        self.alphabet_size = config.alphabet_size # without terminal symbol and without "left flank" symbol I
         self.order = config.order
 
         self.config = config
-
-        if config.scale_with_conditional_const:
-            self.state_size = [config.model.number_of_states, 1, 1]
-        else:
-            self.state_size = [config.model.number_of_states, 1]
-
-        # self.indices_for_weights_A = self.get_indices_for_weights_for_A()
-        # # vielleich einfach den consts auch ein weigt geben, welches durch softmax eh dann 1 wird
-        # # dann hat der gradient zwar mehr einträge, aber es muss ein concat der values und indices gemacht werden,
-        #
-        # self.indices_for_weights_B = self.get_indices_for_weights_for_B()
-        # self.indices_for_constants_B = self.get_indices_for_constants_for_B()
+        self.state_size = [config.model.number_of_states, 1]
 
 
         append_time_ram_stamp_to_file(f"Cell.__init__() end   {run_id}", self.config.bench_path, start)
 
     def build(self, shape):
-        # print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build")
-        # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell build: tf")
 
         start = time.perf_counter()
         run_id = randint(0,100)
         append_time_ram_stamp_to_file(f"Cell.build() start {run_id}", self.config.bench_path, start)
 
         # setting the initilizers
-        # if self.config.get_gradient_for_current_txt or self.config.init_weights_from_before_fit or self.config.init_weights_from_after_fit:
-        if self.config.get_gradient_for_current_txt:
-            print("self.config.get_gradient_for_current_txt is decrepated")
-            exit(1)
         if self.config.init_weights_from:
             print("init cell weights from ", self.config.init_weights_from)
             weights = self.read_weights_from_file(self.config.init_weights_from)
 
-            I_initializer = tf.constant_initializer(weights[0])
-            A_initializer = tf.constant_initializer(weights[1])
-            B_initializer = tf.constant_initializer(weights[2])
-        # elif self.config["get_gradient_from_saved_model_weights"] and "model" in self.config:
-        elif self.config.get_gradient_from_saved_model_weights and "weights" in self.config.__dict__:
-            # weights = self.config["model"].get_weights()
-            # this causes error,
-            # try if txt is sufficient to get nan as gradient
-
-            # they seem to get the same results as current.txt
-            weights = self.config.weights
             I_initializer = tf.constant_initializer(weights[0])
             A_initializer = tf.constant_initializer(weights[1])
             B_initializer = tf.constant_initializer(weights[2])
@@ -83,7 +50,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
             I_initializer = tf.constant_initializer(1)
             A_initializer = tf.constant_initializer(1)
             B_initializer = tf.constant_initializer(1)
-        elif self.config.my_initial_guess_for_parameters:
+        elif self.config.use_thesis_weights:
             I_initializer = tf.constant_initializer(1)
             # initial_weights_for_trainable_parameters = np.array(self.config.model.A_initial_weights_for_trainable_parameters, dtype = np.float32)
             A_initializer = tf.constant_initializer(self.config.model.A_initial_weights_for_trainable_parameters)
@@ -93,7 +60,10 @@ class CgpHmmCell(tf.keras.layers.Layer):
             A_initializer="random_normal"
             B_initializer="random_normal"
 
-        # setting the initilizers done:
+        # this will cause
+        # WARNING:tensorflow:Gradients do not exist for variables ['cgp_hmm_layer/cgp_hmm_cell/I_kernel:0'] when minimizing the loss. If you're using `model.compile()`, did you forget to provide a `loss` argument?
+        # Since the current kernel only allows the model to start in the upstream intron
+        # since this might be changed in the future, we keep this here
         self.I_kernel = self.add_weight(shape = (self.config.model.I_kernel_size(),),
                                         initializer = I_initializer,
                                         dtype = self.config.dtype,
@@ -116,12 +86,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
         append_time_ram_stamp_to_file(f"Cell.build() end   {run_id}", self.config.bench_path, start)
 
 ################################################################################
-    # this might be a possible alternative for the count variable in cell.call()
-    # currently, count == 0 is checked to determine whether the first symbol
-    # of the seq is processed
-    # but using this bool didnt work, bc it was always set to False
-    # in the first call, before the actual graph is executed
-################################################################################
     @property
     def I(self):
         return self.config.model.I(self.I_kernel)
@@ -134,7 +98,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
     def B(self):
         return self.config.model.B(self.B_kernel)
 
-    # these transformation to the dense form are used in the NaN asserts
     @property
     def I_dense(self):
         return self.I
@@ -151,11 +114,6 @@ class CgpHmmCell(tf.keras.layers.Layer):
             return tf.sparse.to_dense(self.B)
         return self.B
 
-    # @property
-    # is has some -inf since log of forbidden emissions, these cant be multiplied with 0, since 0*inf is not defined
-
-    # def B_log(self): # TODO: do i need a different method if B is sparse
-    #     return tf.math.log(self.B)
 ################################################################################
 ################################################################################
     def get_E(self, inputs):
@@ -163,17 +121,18 @@ class CgpHmmCell(tf.keras.layers.Layer):
             print("cell.get_E()")
 
         if self.config.B_is_dense:
-            return tf.matmul(inputs, self.B)
-        return tf.sparse.sparse_dense_matmul(inputs, self.B)
+            B = tf.matmul(inputs, self.B)
+        else:
+            B = tf.sparse.sparse_dense_matmul(inputs, self.B)
+        if self.config.dtype == np.float64:
+            B = tf.cast(B, np.float64)
+        return B
 ################################################################################
     def get_R(self, old_forward, init = False):
         if self.config.trace_verbose:
             print("cell.get_R()")
         if init:
-            # todo add eplison here???
-            if self.config.logsumexp:
-                return tf.math.log(old_forward)
-            return self.I
+            return tf.cast(tf.math.log(old_forward), self.config.dtype)
 
         # if add_epsilon_to_z:
         #     Z_i = tf.math.add(Z_i, add_epsilon_to_z)
@@ -183,72 +142,26 @@ class CgpHmmCell(tf.keras.layers.Layer):
             else:
                 return tf.matmul(a, b)
 
-        if self.config.logsumexp:
-            m_alpha = tf.reduce_max(old_forward, axis = 1, keepdims = True)
-            R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.R_epsilon, self.A)) + m_alpha
-            return R
+        m_alpha = tf.reduce_max(old_forward, axis = 1, keepdims = True)
+        R = tf.math.log(mul(tf.math.exp(old_forward - m_alpha) + self.config.R_epsilon, self.A)) + m_alpha
 
-        R = mul(old_forward, self.A)
 
+        if self.config.dtype == np.float64:
+            R = tf.cast(R, np.float64)
         return R
 ################################################################################
-    def calc_new_cell_state(self, E, R, old_forward, old_loglik, scale_helper, init):
+    def calc_new_cell_state(self, E, R):
         if self.config.trace_verbose:
             print("cell.calc_new_cell_state()")
-        if self.config.scale_with_const:
-            unscaled_alpha = E * R
-            scaled_alpha = unscaled_alpha * self.config.scale_with_const
-            # loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True)) - count * tf.math.log(self.config.scale_with_const) # TODO: check this
-            loglik       = scaled_alpha
-            scale_helper = scaled_alpha
+        E_epsilon = tf.cast(self.config.E_epsilon, self.config.dtype)
+        l_epsilon = tf.cast(self.config.l_epsilon, self.config.dtype)
+        alpha = tf.math.log(E + E_epsilon) + R
+        # TODO: replace this with manual logusmexp and see if grad can be calculated now
+        m_alpha = tf.math.reduce_max(alpha, axis = 1, keepdims = True)
+        # loglik = tf.math.reduce_logsumexp(scaled_alpha, axis = 1, keepdims = True)
+        loglik = tf.math.log(tf.reduce_sum(tf.math.exp(alpha - m_alpha) + l_epsilon, axis = 1, keepdims = True)) + m_alpha
 
-        elif self.config.scale_with_conditional_const:
-            unscaled_alpha = E * R
-            Z_i = tf.reduce_sum(unscaled_alpha, axis = 1, keepdims = True)
-            Z_i = tf.cast(Z_i < 0.1, dtype = self.config.dtype)
-            scale_helper = scale_helper + Z_i
-            Z_i *= 9
-            Z_i += 1
-            scaled_alpha = unscaled_alpha * Z_i
-            loglik = tf.math.log(tf.reduce_sum(scaled_alpha, axis = 1, keepdims = True) + self.config.conditional_epsilon) - scale_helper * tf.math.log(10.0)
-
-        elif self.config.felix:
-            # TODO: im ersten schritt scaliert felix doch eigenlcith nicht
-            unscaled_alpha = E*R
-            if not init:
-                scale_helper = tf.reduce_sum(old_forward, axis = 1, keepdims = True, name = "felix_z")
-                scaled_alpha = tf.math.divide(unscaled_alpha, scale_helper)
-            else:
-                scaled_alpha = unscaled_alpha
-                scale_helper = unscaled_alpha
-
-            loglik = tf.math.add(old_loglik, tf.math.log(tf.reduce_sum(scaled_alpha, axis = -1)), name = "loglik")
-
-        # elif self.config.new_felix: same as my version
-        #     unscaled_alpha = E*R
-        #     scale_helper = tf.reduce_sum(unscaled_alpha, axis=-1, keepdims=True)
-        #     loglik = old_loglik + tf.math.log(scale_helper)
-        #     scaled_alpha = unscaled_alpha / scale_helper
-
-        elif self.config.logsumexp:
-            unscaled_alpha = tf.math.log(E + self.config.E_epsilon) + R
-            scaled_alpha = unscaled_alpha
-            # TODO: replace this with manual logusmexp and see if grad can be calculated now
-            m_alpha = tf.math.reduce_max(scaled_alpha, axis = 1, keepdims = True)
-            # loglik = tf.math.reduce_logsumexp(scaled_alpha, axis = 1, keepdims = True)
-            loglik = tf.math.log(tf.reduce_sum(tf.math.exp(scaled_alpha - m_alpha) + self.config.l_epsilon, axis = 1, keepdims = True)) + m_alpha
-            scale_helper = m_alpha
-
-        # TODO: kann ich auch einfach mal das log bei z scaling weg lassen? und schauen ob dann der grad berechnet werden kann,
-        # ist das überhaupt gut? oder macht es dann die seq nicht mehr vergleichbar, wenn die letzten alphas nicht mehr scaliert werden
-
-        else: # only one reduce sum. Z_i = sum_q unscaled_alpha(i)
-            unscaled_alpha = E*R
-            scale_helper = tf.reduce_sum(unscaled_alpha, axis = 1, keepdims = True, name = "my_z")
-            loglik = tf.math.add(old_loglik, tf.math.log(scale_helper + self.config.my_scale_log_epsilon), name = "loglik")
-            scaled_alpha = unscaled_alpha / (scale_helper  + self.config.my_scale_alpha_epsilon)
-
-        return scaled_alpha, unscaled_alpha, loglik, scale_helper
+        return alpha, loglik
 #################################################################################
     def fast_call(self, inputs, states, init = False, training = None): # how often is the graph for this build?
         # -AB sd, no felix , no log
@@ -269,13 +182,7 @@ class CgpHmmCell(tf.keras.layers.Layer):
         if self.config.trace_verbose:
             print("cell.call()")
         # tf.print("~~~~~~~~~~~~~~~~~~~~~~~~~ cell call_sparse: tf")
-        if self.config.scale_with_conditional_const:
-            old_forward, old_loglik, scale_helper = states
-        else:
-            old_forward, old_loglik = states
-            scale_helper = old_loglik
-        # TODO: make this a bool
-        # print("optype", self.A_dense.op.type)
+        old_forward, old_loglik = states
 
         self.assert_check_beginning_of_call(old_forward, old_loglik)
         run_id = randint(0,100)
@@ -285,26 +192,19 @@ class CgpHmmCell(tf.keras.layers.Layer):
 
         R = self.get_R(old_forward, init = init)
 
-        alpha, unscaled_alpha, loglik, scale_helper = self.calc_new_cell_state(E, R, old_forward, old_loglik, scale_helper, init)
+        alpha, loglik = self.calc_new_cell_state(E, R)
 
         self.assert_check_end_of_call(E, R, alpha, loglik)
         self.verbose_end_of_call(run_id, E, R, alpha, loglik)
 
         states = [alpha, loglik]
-        if self.config.scale_with_conditional_const:
-            states += [scale_helper]
 
         return [], states
-
 ################################################################################
     def get_initial_state(self, inputs=None, batch_size=None, dtype=None):
         if self.config.trace_verbose:
             print("cell.get_initial_state()")
-        # old_forward = tf.repeat(tf.zeros(), repeats=batch_size, axis=0)
-        # old_forward = tf.zeros((batch_size, self.config.model.number_of_states), dtype=self.config.dtype)
-        # old_forward = tf.repeat(tf.concat([[1],tf.zeros(self.config.model.number_of_states)], axis = 0), repeats = batch_size, axis = 0)
         old_forward = tf.concat([tf.ones((batch_size, 1)), tf.zeros((batch_size, self.config.model.number_of_states-1))], axis = 1)
-        # old_forward = tf.repeat(self.I, repeats = batch_size, axis=0)
         loglik = tf.zeros((batch_size, 1), dtype=self.config.dtype)
         S = [old_forward, loglik]
         return S
@@ -317,24 +217,14 @@ class CgpHmmCell(tf.keras.layers.Layer):
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.I_dense)),  [self.I_dense],              name = "I_dense_beginning_of_call",  summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.A_dense)),  [self.A_dense],              name = "A_dense_beginning_of_call",  summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(self.B_dense)),  [self.B_dense],              name = "B_dense_beginning_of_call",  summarize = self.config.assert_summarize)
-            if self.config.logsumexp:
-                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(old_forward)),   [old_forward],          name = "old_forward_nan_beginning_of_call",              summarize = self.config.assert_summarize)
-            else:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_forward)),   [old_forward], name = "old_forward_finite_beginning_of_call", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(old_forward)),   [old_forward],          name = "old_forward_nan_beginning_of_call",              summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(old_loglik)),        [old_loglik],  name = "old_loglik_finite_beginning_of_call",  summarize = self.config.assert_summarize)
 ################################################################################
     def assert_check_end_of_call(self, E, R, alpha, loglik):
         if self.config.check_assert:
-            if self.config.logsumexp:
-                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(alpha)), [alpha], name = "alpha_nan_end_of_call", summarize = self.config.assert_summarize)
-            else:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),  [alpha], name = "alpha_finite_end_of_call", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(alpha)), [alpha], name = "alpha_nan_end_of_call", summarize = self.config.assert_summarize)
             tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(loglik)), [loglik, [123456789], alpha], name = "loglik_finite_end_of_call", summarize = self.config.assert_summarize)
 
-            # i think this should be allowed since sum across alpha can be 1, then log is 0, which is fine
-            # tf.debugging.Assert(tf.math.reduce_all(loglik != 0),                     [loglik, count[0,0]],       name = "loglik_nonzero",            summarize = -1)
-
-            #todo also check if loglik is zero, bc then a seq should be impossible to be emitted, which shouldnt be the case
 ################################################################################
     def verbose_beginning_of_call(self, run_id, inputs, old_forward, old_loglik):
         if self.config.verbose:
@@ -376,14 +266,9 @@ class CgpHmmCell(tf.keras.layers.Layer):
 ################################################################################
     def assert_E_R_alpha(self, E, R, alpha):
         if self.config.check_assert:
-            if self.config.logsumexp:
-                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(R)),     [R], name = "R_finite", summarize = self.config.assert_summarize)
-                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(E)),     [E], name = "E_finite", summarize = self.config.assert_summarize)
-                tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(alpha)), [alpha], name = "E_finite", summarize = self.config.assert_summarize)
-            else:
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(R)),      [R], name = "R_finite", summarize = self.config.assert_summarize)
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(E)),      [E], name = "E_finite", summarize = self.config.assert_summarize)
-                tf.debugging.Assert(tf.math.reduce_all(tf.math.is_finite(alpha)),  [alpha], name = "E_finite", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(R)),     [R], name = "R_finite", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(E)),     [E], name = "E_finite", summarize = self.config.assert_summarize)
+            tf.debugging.Assert(not tf.math.reduce_any(tf.math.is_nan(alpha)), [alpha], name = "E_finite", summarize = self.config.assert_summarize)
 ################################################################################
     def write_weights_to_file(self, path): # is this sufficient to get reproducable behaviour?
         ik = [float(x) for x in self.I_kernel.numpy()]
