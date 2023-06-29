@@ -11,9 +11,6 @@
 * cd src
 * python3 cgphmm.py
 
-## Info
-Unit tests are not up to date.
-
 ## Dataset creation
 * _get\_exons\_df.py_ creates a df containing all exons.
 * _get\_internal\_exon.py_ selects suitable exons. Mapps coordinates and extracts fasta sequences.
