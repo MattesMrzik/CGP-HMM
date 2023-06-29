@@ -32,7 +32,6 @@ class Config():
         self.args = {}
         self.det_args = {}
 
-
     def init_for_matrix_diff(self):
         self.get_args_for_add_str_to_matrices()
         self.add_args_from_parser()
@@ -85,7 +84,6 @@ class Config():
         self.asserts()
         self.get_model()
 
-
     def init_for_training(self):
         self.get_args_for_training()
         self.add_args_from_parser()
@@ -99,12 +97,13 @@ class Config():
 
         self.apply_args()
         self.get_model()
-
-
+################################################################################
+################################################################################
+################################################################################
     def add_args_from_parser(self):
         parsed_args = self.parser.parse_args()
         self.args = parsed_args.__dict__
-
+################################################################################
     def load_training_args(self):
         args_json_path = f"{self.parent_input_dir}/passed_args.json"
         with open(args_json_path, "r") as file:
@@ -112,7 +111,6 @@ class Config():
         for key, value in loaded_training_args.items():
             if key not in self.args:
                 self.args[key] = value
-
 ################################################################################
     def get_current_run_dir(self, use_existing = False) -> str:
         if use_existing:
@@ -151,8 +149,6 @@ class Config():
             self.det_args["R_epsilon"] = self.global_log_epsilon
             self.det_args["l_epsilon"] = self.global_log_epsilon
             self.det_args["log_prior_epsilon"] = self.global_log_epsilon
-
-################################################################################
 ################################################################################
     def get_model(self, only_prepare = False) -> None:
         from Utility import append_time_ram_stamp_to_file
@@ -168,7 +164,6 @@ class Config():
             self.model.make_model()
 
         append_time_ram_stamp_to_file(f"Config.get_model() end", self.bench_path, start)
-################################################################################
 ################################################################################
     def write_passed_args_to_file(self, dir_path = None):
 
@@ -187,7 +182,7 @@ class Config():
         with open(out_path, "w") as file:
             json.dump(self.args, file)
 
-
+################################################################################
     def __getattr__(self, name):
         # det_args have higher priority
         try:
@@ -198,7 +193,7 @@ class Config():
             except:
                 print(f"config.{name} not defined")
                 exit(1)
-
+################################################################################
     def print(self):
         print("==============> printing args <================================")
         print("args:")

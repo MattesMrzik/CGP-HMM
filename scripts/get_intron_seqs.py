@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
+from get_internal_exon import combine_fasta_files, extract_info_and_check_bed_file, get_input_files_with_human_at_0
 import re
-import shutil
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -9,8 +9,8 @@ import argparse
 import pandas as pd
 import os
 
-from get_internal_exon import combine_fasta_files, extract_info_and_check_bed_file, get_input_files_with_human_at_0
-
+# this is used to create a dataset of introns.
+# the upstream intron from a intron exon intron dataset are extracted
 
 import sys
 sys.path.append("../src")
@@ -21,18 +21,15 @@ def get_left_introns(dir_path):
     # read the stats table into a dataframe
     df = pd.read_csv(os.path.join(dir_path, "stats_table.csv"), sep = ";")
 
-    # loop over the rows in the df
     for i, (index, row) in enumerate(df.iterrows()):
 
 
         exon_dir = os.path.join(dir_path, row["exon"])
 
-        # if not re.search("chr18_23568822_23568998", exon_dir):
-        #     continue
 
         bed_dir_path = os.path.join(exon_dir, "species_bed")
 
-        # create a new dir that holds the left inron seqs
+        # create a new dir that holds the left intron seqs
         intron_dir_path = os.path.join(exon_dir, "introns")
         if not os.path.exists(intron_dir_path):
             os.makedirs(intron_dir_path)
@@ -44,10 +41,7 @@ def get_left_introns(dir_path):
         strand = human_bed.iloc[0, 5]
 
         extra_exon_data = {}
-        # read table into df
         extra_exon_data["human_strand"] = strand
-        # get the length of the substring in the human sequence
-        # get the len of the seq in this fasta using SeqIO
         extra_exon_data["len_of_seq_substring_in_human"] = human_len
 
 
@@ -55,9 +49,6 @@ def get_left_introns(dir_path):
             extra_seq_data = {}
             species_name = bed_file.split(".")[0]
             # this needs to contain the "human_strand" key and the "len_of_seq_substring_in_human" key
-
-            # if re.search("Homo", species_name)
-            #     bed_dir_path = path_to_human_bed
 
             if not extract_info_and_check_bed_file(bed_dir_path, species_name, extra_seq_data, extra_exon_data):
                 continue
@@ -148,7 +139,7 @@ if __name__ == "__main__":
 
     # add a agrument path to parser
     parser = argparse.ArgumentParser()
-    parser.add_argument("-p", "--path", help="path to the stats table")
+    parser.add_argument("-p", "--path", help="Path to the stats table of the dataset from which in upstream intron should get extracted.")
     args = parser.parse_args()
 
     get_left_introns(args.path)

@@ -9,9 +9,8 @@ import json
 import argparse
 import sys
 
-sys.path.insert(0, "..")
+sys.path.insert(0, "../src")
 
-from multi_run import get_dir_from_called_command_log_in_run_dir_to_base_dir_of_fasta
 
 def create_gff_from_fasta_description(exon_dir_path : str) -> None:
     path_to_human_fasta = f"{exon_dir_path}/species_seqs/stripped/Homo_sapiens.fa"
@@ -56,7 +55,7 @@ def create_gff_from_fasta_description(exon_dir_path : str) -> None:
         hints_file_path = f"{exon_dir_path}/augustus_hints.gff"
         exon_len = exon_end - exon_start
 
-        size_of_hints_cds = 1 # since min exon len is 24
+        size_of_hints_cds = 1 # ie this many bases left and right of the exon middle are hinted as coding
 
         write_gff(hints_file_path, exon_start + exon_len//2 - size_of_hints_cds, exon_start + exon_len//2 + size_of_hints_cds, seq_len = len(record.seq)-1)
         return hints_file_path
@@ -69,20 +68,13 @@ def run_augustus_for_dir(args) -> None:
     for i, file_or_dir in enumerate(dir_content):
         exon_dir_path = os.path.join(path, file_or_dir)
         if os.path.isdir(exon_dir_path):
-
             if args.path:
                 hintsfile = create_gff_from_fasta_description(exon_dir_path)
-                command = f"{path_to_augustus_exe} --species=human --hintsfile={hintsfile} --/Constant/min_coding_len=9 --strand=forward {exon_dir_path}/species_seqs/stripped/Homo_sapiens.fa"
+                command = f"{args.augustus_path} --species=human --hintsfile={hintsfile} --/Constant/min_coding_len=9 --strand=forward {exon_dir_path}/species_seqs/stripped/Homo_sapiens.fa"
             if args.intron:
-                command = f"{path_to_augustus_exe} --species=human --strand=forward {exon_dir_path}/introns/Homo_sapiens.fa"
-            if args.strip:
-                command = f"{path_to_augustus_exe} --species=human --strand=forward {exon_dir_path}/missing_human_exon/Homo_sapiens.fa"
+                command = f"{args.augustus_path} --species=human --strand=forward {exon_dir_path}/introns/Homo_sapiens.fa"
             print()
             print("command", command)
-            # stanke was zeigen wo es nicht funcktioniert
-            # --minCoding_len 1
-
-            # ich kanna auch ewzingen ddass erste und letzt position ein intron ist.
 
             try:
                 output = subprocess.check_output(command, shell=True, stderr=subprocess.STDOUT, universal_newlines=True)
@@ -105,23 +97,16 @@ def run_augustus_for_dir(args) -> None:
             except subprocess.CalledProcessError as e:
                 print("Error executing command:", e.output)
 
-            # exit_code = subprocess.call(re.split("\s+", command))#, stderr = err_handle, stdout = out_handle)
-            # if exit_code != 0:
-            #     print("exit_code:", exit_code)
 
     print(f"number_found {number_found}, number_not_found {number_not_found}")
 
 if __name__ == "__main__":
 
-    # add argument parser
-    parser = argparse.ArgumentParser(description='Run augustus for all exons in a dir')
-    # add arg path to iei dir
-    parser.add_argument('--path', type=str, help='path to dir containing exons and not multi run')
-    # add path to intron dir
-    parser.add_argument('--intron', type=str, help='path to dir containing exons, but run for introns')
-    parser.add_argument('--strip', type=str, help='path to dir containing exons, but run for human exon striped seqs')
+    parser = argparse.ArgumentParser(description='Run augustus for all exons in a directory.')
+    parser.add_argument('--path', type=str, help='Path to directory containing exons, ie the dataset.')
+    parser.add_argument('--intron', type=str, help='Path to directory containing exons, but run augustus for introns.')
+    parser.add_argument('--augustus_path', type=str, default = "/home/s-mamrzi/Augustus/bin/augustus",  help='Path to the augustus executable.')
 
-    path_to_augustus_exe ="/home/s-mamrzi/Augustus/bin/augustus"
 
     args = parser.parse_args()
     run_augustus_for_dir(args)

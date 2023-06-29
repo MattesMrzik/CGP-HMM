@@ -15,6 +15,9 @@
 Unit tests are not up to date.
 
 ## Dataset creation
-* _get_exons_df.py_ creates a df containing all exons.
-* _get_internal_exon.py_ selects suitable exon. Mapps coordinates and extraxts fasta sequences.
-* _select_good_exons_for_training.py_ selects exons that can be used for training. Copies them to a new directory.
+* _get\_exons\_df.py_ creates a df containing all exons.
+* _get\_internal\_exon.py_ selects suitable exons. Mapps coordinates and extracts fasta sequences.
+* _select\_good\_exons\_for\_training.py_ selects exons that can be used for training. Copies them to a new directory.
+
+## Evaluation
+* the script _multi\_run.py_ was used for running and evaluation.
