@@ -50,7 +50,3 @@ os.system(f"cat {submission_file_name}")
 os.system("echo -------------------------------")
 
 os.system(f"sbatch {submission_file_name}")
-#while not os.path.exists("job_done"):
-#    os.system("squeue | grep s-mamrzi")
-#    # maybe also print .out and .err
-#os.system("rm job_done")

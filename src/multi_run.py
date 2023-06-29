@@ -14,11 +14,12 @@ import seaborn as sns
 import traceback
 from Bio import SeqIO
 import argparse
-from ReadData import remove_long_seqs
-from helpers.add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
+
+import sys
+sys.path.append("../scripts")
+from read_true_alignment_with_out_coords_seq import read_true_alignment_with_out_coords_seq
 
 out_path = "../../cgp_data"
-# plt.hist(seqs_df["true_p_nt_exon"][seqs_df["true_p_nt_exon"]<600]); plt.savefig("hist.png")
 
 def get_multi_run_config():
 
@@ -28,7 +29,6 @@ def get_multi_run_config():
     parser.add_argument('--train', action = 'store_true', help='train with args specified in the methods in this module and write output to calculated path based on current time')
     parser.add_argument('--mem', type = int, default = 20000, help='mem for slurm train')
     parser.add_argument('--adaptive_ram', action = "store_true", help='adaptive mem for slurm train')
-    # parser.add_argument('--mpi', type = int, default = 8, help='mpi for slurm train')
     parser.add_argument('--max_jobs', type = int, default = 8, help='max number of jobs for slurm train')
     parser.add_argument('--partition', default = "snowball", help='partition for slurm train')
     parser.add_argument('--continue_training', help='path to multi_run dir for which to continue training')
@@ -36,34 +36,16 @@ def get_multi_run_config():
     parser.add_argument('--viterbi_path', help='path to multi_run dir for which to run viterbi')
     parser.add_argument('--use_init_weights_for_viterbi', action = 'store_true', help = 'use the initial weights instead of the learned ones')
     parser.add_argument('--eval_viterbi', help='path to multi_run dir for which to evaluation of viterbi')
-    # parser.add_argument('--threads_for_viterbi', type = int, default = 1, help='how many threads should be used for viterbi')
-    # here only first seq, ie the human one is calculated, an parallel calc of M produced more overhead than it actually helped
 
     args = parser.parse_args()
 
     if args.use_init_weights_for_viterbi:
         assert args.viterbi_path, "if you pass --use_init_weights_for_viterbi. you must also pass --viterbi_path"
 
-    # do i want to create bench to run on slurm submission which might be able to run both tf.learning and c++ viterbi
-    # or create 2 modes in bench one for training on apphub and one for running viterbi and evaluating
-
 
     assert args.train or args.viterbi_path or args.eval_viterbi or args.continue_training, "you must pass either --train or --viterbi_path or --eval_viterbi"
-
-
     return args
 
-################################################################################
-
-def get_cfg_without_args_that_are_switched():
-
-    # cfg_without_args_that_are_switched = '''
-    # exon_skip_const
-    # '''
-    #
-    # cfg_without_args_that_are_switched = re.split("\s+", cfg_without_args_that_are_switched)[1:-1]
-
-    pass
 
 ################################################################################
 
@@ -777,9 +759,8 @@ def get_sum_of_seq_lens(run_dir):
     seqs = []
     for record in SeqIO.parse(path_to_combined_fasta, "fasta"):
         seqs.append(record.seq)
-    cured_seqs = remove_long_seqs(seqs)
-    sum_of_lens = sum([len(seq) for seq in cured_seqs])
-    max_of_lens = max([len(seq) for seq in cured_seqs])
+    sum_of_lens = sum([len(seq) for seq in seqs])
+    max_of_lens = max([len(seq) for seq in seqs])
     return {"sum_of_lens": sum_of_lens, "max_of_lens": max_of_lens}
 
 ################################################################################

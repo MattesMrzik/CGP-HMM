@@ -3,12 +3,12 @@ import json
 
 if __name__ == "__main__":
     '''
-    this doesnt need to be particularly fast since it isnt particularly
-    usefull to vis, i think for evaluation the matices.csv are better
+    This doesnt need to be particularly fast since it isnt particularly
+    usefull to visualize, i think for evaluation the matices.csv are better
     '''
 
     import sys
-    sys.path.insert(0, "..")
+    sys.path.insert(0, "../src")
     from Config import Config
     config = Config()
     config.init_for_get_dot_and_png()

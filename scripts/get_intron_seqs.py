@@ -13,8 +13,7 @@ from get_internal_exon import combine_fasta_files, extract_info_and_check_bed_fi
 
 
 import sys
-from add_gene_structure_to_alignment import read_true_alignment_with_out_coords_seq
-sys.path.append("..")
+sys.path.append("../src")
 from multi_run import get_viterbi_aligned_seqs
 
 
@@ -95,22 +94,6 @@ def get_left_introns(dir_path):
             with open(intron_path, "w") as out_intron_handle:
                 record = SeqRecord(Seq(intron_seq), id=id, description=des)
                 SeqIO.write(record , out_intron_handle, "fasta")
-
-            # i need to combine these
-            # humna needs to be at first position
-
-
-        # for exon_dir in os.listdir(dir_path):
-        #     fullpath = os.path.join(dir_path, exon_dir)
-        #     print("fullpath", fullpath)
-        #     if os.path.isdir(fullpath):
-        #         # combine the intron seqs
-        #         path_to_true_alignment = os.path.join(fullpath, "true_alignment.clw")
-        #         if not os.path.exists(path_to_true_alignment):
-        #             continue
-        #         # read the alignment
-        #         aligned_seqs = read_true_alignment_with_out_coords_seq(path_to_true_alignment)
-        #         exon_start = aligned_seqs["true_seq"].seq.index("E")
 
 
         combined_fasta_path = os.path.join(exon_dir, "introns/combined.fasta")

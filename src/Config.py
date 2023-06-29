@@ -307,7 +307,7 @@ class Config():
 ################################################################################
 
     def get_args_for_training(self):
-        self.parser = argparse.ArgumentParser(description='Config module description')
+        self.parser = argparse.ArgumentParser(description='args for cgphmm')
 
         self.parser.add_argument('-c', '--nCodons', type = int, default = 2, help='Model size n, ie number of codons.')
         self.parser.add_argument('-AB', default = 'sd', help = '[sd (default), ds, sd, ss] specify the sparse or denseness of A and B.')
@@ -334,97 +334,91 @@ class Config():
         self.parser.add_argument('--model_size_factor', type = float, default = 1, help = 'Change model length by this factor.')
         self.parser.add_argument('--dont_shuffle_seqs', action = 'store_true', help = 'Dont shuffle sequences before creating batches')
         self.parser.add_argument('--global_log_epsilon', type = float, default = 1e-20, help = 'Sets all epsilon values that are used in the Farward algorithm to this to this value [1e-20]')
-        self.parser.add_argument('--log_prior_epsilon', type = float, default = 0, help = 'epsilon for prior calculation with log [0]')
-        self.parser.add_argument('--l_epsilon', type = float, default = 0, help = 'epsilon for the likelihod calculation with log [0]')
-        self.parser.add_argument('--R_epsilon', type = float, default = 0, help = 'epsilon for R calculation with log [0]')
-        self.parser.add_argument('--E_epsilon', type = float, default = 0, help = 'epsilon for E calculation with log [0]')
+        self.parser.add_argument('--log_prior_epsilon', type = float, default = 0, help = 'Epsilon for prior calculation with log [0]')
+        self.parser.add_argument('--l_epsilon', type = float, default = 0, help = 'Epsilon for the likelihod calculation with log [0]')
+        self.parser.add_argument('--R_epsilon', type = float, default = 0, help = 'Epsilon for R calculation with log [0]')
+        self.parser.add_argument('--E_epsilon', type = float, default = 0, help = 'Epsilon for E calculation with log [0]')
 
-        self.parser.add_argument('--only_primates', action = "store_true", help = 'only use primates to train')
-        self.parser.add_argument('--only_human', action = "store_true", help = 'only use human to train')
-        self.parser.add_argument('--only_diverse', action = "store_true", help = 'only use max_diverse_set_same_size_as_primates to train')
+        self.parser.add_argument('--only_primates', action = "store_true", help = 'Only use primates to train.')
+        self.parser.add_argument('--only_human', action = "store_true", help = 'Only use human to train.')
+        self.parser.add_argument('--only_diverse', action = "store_true", help = 'Only use max_diverse_set_same_size_as_primates to train.')
 
         # model
         self.parser.add_argument('--akzeptor_pattern_len', type = int, default = 5, help = 'akzeptor_pattern_len before AG')
         self.parser.add_argument('--donor_pattern_len', type = int, default = 5, help = 'donor_pattern_len after GT')
 
-        self.parser.add_argument('--left_intron_const', type = int, default = 0, help = 'uses const transition left_intron loop')
-        self.parser.add_argument('--right_intron_const', type = int, default = 0, help = 'uses const transition right_intron loop')
-        self.parser.add_argument('--exon_skip_const', action = 'store_true', help = 'transition from left intron to rigth intron is not learend')
+        self.parser.add_argument('--left_intron_const', type = int, default = 0, help = 'Dont learn transition upstream intron loop.')
+        self.parser.add_argument('--right_intron_const', type = int, default = 0, help = 'Dont learn transition downstream intron loop.')
+        self.parser.add_argument('--exon_skip_const', action = 'store_true', help = 'Dont learn transition from upstream intron to downstream intron.')
         # prior
-        self.parser.add_argument('--priorB', type = float, default = 0, help = 'use prior for B and scale the alphas')
-        self.parser.add_argument('--priorA', type = float, default = 0, help = 'use prior for A and scale the alphas')
-
-        self.parser.add_argument('--ass_start', type = int, default = 7, help = 'len of prior pattern before AG ASS splice site')
-        self.parser.add_argument('--ass_end', type = int, default = 2, help = 'len of prior pattern after AG ASS splice site')
-        self.parser.add_argument('--dss_start', type = int, default = 1, help = 'len of prior pattern before GT DSS splice site')
-        self.parser.add_argument('--dss_end', type = int, default = 5, help = 'len of prior pattern after GT DSS splice site')
+        self.parser.add_argument('--priorA', type = float, default = 0, help = 'Use prior for A and scale the alphas (= concentration).')
+        self.parser.add_argument('--priorB', type = float, default = 0, help = 'Use prior for B and scale the alphas (= concentration).')
+        self.parser.add_argument('--ass_start', type = int, default = 7, help = 'Length of prior pattern before AG ASS splice site, needs to be adjusted to the input .pbl files.')
+        self.parser.add_argument('--ass_end', type = int, default = 2, help = 'Length of prior pattern after AG ASS splice site, needs to be adjusted to the input .pbl files.')
+        self.parser.add_argument('--dss_start', type = int, default = 1, help = 'Length of prior pattern before GT DSS splice site, needs to be adjusted to the input .pbl files.')
+        self.parser.add_argument('--dss_end', type = int, default = 5, help = 'Length of prior pattern after GT DSS splice site, needs to be adjusted to the input .pbl files.')
 
         # prior and initial weights
-        self.parser.add_argument('--use_thesis_weights', type = bool, default = True, help = 'init A weights with my initial guess and B with priors')
-        self.parser.add_argument('--single_high_prob_kernel', type = float, default = 3, help = 'if my_initial_guess_for_parameters, this value is for high prob transitions, all other transitions get kernel weight 1')
-        self.parser.add_argument('--diminishing_factor', type = float, default = 4, help = 'deletes get initialized with [[-(to_codon - from_codon)/config.diminishing_factor]]')
-        self.parser.add_argument('--left_intron_init_weight', type = float, default = 4, help = 'weight for left -> left, the para for leaving left is 0')
-        self.parser.add_argument('--right_intron_init_weight', type = float, default = 4, help = 'weight for right -> right, the para for leaving right is 0')
-        self.parser.add_argument('--exon_skip_init_weight', type = float, default = -2, help = 'initparameter for exon strip')
-        self.parser.add_argument('--flatten_B_init', type = float, default = 0, help = 'flatten the init parameters of B, ie priorB *C + uniform * (1-c)')
+        self.parser.add_argument('--use_thesis_weights', type = bool, default = True, help = 'Initialize weights like described in my thesis.')
+        self.parser.add_argument('--single_high_prob_kernel', type = float, default = 3, help = 'This sets th weight for the transitions to the next codon, and leaven a codon insertion. In my thesis the default [3] was used.')
+        self.parser.add_argument('--diminishing_factor', type = float, default = 4, help = 'Make delets more expensive [4].')
+        self.parser.add_argument('--left_intron_init_weight', type = float, default = 4.35, help = 'Initial weight for the transition upstream intron loop.')
+        self.parser.add_argument('--right_intron_init_weight', type = float, default = 4, help = 'Initial weight for the transition downstream intron loop.')
+        self.parser.add_argument('--exon_skip_init_weight', type = float, default = -1, help = 'Initial weight for the transition from upstream intron to downstream intron.')
+        self.parser.add_argument('--flatten_B_init', type = float, default = 0, help = 'Flatten the initial parameters of B, ie let c = flatten_B_init: priorB * c + uniform * (1-c).')
+        self.parser.add_argument('--use_constant_initializer', action='store_true', help = 'Initialize weights with all ones.')
+        self.parser.add_argument('--init_weights_from', help = 'Initialize weights from directory that contains I/A/B_kernel.json. (I is currently just []).')
 
         # hardware
-        self.parser.add_argument('--split_gpu', action='store_true', help ="split gpu into 2 logical devices")
-        self.parser.add_argument('--dont_use_mirrored_strategy', action='store_true', help ="dont_use_mirrored_strategy")
+        self.parser.add_argument('--split_gpu', action='store_true', help ="Split GPU into 2 logical devices.")
+        self.parser.add_argument('--dont_use_mirrored_strategy', action='store_true', help ="Dont use mirrored strategy.")
 
         # verbose
-        self.parser.add_argument('--verbose', default = 0, type = int, help ="verbose E,R, alpha, A, B to file, pass 1 for shapes, 2 for shapes and values")
-        self.parser.add_argument('--remove_verbose_at_batch_begin', action='store_true', help ="only_keep_verbose_of_last_batch")
-        self.parser.add_argument('--verbose_to_stdout', action='store_true', help ="verbose to stdout instead of to file")
-        self.parser.add_argument('--cpu_gpu', action='store_true', help ="print whether gpu or cpu is used")
-        self.parser.add_argument('--assert_summarize', type = int, default = 5, help = 'assert_summarize [5]')
-        self.parser.add_argument('--print_batch_id', action='store_true', help = 'prints the batch id via on_train_batch_begin callback')
-        self.parser.add_argument('--init_png', action='store_true', help = 'create dot for initial parameters')
-        self.parser.add_argument('--after_fit_png', action='store_true', help = 'create dot for learned parameters')
-        self.parser.add_argument('--trace_verbose', action = 'store_true', help = 'actiave some print() calls to see if function get retraced')
-        self.parser.add_argument('--print_to_file', action='store_true', help = 'print to file instead of stdout')
+        self.parser.add_argument('--verbose', default = 0, type = int, help ="Verbose E, R, alpha, A, B. Pass 1 for shapes, 2 for shapes and values.")
+        self.parser.add_argument('--remove_verbose_at_batch_begin', action='store_true', help ="Only keeps the verbose at the latest batch.")
+        self.parser.add_argument('--print_to_file', action='store_true', help = 'Print verbose to file instead of stdout.')
+        self.parser.add_argument('--cpu_gpu', action='store_true', help ="Print whether GPU or CPU is used")
+        self.parser.add_argument('--check_assert', action='store_true', help ="Check asserts in Forward loop.")
+        self.parser.add_argument('--assert_summarize', type = int, default = 5, help = 'Sets the summarize argument [5].')
+        self.parser.add_argument('--print_batch_id', action='store_true', help = 'Prints the batch id via on_train_batch_begin callback.')
+        self.parser.add_argument('--init_png', action='store_true', help = 'Create .dot and .png (if nCodons < 10) for initial parameters.')
+        self.parser.add_argument('--after_fit_png', action='store_true', help = 'Create .dot and .png (if nCodons < 10) for initial parameters.')
+        self.parser.add_argument('--trace_verbose', action = 'store_true', help = 'Actiave some print() calls to see if functions get retraced.')
 
         # debugging
-        self.parser.add_argument('-b', '--exit_after_first_batch', action = 'store_true', help ="exit after first batch, you may use this when verbose is True in cell.call()")
-        self.parser.add_argument('-n', '--exit_after_loglik_is_nan', action='store_true', help ="exit_after_loglik_is_nan, you may use this when verbose is True in cell.call()")
+        self.parser.add_argument('-b', '--exit_after_first_batch', action = 'store_true', help ="Exit after first batch.")
+        self.parser.add_argument('-n', '--exit_after_loglik_is_nan', action='store_true', help ="Exit after loglik is NaN.")
         # self.parser.add_argument('--manual_training_loop', action='store_true', help ="manual_training_loop")
         # self.parser.add_argument('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
         # self.parser.add_argument('--check_for_zeros', action='store_true', help = 'must be passed together with --batch, checks for zeros in parameters')
         # self.parser.add_argument('--autograph_verbose', action = 'store_true', help = 'set tf.autograph.set_verbosity(3, True)')
-        self.parser.add_argument('--eager_execution', action='store_true', help ='run model.fit in eager execution')
-        self.parser.add_argument('--check_assert', action='store_true', help ="check_assert")
-        self.parser.add_argument('--use_constant_initializer', action='store_true', help = 'init weights with all ones')
-        self.parser.add_argument('--init_weights_from', help = 'dir that contain I/A/B_kernel.json')
+        self.parser.add_argument('--eager_execution', action='store_true', help ='Run model.fit in eager execution.')
         self.parser.add_argument('--manual_forward', action = 'store_true', help = 'gets mean likelihood of with manual loop')
 
-
-        self.parser.add_argument('--viterbi', action='store_true', help = 'run viterbi after training')
-        self.get_args_for_viterbi()
 
 
     def get_args_for_viterbi(self):
         if self.parser == -1:
-            self.parser = argparse.ArgumentParser(description='Config module description')
+            self.parser = argparse.ArgumentParser(description='args for Viterbi.py')
 
-        self.parser.add_argument('--only_first_seq', action = 'store_true', help = 'run viterbi only for the first seq')
-        self.parser.add_argument('--parent_input_dir', help = 'path to dir containing the config_attr.json and paratemeters dir used for viterbi')
-        self.parser.add_argument('--in_viterbi_path', help = 'if viteribi is already calculated, path to viterbi file which is then written to the alignment')
-        self.parser.add_argument('--viterbi_threads', type = int, default = 1, help = 'how many threads for viterbi.cc')
-        self.parser.add_argument('--path_to_dir_where_most_recent_dir_is_selected', help = 'path_to_dir_where_most_recent_dir_is_selected')
-        self.parser.add_argument('--after_or_before', default = "a", help = 'use matrices after/before training')
-        self.parser.add_argument('--out_file_path', help = 'path and name of outfile')
+        self.parser.add_argument('--only_first_seq', action = 'store_true', help = 'Run Viterbi only for the first sequence in the fasta file.')
+        self.parser.add_argument('--parent_input_dir', help = 'Path to directory containing the passed_args.json of the training run and paratemeter directories used for Viterbi.')
+        self.parser.add_argument('--in_viterbi_path', help = 'If Viterbi is already calculated, path to Viterbi file which is then written to the alignment.clw file.')
+        self.parser.add_argument('--viterbi_threads', type = int, default = 1, help = 'How many threads for viterbi.cc.')
+        self.parser.add_argument('--after_or_before', default = "a", help = 'Use matrices of after/before training.')
+        self.parser.add_argument('--out_file_path', help = 'Path of outfile.')
 
 
     def get_args_for_get_dot_and_png(self):
         if self.parser == -1:
-            self.parser = argparse.ArgumentParser(description='Config module description')
+            self.parser = argparse.ArgumentParser(description='args for script get_args_for_get_dot_and_png')
 
-        self.parser.add_argument('--parent_input_dir', help = 'path to dir containing the config_attr.json and paratemeters dir')
-        self.parser.add_argument('--for_initial_weights', action = 'store_true', help = 'export dot for initial weights')
-        self.parser.add_argument('--png', action = 'store_true', help = 'render png from dot')
+        self.parser.add_argument('--parent_input_dir', help = 'Path to directory containing the passed_args.json of the training run and paratemeter directories used for matrix creation.')
+        self.parser.add_argument('--for_initial_weights', action = 'store_true', help = 'Use the before training weights.')
+        self.parser.add_argument('--png', action = 'store_true', help = 'Render .png from .dot.')
 
     def get_args_for_add_str_to_matrices(self):
         if self.parser == -1:
-            self.parser = argparse.ArgumentParser(description='Config module description')
+            self.parser = argparse.ArgumentParser(description='args for script get_args_for_add_str_to_matrices')
 
-        self.parser.add_argument('--parent_input_dir', required = True, help = 'path to dir containing the config_attr.json and paratemeters dir')
+        self.parser.add_argument('--parent_input_dir', required = True, help = 'Path to directory containing the passed_args.json of the training run and paratemeter directories used for matrix creation.')

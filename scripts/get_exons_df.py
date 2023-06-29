@@ -4,7 +4,8 @@ import os
 import json
 import time
 import re
-import numpy as np
+
+# creates the df that contains all exons from the hg38.bed file
 
 def load_hg38_refseq_bed(load_hg38_refseq_bed_file_path : str) -> pd.DataFrame:
     start = time.perf_counter()
@@ -19,14 +20,10 @@ def load_hg38_refseq_bed(load_hg38_refseq_bed_file_path : str) -> pd.DataFrame:
 def get_all_exons_df(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str,int,int, str], list[pd.Series]]:
 
     NM_df = hg38_refseq_bed[hg38_refseq_bed['name'].str.startswith('NM_')]
-    # if there are less then 3 exons, there cant be a middle one
-    # NM_df = NM_df[NM_df['blockCount'].apply(lambda x: x >= 3)]
     NM_df = NM_df[NM_df['chrom'].apply(lambda x: not re.search("_", x))]
 
     NM_df = NM_df.reset_index(drop=True)
 
-    # all_exon_intervalls = {}
-    # start = time.perf_counter()
 
     total_rows = len(NM_df)
     res = 50
@@ -34,34 +31,19 @@ def get_all_exons_df(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str,int,int, 
 
     internal_exons = {} # key is chromosom, start and stop of exon in genome, value is list of rows that mapped to this exon range
     for i, (index, row) in enumerate(NM_df.iterrows()):
-        # if index == 100:
-        #     break
         if num_tenths != 0 and (i + 1) % num_tenths == 0:
             print(f"get_exons [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
 
 
-        # for exon_id, (exon_len, exon_start) in enumerate(zip(row["blockSizes"][1:-1], row["blockStarts"][1:-1])):
-        # this was under the assumption that the first exons contains ATG and the last one STOP
-        # but it could be the case that the first or last exons are in UTR
         for exon_id, (exon_len, exon_start) in enumerate(zip(row["blockSizes"], row["blockStarts"])):
             exon_start_in_genome = row["chromStart"] + exon_start
             exon_end_in_genome = row["chromStart"] + exon_start + exon_len # the end id is not included
             chromosom = row["chrom"]
-            # new_interval = (exon_start_in_genome, exon_end_in_genome)
-            # if chromosom not in all_exon_intervalls:
-            #     all_exon_intervalls[chromosom] = set([new_interval])
-            # else:
-            #      all_exon_intervalls[chromosom].add(new_interval)
-
             key = (chromosom, exon_start_in_genome, exon_end_in_genome, row["strand"])
             if key in internal_exons:
                 internal_exons[key].append(dict(row))
             else:
                 internal_exons[key] = [dict(row)]
-
-    # print("finished get_internal_conding_exons(). It took:", time.perf_counter() - start)
-
-    # print("len get_internal_conding_exons()", len(internal_exons))
 
 
     list_from_dict = [{"seq": exon_key[0], "start" : exon_key[1], "end" : exon_key[2], "strand" : exon_key[3], "bed_rows" : rows_list, "exon_key" : exon_key} for exon_key, rows_list in internal_exons.items()]
@@ -72,10 +54,8 @@ def get_all_exons_df(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str,int,int, 
 ################################################################################
 def choose_exon_of_all_its_duplicates_to_new_col(df):
     '''
-    bc of alternative spliced genes, an exon might have multiple exons neigbhours to choose one.
+    bc of alternative spliced genes, an exon might have multiple exons neighbors to choose one.
     '''
-
-    # exon1 has left closest neighbour, exon2 has right closest neighbour
 
     df["exon_row"] = None
     df["exon_id"] = None
@@ -92,7 +72,6 @@ def choose_exon_of_all_its_duplicates_to_new_col(df):
     for i,(index, row) in enumerate(df.iterrows()):
         exon_key = row["exon_key"]
         exon_bed_rows = row["bed_rows"]
-    # for i, (exon_key, exon_bed_rows)in enumerate(exons.items()):
         if num_tenths != 0 and (i + 1) % num_tenths == 0:
             print(f"choose_exon_of_all_its_duplicates [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
 
@@ -106,7 +85,6 @@ def choose_exon_of_all_its_duplicates_to_new_col(df):
                 distance = exon_start_in_gene - end_of_neighbouring_exon
                 return distance
             except:
-                # print(f"exon key {exon_key}, row {exon_row}, return left inf")
                 return float("inf")
 
         def get_dist_to_right_exon(exon_key, exon_row : pd.Series) -> int:
@@ -122,9 +100,8 @@ def choose_exon_of_all_its_duplicates_to_new_col(df):
                 distance = start_of_neighbouring_exon - end_of_current_exon
                 return distance
             except:
-                # print(f"exon key {exon_key}, row {exon_row}, return right inf")
                 return float("inf")
-        # print()
+
         # since exon duplicates all have thier own row,
         # and for every row, there is a exon neighbour,
         # of which the distance can be calculated
@@ -132,9 +109,6 @@ def choose_exon_of_all_its_duplicates_to_new_col(df):
         dists_to_left_neighbour =  [get_dist_to_left_exon(exon_key, exon_row)  for exon_row in exon_bed_rows]
         dists_to_right_neighbour = [get_dist_to_right_exon(exon_key, exon_row) for exon_row in exon_bed_rows]
 
-
-        # print("dists_to_left_neighbour", dists_to_left_neighbour)
-        # print("dists_to_right_neighbour", dists_to_right_neighbour)
 
         min_over_left_exons_of_dist_to_left_exon = min(dists_to_left_neighbour)
         min_over_right_exons_of_dist_to_right_exon = min(dists_to_right_neighbour)
@@ -163,10 +137,7 @@ def choose_exon_of_all_its_duplicates_to_new_col(df):
                 row["start_in_gene"] = start_in_gene
                 row["end_in_gene"] = end_in_gene
                 row["exon_id"] = exon_id
-                row["neighbours"] = "opti"
-                # print("found no pareto opti     ")
-                # print(row)
-                # print(df)
+                row["neighbours"] = "optimal"
                 break
         else:
             row["neighbours"] = "only_pareto"
@@ -205,20 +176,15 @@ def add_alternatively_spliced_flag_col(df):
         key = row["exon_key"]
         for other_exon_interval in all_exon_intervalls[seq]:
             if two_different_spliced_froms((key[1], key[2]), other_exon_interval):
-                # print((key[1], key[2]), other_exon_interval)
                 row["is_alt_spliced"] = True
         df.iloc[index,:] = row
-    # print("add_alternatively_spliced_flag")
     print()
     return df
 ################################################################################
 def add_internal_thick_exon_flag_col(df):
 
     # getting exons that are actually between ATG and Stop
-    # these might still include the exons with start and stop codon
-    # these still need to be exluded in the filtering step
-    # (i require exonstart > thickstart
-    # there might not be the necessity to filter them further)
+
     total_rows = len(df)
     res = 50
     num_tenths = total_rows//res
@@ -245,7 +211,6 @@ def add_internal_thick_exon_flag_col(df):
             row["is_internal_and_thick"] = True
 
         df.iloc[index,:] = row
-    # print("add_internal_thick_exon_flag")
     print()
     return df
 ################################################################################
@@ -284,15 +249,12 @@ def add_col_whether_len_requirements_are_met(df, args):
                     & (df["left_intron_len"] > args.min_left_neighbour_intron_len) \
                     & (df["right_intron_len"] > args.min_right_neighbour_intron_len)
 
-    # print("add_col_whether_len_requirements_are_met")
-    # print(df)
     return df
 ################################################################################
 def add_ref_seqs_to_be_lifted_cols(df, args):
     '''
     calculates the infos necessary for liftover
     '''
-
 
     df["left_lift_start"] = None
     df["left_lift_end"] = None
@@ -331,6 +293,7 @@ def add_ref_seqs_to_be_lifted_cols(df, args):
 
 
     df["exon_len_to_seq_len_ratio"] = df["exon_len"] / df["before_strip_seq_len"]
+    print()
     return df
 ################################################################################
 def load_or_calc_df(args, csv_path):

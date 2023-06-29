@@ -3,19 +3,7 @@ import json
 import re
 import os
 import pandas as pd
-# from My_internal_exon_model import My_Model
-'''
-if this is really fast,
-ie prepare model is fast, then
-it should also be fast to add description
-ie read json file and export csv
-then i dont need to write matrices with desciption in main_programm,
-and i can just use this method here,
-i could even pass the model
 
-also add timer to this method
-'''
-# def add_state_and_emission_str_to_matrices(model : My_Model, path_to_json_file : str) -> None:
 def add_description_to_A(model, path_to_json_file : str) -> None:
     assert path_to_json_file.endswith(".json"), "the path passed to add_state_and_emission_str_to_matrices() doesnt end in .json"
     df = pd.read_json(path_to_json_file)
@@ -53,7 +41,7 @@ def call_for_every_A_and_B_found_in_subdirs(model, parent_path):
 
 if __name__ == "__main__":
     import sys
-    sys.path.insert(0, "..")
+    sys.path.insert(0, "../src")
     from Config import Config
     config = Config()
     config.init_for_add_str_to_matrices()

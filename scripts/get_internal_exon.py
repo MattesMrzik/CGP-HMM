@@ -5,7 +5,6 @@ import numpy as np
 import json
 import argparse
 import os
-import time
 import re
 from Bio import SeqIO
 import math
@@ -23,8 +22,6 @@ def get_output_dir():
     lengths_config_str += "_" + str(args.len_of_right_to_be_lifted)
     lengths_config_str += "_" + str(args.min_right_neighbour_exon_len)
 
-    # dirs
-    # output_dir = f"{args.path}/out_{'' if not args.n else str(args.n) + 'Exons_'}{args.species.split('/')[-1]}_{lengths_config_str}_{args.hal.split('/')[-1]}"
     output_dir = f"{args.path}/exons_{args.species.split('/')[-1]}_{lengths_config_str}_{args.hal.split('/')[-1]}"
     if not os.path.exists(output_dir):
         os.system(f"mkdir -p {output_dir}")
@@ -75,13 +72,6 @@ def run_liftover(args = None, \
     print("running:", command)
     os.system(command)
     return True
-    # else:
-    #     bed_files = [f for f in os.listdir(out_dir) if f.endswith(".bed")]
-    #     for bed_file in bed_files:
-    #         # if bed_file.startswith(single_species):
-    #         #     return f"{out_dir}/{bed_file}"
-    #         if bed_file == f"{species_name}.bed":
-    #             return True
 ################################################################################
 def extract_info_and_check_bed_file(bed_dir_path : str = None, \
                                     species_name : str = None, \
@@ -93,7 +83,7 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
     extra_seq_data: is modified: dict for info about the seq (of a species) for the exon which is associated with this bed file
     extra_exon_data: is not modified, contains info about the human exon
 
-    returns bool whether the file should be used for hal2fasta
+    returns bool whether the file should be used for hal2fasta or not
 
     '''
     bed_file_path = f"{bed_dir_path}/{species_name}.bed"
@@ -107,23 +97,19 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
     species_bed_df = pd.read_csv(bed_file_path, delimiter = "\t", header = None)
     species_bed_df.columns = ["seq", "start", "stop", "name", "score", "strand"]
 
-    # print("species_bed_df", species_bed_df)
-
     species_bed_df["name"] = species_bed_df["name"].apply(lambda s: s.split("_")[-1])# only keep, left right or middle
-
 
     def swap_left_and_right(s):
         return ["left", "middle", "right"][["right","middle","left"].index(s)]
 
-    # swap left and right if the lifted over seq is on a different strand than the human querey seq.bed
+    # swap left and right if the lifted over seq is on a different strand than the human query seq.bed
     species_bed_df["swapped_name"] = species_bed_df[["name","strand"]].apply(lambda s: swap_left_and_right(s["name"]) if s["strand"] != extra_exon_data["human_strand"] else s["name"], axis = 1)
     species_bed_df["start"] = species_bed_df["start"].astype(int)
     species_bed_df["stop"] = species_bed_df["stop"].astype(int)
     species_bed_df = species_bed_df.sort_values("start")
 
 
-    # some coords are split bc of indels, i remove some rows that are close to each other
-    # TODO i could also check if they are the same type (left, middle or right)
+    #  merge hits that are close to each other
     rows_to_keep = []
     last_stop = -1
     for i, (index, row) in enumerate(species_bed_df.iterrows()):
@@ -137,7 +123,7 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
     species_bed_df = species_bed_df.iloc[rows_to_keep,:]
 
 
-    # finding left-right or left-middle-right pairs
+    # finding left-right or left-middle-right pairs,
     # that can be used for hal2fasta
     names_list = species_bed_df["swapped_name"].tolist()
     found_left_right_id = -1
@@ -170,11 +156,9 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
     else:
         species_bed_df = species_bed_df.iloc[found_left_middle_right_id:found_left_middle_right_id+3,:]
 
-    # print(found_left_right_id, found_left_middle_right_id, species_bed_df)
     assert len(species_bed_df["seq"].unique()) == 1, f"unequal_seqs assertion error, {species_bed_df['seq'].unique()} {species_bed_df}"
     assert len(species_bed_df["strand"].unique()) == 1, f"unequal_strands assertion error, {species_bed_df['strand'].unique()} {species_bed_df}"
 
-    # print(species_bed_df[species_bed_df["swapped_name"] == "right"]["stop"].values[0])
     extra_seq_data["seq_start_in_genome"] = species_bed_df[species_bed_df["swapped_name"] == "left"]["stop"].values[0]
     extra_seq_data["seq_stop_in_genome"] =  species_bed_df[species_bed_df["swapped_name"] == "right"]["start"].values[0]
 
@@ -212,10 +196,6 @@ def run_hal_2_fasta(args = None, \
                     len : int = None, \
                     seq : str = None, \
                     outpath  : str = None):
-    '''
-    parameters:
-        seq: e.g. chr1
-    '''
     command = f"time hal2fasta {args.hal} {species_name} --start {start} --length {len} --sequence {seq} --ucscSequenceNames --outFaPath {outpath}"
     print("running:", command)
     os.system(command)
@@ -234,9 +214,8 @@ def write_extra_data_to_fasta_description_and_reverse_complement(fa_path : str =
             # if exon is on - strand
             # extracetd fasta is from + strand
             # TAA -> gets converted to TTA
-            # these coords are from bed file and hg38:
-            # 1 start in genome +     2 exon start +      3 exon stop +      4 stop in genome +
-            # these are adjusted to the reversed and complemented fasta
+            # these coords are from bed file and hg38 and then
+            #  adjusted to the reversed and complemented fasta
 
             description = {"seq_start_in_genome_+_strand" : extra_seq_data["seq_start_in_genome"], \
                            "seq_stop_in_genome_+_strand" : extra_seq_data["seq_stop_in_genome"], \
@@ -259,11 +238,7 @@ def write_extra_data_to_fasta_description_and_reverse_complement(fa_path : str =
             SeqIO.write(record, out_file, "fasta")
 ################################################################################
 def strip_seqs(fasta_file = None, row = None, out_path = None, extra_seq_data = None):
-    '''
-    args:
-        fasta_file: path to fasta file
-        seq_dict: info about seq that was lifted and hal2fastaed
-    '''
+    # strip the seqs to the left and right to remove the splice sites of the neighbouring exons
     if os.path.exists(fasta_file):
         for i, record in enumerate(SeqIO.parse(fasta_file, "fasta")):
             with open(out_path, "w") as stripped_seq_file:
@@ -290,6 +265,7 @@ def strip_seqs(fasta_file = None, row = None, out_path = None, extra_seq_data = 
                 SeqIO.write(record, stripped_seq_file, "fasta")
 ################################################################################
 def convert_short_acgt_to_ACGT(outpath, input_files, threshold):
+    # may be used to convert short subsequences of a seq to uppercase
     def capitalize_lowercase_subseqs(seq, threshold_local):
         pattern = f"(?<![a-z])([a-z]{{1,{threshold_local}}})(?![a-z])"
         def repl(match):
@@ -304,11 +280,6 @@ def convert_short_acgt_to_ACGT(outpath, input_files, threshold):
                     new_seq = capitalize_lowercase_subseqs(str(record.seq), threshold)
                     output_handle.write(f">{record.id} {record.description}\n")
                     output_handle.write(f"{new_seq}\n")
-                    # new_record = record.__class__(seq = "ACGT", id="homo", name="name", description="description")
-                    # SeqIO.write(new_record, output_handle, "fasta")
-                    # this produced
-                    # File "/usr/lib/python3/dist-packages/Bio/File.py", line 72, in as_handle
-                    # with open(handleish, mode, **kwargs) as fp:
 ################################################################################
 def get_input_files_with_human_at_0(from_path = None):
     '''
@@ -380,7 +351,6 @@ def calc_stats_table(args):
 
             stats_df.loc[len(stats_df)] = new_row_dict
     pd.set_option('display.max_columns', None)
-    # pd.set_option('display.max_rows', None)
     stats_df.to_csv(f'{dir}/stats_table.csv', index=True, header=True, line_terminator='\n', sep=";")
     return stats_df
 ################################################################################
@@ -399,7 +369,7 @@ def choose_subset_of_all_exons(df):
 def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
 
     import sys
-    sys.path.insert(0, "..")
+    sys.path.insert(0, "../src")
     from Viterbi import fasta_true_state_seq_and_optional_viterbi_guess_alignment
 
     now = datetime.now()
@@ -420,7 +390,6 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
 
     for i,(index, row) in enumerate(choosen_exons_df.iterrows()):
         if num_tenths != 0 and (i + 1) % num_tenths == 0:
-            # print(f"create_exon_data_sets_for_choosen_df [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
             print(f"create_exon_data_sets_for_choosen_df [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]")
 
         exon_dir = f"{out_dir_path}/exon_{row['seq']}_{row['start']}_{row['end']}"
@@ -428,7 +397,6 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
         seqs_dir = f"{exon_dir}/species_seqs"
         non_stripped_seqs_dir = f"{seqs_dir}/non_stripped"
         stripped_seqs_dir = f"{seqs_dir}/stripped"
-        # capitalzed_subs_seqs_dir = f"{exon_dir}/combined_fast_capitalized_{args.convert_short_acgt_to_ACGT}"
         extra_exon_data = {}
 
         for d in [exon_dir, bed_output_dir, seqs_dir, non_stripped_seqs_dir, stripped_seqs_dir, capitalzed_subs_seqs_dir]:
@@ -462,7 +430,7 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
                 continue
 
 
-            # getting the seq, from human: [left exon    [litfed]] [intron] [exon] [intron] [[lifted]right exon]
+            # getting the seq, from human: [left exon [litfed]] [intron] [exon] [intron] [[lifted] right exon]
             # the corresponding seq of [intron] [exon] [intron] in other species
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
             # if not args.use_old_fasta:
@@ -495,10 +463,6 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
 
         combine_fasta_files(output_file = output_file, input_files = input_files )
 
-        # output_file = f"{capitalzed_subs_seqs_dir}/combined.fasta"
-        # if args.convert_short_acgt_to_ACGT > 0:
-        #     convert_short_acgt_to_ACGT(output_file, input_files, threshold = args.convert_short_acgt_to_ACGT)
-
     calc_stats_table(args)
 ################################################################################
 def plot(dfs,
@@ -508,8 +472,7 @@ def plot(dfs,
          bins = 100,
          title = None, \
          xlabel = "value", \
-         ylabel = "count", \
-         ieilen = None
+         ylabel = "count"
 ):
     if title is None:
         if column is None:
@@ -517,16 +480,10 @@ def plot(dfs,
         else:
             title = column
 
-    if plot_table:
-        assert ieilen is not None, "ieilen must be set when using plot_table"
-
-    # title += " " + "".join(np.random.choice([c for c in "qwerasdfyxcvbnhjlzup"], size = 5))
 
     labels = []
-
     plt.close()
 
-    # i want to increase the figure size
 
     if plot_table:
         assert type(dfs) is not list,"when using plot_table dfs must the original df"
@@ -583,37 +540,29 @@ def plot(dfs,
                  label = labels[i] + f", #points = {len(data)}", \
                  alpha = .5, \
                  range = (minimum, maximum))
+
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.legend()
-    # plt.savefig(f"{re.sub('_','-',column)}-{limit}.png")
     plt.savefig(f"cache.png")
 ################################################################################
-# time halLiftover /nas-hs/projs/CGP200/data/msa/241-mammalian-2020v2.hal Homo_sapiens human_exon_to_be_lifted.bed Solenodon_paradoxus Solenodon_paradoxus.bed
-# time hal2fasta /nas-hs/projs/CGP200/data/msa/241-mammalian-2020v2.hal Macaca_mulatta --start 66848804 --sequence CM002977.3 --length 15 --ucscSequenceNames > maxaxa_exon_left_seq.fa
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='example python3 -i get_internal_exon.py --hal ../../../../CGP200/data/msa/241-mammalian-2020v2.hal --spe ../../../../CGP200/data/msa/species.names --hg ../../../iei-ranges/hg38-refseq.bed ')
-    parser.add_argument('--hg38', help = 'path to hg38-refseq.bed')
-    parser.add_argument('--hal', help = 'path to the .hal file')
-    parser.add_argument('--species', help = 'path to species file, which are the target of liftover from human')
+    parser.add_argument('--hg38', help = 'Path to hg38-refseq.bed')
+    parser.add_argument('--hal', help = 'Path to the .hal file (CGP200/data/msa/241-mammalian-2020v2.hal)')
+    parser.add_argument('--species', help = 'Path to species file, which are the target of liftover from human (CGP200/data/msa/species.names)')
     parser.add_argument('--min_left_neighbour_exon_len', type = int, default = 10, help = 'min_left_neighbour_exon_len')
     parser.add_argument('--min_left_neighbour_intron_len', type = int, default = 20, help = 'min_left_neighbour_intron_len')
     parser.add_argument('--min_right_neighbour_exon_len', type = int, default = 10, help = 'min_right_neighbour_exon_len')
     parser.add_argument('--min_right_neighbour_intron_len', type = int, default = 20, help = 'min_right_neighbour_intron_len')
     parser.add_argument('--min_exon_len', type = int, default = 10, help = 'min_exon_len')
-    parser.add_argument('--len_of_exon_middle_to_be_lifted', type = int, default = 10, help = 'the middle of the exon is also lifted, to check whether it is between left and right if target .bed')
+    parser.add_argument('--len_of_exon_middle_to_be_lifted', type = int, default = 10, help = 'The middle of the exon is also lifted, to check whether it is between left and right in target species .bed')
     parser.add_argument('--len_of_left_to_be_lifted', type = int, default = 10, help = 'len_of_left_to_be_lifted')
     parser.add_argument('--len_of_right_to_be_lifted', type = int, default = 10, help = 'len_of_right_to_be_lifted')
-    parser.add_argument('--path', default = "../../../cgp_data", help = 'working directory')
+    parser.add_argument('--path', default = "../../../cgp_data", help = 'Working directory')
     parser.add_argument('-v', action = 'store_true', help = 'verbose')
-    # parser.add_argument('--use_old_bed', action = 'store_true', help = 'use the old bed files and dont calculate new ones')
-    # parser.add_argument('--use_old_fasta', action = 'store_true', help = 'use the old fasta files and dont calculate new ones')
-    parser.add_argument('--discard_multiple_bed_hits', action = 'store_true', help = 'sometimes, halLiftover maps a single coordinate to 2 or more, if this flag is passed, the species is discarded, otherwise the largest of the hits is selected')
-    # parser.add_argument('--stats_table', nargs = '?', const = True, help ='instead of getting all the exon data, get stats table of existing data. Specified path, or pass hg38, hal and species and same n')
-    parser.add_argument('--stats_table', help ='path to dir to make the stats_table')
-    parser.add_argument('--convert_short_acgt_to_ACGT', type = int, default = 0, help = 'convert shorter than --convert_short_acgt_to_ACGT')
-    parser.add_argument('--dont_ask_for_overwrite', action = 'store_true', help = 'if this is passed you are not prompted to answer if the all exons df csv should be overwritten if it exists')
+    parser.add_argument('--stats_table', help ='Path to directory to make the stats_table')
     args = parser.parse_args()
 
     assert args.len_of_left_to_be_lifted <= args.min_left_neighbour_exon_len, "len_of_left_to_be_lifted > min_left_neighbour_exon_len"
@@ -624,7 +573,7 @@ if __name__ == "__main__":
         stats_df = calc_stats_table(args)
         exit()
 
-    assert args.hg38 and args.hal and args.species, "you must pass path to hg38, hal and species.lst"
+    assert args.hg38 and args.hal and args.species, "You must pass path to hg38, .hal and species.lst"
 
     # preparing dirs
     output_dir = get_output_dir()
@@ -635,5 +584,5 @@ if __name__ == "__main__":
 
     df = load_or_calc_df(args, csv_path)
 
-    print("run this skript in interactive mode, select subset of df and pass it to make_data_from_df(args, df)")
+    print("run this skript in interactive mode, select subset of df and pass it to make_exon_data_sets_for_choosen_df(args, df)")
 

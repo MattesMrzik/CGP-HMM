@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import json
 import numpy as np
+
 def convert_kernel_files_to_matrices_files(config, dir_path):
     print("called convert_kernel_files_to_matrices_files. dir_path =", dir_path)
 
@@ -30,7 +31,7 @@ def convert_kernel_files_to_matrices_files(config, dir_path):
 
 if __name__ == "__main__":
     import sys
-    sys.path.insert(0, "../src") # if called from scr
+    sys.path.insert(0, "../src")
     from Config import Config
     config = Config()
     config.init_for_convert_kernel()

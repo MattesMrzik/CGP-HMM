@@ -1,10 +1,7 @@
 #!/usr/bin/python3
-import argparse
-import re
 from Bio import AlignIO
 from Bio.Align import MultipleSeqAlignment
 from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
 import os
 
 
@@ -50,45 +47,4 @@ def read_true_alignment_with_out_coords_seq(true_alignment_path) -> AlignIO.Mult
     os.system(f"rm {temp_file_path}")
 
     return true_alignment
-
-
-if __name__ == "__main__":
-
-    # Create an ArgumentParser object
-    parser = argparse.ArgumentParser(description="Insert gaps in a new sequence to match gaps in an existing alignment")
-
-    parser.add_argument("--input_algn", type=str, help="path to input alignment file in CLUSTAL format")
-    parser.add_argument("--output_algn", type=str, help="path to output alignment file in CLUSTAL format")
-    parser.add_argument("--true_alignment", type=str, help="path to true alignment file in FASTA format")
-    parser.add_argument("--reference", default = "Homo_sapiens", help="seq_record.id used as reference for gaps")
-
-    args = parser.parse_args()
-
-    true_alignment = read_true_alignment_with_out_coords_seq(args.true_alignment)
-
-    reference_seq, alignment = get_reference_seq(args.input_algn, args.reference)
-
-
-    for seq_record in true_alignment:
-        if seq_record.id == "true_seq":
-            true_state_seq = seq_record.seq
-
-    # Insert gaps in the new sequence to match gaps in the alignment
-    new_aligned_seq = ""
-    j = 0
-    for i in range(len(reference_seq)):
-        if reference_seq[i] == "-":
-            new_aligned_seq += "-"
-        else:
-            new_aligned_seq += true_state_seq[j]
-            j += 1
-
-    record = SeqRecord(Seq(new_aligned_seq),
-                    id="true_seq")
-
-    seqs = [record] + [seq for seq in alignment]
-    alignment = MultipleSeqAlignment(seqs)
-
-    # Write out the aligned sequences to a new CLUSTAL formatted file
-    AlignIO.write(alignment, args.output_algn, "clustal")
 

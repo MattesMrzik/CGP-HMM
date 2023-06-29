@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-# if only json files exist, which are created from viterbi.py
-# then call add_state_and_emmision_str_to_matrices first
-# then calc diff
+# If only json files exist, which are created from Viterbi.py,
+# then call add_state_and_emmision_str_to_matrices first.
+# Then call this script
 
 import os
 import pandas as pd
@@ -23,7 +23,7 @@ def diff_of_csv_with_description(before_path, after_path, output_path):
 
 if __name__ == "__main__":
     import sys
-    sys.path.insert(0, "..")
+    sys.path.insert(0, "../src")
     from Config import Config
     config = Config()
     config.init_for_matrix_diff()
