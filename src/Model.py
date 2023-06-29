@@ -37,7 +37,6 @@ class Model(ABC):
         pass
 
 
-
     @abstractmethod
     def get_number_of_states():
         pass

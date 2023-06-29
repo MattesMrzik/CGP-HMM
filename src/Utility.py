@@ -3,22 +3,74 @@ import numpy as np
 from Bio import SeqIO
 import re
 import time
-from random import randint
 from resource import getrusage
 from resource import RUSAGE_SELF
 import os
 import json
-from scipy.optimize import curve_fit
 import tensorflow as tf
 
 ##############################################################################
 ################################################################################
 ################################################################################
+@tf.autograph.experimental.do_not_convert
+def append_time_ram_stamp_to_file(description, bench_file_path, start = None, ):
+    if not os.path.exists('/'.join(bench_file_path.split('/')[:-1])):
+        os.system(f"mkdir -p {'/'.join(bench_file_path.split('/')[:-1])}")
+    with open(bench_file_path, "a") as file:
+        d = {}
+        d["time"] = np.round(time.perf_counter(),3)
+        d["time since passed start time"] = np.round(time.perf_counter() - start,3) if start != None else "no start passed"
+        RAM = getrusage(RUSAGE_SELF).ru_maxrss
+        d["RAM in kb"] = RAM
+        d["RAM in GB"] = np.round(RAM/1024/1024,3)
+        d["description"] = description
 
-# TODO: module for manual algos
-# module for plot
-# module for viewing or manipulation data
+        json.dump(d, file)
+        file.write("\n")
 
+
+################################################################################
+################################################################################
+################################################################################
+
+
+# ====> the code before may be outdated <=======================================
+def generate_state_emission_seqs(a,b,n,l, a0 = [], one_hot = False):
+
+    state_space_size = len(a)
+    emission_space_size = len(b[0])
+
+    states = 0
+    emissions = 0
+
+    def loaded_dice(faces, p):
+        return np.argmax(np.random.multinomial(1,p))
+
+    # todo just use else case, this can be converted by tf.one_hot
+    if one_hot:
+        states = np.zeros((n,l,state_space_size), dtype = np.int64)
+        emissions = np.zeros((n,l,emission_space_size), dtype = np.int64)
+        for i in range(n):
+            states[i,0,0 if len(a0) == 0 else loaded_dice(state_space_size, a0)] = 1
+            emissions[i,0, loaded_dice(emission_space_size, b[np.argmax(states[i,0,:])])] = 1
+            for j in range(1,l):
+                states[i,j, loaded_dice(state_space_size, a[np.argmax(states[i,j-1])])] = 1
+                emissions[i,j, loaded_dice(emission_space_size, b[np.argmax(states[i,j-1])])] = 1
+            # emssions.write(seq + "\n")
+            # states.write(">id" + str(i) + "\n")
+            # states.write(state_seq + "\n")
+    else:
+        states = np.zeros((n,l), dtype = np.int64)
+        emissions = np.zeros((n,l), dtype = np.int64)
+        for i in range(n):
+            states[i,0] = 0 if len(a0) == 0 else loaded_dice(state_space_size, a0)
+            emissions[i,0] = loaded_dice(emission_space_size, b[states[i,0]])
+            for j in range(1,l):
+                states[i,j] = loaded_dice(state_space_size, a[states[i,j-1]])
+                emissions[i,j] = loaded_dice(emission_space_size, b[states[i,j-1]])
+
+    return states, emissions
+################################################################################
 def find_indices_in_sparse_A_that_are_zero(config = None, \
                                            path_to_current_dense = None, \
                                            I_dense = None,
@@ -326,176 +378,6 @@ def get_time_and_ram_from_bench_file(path):
     return y_time, max_ram_in_gb
 
 ################################################################################
-def plot_time_and_ram(codons, types, bar = False, extrapolate = 1, degree = 3, fit_only_positive = False, show_diagramm = False):
-    import os
-    import matplotlib.pyplot as plt
-
-    assert all(b >= a for a, b in zip(codons, codons[1:])), "codons must be sorted"
-
-    fig = plt.figure(figsize=(12, 12))
-    from itertools import product
-
-    for type_id, type in enumerate(types):
-        y_times = {} # y values
-        y_ram = {} # y values
-        for codon in codons:
-            file_path = f"bench/{codon}codons/{type}_call_type.log"
-            y_time, max_ram_in_gb = get_time_and_ram_from_bench_file(file_path)
-            y_times[codon] = y_time
-            y_ram[codon] = max_ram_in_gb
-
-        time_axis = fig.add_subplot(310 + type_id + 1)
-
-        # time
-        y_times = [y_times[codon] for codon in codons]
-        color = 'tab:red'
-        time_axis.set_xlabel('nCodons')
-        time_axis.set_ylabel('time in sec', color=color)
-        time_axis.plot(codons, y_times, "rx")
-
-        def fitcurve(x, a,b,c,d):
-            return abs(a)*x**3 + abs(b)*x**2 + abs(c)*x + abs(d)
-
-        if extrapolate:
-            x_values = np.arange(1, max(codons) * extrapolate +1)
-            if fit_only_positive:
-                coef_times, params_covariance = curve_fit(fitcurve, codons, y_times, p0=[0.01]*4)
-                coef_times = [abs(xx) for xx in coef_times]
-            else:
-                coef_times = np.polyfit(codons,y_times, degree) # coef for x^degree is coef_times[0]
-
-            y = [np.polyval(coef_times,x) for x in x_values]
-            time_axis.plot(x_values, y, color = "tab:red")
-        time_axis.tick_params(axis='y', labelcolor=color)
-
-        # ram
-        y_ram   = [y_ram[codon]   for codon in codons]
-        ram_axis = time_axis.twinx()  # instantiate a second axes that shares the same x-axis
-
-        color = 'tab:blue'
-        ram_axis.set_ylabel('ram_peak in gb', color=color)  # we already handled the x-label with ax1
-        ram_axis.plot(codons, y_ram, "bx")
-
-        if extrapolate:
-            if fit_only_positive:
-                coef_ram, params_covariance = curve_fit(fitcurve, codons, y_ram, p0=[0.1]*4)
-                coef_ram = [abs(xx) for xx in coef_ram]
-            else:
-                coef_ram = np.polyfit(codons,y_ram, degree)
-            y = [np.polyval(coef_ram ,x) for x in x_values]
-            ram_axis.plot(x_values, y, color = "tab:blue")
-        ram_axis.tick_params(axis='y', labelcolor=color)
-
-        def x_to_power_of(exponent):
-            if exponent == 0:
-                return ""
-            elif exponent == 1:
-                return "x"
-            else:
-                return f"x^{exponent}"
-        title =  f" A is {type[0]}, B is {type[1]}"
-        title += ", time_fit "+ " + ".join([f"{'%.1E' % cc} {x_to_power_of(len(coef_times)-jj-1)}" for jj, cc in enumerate(coef_times)])
-        title += ", ram_fit " + " + ".join([f"{'%.1E' % cc} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram)])
-        time_axis.title.set_text(title)
-        fig.tight_layout()  # otherwise the right y-label is slightly clipped
-
-    # def get_infos_from(type):
-    #     files = os.listdir(path)
-        # files = sorted(files, key = lambda x: int(re.search("\d+", x).group(0)))
-        # max_n_codons = int(re.search("\d+", files[-1]).group(0))
-        # times = np.zeros(max_n_codons)
-        # ram_peaks = np.zeros(max_n_codons)
-        # for dir in files:
-        #     if os.path.isdir(f"{path}/{dir}"):
-        #         if os.path.exists(f"{path}/{dir}/{type}"):
-        #             with open(f"{path}/{dir}/{type}","r") as infile:
-        #                 min_time = float("inf")
-        #                 max_time = 0
-        #                 ram_peak = 0
-        #                 for line in infile:
-        #                     description = line.split("\t")[3]
-        #
-        #                     time = float(line.split("\t")[0])
-        #                     min_time = min(min_time, time)
-        #                     if re.search("Training.model.fit.. end", description):
-        #                         max_time = max(max_time, time)
-        #
-        #                     ram = float(line.split("\t")[2])
-        #                     ram_peak = max(ram_peak, ram)
-        #                 times[int(re.search("\d+", dir).group(0))-1] = max_time - min_time
-        #                 ram_peaks[int(re.search("\d+", dir).group(0))-1] = ram_peak
-        #
-        # for i in range(max_n_codons-1,-1,-1):
-        #     if times[i] == 0:
-        #         max_n_codons -=1
-        # times = times[:max_n_codons]
-        # ram_peaks = ram_peaks[:max_n_codons]
-        #
-        # return {"max_n_codons":max_n_codons, "times":times, "max_ram_peaks":ram_peaks}
-
-
-    # for id in range(6):
-    #     # 3_TrueorderTransformedInput.log
-    #
-    #     info = get_infos_from(f"{id}_TrueorderTransformedInput.log")
-    #     print(f"{id}_TrueorderTransformedInput.log")
-    #     max_n_codons = info["max_n_codons"]
-    #
-    #     max_n_codons_extrapolate = max_n_codons * extrapolate
-    #
-    #     times = info["times"]
-    #     ram_peaks = info["max_ram_peaks"]
-    #
-    #     ax1 = fig.add_subplot(320 + i +1)
-    #     # plt.plot(, times, "bo-")
-    #     # plt.plot(np.arange(max_n_codons), ram_peaks, "rx-")
-    #     x = np.arange(1,max_n_codons +1)
-    #
-    #     # should coefs all be positive? for a runtime s
-    #     coef_times = np.polyfit(x,times, degree) # coef for x^degree is coef_times[0]
-    #     coef_ram_peaks = np.polyfit(x,ram_peaks/1024, degree)
-    #     print("coef_times:", coef_times)
-    #     print("coef_ram_peaks:", coef_ram_peaks)
-    #
-    #     color = 'tab:red'
-    #     ax1.set_xlabel('ncodons')
-    #     ax1.set_ylabel('time in sec', color=color)
-    #     ax1.plot(x, times, "rx")
-    #
-    #     x_extrapolate = np.arange(1,max_n_codons_extrapolate+1)
-    #     y = [np.polyval(coef_times,x) for x in x_extrapolate]
-    #     if extrapolate:
-    #         ax1.plot(x_extrapolate, y, color = "tab:red")
-    #     ax1.tick_params(axis='y', labelcolor=color)
-    #
-    #     ax2 = ax1.twinx()  # instantiate a second axes that shares the same x-axis
-    #
-    #     color = 'tab:blue'
-    #     ax2.set_ylabel('ram_peak in mb', color=color)  # we already handled the x-label with ax1
-    #     ax2.plot(x, ram_peaks/1024, "bx")
-    #     y = [np.polyval(coef_ram_peaks ,x) for x in x_extrapolate]
-    #     if extrapolate:
-    #         ax2.plot(x_extrapolate, y, color = "tab:blue")
-    #     ax2.tick_params(axis='y', labelcolor=color)
-    #
-    #     title = ["AB sparse","A dense","B dense","AB dense","full matrices"][i]
-    #     def x_to_power_of(exponent):
-    #         if exponent == 0:
-    #             return ""
-    #         elif exponent == 1:
-    #             return "x"
-    #         else:
-    #             return f"x^{exponent}"
-    #     title = " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}" for jj, cc in enumerate(coef_times)]) + title
-    #     title += " " + " + ".join([f"{round(cc,2)} {x_to_power_of(len(coef_times)-jj-1)}"for jj, cc in enumerate(coef_ram_peaks)])
-    #     ax1.title.set_text(title)
-    #     fig.tight_layout()  # otherwise the right y-label is slightly clipped
-    plt.savefig("bench.png")
-    if show_diagramm:
-        plt.show()
-################################################################################
-################################################################################
-################################################################################
 def print_color_coded_fasta(fasta_path, start_stop_path):
     seq_dict = {}
     with open(fasta_path,"r") as file:
@@ -548,74 +430,7 @@ def view_current_inputs_txt(path):
 ################################################################################
 ################################################################################
 ################################################################################
-@tf.autograph.experimental.do_not_convert
-def append_time_ram_stamp_to_file(description, bench_file_path, start = None, ):
-    if not os.path.exists('/'.join(bench_file_path.split('/')[:-1])):
-        os.system(f"mkdir -p {'/'.join(bench_file_path.split('/')[:-1])}")
-    with open(bench_file_path, "a") as file:
-        d = {}
-        d["time"] = np.round(time.perf_counter(),3)
-        d["time since passed start time"] = np.round(time.perf_counter() - start,3) if start != None else "no start passed"
-        RAM = getrusage(RUSAGE_SELF).ru_maxrss
-        d["RAM in kb"] = RAM
-        d["RAM in GB"] = np.round(RAM/1024/1024,3)
-        d["description"] = description
 
-        json.dump(d, file)
-        file.write("\n")
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-def append_time_stamp_to_file(time, description, path):
-    with open(path, "a") as file:
-        file.write(f"{time}\t{description}\n")
-################################################################################
-# WARNING:tensorflow:AutoGraph could not transform <function _make_iterencode at 0x7fd619f7c550> and will run it as-is.
-# Cause: generators are not supported
-# To silence this warning, decorate the function with @tf.autograph.experimental.do_not_convert
-
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-################################################################################
-def run(command):
-    # os.system(f"echo '\033[96mrunning -> {command} \033[00m'")
-    os.system(f"echo running: {command}")
-    os.system(command)
-    # import subprocess
-    # import random
-    # import time
-    # random_id = random.randint(0,1000000)
-    # with open(f"temporary_script_file.{random_id}.sh","w") as file:
-    #     file.write("#!/bin/bash\n")
-    #     file.write(f"echo \033[91m running: \"{command}\" \033[00m\n")
-    #     file.write(command)
-    #
-    # subprocess.Popen(f"chmod +x temporary_script_file.{random_id}.sh".split(" ")).wait()
-    # subprocess.Popen(f"./temporary_script_file.{random_id}.sh").wait()
-    # subprocess.Popen(f"rm temporary_script_file.{random_id}.sh".split(" ")).wait()
-################################################################################
-################################################################################
-################################################################################
-
-################################################################################
-################################################################################
-################################################################################
-def fullprint(*args, **kwargs):
-    from pprint import pprint
-    import numpy
-    opt = numpy.get_printoptions()
-    numpy.set_printoptions(threshold=numpy.inf)
-    pprint(*args, **kwargs)
-    numpy.set_printoptions(**opt)
-
-################################################################################
-################################################################################
-################################################################################
-
-# forward = P_theta(Y)
 def forward(a,b,y, a0 = []):
     num_states = len(a)
     alpha = np.zeros((num_states,len(y)))
@@ -677,23 +492,6 @@ def forward_felix_version(a,b,y, a0 = []):
     #P(Y=y)
     return alpha, z
 
-# def forward_felix_version_ordertransformedinput(a,b,y, a0 = []):
-#     # y is asumed to be one hot
-#     num_states = len(a)
-#     alpha = np.zeros((num_states,len(y)))
-#     if len(a0) == 0:
-#         alpha[0,0] = b[0,y[0]] # one must start in the first state
-#     else:
-#         alpha[:,0] = a0 * b[:,y[0]]
-#     z = np.zeros(len(y))
-#     z[0] = sum([alpha[q_,0] for q_ in range(num_states)])
-#     for i in range(1,len(y)):
-#         for q in range(num_states):
-#             alpha[q,i] = b[q,y[i]] * sum([a[q_,q] * alpha[q_,i-1]/z[i-1] for q_ in range(num_states)])
-#         z[i] = sum([alpha[q_,i] for q_ in range(num_states)])
-#     #P(Y=y)
-#     return alpha, z
-
 def brute_force_P_of_Y(a,b,y, a0 = []):
     from itertools import product
 
@@ -744,10 +542,6 @@ def P_of_X_Y_log_version(a,b,x,y, a0 =[]):
 ################################################################################
 ################################################################################
 ################################################################################
-# argmax_x: P_theta(x|y)
-
-# todo: implement this in c++
-# maybe write an api for it
 def viterbi_log_version_higher_order(a,b,i,y):
     import tensorflow as tf
     nStates = len(a)
@@ -778,7 +572,6 @@ def viterbi_log_version_higher_order(a,b,i,y):
     for i in range(n-2, -1, -1):
         x[i] = np.argmax(np.log(a[:,x[i+1]]) + g[:,i])
     return(x)
-
 
 def viterbi_log_version(a, b, y, a0 = []):
     n = len(y)
@@ -819,19 +612,3 @@ def brute_force_viterbi_log_version(a,b,y,a0 = []):
 ################################################################################
 ################################################################################
 ################################################################################
-def create_layer_without_recursive_call():
-    with open("CgpHmmLayer.py", "r") as layer:
-        with open("CgpHmmLayer_non_recursive.py", "w") as copy:
-            in_recursive_call = False
-            for line in layer:
-                if re.search("# do not change this line", line):
-                    in_recursive_call = not in_recursive_call
-                elif not in_recursive_call and not re.search("CgpHmmLayer_non_recursive", line):
-                    line = re.sub("CgpHmmLayer","CgpHmmLayer_non_recursive",line)
-                    copy.write(line)
-################################################################################
-################################################################################
-################################################################################
-if __name__ == "__main__":
-    from Config import Config
-    config = Config()
