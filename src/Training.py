@@ -1,34 +1,25 @@
 #!/usr/bin/env python3
+from Utility import append_time_ram_stamp_to_file
+from ReadData import convert_data_one_hot_with_Ns_spread_str_to_numbers, read_data_one_hot_with_Ns_spread_str
+from CgpHmmLayer import CgpHmmLayer
+from CallBacks import get_call_backs
 import tensorflow as tf
 import numpy as np
-import matplotlib.pyplot as plt
 import time
-from random import randint
 import os
 import json
-import re
-
 import numpy as np
-
-import Utility
-from Utility import run
-from CallBacks import get_call_backs
-from Utility import append_time_ram_stamp_to_file
-
-from CgpHmmLayer import CgpHmmLayer
-from ReadData import read_data_with_order
-# from ReadData import read_data_one_hot_with_Ns_spread
-from ReadData import read_data_one_hot_with_Ns_spread_str
+import time
 from tensorflow.python.client import device_lib
 
-import time
+
+
+
 
 def make_model(config, current_epoch = None):
     start = time.perf_counter()
-    run_id = randint(0,100)
 
-    # TODO: https://www.tensorflow.org/guide/keras/masking_and_padding
-    append_time_ram_stamp_to_file(f"Traning.make_model() start {run_id}", config.bench_path, start)
+    append_time_ram_stamp_to_file(f"Traning.make_model() start ", config.bench_path, start)
 
     # another None added automatically for yet unkown batch_size
     sequences = tf.keras.Input(shape = (None, config.model.number_of_emissions), name = "sequences", dtype = config.dtype)
@@ -39,25 +30,22 @@ def make_model(config, current_epoch = None):
 
     loglik = cgp_hmm_layer(masked_values) # layer is build, then called. it seems i cant call build before to avoid building it here again
 
-    # print(tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik))
 
     model = tf.keras.Model(inputs = sequences, outputs = [tf.keras.layers.Lambda(lambda x:x, name = "loglik")(loglik)]) #  the output of the model is the value that is computed by a final layer that picks the loglike of the [alpha, loglik, count]
 
-    append_time_ram_stamp_to_file(f"Traning.make_model() end   {run_id}", config.bench_path, start)
+    append_time_ram_stamp_to_file(f"Traning.make_model() end ", config.bench_path, start)
     return model, cgp_hmm_layer
 
 
 def make_dataset(config):
     start = time.perf_counter()
-    run_id = randint(0,100)
-    append_time_ram_stamp_to_file(f"Training.make_dataset() start {run_id}", config.bench_path, start)
+    append_time_ram_stamp_to_file(f"Training.make_dataset() start ", config.bench_path, start)
 
     def print_data_set(ds, name):
         dsout = open(name,"w")
         for batch_id, batch in enumerate(ds):
             for seq_id, seq in enumerate(batch):
                 for id_in_seq, one_hot_entry in enumerate(seq):
-                    # tf.print(one_hot_entry.numpy(), summarize = -1)
                     dsout.write(f"name = {name}, batch_id = {batch_id}, seq_id = {seq_id}, id in seq = {id_in_seq}\n")
                     dsout.write(config.model.emission_id_to_str(np.argmax(one_hot_entry.numpy())))
                     dsout.write("\n")
@@ -65,13 +53,8 @@ def make_dataset(config):
                     dsout.write("\n")
 
 
-    # if use_old_read_seqs:
     index_of_terminal = config.model.emission_tuple_to_id("X")
 
-
-    # when mapping
-    # Use tf.py_function, which allows you to write arbitrary Python code but will generally result in worse performance than 1). For example:
-    # https://www.tensorflow.org/api_docs/python/tf/data/Dataset
     seqs = read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = True)
     config.nSeqs = len(seqs)
 
@@ -84,8 +67,13 @@ def make_dataset(config):
                                                     output_shapes=[None])
         return dataset
 
+    # since i can only pad with scalar values
+    # and i spread the Ns, i have to encode
+    # a multi hot emission in a string
+    # then pad the terminal symbol in its string representation
+    # then when making a batches i can convert the strings
+    # to actual multi hot encodings
     padding_value = "_".join(["1.0" if i == index_of_terminal else "0.0" for i in range(config.model.number_of_emissions)])
-
 
     if config.bucket_by_seq_len:
 
@@ -102,15 +90,10 @@ def make_dataset(config):
 
             # sort bucket_boundries, st the ones closest to the median seqlen come first,
             # and buckets that differ much from the median are trained at the end
-
             median_seq_len = np.median(sorted_seq_lens)
             bucket_boundaries = sorted(bucket_boundaries, key = lambda x: abs(x - median_seq_len))
 
-            # bucket_boundaries = [1000] * (len(seqs)//config.batch_size)
-            # number_of_equal_sized_batches = len(seqs)//config.batch_size
-            # bucket_boundaries = [config.batch_size] * number_of_equal_sized_batches
-
-            config.nBatches = len(bucket_boundaries) +1
+            config.nBatches = len(bucket_boundaries) + 1
             bucket_batch_sizes = [batch_size] * config.nBatches
             print("bucket_boundaries", bucket_boundaries)
             print("bucket_batch_sizes", bucket_batch_sizes)
@@ -129,6 +112,9 @@ def make_dataset(config):
 
         adjusted_batch_size = config.batch_size
 
+
+        # since it causes problem if a bucket batch is only a single seq
+        # i increase the batch size until this is not the case anymore
         dataset = get_initial_data_set()
         dataset = bucket_seqs_of_dataset(dataset, adjusted_batch_size)
 
@@ -136,7 +122,7 @@ def make_dataset(config):
             adjusted_batch_size += 1
             dataset = get_initial_data_set()
             dataset = bucket_seqs_of_dataset(dataset, adjusted_batch_size)
-        print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a bucket batch beeing only a single seq")
+        print(f"Batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a bucket batch beeing only a single sequence.")
 
     if not config.bucket_by_seq_len:
 
@@ -146,33 +132,26 @@ def make_dataset(config):
                 adjusted_batch_size += 1
             return adjusted_batch_size
         adjusted_batch_size = get_adjusted_batch_size(config.nSeqs, config.batch_size)
-        print(f"batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a batch beeing only a single seq")
+        print(f"Batch_size was adjusted from {config.batch_size} to {adjusted_batch_size} to avoid a batch beeing only a single sequence.")
         config.nBatches = config.nSeqs // adjusted_batch_size + 1
         dataset = get_initial_data_set()
         dataset = dataset.shuffle(buffer_size = config.nSeqs, reshuffle_each_iteration = True)
         dataset = dataset.padded_batch(adjusted_batch_size, None, padding_value)
 
 
-        # dataset = dataset.padded_batch(config.batch_size, None, padding_value)
-        # if len(seqs) % config.batch_size == 1:
-        #     print(f"batch {batch_id} has only one seq, choose different batchsize")
-        #     exit()
+    if config.steps_per_epoch == 0:
+        config.steps_per_epoch = config.nBatches
+        print("setting steps_per_epoch to", config.steps_per_epoch)
+
 
     dataset = dataset.map(lambda x: tf.strings.to_number(tf.strings.split(x,'_')))
     dataset = dataset.map(lambda x: x.to_tensor()) # bc it is ragged
-    np.set_printoptions(linewidth=200)
-
-    # print_data_set(dataset, "ds_str")
-
-
     dataset = dataset.repeat()
 
 
-    append_time_ram_stamp_to_file(f"Training.make_dataset() end   {run_id}", config.bench_path, start)
+    append_time_ram_stamp_to_file(f"Training.make_dataset() end ", config.bench_path, start)
     return dataset, seqs
 
-# from memory_profiler import profile
-# @profile
 ################################################################################
 ################################################################################
 ################################################################################
@@ -208,110 +187,90 @@ def fit_model(config):
 
 ################################################################################
     if config.manual_forward:
-            layer = CgpHmmLayer(config)
-            layer.build(None)
-            layer.C.build(None)
-            cell = layer.C
-            batchsize = config.batch_size
-            low = 0
-            n = len(seqs)
-            high = min(batchsize, n)
-            for epoch in range(config.epochs):
-                for step in range(config.steps_per_epoch):
-                    # print(f"low = {low}, high = {high}")
-                    batch = seqs[low : high]
+        layer = CgpHmmLayer(config)
+        layer.build(None)
+        layer.C.build(None)
+        cell = layer.C
+        batchsize = config.batch_size
+        low = 0
+        seqs = convert_data_one_hot_with_Ns_spread_str_to_numbers(seqs)
+        n = len(seqs)
+        high = min(batchsize, n)
+        for epoch in range(config.epochs):
+            for step in range(config.steps_per_epoch):
+                print(f"low = {low}, high = {high}")
+                batch = seqs[low : high]
 
-                    low = low + batchsize if low + batchsize < n else 0
-                    if high == n:
-                        high = min(batchsize, n)
-                    elif high + batchsize > n:
-                        high = n
-                    else:
-                        high += batchsize
+                low = low + batchsize if low + batchsize < n else 0
+                if high == n:
+                    high = min(batchsize, n)
+                elif high + batchsize > n:
+                    high = n
+                else:
+                    high += batchsize
 
-                    max_len_seq_in_batch = max([len(seq) for seq in batch])
-                    # print("max_len_seq_in_batch =", max_len_seq_in_batch)
-                    batch = [seq + [index_of_terminal] * (max_len_seq_in_batch - len(seq) + 1) for seq in batch]
-                    batch = tf.one_hot(batch, config.model.number_of_emissions)
-                    # tf.print("batch = ", batch, summarize = -1)
+                min_len_seq_in_batch = min([len(seq) for seq in batch])
 
+                if min_len_seq_in_batch > 100:
+                    batch = [seq[:100] for seq in batch]
 
-                    # felix
-                    alpha = tf.matmul(batch[:,0,:], cell.B) * cell.I
-                    prod_zi =  1
-                    loglike = tf.math.log(tf.reduce_sum(alpha, axis = 1))
-                    for i in range(1, max_len_seq_in_batch + 1):
-                        # E * R
-                        z_i_minus_1 = tf.reduce_sum(alpha, axis = 1, keepdims = True)
-                        # print("i =", i)
-                        # print("z_i_minus_1 =", z_i_minus_1)
-                        prod_zi *= z_i_minus_1
-                        alpha =  tf.matmul(batch[:,i,:], cell.B) * tf.matmul(alpha, cell.A)
-                        # print("alpha =", alpha)
-                        alpha = tf.math.divide(alpha, z_i_minus_1)
-                        loglike += tf.math.log(tf.reduce_sum(alpha, axis = 1))
-                    # print("alpha =", alpha)
-                    print("\n=========> felix <===========")
-                    print("mean(loglike += log(sum_q(alpha)) =", tf.reduce_mean(loglike).numpy())
-                    print("mean(log(sum_q(alpha * prod_zi))) =", tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha * prod_zi, axis=1))).numpy())
-                    # is there another way to get P(Y)
+                max_len_seq_in_batch = max([len(seq) for seq in batch])
 
-                    # only one reduce sum
-                    alpha = tf.matmul(batch[:,0,:], cell.B) * cell.I
-                    z_0 = tf.reduce_sum(alpha, axis =1, keepdims = True)
-                    loglike = tf.math.log(tf.reduce_sum(alpha, axis = 1))
-                    alpha = tf.math.divide(alpha, z_0)
-                    prod_zi = z_0
-                    for i in range(1, max_len_seq_in_batch + 1):
-                        # E * R
-                        alpha =  tf.matmul(batch[:,i,:], cell.B) * tf.matmul(alpha, cell.A)
-                        loglike += tf.math.log(tf.reduce_sum(alpha, axis = 1))
-
-                        z_i = tf.reduce_sum(alpha, axis = 1, keepdims = True)
-                        prod_zi *= z_i
-                        alpha = tf.math.divide(alpha, z_i)
-
-                    print("\n=========> mattes <===========")
-                    print("mean(loglike += log(sum_q(alpha)) + log(sum_q(alpha)) =", tf.reduce_mean(loglike + tf.math.log(tf.reduce_sum(alpha, axis = 1))).numpy())
-                    print("mean(log(sum_q(alpha * prod_zi))) =", tf.reduce_mean(tf.math.log(tf.reduce_sum(alpha * prod_zi, axis=1))).numpy())
+                # print("max_len_seq_in_batch =", max_len_seq_in_batch)
+                padding_value = [1.0 if i == index_of_terminal else 0.0 for i in range(config.model.number_of_emissions)]
+                batch = [seq + [padding_value] * (max_len_seq_in_batch - len(seq) + 1) for seq in batch]
 
 
-                    # manual_forward
-                    alpha = tf.matmul(batch[:,0,:], cell.B) * cell.I
-                    for i in range(1, max_len_seq_in_batch + 1):
-                        # E * R
-                        alpha =  tf.matmul(batch[:,i,:], cell.B) * tf.matmul(alpha, cell.A)
+                batch = tf.convert_to_tensor(batch, dtype = config.dtype)
 
-                    loglike = tf.math.log(tf.reduce_sum(alpha, axis=1))
-                    mean_loglike = tf.reduce_mean(loglike)
+                # felix
+                alpha = tf.matmul(batch[:,0,:], cell.B) * cell.I
+                prod_zi =  1
+                loglike = tf.math.log(tf.reduce_sum(alpha, axis = 1))
+                for i in range(1, max_len_seq_in_batch + 1):
+                    z_i_minus_1 = tf.reduce_sum(alpha, axis = 1, keepdims = True)
+                    prod_zi *= z_i_minus_1
+                    alpha =  tf.matmul(batch[:,i,:], cell.B) * tf.matmul(alpha, cell.A)
+                    alpha = tf.math.divide(alpha, z_i_minus_1)
+                    loglike += tf.math.log(tf.reduce_sum(alpha, axis = 1))
+                print("\n=========> felix version to scale <===========")
+                print("mean(loglike += log(sum_q(alpha)) =", tf.reduce_mean(loglike).numpy())
 
-                    print("\n=========> alpha dp <===========")
-                    print("mean(log(sum_q(alpha))) =", mean_loglike.numpy())
-                    print()
+                # only one reduce sum
+                alpha = tf.matmul(batch[:,0,:], cell.B) * cell.I
+                z_0 = tf.reduce_sum(alpha, axis =1, keepdims = True)
+                loglike = tf.math.log(tf.reduce_sum(alpha, axis = 1))
+                alpha = tf.math.divide(alpha, z_0)
+                prod_zi = z_0
+                for i in range(1, max_len_seq_in_batch + 1):
+                    # E * R
+                    alpha =  tf.matmul(batch[:,i,:], cell.B) * tf.matmul(alpha, cell.A)
+                    loglike += tf.math.log(tf.reduce_sum(alpha, axis = 1))
 
-                    # logsumexp
-                    alpha = tf.math.log(tf.matmul(batch[:,0,:], cell.B)) + tf.math.log(cell.I)
-                    for i in range(1, max_len_seq_in_batch + 1):
-                        m_alpha = tf.reduce_max(alpha, axis = 1, keepdims = True)
-                        alpha =  tf.math.log(tf.matmul(batch[:,i,:], cell.B)) + tf.math.log(tf.matmul(tf.math.exp(alpha - m_alpha), cell.A)) + m_alpha
+                    z_i = tf.reduce_sum(alpha, axis = 1, keepdims = True)
+                    prod_zi *= z_i
+                    alpha = tf.math.divide(alpha, z_i)
 
-                    loglike = tf.math.reduce_logsumexp(alpha, axis=1)
-                    mean_loglike = tf.reduce_mean(loglike)
-
-                    print("\n=========> alpha logsumexp <===========")
-                    print("logsumexp(alpha) =", mean_loglike.numpy())
-                    print()
+                print("\n=========> my old evrsion to scale for wich no gradient could be calculated <===========")
+                print("mean(loglike += log(sum_q(alpha)) + log(sum_q(alpha)) =", tf.reduce_mean(loglike + tf.math.log(tf.reduce_sum(alpha, axis = 1))).numpy())
 
 
-            exit()
+                # logsumexp
+                alpha = tf.math.log(tf.matmul(batch[:,0,:], cell.B)) + tf.math.log(cell.I)
+                for i in range(1, max_len_seq_in_batch + 1):
+                    m_alpha = tf.reduce_max(alpha, axis = 1, keepdims = True)
+                    alpha =  tf.math.log(tf.matmul(batch[:,i,:], cell.B)) + tf.math.log(tf.matmul(tf.math.exp(alpha - m_alpha), cell.A)) + m_alpha
 
+                loglike = tf.math.reduce_logsumexp(alpha, axis=1)
+                mean_loglike = tf.reduce_mean(loglike)
+
+                print("\n=========> alpha logsumexp <===========")
+                print("logsumexp(alpha) =", mean_loglike.numpy())
+                print()
+
+        exit()
 ################################################################################
     else:
-        if config.steps_per_epoch == 0:
-            config.steps_per_epoch = config.nBatches
-            print("setting steps_per_epoch to", config.steps_per_epoch)
-
-
         if num_gpu > 1 and not config.dont_use_mirrored_strategy:
             mirrored_strategy = tf.distribute.MirroredStrategy()
             with mirrored_strategy.scope():
@@ -320,17 +279,15 @@ def fit_model(config):
 
                 # compile model
                 start = time.perf_counter()
-                run_id = randint(0,100)
-                append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.compile() start ", config.bench_path, start)
                 model.compile(optimizer = optimizer, run_eagerly = config.eager_execution)
-                append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.compile() end   ", config.bench_path, start)
 
                 # fit model
                 start = time.perf_counter()
-                run_id = randint(0,100)
-                append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.fit() start ", config.bench_path, start)
                 history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-                append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.fit() end   ", config.bench_path, start)
         else:
             if not config.ll_growth_factor:
                 model, cgp_hmm_layer = make_model(config)
@@ -338,25 +295,16 @@ def fit_model(config):
 
                 # compile model
                 start = time.perf_counter()
-                run_id = randint(0,100)
-                append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.compile() start ", config.bench_path, start)
                 model.compile(optimizer = optimizer, run_eagerly = config.eager_execution)
-                append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.compile() end ", config.bench_path, start)
 
                 # fit model
                 start = time.perf_counter()
-                run_id = randint(0,100)
-                append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.fit() start ", config.bench_path, start)
                 history = model.fit(data_set, epochs=config.epochs, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-                append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.fit() end ", config.bench_path, start)
 
-            # TODO: maybe it would be faster if i do a manual training loop here
-            # TODO: or make a loss layer, and maybe the cgphmm doesnt need to be retraced
-                # for epoch in range(config.epochs):
-                #     for step, batch in enumerate(data_set):
-                #         if step >= config.steps_per_epoch:
-                #             break
-                #         with
             if config.ll_growth_factor:
                 dir_path = f"{config.current_run_dir}/after_fit_para"
                 if not os.path.exists(dir_path):
@@ -374,20 +322,20 @@ def fit_model(config):
 
                     # compile model
                     start = time.perf_counter()
-                    run_id = randint(0,100)
-                    append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
+                    append_time_ram_stamp_to_file(f"Training:model.compile() start ", config.bench_path, start)
                     model.compile(optimizer = optimizer, run_eagerly = config.eager_execution)
-                    append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
+                    append_time_ram_stamp_to_file(f"Training:model.compile() end ", config.bench_path, start)
 
                     # fit model
                     start = time.perf_counter()
-                    run_id = randint(0,100)
-                    append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
+                    append_time_ram_stamp_to_file(f"Training:model.fit() start ", config.bench_path, start)
                     history = model.fit(skipeed_data_set, epochs = 1, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-                    append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+                    append_time_ram_stamp_to_file(f"Training:model.fit() end ", config.bench_path, start)
 
                     model.get_layer(f"cgp_hmm_layer{'_' + str(current_epoch) if current_epoch > 0 else ''}").C.write_weights_to_file(dir_path)
-                # end for
+                # likelihood growth reached a vaule of 1 so now
+                # training is done with the full likelihood as per usual
+
                 config.init_weights_from = dir_path
                 model, cgp_hmm_layer = make_model(config, current_epoch)
 
@@ -395,17 +343,15 @@ def fit_model(config):
 
                 # compile model
                 start = time.perf_counter()
-                run_id = randint(0,100)
-                append_time_ram_stamp_to_file(f"Training:model.compile() start {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.compile() start ", config.bench_path, start)
                 model.compile(optimizer = optimizer, run_eagerly = config.eager_execution)
-                append_time_ram_stamp_to_file(f"Training:model.compile() end   {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.compile() end ", config.bench_path, start)
 
                 # fit model
                 start = time.perf_counter()
-                run_id = randint(0,100)
-                append_time_ram_stamp_to_file(f"Training:model.fit() start {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.fit() start ", config.bench_path, start)
                 history = model.fit(skipeed_data_set, epochs = config.epochs - current_epoch, steps_per_epoch=config.steps_per_epoch, callbacks = get_call_backs(config, model)) # with callbacks it is way slower
-                append_time_ram_stamp_to_file(f"Training:model.fit() end   {run_id}", config.bench_path, start)
+                append_time_ram_stamp_to_file(f"Training:model.fit() end ", config.bench_path, start)
 
                 model.get_layer(f"cgp_hmm_layer{'_' + str(current_epoch) if current_epoch > 0 else ''}").C.write_weights_to_file(dir_path)
 

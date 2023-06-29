@@ -511,7 +511,6 @@ def plot(dfs,
         dfs.append(g[mask])
         labels.append(f"human seqlen < 15000")
 
-        # df1["ieilen"]=df1["exon_len"] + df1["left_intron_len"] + df1["right_intron_len"]
 
     if type(dfs) is not list:
         print("not list")
@@ -584,5 +583,5 @@ if __name__ == "__main__":
 
     df = load_or_calc_df(args, csv_path)
 
-    print("run this skript in interactive mode, select subset of df and pass it to make_exon_data_sets_for_choosen_df(args, df)")
+    print("Run this skript in interactive mode, select subset of df and pass it to make_exon_data_sets_for_choosen_df(args, df).")
 

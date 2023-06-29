@@ -152,40 +152,6 @@ def remove_long_seqs(seqs):
     # assert that there are still more than 90% of the seqs left
     assert len(seqs) > 0.89 * len(len_of_seqs), "to many seqs removed"
     return seqs
-# def read_data_one_hot_with_Ns_spread(config, add_one_terminal_symbol = False):
-#     seqs = []
-#     base_to_id = dict([(base, id) for id, base in enumerate("ACGTIN")])
-#     with open(config.fasta_path,"r") as handle:
-#         for record in SeqIO.parse(handle,"fasta"):
-#             seq = record.seq
-#             seq_of_one_hot = []
-#             last_bases = [4] * config.order # 4 is padded left flank
-#             for i, base in enumerate(seq):
-#                 t = (last_bases + [base_to_id[base]])
-#                 matching_ids = [] # t might contain N, so more that one id match to this tuple
-#                 allowd_bases = [[0,1,2,3] if b == 5 else [b] for b in t]
-#                 # TODO hier sind dann ja auch stop codons erlaubt
-#                 # B hat dann aber an der position einfach ein null, sodass die
-#                 # wkeiten der restlichen 3 emisioionenn genommen werden
-#                 # wenn aber mehr als 1 N in t ist, dass ist das vielleicht komisch gewichtet
-#                 allowed_ho_emissions = list(product(*allowd_bases))
-#                 entry_of_one_hot = np.zeros(config.model.number_of_emissions)
-#                 for allowed_ho_emission in allowed_ho_emissions:
-#                     entry_of_one_hot[config.model.emission_tuple_to_id(allowed_ho_emission)] = 1
-#                 entry_of_one_hot /= sum(entry_of_one_hot)
-#                 seq_of_one_hot.append(entry_of_one_hot)
-#                 last_bases = last_bases[1:] + [base_to_id[base]] if config.order > 0 else []
-#                 # print(list(entry_of_one_hot))
-#                 # for i in range(len(entry_of_one_hot)):
-#                 #     if entry_of_one_hot[i] != 0:
-#                 #         print(config.model.emission_id_to_str(i), end = ", ")
-#             if add_one_terminal_symbol:
-#                 entry_of_one_hot = np.zeros(config.model.number_of_emissions)
-#                 entry_of_one_hot[config.model.emission_tuple_to_id("X")] = 1
-#                 seq_of_one_hot.append(entry_of_one_hot)
-#             seqs.append(seq_of_one_hot)
-#     return seqs
-
 
 def read_data_with_order(config, alphabet = ["A","C","G","T"], add_one_terminal_symbol = False, verbose = False):
     seqs = []

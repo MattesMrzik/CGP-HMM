@@ -151,8 +151,5 @@ def get_call_backs(config, model):
     callbacks += [RelativeEarlyStopping()]
     callbacks += [save_best_weights()]
 
-    # callbacks += [tensorboard_callback]
-
-    # callbacks += [get_the_gradient()]
 
     return callbacks

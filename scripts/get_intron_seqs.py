@@ -18,7 +18,6 @@ from multi_run import get_viterbi_aligned_seqs
 
 
 def get_left_introns(dir_path):
-    # read the stats table into a dataframe
     df = pd.read_csv(os.path.join(dir_path, "stats_table.csv"), sep = ";")
 
     for i, (index, row) in enumerate(df.iterrows()):

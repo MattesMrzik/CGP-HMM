@@ -305,7 +305,7 @@ class Config():
         self.parser = argparse.ArgumentParser(description='args for cgphmm')
 
         self.parser.add_argument('-c', '--nCodons', type = int, default = 2, help='Model size n, ie number of codons.')
-        self.parser.add_argument('-AB', default = 'sd', help = '[sd (default), ds, sd, ss] specify the sparse or denseness of A and B.')
+        self.parser.add_argument('--AB', default = 'sd', help = '[sd (default), ds, sd, ss] specify the sparse or denseness of A and B.')
 
         self.parser.add_argument('--fasta_path', required=1, help = 'Path to fasta file where the training seqs are')
         self.parser.add_argument('--out_path', default = "../../cgp_output", help='Path to otput dir')
@@ -319,7 +319,7 @@ class Config():
         self.parser.add_argument('--optimizer', default = "Adam", help = 'Adam, SGD [Adam]')
         self.parser.add_argument('--epochs', default = 2, type = int, help = 'How many epochs [2]')
         self.parser.add_argument('--steps_per_epoch', default = 0, type = int, help = 'If zero, the number of steps is set such that all sequences are seen once per epoch.')
-        self.parser.add_argument('-d', '--dtype64', action='store_true', help='Switch to using dytpe float64')
+        self.parser.add_argument('--dtype64', action='store_true', help='Switch to using dytpe float64')
         self.parser.add_argument('--batch_size', type = int, default = 16, help = 'Batch size [16]')
         self.parser.add_argument('--no_learning', action='store_true', help ="Learning rate is set to 0")
         self.parser.add_argument('--learning_rate', type = float, default = 0.05, help ="Learning rate [0.05]")
@@ -381,8 +381,8 @@ class Config():
         self.parser.add_argument('--trace_verbose', action = 'store_true', help = 'Actiave some print() calls to see if functions get retraced.')
 
         # debugging
-        self.parser.add_argument('-b', '--exit_after_first_batch', action = 'store_true', help ="Exit after first batch.")
-        self.parser.add_argument('-n', '--exit_after_loglik_is_nan', action='store_true', help ="Exit after loglik is NaN.")
+        self.parser.add_argument('--exit_after_first_batch', action = 'store_true', help ="Exit after first batch.")
+        self.parser.add_argument('--exit_after_loglik_is_nan', action='store_true', help ="Exit after loglik is NaN.")
         # self.parser.add_argument('--manual_training_loop', action='store_true', help ="manual_training_loop")
         # self.parser.add_argument('--alpha_i_gradient', type = int, default = -1, help = 'if --manual_training_loop is passed, then the gradient for alpha_i wrt the kernels is computed, if -2 is passed, i is set to n - 1, where n is the length of th seq')
         # self.parser.add_argument('--check_for_zeros', action='store_true', help = 'must be passed together with --batch, checks for zeros in parameters')
