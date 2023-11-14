@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#!/usr/bin/python3
 import pandas as pd
 import argparse
 import os
@@ -13,6 +12,8 @@ pd.set_option('display.max_columns', None)
 pd.options.display.width = 0
 
 df = pd.read_csv(args.path_to_stats_table, sep = ";")
+
+# some commands that are useful
 print("pd.options.display.width = 0")
 print('pd.set_option("display.max_rows", 10)')
 print('df.sort_values(by = "exon_len", ascending = 1)')

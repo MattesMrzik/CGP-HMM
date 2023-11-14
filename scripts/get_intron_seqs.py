@@ -22,10 +22,7 @@ def get_left_introns(dir_path):
 
     for i, (index, row) in enumerate(df.iterrows()):
 
-
         exon_dir = os.path.join(dir_path, row["exon"])
-
-
         bed_dir_path = os.path.join(exon_dir, "species_bed")
 
         # create a new dir that holds the left intron seqs
@@ -42,7 +39,6 @@ def get_left_introns(dir_path):
         extra_exon_data = {}
         extra_exon_data["human_strand"] = strand
         extra_exon_data["len_of_seq_substring_in_human"] = human_len
-
 
         for bed_file in os.listdir(bed_dir_path):
             extra_seq_data = {}
@@ -136,10 +132,8 @@ def remove_only_human_exon(dir_path):
 
 if __name__ == "__main__":
 
-    # add a agrument path to parser
     parser = argparse.ArgumentParser()
     parser.add_argument("-p", "--path", help="Path to the stats table of the dataset from which in upstream intron should get extracted.")
     args = parser.parse_args()
 
     get_left_introns(args.path)
-    # remove_only_human_exon(args.path)

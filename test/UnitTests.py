@@ -21,7 +21,6 @@ class Test_A_prior(unittest.TestCase):
                                     [0.4, 0.4, 0.2], \
                                     [0,   0,   0]])
 
-
         prior_indices = tf.where(prior_matrix)
 
         # 0.34154892 = log ( a = p = 0.2, 0.8    *   a = p = 0.4, 0.4, 0.2 )
@@ -29,7 +28,6 @@ class Test_A_prior(unittest.TestCase):
 
         prior_matrix *= 2
         self.assertAlmostEqual(non_class_A_log_prior(A, prior_matrix, prior_indices).numpy(), np.log(1.460929), places = 5)
-
 
     def test_B_log_prior(self):
         from CGP_HMM import non_class_B_log_prior

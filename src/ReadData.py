@@ -99,10 +99,8 @@ def read_data_one_hot_with_Ns_spread_str(config, add_one_terminal_symbol = False
                 t = (last_bases + [base_to_id(base)])
                 matching_ids = [] # t might contain N, so more that one id match to this tuple
                 allowd_bases = [[0,1,2,3] if b == 5 else [b] for b in t]
-                # TODO hier sind dann ja auch stop codons erlaubt
-                # B hat dann aber an der position einfach ein null, sodass die
-                # wkeiten der restlichen 3 emisioionenn genommen werden
-                # wenn aber mehr als 1 N in t ist, dass ist das vielleicht komisch gewichtet
+                # TODO here, stop codons are allowed. B has just zeros at these positions.
+                # this results in a very slight shift of there parameters
                 allowed_ho_emissions = list(product(*allowd_bases))
                 entry_of_one_hot = np.zeros(config.model.number_of_emissions)
                 for allowed_ho_emission in allowed_ho_emissions:

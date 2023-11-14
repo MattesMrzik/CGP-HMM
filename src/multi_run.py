@@ -51,12 +51,9 @@ def get_cfg_with_args():
 
     # fasta_dir_path = "/home/s-mamrzi/cgp_data/train_data_set/new_train/good_exons_1"
     # fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/good_exons_1_new"
-
     fasta_dir_path = "/home/s-mamrzi/cgp_data/eval_data_set/good_exons_2"
 
     exons = [dir for dir in os.listdir(fasta_dir_path) if not os.path.isfile(os.path.join(fasta_dir_path, dir)) ]
-
-
     # cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/introns/combined.fasta" for exon in exons]
 
     cfg_with_args["fasta"] = [f"{fasta_dir_path}/{exon}/combined.fasta" for exon in exons]
@@ -85,7 +82,6 @@ def get_cfg_with_args():
     cfg_with_args["clip_gradient_by_value"] = [4]
     cfg_with_args["exon_skip_init_weight"] = [-1,2]
     cfg_with_args["optimizer"] = ["Adam"]
-
 
     cfg_with_args["left_intron_init_weight"] = [4.35] # this is usually 4 but left miss was way more often than right miss in eval data set
 
@@ -215,7 +211,6 @@ def run_training(args):
             seq = next(SeqIO.parse(fasta_file, "fasta"))
             seq_len = len(seq.seq)
         return seq_len * np.sqrt(nCodons)
-
 
     print("Length grid_points =", len(grid_points))
 
@@ -441,7 +436,6 @@ def get_viterbi_aligned_seqs(train_run_dir, after_or_before, true_alignemnt_path
 ################################################################################
 
 def add_true_and_guessed_exons_coords_to_run_stats(run_stats, aligned_seqs):
-
     try:
         run_stats["start"] = aligned_seqs["true_seq"].seq.index("E") # inclusive
         run_stats["end"] = aligned_seqs["true_seq"].seq.index("r") # exclusive
@@ -905,7 +899,6 @@ def eval_viterbi(args):
     df = load_or_calc_eval_df(path)
     loaded_cols = df.columns
 
-
     df = add_additional_eval_cols(df, args)
     df = sort_columns(df)
     added_cols = list(set(df.columns) - set(loaded_cols))
@@ -914,18 +907,8 @@ def eval_viterbi(args):
 
     cols_to_group_by, _ = get_cols_to_group_by(args)
     eval_cols = ["sn_nt", "sp_nt", "f1_nt", "MCC", "ACP", "correct", "true_left", "true_right", "incomplete", "wrap",  "overlaps", "miss", "skipped_exon", "5prime", "3prime", "WEScore", "f1"]
-    grouped = df.groupby(cols_to_group_by).mean()[eval_cols].reset_index().sort_values("f1_nt")
 
-    # add a new column right intron len
-    df["right_intron_len"] = df["seq_len_from_multi_run"] - df["end"]
-    # add a new column left intron len
-    df["left_intron_len"] = df["start"]
-
-
-    g1 = df.groupby(cols_to_group_by).mean()[eval_cols].reset_index()
-    print('g1[(g1["priorA"] == 0) & (g1["epochs"] == 20) & (g1["exon_skip_init_weight"] == -4)]')
-
-    return df, grouped, parameters_with_less_than_one_arg, eval_cols, loaded_cols, added_cols, cols_to_group_by
+    return df, parameters_with_less_than_one_arg, eval_cols, loaded_cols, added_cols, cols_to_group_by
 
 ################################################################################
 
@@ -1000,7 +983,6 @@ def len_groups(df, nbins = 3, mask = [1,1,1], eval_cols = None, seq_len_bins = 3
 
     df = df[(df["after_or_before"]=="after")]
 
-
     df["exon_len"] = df["end"] - df["start"]
     bins_exon_len = list(range(0, df["exon_len"].max() + 1, int(df["exon_len"].max()/nbins)))
     df['exon_len_group'] = pd.cut(df['exon_len'], bins=bins_exon_len, labels=bins_exon_len[:-1])
@@ -1024,7 +1006,6 @@ def len_groups(df, nbins = 3, mask = [1,1,1], eval_cols = None, seq_len_bins = 3
     print("max_len_group", df["max_len_group"])
     print("size_of_q_group", df["size_of_q_group"])
 
-
     for value, pivot in zip(["mbRAM", "mean_epoch_time"],["max_len_group", "sum_len_group"]):
         groupby = [pivot, "size_of_q_group"]
         len_groups = df.groupby(groupby).mean()[eval_cols].reset_index()
@@ -1046,7 +1027,6 @@ def len_groups(df, nbins = 3, mask = [1,1,1], eval_cols = None, seq_len_bins = 3
     f1_exon = len_groups.pivot("human_len_group", "exon_len_group", "correct")
     c = len_groups_counts.pivot("human_len_group", "exon_len_group", "f1_nt_on_exon") # or f1_nt_on_exon, its the same since the two other args to the method are the same
 
-
     print(f"pivot table for f1\\\\")
     for i in range(seq_len_bins):
         if i > 2:
@@ -1055,14 +1035,12 @@ def len_groups(df, nbins = 3, mask = [1,1,1], eval_cols = None, seq_len_bins = 3
             print(" & ". join([f"{f1_nt.iloc[i,j]:.3f} & {f1_exon.iloc[i,j]:.3f} & \\multicolumn{{1}}{{c|}}{{{c.iloc[i,j]}}}" for j in range(nbins)]), end = " \\\\ \n")
     print()
 
-
     groupby = ["human_len_group", "sum_len_group", "exon_len_group"]
     groupby = [group for i, group in enumerate(groupby) if mask[i]]
 
     len_groups = df.groupby(groupby).mean()[eval_cols].reset_index()
     len_groups_std = df.groupby(groupby).std()[eval_cols].reset_index()
     len_groups_counts = df.groupby(groupby).count()[eval_cols].reset_index()
-
 
     return len_groups, len_groups_std, len_groups_counts
 
@@ -1074,7 +1052,6 @@ def plot_model_size_factor_vs_best_loss_f1s(df, figsize = (20,7), angle1 = 90, a
         return (column - column.min()) / (column.max() - column.min())
 
     local_df = df.copy()
-
 
     # select only the after or before == after
     local_df = local_df[local_df["after_or_before"] == "after"]
@@ -1096,7 +1073,6 @@ def plot_model_size_factor_vs_best_loss_f1s(df, figsize = (20,7), angle1 = 90, a
     measure_names = ["inserts", "deletes"]
     for column in measure_names:
         local_df[f"{column}_scaled"] = scale_0_to_1(local_df[column])
-
 
     columns_single_points_in_plot = ["f1_nt", "f1"]
 
@@ -1141,6 +1117,6 @@ if __name__ == "__main__":
     elif args.viterbi_path:
         viterbi(args)
     elif args.eval_viterbi:
-        df, grouped, parameter_that_are_not_in_df, eval_cols, loaded_cols, added_cols, cols_to_group_by = eval_viterbi(args)
+        df, parameter_that_are_not_in_df, eval_cols, loaded_cols, added_cols, cols_to_group_by = eval_viterbi(args)
     elif args.continue_training:
         continue_training(args)

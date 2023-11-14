@@ -21,7 +21,6 @@ std::tuple<float, float> get_M_and_emission_prob_for_q(const std::vector<std::ve
                                     const std::vector<std::vector<float>> & dp_g,
                                     size_t i,
                                     size_t q) {
-    //
     auto M = std::log(0);
     for (size_t state = 0; state < A.size(); state++) {
         auto m = std::log(A[state][q]) + dp_g[i-1][state];
@@ -70,8 +69,6 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
 
     // i, state
     std::vector<std::vector<float>> dp_g;
-    std::vector<std::vector<size_t>> dp_g_pointer_to_max;
-
     std::vector<float> icolumn;
     std::vector<size_t> icolumn_max(nStates);
     // for different states this could be split across multiple jobs
@@ -89,8 +86,6 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
     }
     dp_g.push_back(icolumn);
     icolumn.clear();
-    // dp_g_pointer_to_max.push_back(icolumn_max);
-    // icolumn_max.clear();
 
     if (only_first && verbose) {
         eta_file << "init column done" << "\n";
@@ -120,10 +115,8 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
                 for (size_t thread_id = 0; thread_id < nThreads; thread_id++, q++) {
                     std::tie(M, emission_prob) = threads[thread_id].get();
                     icolumn.push_back(std::log(emission_prob) + M);
-                    // TODO may i need to icolumn[q] = result and not pushback since these jobs might finish in messy order
                 }
             }
-            // icolumn_max.push_back(max_state);
         }
         dp_g.push_back(icolumn);
         icolumn.clear();
@@ -138,13 +131,7 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
 
             eta_file << i<< "/" << n << ",\teta in seconds =  " << eta * 1.0/1000000000 << ",\teta in minutes = " << eta_minutes << "\n";
         }
-
-
-        // auto duration_sec = duration.count()/1000;
-        // dp_g_pointer_to_max.push_back(icolumn_max);
-        // icolumn_max.clear();
     }
-
 
     // backtracking
 
@@ -159,7 +146,6 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
         }
     }
     x.push_back(last_state);
-
 
     // O(n * |Q|)
     int n_as_int = static_cast<int>(n);
@@ -184,7 +170,6 @@ std::vector<size_t> viterbi(const std::vector<float> & I,
     return x;
 }
 
-
 void is_empty(std::ifstream& pFile, std::string & s) {
     if (!pFile) {
         std::cerr << s << " is not open" << '\n';
@@ -207,11 +192,9 @@ int main(int argc, char *argv[]) {
         ("dir_path_for_para", po::value<std::string>(), "path to dir which contains I.json, A.json, B.json")
         ("out_path", po::value<std::string>(), "out file name")
         ("parallel_seqs", "calculate seqs in parallel instead of Ms")
-
         ("only_first_seq", "calculate only the first seq")
         ("verbose", "verbose")
-        ("nThreads,j", po::value<int>(), "n threads")
-        ;
+        ("nThreads,j", po::value<int>(), "n threads");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -228,31 +211,37 @@ int main(int argc, char *argv[]) {
         nThreads = vm["nThreads"].as<int>();
     }
     else {
-        std::cout << "using only 1 thread. consider -j" << '\n';
+        std::cout << "Using only 1 thread. Consider -j" << '\n';
     }
 ////////////////////////////////////////////////////////////////////////////////
     bool only_first_seq = vm.count("only_first_seq");
 
     bool verbose = vm.count("verbose");
 ////////////////////////////////////////////////////////////////////////////////
-
-    // TODO:default args are not up to date
-
     std::string seqs_path;
     if (vm.count("seqs_path")) seqs_path = vm["seqs_path"].as<std::string>();
-    else seqs_path = "../../cgp_data/most_recent_call_dir/seqs.fa.json";
+    else {
+        std::cout << "You must specify the seqs_path\n";
+        return 1;
+    }
 ////////////////////////////////////////////////////////////////////////////////
     std::string dir_path_for_para;
     if (vm.count("dir_path_for_para")) dir_path_for_para = vm["dir_path_for_para"].as<std::string>();
-    else dir_path_for_para = "../../cgp_data/most_recent_call_dir/after_fit_para/";
+    else {
+        std::cout << "You must specify the dir_path_for_para\n";
+        return 1;
+    }
+
     auto i_path = dir_path_for_para + "/I.json";
     auto a_path = dir_path_for_para + "/A.json";
     auto b_path = dir_path_for_para + "/B.json";
 ////////////////////////////////////////////////////////////////////////////////
     std::string out_path;
     if (vm.count("out_path")) out_path = vm["out_path"].as<std::string>();
-    else out_path = "../../cgp_data/most_recent_call_dir/viterbi_cc_output.json";
-
+    else {
+        std::cout << "You must specify the out_path\n";
+        return 1;
+    }
 
     // [nSeqs, seq_len, emissions_alphabet_size]
     std::ifstream f_seq(seqs_path);
@@ -316,24 +305,15 @@ int main(int argc, char *argv[]) {
     else {
         for (size_t seq_id = 0; seq_id < seqs.size(); seq_id++) {
             if (only_first_seq && seq_id > 0) {
-                std::cout << "calculated only first seq. check whether the result has the same len as desired fasta len" << '\n';
+                std::cout << "Calculated only first sequence. Check whether the result has the same len as desired fasta len." << '\n';
                 break;
             }
             state_seqs[seq_id] = viterbi(i_v, a_v, b_v, seqs_v[seq_id], seq_id, nThreads, only_first_seq, verbose, out_path);
             if (verbose){
-                std::cout << "done with seq " << seq_id << '\n';
+                std::cout << "Done with seq " << seq_id << '\n';
             }
         }
     }
-
-
-    // for (auto seq : state_seqs) {
-    //     for (auto v : seq) {
-    //         std::cout << v << ' ';
-    //     }
-    //     std::cout << '\n';
-    // }
-
 
     std::ofstream f_out(out_path);
     if (only_first_seq) {
@@ -345,5 +325,4 @@ int main(int argc, char *argv[]) {
         f_out << json(state_seqs);
     }
     f_out.close();
-
 }

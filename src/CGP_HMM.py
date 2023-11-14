@@ -283,12 +283,10 @@ class CGP_HMM(Model):
                     indicies_for_constant_parameters.append(entry)
                     initial_weights_for_consts.append(weight)
 
-
-
         # beginning of transition matrix definition
         # indicies in matrix,
         # initial weights,
-        # trainable or not
+        # trainable or not,
         # regulate with prior or not
 
         append_transition("left_intron", "right_intron", \
@@ -860,15 +858,11 @@ class CGP_HMM(Model):
                 os.mkdir(dir_name)
             self.B_as_dense_to_file(f"{dir_name}/B_init_parameters_before_conversion.csv", self.B_initial_trainable_para_setting, with_description = True, B = emission_matrix)
 
-        # some paramters are currently set to -1
-        # if the dont have a hand crafter initial parameter
-        # since we have categorical distributions, we need to convert them
-        # to a probability distribution.
-        # this is done by calculating the sum of all parameters that
-        # hand crafted got initial parameters.
-        # then is calculated how much is missing for the sum to be one
-        # this rest is then evenly distributed over all parameters that
-        # have no hand crafted initial parameter (were set to -1)
+        # some paramters are currently set to -1 if they dont have a hand crafted initial parameter.
+        # Since we have categorical distributions, we need to convert them to a probability distribution.
+        # This is done by calculating the sum of all parameters that have got initial hand crafted parameters.
+        # Then it is calculated how much is missing for the sum to be one.
+        # This rest is then evenly distributed over all parameters that have no hand crafted initial parameter (were set to -1)
         for state in range(tf.shape(emission_matrix)[1]):
             for emission_id_4 in range(0,tf.shape(emission_matrix)[0], self.config.alphabet_size):
                 sum_with_out_zeros_and_negatives_ones = 0.0

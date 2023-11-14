@@ -12,10 +12,6 @@ import numpy as np
 import time
 from tensorflow.python.client import device_lib
 
-
-
-
-
 def make_model(config, current_epoch = None):
     start = time.perf_counter()
 
@@ -67,11 +63,8 @@ def make_dataset(config):
                                                     output_shapes=[None])
         return dataset
 
-    # since i can only pad with scalar values
-    # and i spread the Ns, i have to encode
-    # a multi hot emission in a string
-    # then pad the terminal symbol in its string representation
-    # then when making a batches i can convert the strings
+    # since I can only pad with scalar values and I spread the Ns, I have to encode a multi hot emission in a string.
+    # then pad the terminal symbol in its string representation. When making a batch I can convert the strings
     # to actual multi hot encodings
     padding_value = "_".join(["1.0" if i == index_of_terminal else "0.0" for i in range(config.model.number_of_emissions)])
 
@@ -88,7 +81,7 @@ def make_dataset(config):
             print("sorted_seq_lens", sorted_seq_lens)
             bucket_boundaries = [length +1 for i, length in enumerate(sorted_seq_lens) if (i +1) % batch_size == 0]
 
-            # sort bucket_boundries, st the ones closest to the median seqlen come first,
+            # sort bucket_boundries, such that the ones closest to the median seqlen come first,
             # and buckets that differ much from the median are trained at the end
             median_seq_len = np.median(sorted_seq_lens)
             bucket_boundaries = sorted(bucket_boundaries, key = lambda x: abs(x - median_seq_len))
@@ -111,7 +104,6 @@ def make_dataset(config):
             return dataset
 
         adjusted_batch_size = config.batch_size
-
 
         # since it causes problem if a bucket batch is only a single seq
         # i increase the batch size until this is not the case anymore
@@ -138,16 +130,13 @@ def make_dataset(config):
         dataset = dataset.shuffle(buffer_size = config.nSeqs, reshuffle_each_iteration = True)
         dataset = dataset.padded_batch(adjusted_batch_size, None, padding_value)
 
-
     if config.steps_per_epoch == 0:
         config.steps_per_epoch = config.nBatches
         print("setting steps_per_epoch to", config.steps_per_epoch)
 
-
     dataset = dataset.map(lambda x: tf.strings.to_number(tf.strings.split(x,'_')))
     dataset = dataset.map(lambda x: x.to_tensor()) # bc it is ragged
     dataset = dataset.repeat()
-
 
     append_time_ram_stamp_to_file(f"Training.make_dataset() end ", config.bench_path, start)
     return dataset, seqs
@@ -220,7 +209,6 @@ def fit_model(config):
                 padding_value = [1.0 if i == index_of_terminal else 0.0 for i in range(config.model.number_of_emissions)]
                 batch = [seq + [padding_value] * (max_len_seq_in_batch - len(seq) + 1) for seq in batch]
 
-
                 batch = tf.convert_to_tensor(batch, dtype = config.dtype)
 
                 # felix
@@ -253,7 +241,6 @@ def fit_model(config):
 
                 print("\n=========> my old evrsion to scale for wich no gradient could be calculated <===========")
                 print("mean(loglike += log(sum_q(alpha)) + log(sum_q(alpha)) =", tf.reduce_mean(loglike + tf.math.log(tf.reduce_sum(alpha, axis = 1))).numpy())
-
 
                 # logsumexp
                 alpha = tf.math.log(tf.matmul(batch[:,0,:], cell.B)) + tf.math.log(cell.I)
@@ -354,6 +341,5 @@ def fit_model(config):
                 append_time_ram_stamp_to_file(f"Training:model.fit() end ", config.bench_path, start)
 
                 model.get_layer(f"cgp_hmm_layer{'_' + str(current_epoch) if current_epoch > 0 else ''}").C.write_weights_to_file(dir_path)
-
 
     return model, history

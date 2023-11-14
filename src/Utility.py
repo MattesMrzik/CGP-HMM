@@ -27,14 +27,11 @@ def append_time_ram_stamp_to_file(description, bench_file_path, start = None, ):
 
         json.dump(d, file)
         file.write("\n")
-
-
 ################################################################################
 ################################################################################
 ################################################################################
 
-
-# ====> the code before may be outdated <=======================================
+# ====> the code below may be outdated <=======================================
 def generate_state_emission_seqs(a,b,n,l, a0 = [], one_hot = False):
 
     state_space_size = len(a)
@@ -109,7 +106,6 @@ def find_indices_in_sparse_A_that_are_zero(config = None, \
         print("finish code here kj345jh2kk23")
         exit()
 
-
     A_indices = get_indices_for_weights_for_A(config)
     A_indices += get_indices_for_constants_for_A(config)
 
@@ -165,7 +161,6 @@ def from_before_and_after_json_matrices_calc_diff_and_write_csv(config = None):
     # diff_2d_list = [[float(entry) for entry in col] for col in diff]
     config.model.B_as_dense_to_file(f"{out_dir}/B_diff.csv", "dummy_weights", with_description = True, B = diff)
     print("done with b")
-
 
 ################################################################################
 def get_A_for_viewing_parameters(before_fit = False, after_fit = False):
@@ -607,7 +602,6 @@ def brute_force_viterbi_log_version(a,b,y,a0 = []):
             max = p
             arg_max = guess
     return np.array(arg_max)
-
 
 ################################################################################
 ################################################################################

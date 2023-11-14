@@ -5,8 +5,6 @@ import json
 import os
 import numpy as np
 
-
-
 def get_exon_from_fasta_path(fasta_path) -> str:
     try:
         return re.search("exon_(.+?_\d+_\d+)", fasta_path).group(1)
@@ -24,7 +22,6 @@ def get_dir_path_from_fasta_nCodons_and_out_path(out_path, nCodons, fasta_path =
     if fasta_path == None or fasta_path == -1:
         return os.path.join(out_path, f"{get_date_str()}_{random_id}_generated_{nCodons}")
     return os.path.join(out_path,f"{get_date_str()}_{random_id}_{get_exon_from_fasta_path(fasta_path)}_{nCodons}")
-
 
 class Config():
 
@@ -283,17 +280,14 @@ class Config():
             print("fasta_path is a dir, but should be a fasta file")
             exit(1)
 
-
         assert self.batch_size > 0, "batch_size must be greater than 0"
         assert self.AB in ["dd", "ds", "sd", "ss"], "-AB must be in ['dd', 'ds', 'sd', 'ss']"
-
 
         if self.manual_forward:
             assert self.AB == "dd", "manula forward only works with dense matrices, so pass -AB dd"
 
         if (self.priorA or self.priorB):
             assert self.nCodons > 1, "when using prior and internal model you must use more than 1 codon since for 1 codon there are no priors for the transition matrix"
-
 
         assert self.flatten_B_init >= 0 and self.flatten_B_init <= 1, f"self.flatten_B_init must be in [0,1] but is {self.flatten_B_init}"
 
@@ -390,8 +384,6 @@ class Config():
         self.parser.add_argument('--eager_execution', action='store_true', help ='Run model.fit in eager execution.')
         self.parser.add_argument('--manual_forward', action = 'store_true', help = 'gets mean likelihood of with manual loop')
 
-
-
     def get_args_for_viterbi(self):
         if self.parser == -1:
             self.parser = argparse.ArgumentParser(description='args for Viterbi.py')
@@ -402,7 +394,6 @@ class Config():
         self.parser.add_argument('--viterbi_threads', type = int, default = 1, help = 'How many threads for viterbi.cc.')
         self.parser.add_argument('--after_or_before', default = "a", help = 'Use matrices of after/before training.')
         self.parser.add_argument('--out_file_path', help = 'Path of outfile.')
-
 
     def get_args_for_get_dot_and_png(self):
         if self.parser == -1:

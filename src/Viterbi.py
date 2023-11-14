@@ -14,7 +14,6 @@ import sys
 sys.path.insert(0, "../scripts")
 from convert_kernels_to_matrices import convert_kernel_files_to_matrices_files
 
-
 ################################################################################
 def retrieve_homo_sapiens_from_combinded_fasta(fasta_path):
         try:
@@ -174,8 +173,8 @@ def fasta_true_state_seq_and_optional_viterbi_guess_alignment(fasta_path, viterb
     '''
     fasta_path is config.fasta_path (combined.fasta in most cases)
     assumes viterbi only contains prediction for human
-    then writes an alignemnt of the human sequence
-    and additional lines with coordinates to indicate where the exon is in the genome
+    then writes an alignemnt of the human sequence and
+    additional lines with coordinates to indicate where the exon is in the genome
     '''
     len_of_line_in_clw = 50
 

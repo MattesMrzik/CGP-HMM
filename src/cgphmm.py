@@ -6,7 +6,6 @@ def main(config):
     import json
     import datetime
 
-
     model, history = fit_model(config)
 
     # writing the loss history and metrics to file
@@ -21,7 +20,6 @@ def main(config):
     if config.after_fit_png:
         cell = model.get_layer("cgp_hmm_layer").C
         config.model.export_to_dot_and_png(cell.A_kernel, cell.B_kernel, name = "after_fit", to_png = config.nCodons < 10)
-
 
     from Viterbi import main
     config.only_first_seq = True

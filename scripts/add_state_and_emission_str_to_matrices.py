@@ -38,7 +38,6 @@ def call_for_every_A_and_B_found_in_subdirs(model, parent_path):
             if file == "B.json":
                 add_description_to_B(model, os.path.join(dirpath, file))
 
-
 if __name__ == "__main__":
     import sys
     sys.path.insert(0, "../src")

@@ -33,7 +33,6 @@ class Prior():
         dss_prior_path_df = os.path.join(path_to_dir_that_to_save_precal, "dss.csv")
         dss_prior_path_dict = os.path.join(path_to_dir_that_to_save_precal, "dss.json")
 
-
         # aux
         if os.path.exists(ass_aux_path):
             with open(ass_aux_path, "r") as file:
@@ -52,7 +51,6 @@ class Prior():
             self.DSS_aux = self.get_auxilary_data(intron_pbl_path, "DSS")
             with open(dss_aux_path, "w") as file:
                  json.dump(self.DSS_aux, file)
-
 
         # exon
         if os.path.exists(exon_prior_path_df) and os.path.exists(exon_prior_path_dict):
@@ -104,7 +102,6 @@ class Prior():
             with open(dss_prior_path_dict, "w") as file:
                  json.dump(self.DSS_dict, file)
             self.DSS_df.to_csv(dss_prior_path_df)
-
 
     def load_priors_exon_priors(self, path, description = "EMISSION", order = 2):
         data = []
@@ -181,7 +178,6 @@ class Prior():
         else:
             print("desciption for get_sum_of_missing_values_added_pseudocount must be either ASS or DSS")
             exit()
-
 
     def load_priors_splice_site(self, path,  description = None, left_pattern_len = None, right_patterh_len = None):
         data = []

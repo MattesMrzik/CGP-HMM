@@ -21,9 +21,7 @@ def get_all_exons_df(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str,int,int, 
 
     NM_df = hg38_refseq_bed[hg38_refseq_bed['name'].str.startswith('NM_')]
     NM_df = NM_df[NM_df['chrom'].apply(lambda x: not re.search("_", x))]
-
     NM_df = NM_df.reset_index(drop=True)
-
 
     total_rows = len(NM_df)
     res = 50
@@ -33,7 +31,6 @@ def get_all_exons_df(hg38_refseq_bed : pd.DataFrame) -> dict[tuple[str,int,int, 
     for i, (index, row) in enumerate(NM_df.iterrows()):
         if num_tenths != 0 and (i + 1) % num_tenths == 0:
             print(f"get_exons [{'#' *((i + 1) // num_tenths)}{' ' * (res - (i + 1) // num_tenths)}]", end = "\r")
-
 
         for exon_id, (exon_len, exon_start) in enumerate(zip(row["blockSizes"], row["blockStarts"])):
             exon_start_in_genome = row["chromStart"] + exon_start
@@ -109,7 +106,6 @@ def choose_exon_of_all_its_duplicates_to_new_col(df):
         dists_to_left_neighbour =  [get_dist_to_left_exon(exon_key, exon_row)  for exon_row in exon_bed_rows]
         dists_to_right_neighbour = [get_dist_to_right_exon(exon_key, exon_row) for exon_row in exon_bed_rows]
 
-
         min_over_left_exons_of_dist_to_left_exon = min(dists_to_left_neighbour)
         min_over_right_exons_of_dist_to_right_exon = min(dists_to_right_neighbour)
         row["min_left_dist"] = min_over_left_exons_of_dist_to_left_exon
@@ -123,7 +119,6 @@ def choose_exon_of_all_its_duplicates_to_new_col(df):
             row["neighbours"] = "inf"
             df.iloc[index,:] = row
             continue
-
 
         for j in range(len(exon_bed_rows)):
             if dists_to_left_neighbour[j] == min_over_left_exons_of_dist_to_left_exon and \
@@ -286,11 +281,9 @@ def add_ref_seqs_to_be_lifted_cols(df, args):
         row["left_lift_end"] = left_lift_end
         row["right_lift_start"] = right_lift_start
         row["right_lift_end"] = right_lift_end
-
         row["before_strip_seq_len"] = right_lift_start - left_lift_end
 
         df.iloc[index,:] = row
-
 
     df["exon_len_to_seq_len_ratio"] = df["exon_len"] / df["before_strip_seq_len"]
     print()

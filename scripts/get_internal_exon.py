@@ -108,7 +108,6 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
     species_bed_df["stop"] = species_bed_df["stop"].astype(int)
     species_bed_df = species_bed_df.sort_values("start")
 
-
     #  merge hits that are close to each other
     rows_to_keep = []
     last_stop = -1
@@ -121,7 +120,6 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
             rows_to_keep.append(i)
         last_stop = row["stop"]
     species_bed_df = species_bed_df.iloc[rows_to_keep,:]
-
 
     # finding left-right or left-middle-right pairs,
     # that can be used for hal2fasta
@@ -168,12 +166,10 @@ def extract_info_and_check_bed_file(bed_dir_path : str = None, \
         os.system(f"mv {bed_dir_path}/{species_name}.bed {bed_dir_path}/{species_name}_errorcode_start_greater_stop.bed")
         return False
 
-
     extra_seq_data["middle_exon"] = found_left_middle_right_id != -1
     if extra_seq_data["middle_exon"]:
         extra_seq_data["middle_exon_lift_start"] =  species_bed_df[species_bed_df["name"] == "middle"]["start"].values[0]
         extra_seq_data["middle_exon_lift_stop"] =  species_bed_df[species_bed_df["name"] == "middle"]["stop"].values[0]
-
 
     extra_seq_data["on_reverse_strand"] = species_bed_df["strand"].unique()[0] == "-"
     extra_seq_data["seq_name"] = species_bed_df["seq"].unique()[0]
@@ -429,7 +425,6 @@ def make_exon_data_sets_for_choosen_df(choosen_exons_df) -> None:
             ):
                 continue
 
-
             # getting the seq, from human: [left exon [litfed]] [intron] [exon] [intron] [[lifted] right exon]
             # the corresponding seq of [intron] [exon] [intron] in other species
             out_fa_path = f"{non_stripped_seqs_dir}/{single_species}.fa"
@@ -480,10 +475,8 @@ def plot(dfs,
         else:
             title = column
 
-
     labels = []
     plt.close()
-
 
     if plot_table:
         assert type(dfs) is not list,"when using plot_table dfs must the original df"
@@ -560,7 +553,6 @@ if __name__ == "__main__":
     parser.add_argument('--len_of_left_to_be_lifted', type = int, default = 10, help = 'len_of_left_to_be_lifted')
     parser.add_argument('--len_of_right_to_be_lifted', type = int, default = 10, help = 'len_of_right_to_be_lifted')
     parser.add_argument('--path', default = "../../../cgp_data", help = 'Working directory')
-    parser.add_argument('-v', action = 'store_true', help = 'verbose')
     parser.add_argument('--stats_table', help ='Path to directory to make the stats_table')
     args = parser.parse_args()
 

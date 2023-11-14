@@ -78,8 +78,6 @@ class Model(ABC):
 
         return A, B
 
-
-
 ################################################################################
     def export_to_dot_and_png(self, A_weights = None, \
                               B_weights = None, \
@@ -96,8 +94,6 @@ class Model(ABC):
 
         if not os.path.exists(dir_path):
             os.system(f"mkdir -p {dir_path}")
-
-
 
         # TODO: add I parameters???
         # n_labels = self.number_of_emissions ** (self.config.order + 1)
