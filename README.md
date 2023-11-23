@@ -18,6 +18,7 @@ beneficial in the era of big data, where the number of sequenced genomes is grow
 exponentially.
 
 *The transitions of the HMM in use:*
+
 ![See data/hmm.png](https://github.com/MattesMrzik/CGP-HMM/blob/master/data/hmm.png)
 
 ## Install
