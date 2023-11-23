@@ -1,5 +1,7 @@
 # CGP-HMM
 This is the code of my masters's thesis, with the title "Unsupervised Learning of a Hidden Markov Model of a Family of Gene Structures from Unaligned Genomic Sequences.
+
+Supervisor: [Prof. Dr. Mario Stanke](https://math-inf.uni-greifswald.de/en/department/about-us/employees/prof-dr-mario-stanke-english/), the inventor of the gene prediction tool [Augustus](http://bioinf.uni-greifswald.de/augustus/).
 ## Abstract
 In the rapidly advancing field of genomics, an increasing number of genomes are being
 sequenced and are awaiting structural annotation. This thesis introduces `cgphmm`, a pioneering tool that utilizes alignment-free comparative analysis across multiple species.
@@ -14,6 +16,9 @@ is highly accurate in predicting exon-intron boundaries of human coding exons. T
 overall runtime scales linearly with the number of species. This feature is particularly
 beneficial in the era of big data, where the number of sequenced genomes is growing
 exponentially.
+
+*The transitions of the HMM in use:*
+![See data/hmm.png](https://github.com/MattesMrzik/CGP-HMM/blob/master/data/hmm.png)
 
 ## Install
 
